@@ -9,7 +9,7 @@ You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each co
 
 ## SVG icons (`Plugin.Maui.Spine.Svg`, comes with the core)
 
-Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`) — that registers them. Reference **`Plugin.Maui.Spine.Svg.Icons`** for 240 ready-made glyphs (chevrons, close, settings, search, filter, share, menu, check, info, warning, edit, delete, rooms, appliances, media, weather); nothing to register, `SpineIcons.Bell` is `"Bell.svg"`.
+Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`) — that registers them. Reference **`Plugin.Maui.Spine.Svg.Icons`** for 240 ready-made glyphs (chevrons, close, settings, search, filter, share, menu, check, info, warning, edit, delete, rooms, appliances, media, weather); nothing to register, `SpineIcons.Bell` is `"Bell.svg"`. Delete and remove actions always use `Delete.svg` (`SpineIcons.Delete`), never `Trashcan.svg`.
 
 ```xml
 <!-- MyApp.csproj -->

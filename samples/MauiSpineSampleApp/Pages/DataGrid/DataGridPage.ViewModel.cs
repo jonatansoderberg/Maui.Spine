@@ -48,7 +48,7 @@ public partial class DataGridPageViewModel : SampleViewModel
                 new MenuAction("Details", "info.svg", RowTappedCommand),
                 new MenuAction("Star", "star.svg", ToggleFavouriteCommand),
             },
-            new MenuAction("Delete", "trashcan.svg", DeleteCommand) { IsDestructive = true },
+            new MenuAction("Delete", "delete.svg", DeleteCommand) { IsDestructive = true },
         ];
     }
 

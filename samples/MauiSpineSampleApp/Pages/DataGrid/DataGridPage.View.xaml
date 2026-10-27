@@ -99,7 +99,7 @@
                     <DataGridSwipeAction Text="Star" IconSvg="Pin.svg" Command="{Binding ToggleFavouriteCommand}" />
                 </DataGrid.LeftSwipeActions>
                 <DataGrid.RightSwipeActions>
-                    <DataGridSwipeAction Text="Delete" IconSvg="Trashcan.svg" BackgroundColor="#E5484D"
+                    <DataGridSwipeAction Text="Delete" IconSvg="Delete.svg" BackgroundColor="#E5484D"
                                          Command="{Binding DeleteCommand}" />
                 </DataGrid.RightSwipeActions>
             </DataGrid>
@@ -158,7 +158,7 @@
                             new MenuAction("Details", "info.svg", OpenCommand),
                             new MenuAction("Star", "star.svg", StarCommand),
                         },
-                        new MenuAction("Delete", "trashcan.svg", DeleteCommand)
+                        new MenuAction("Delete", "delete.svg", DeleteCommand)
                             { IsDestructive = true },
                     ];
 

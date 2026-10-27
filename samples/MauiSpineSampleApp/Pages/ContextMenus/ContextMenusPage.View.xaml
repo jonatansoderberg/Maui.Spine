@@ -87,7 +87,7 @@
                         new MenuAction("Copy name", "copy.svg", CopyCommand),
                         new MenuAction("Share", "share.svg", ShareCommand),
                     },
-                    new MenuAction("Remove", "trashcan.svg", RemoveCommand) { IsDestructive = true },
+                    new MenuAction("Remove", "delete.svg", RemoveCommand) { IsDestructive = true },
                 ];
 
                 [RelayCommand]

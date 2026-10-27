@@ -10,7 +10,7 @@ public partial class GuardsPageViewModel(INavigationService _navigation) : Sampl
     [RelayCommand]
     private Task OpenVault() => _navigation.NavigateToAsync<VaultPage>();
 
-    public MenuItems DraftMenu => [new MenuAction("Delete", "trashcan.svg", DeleteCommand) { IsDestructive = true }];
+    public MenuItems DraftMenu => [new MenuAction("Delete", "delete.svg", DeleteCommand) { IsDestructive = true }];
 
     [Confirm("Delete the draft?")]
     [RelayCommand]
@@ -19,6 +19,6 @@ public partial class GuardsPageViewModel(INavigationService _navigation) : Sampl
     [RelayCommand]
     private Task ShowActions() => _navigation.ShowActionsAsync(new ActionSheet("Draft")
     {
-        Actions = [new("Delete", "trashcan.svg", DeleteCommand) { IsDestructive = true }],
+        Actions = [new("Delete", "delete.svg", DeleteCommand) { IsDestructive = true }],
     });
 }

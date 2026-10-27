@@ -16,7 +16,7 @@ public class ActionSheetTests
             Actions =
             [
                 new("Share", "Share.svg", share),
-                new("Remove", "Trashcan.svg", share) { IsDestructive = true },
+                new("Remove", "Delete.svg", share) { IsDestructive = true },
             ],
         };
 

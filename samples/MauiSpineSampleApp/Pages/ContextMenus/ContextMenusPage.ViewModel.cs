@@ -51,7 +51,7 @@ public partial class ContextMenusPageViewModel : SampleViewModel
                 new MenuAction("Copy name", "copy.svg", CopyCommand),
                 new MenuAction("Share", "share.svg", ShareRowCommand),
             },
-            new MenuAction("Remove", "trashcan.svg", RemoveCommand) { IsDestructive = true },
+            new MenuAction("Remove", "delete.svg", RemoveCommand) { IsDestructive = true },
         ];
 
         // The header bar's one trailing slot shows the card's menu instead of the theme menu.
