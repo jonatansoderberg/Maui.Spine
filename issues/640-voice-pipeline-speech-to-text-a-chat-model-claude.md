@@ -44,6 +44,11 @@
 - **An uninterruptible farewell (owner, 2026-10-20):** once the model hangs up, the microphone is not sent (realtime, GPT-Live) or listened to (pipeline), the provider's input buffer is cleared, and the call ends after the farewell. On the iPhone the user's "Hej då" back had cut the farewell and the model answered it again. The Stop button still keeps the call going.
 - **GPT-Live hangs up:** the relay tells the voice to hand goodbyes to its backend when the app's tools include `end_conversation`; it had only said "Hej då!" itself.
 - **ChatComposer's AutoFocus runs once per composer:** the keyboard came up on its own when a call ended (the composer was loaded again).
+- **2026-10-27, after master was merged:**
+  - The voice token request keeps trying a server that is still starting (up to 90 s), and the Chat page says "Waking the server…": the sample server on Azure's free plan took 54 s to start.
+  - A page with a footer keeps the bottom of its safe area. Since #657 the chat's composer sat on the home indicator and the screen's rounded corners cut its buttons.
+  - GPT-Live's voice never delegated in a call on the iPhone (the backend saw 0 tokens), so `end_conversation` never ran. The relay now gives a goodbye it hears (or reads in typed text) to the backend itself, as a message plus `response.create`, and the backend decides whether to hang up. Work the relay starts is followed under its own delegation id.
+  - `VoiceAvatarDriver` opens the mouth by the answer's level against its recent peak: GPT-Live's quiet voice barely opened it.
 - **Tests:** the GPT-Live and pipeline tests read the transcript under the same lock as the session's dispatch ("Collection was modified" now and then).
 - **Docs:** voice.md (A pipeline), speech.md (Writing speech down, Rendering to audio), ai-server.md (Streamed speech, Transcription, the price rows), the package READMEs, the spine-setup and spine-controls skills, plan step 4.7.
 

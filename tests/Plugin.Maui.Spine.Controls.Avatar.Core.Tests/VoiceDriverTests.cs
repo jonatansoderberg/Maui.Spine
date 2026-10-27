@@ -92,6 +92,26 @@ public class VoiceDriverTests
     }
 
     [Fact]
+    public void A_quiet_voice_still_opens_the_mouth_as_wide_as_a_loud_one()
+    {
+        float Widest(float level)
+        {
+            var (runtime, audio) = Create();
+            audio.Frame.State = VoiceState.Speaking;
+            audio.Playing = new("item-1", TimeSpan.Zero);
+            audio.IsPlaying = true;
+            audio.Frame.OutputLevel = level;
+            var frame = Run(runtime, audio, 6);
+            return frame.Speech.ToArray().Where(w => w.Pose.StartsWith("viseme_", StringComparison.Ordinal)).Select(w => w.Weight).DefaultIfEmpty().Max();
+        }
+
+        // One voice at a twelfth of the other's level.
+        var quiet = Widest(0.05f);
+        Assert.True(quiet > 0.2f, $"the quiet voice's mouth opened {quiet}");
+        Assert.True(quiet >= Widest(0.6f) * 0.8f);
+    }
+
+    [Fact]
     public void WithoutVisemesASilentAnswerKeepsTheMouthShut()
     {
         var (runtime, audio) = Create();

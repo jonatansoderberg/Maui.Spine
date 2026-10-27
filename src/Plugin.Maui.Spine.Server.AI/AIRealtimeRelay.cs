@@ -69,6 +69,11 @@ internal sealed class AIRealtimeRelay
     private bool _confirmed;
     private string? _reason;
     private volatile bool _closing;
+    // While the app offers end_conversation: what the user has said since the voice last spoke, and when the backend was
+    // last given a goodbye (see NudgeOnGoodbyeAsync).
+    private volatile bool _offersHangUp;
+    private readonly System.Text.StringBuilder _heard = new();
+    private long _nudgedAt;
     private volatile bool _timeLimit;
 
     public AIRealtimeRelay(
@@ -228,6 +233,15 @@ internal sealed class AIRealtimeRelay
 
                 case "session.output_audio.delta" when IsSilence(message):
                     continue;
+
+                case "session.input_transcript.delta" when _offersHangUp && Text(Parse(message), "delta") is { Length: > 0 } words:
+                    await NudgeOnGoodbyeAsync(words, cancellationToken);
+                    break;
+
+                case "session.output_transcript.delta":
+                    lock (_heard)
+                        _heard.Clear();
+                    break;
             }
 
             await SendAppAsync(message, cancellationToken);
@@ -257,6 +271,8 @@ internal sealed class AIRealtimeRelay
                 case "spine.user_text" when Parse(message) is { } typed && Text(typed, "text") is { Length: > 0 } text:
                     // GPT-Live has no user message to append: the server's own instruction frames the text as the user's.
                     var quoted = text.Length <= MaxAppend ? text : text[..MaxAppend];
+                    if (_offersHangUp)
+                        await NudgeOnGoodbyeAsync(" " + quoted, cancellationToken);
                     await SendProviderAsync(new JsonObject
                     {
                         ["type"] = "session.instructions.append",
@@ -270,6 +286,7 @@ internal sealed class AIRealtimeRelay
                     break;
 
                 case "session.update" when (Parse(message)?["session"]?["tools"]) is JsonArray tools:
+                    _offersHangUp = tools.Any(t => Text(t as JsonObject, "name") == EndConversation);
                     await SendProviderAsync(new JsonObject
                     {
                         ["type"] = "session.update",
@@ -317,11 +334,64 @@ internal sealed class AIRealtimeRelay
         await ContinueAsync(delegationId, cancellationToken);
     }
 
+    /// <summary>
+    /// The voice decides when to delegate, and it often says goodbye without handing anything to the backend, which alone
+    /// has end_conversation (forum reports, and an iPhone on 2026-10-27: the backend saw 0 tokens). When the user's words
+    /// sound like a goodbye, the relay gives them to the backend itself and starts it, and the backend decides whether
+    /// to hang up. The words only trigger it; nothing here ends a call.
+    /// </summary>
+    private async Task NudgeOnGoodbyeAsync(string words, CancellationToken cancellationToken)
+    {
+        string said;
+        lock (_heard)
+        {
+            _heard.Append(words);
+            if (_heard.Length > 300)
+                _heard.Remove(0, _heard.Length - 300);
+            said = _heard.ToString().Trim();
+        }
+
+        var now = _time.GetTimestamp();
+        if (!Goodbye.IsMatch(said) || _nudgedAt != 0 && _time.GetElapsedTime(_nudgedAt, now) < NudgeAgain)
+            return;
+        _nudgedAt = now;
+        lock (_heard)
+            _heard.Clear();
+
+        _logger.LogInformation("AI feature '{Feature}': the user said goodbye; the Live backend is asked whether to hang up.", _feature.Name);
+        await SendProviderAsync(new JsonObject
+        {
+            ["type"] = "response.item.create",
+            ["item"] = new JsonObject
+            {
+                ["type"] = "message",
+                ["role"] = "user",
+                ["content"] = new JsonArray(new JsonObject
+                {
+                    ["type"] = "input_text",
+                    ["text"] = $"The user just said: \"{said}\". If they are saying goodbye or are done, call {EndConversation}; otherwise do nothing.",
+                }),
+            },
+        }.ToJsonString(), cancellationToken);
+        await SendProviderAsync("""{"type":"response.create"}""", cancellationToken);
+    }
+
+    private static readonly TimeSpan NudgeAgain = TimeSpan.FromSeconds(10);
+
+    // Goodbyes in Swedish and English, the Showcase's languages; the backend makes the call.
+    private static readonly System.Text.RegularExpressions.Regex Goodbye = new(
+        @"\b(hej\s*då|hejdå|adjö|ha det (så )?(bra|gott)|vi hörs|ses (sen|snart|imorgon)|tack för (hjälpen|idag|samtalet)|bye|goodbye|see you|talk (to you )?later|good ?night)\b",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    // Backend work the relay started itself (a goodbye) may carry no delegation id; its calls are followed under this one.
+    private const string RelayDelegation = "spine-relay";
+
     /// <summary>Follows the backend's work: its function calls, when a response is done, and the tokens it used.</summary>
     private void Backend(JsonObject envelope, CancellationToken cancellationToken)
     {
-        if (envelope["event"] is not JsonObject inner || Text(envelope, "delegation_id") is not { } delegationId)
+        if (envelope["event"] is not JsonObject inner)
             return;
+        var delegationId = Text(envelope, "delegation_id") ?? RelayDelegation;
 
         switch (Text(inner, "type"))
         {
@@ -589,7 +659,8 @@ internal sealed class AIRealtimeRelay
         var prompt = _feature.Options.SystemPrompt;
         // The voice cannot hang up itself; only its backend has the app's end_conversation. Told nothing, GPT-Live just said
         // goodbye and the call went on (seen on an iPhone, 2026-10-20).
-        if (tools.Any(t => Text(t as JsonObject, "name") == EndConversation))
+        _offersHangUp = tools.Any(t => Text(t as JsonObject, "name") == EndConversation);
+        if (_offersHangUp)
             prompt = (prompt is { Length: > 0 } own ? own + "\n\n" : "") + HangUpInstruction;
         if (prompt is { Length: > 0 }) session["instructions"] = prompt;
         if (history.Count > 0) session["input"] = history;

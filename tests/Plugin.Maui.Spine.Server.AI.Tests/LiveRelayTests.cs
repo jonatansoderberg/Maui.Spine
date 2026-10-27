@@ -354,6 +354,34 @@ public sealed class LiveRelayTests : IAsyncLifetime
         Assert.Contains("hand it to your backend, which hangs up", instructions);
     }
 
+    private static readonly object HangUp = new { type = "session.start", session = new { tools = new object[] { new { type = "function", name = "end_conversation", description = "Hangs up.", parameters = new { type = "object", properties = new { } } } } } };
+
+    [Fact]
+    public async Task A_goodbye_the_voice_keeps_to_itself_is_given_to_the_backend()
+    {
+        var (_, provider) = await StartAsync(HangUp);
+
+        await provider.SendAsync(new { type = "session.input_transcript.delta", delta = "Okej, tack, ", start_ms = 0, end_ms = 600 });
+        await provider.SendAsync(new { type = "session.input_transcript.delta", delta = "hej då", start_ms = 600, end_ms = 900 });
+
+        var item = await provider.NextAsync("response.item.create");
+        Assert.Contains("Okej, tack, hej då", (string?)item["item"]!["content"]![0]!["text"]);
+        Assert.Contains("end_conversation", (string?)item["item"]!["content"]![0]!["text"]);
+        await provider.NextAsync("response.create");
+    }
+
+    [Fact]
+    public async Task Other_words_and_a_session_without_the_hang_up_tool_start_no_backend_work()
+    {
+        var (_, provider) = await StartAsync(HangUp);
+        await provider.SendAsync(new { type = "session.input_transcript.delta", delta = "Vad är klockan?", start_ms = 0, end_ms = 900 });
+        Assert.Null(await provider.TryNextAsync(TimeSpan.FromMilliseconds(300)));
+
+        var (_, plain) = await StartAsync();
+        await plain.SendAsync(new { type = "session.input_transcript.delta", delta = "Tack, hej då", start_ms = 0, end_ms = 900 });
+        Assert.Null(await plain.TryNextAsync(TimeSpan.FromMilliseconds(300)));
+    }
+
     [Fact]
     public async Task Audio_goes_both_ways_and_what_only_the_server_may_set_stays_behind()
     {
