@@ -59,6 +59,7 @@
                  Summary="IsSelected shows that what the button stands for is on. Filled, the default, fills the button; Tinted draws the glyph in the action's Tint over a faint wash of it. Tint also colours the glyph or text when the button is off. Tap the star to turn it on."
                  OptionsCommand="{Binding ShowStarOptionsCommand}">
             <Button Text="{Binding StarLabel}" Command="{Binding ShowStarCommand}" />
+            <Button Text="{Binding StatusLabel}" Command="{Binding ShowStatusCommand}" />
             <Example.Code>
                 _star = new PageAction(null, ToggleStarCommand)
                 {

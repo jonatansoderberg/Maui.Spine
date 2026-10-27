@@ -370,6 +370,11 @@ internal sealed class PageActionView : ContentView
             InputTransparent = true,
             IsVisible = false,
         };
+        // A status (PageAction.IsStatus): a small glyph and secondary text, no button
+        readonly HorizontalStackLayout _status;
+        readonly Image _statusIcon = new() { WidthRequest = StatusGlyphSize, HeightRequest = StatusGlyphSize, VerticalOptions = LayoutOptions.Center };
+        readonly Label _statusText = new() { FontSize = 15, VerticalOptions = LayoutOptions.Center, LineBreakMode = LineBreakMode.NoWrap };
+        const double StatusGlyphSize = 13;
         string? _currentSvg;
         PageAction? _action;
         // A confirm action leads the screen: tinted glass on iOS 26, a filled accent circle elsewhere. A selected
@@ -476,12 +481,59 @@ internal sealed class PageActionView : ContentView
                 IsVisible = false,
             };
 
+            _status = new HorizontalStackLayout
+            {
+                Spacing = 6,
+                Padding = new Thickness(8, 0),
+                VerticalOptions = LayoutOptions.Center,
+                IsVisible = false,
+                Children = { _statusIcon, _statusText },
+            };
+            var statusTap = new TapGestureRecognizer();
+            statusTap.Tapped += (_, _) =>
+            {
+                if (_action is { Command: { } command } action && command.CanExecute(action.CommandParameter))
+                    command.Execute(action.CommandParameter);
+            };
+            _status.GestureRecognizers.Add(statusTap);
+
             Children.Add(_textButton);
             Children.Add(_imageButton);
             Children.Add(_morphIcon);
             Children.Add(_badge);
+            Children.Add(_status);
 
             ApplyForeground();
+        }
+
+        /// <summary>A status: the glyph in the action's tint and the text in the secondary label colour, nothing to press.</summary>
+        void ApplyStatus(PageAction action)
+        {
+            Spin(null, action);
+            _textButton.IsVisible = false;
+            _imageButton.IsVisible = false;
+            _morphIcon.IsVisible = false;
+            _badge.IsVisible = false;
+            _status.IsVisible = true;
+            _status.Opacity = action.IsEnabled ? 1 : 0.4;
+            _statusText.Text = action.Text ?? string.Empty;
+            ToolTipProperties.SetText(_status, action.Description);
+            SemanticProperties.SetDescription(_status, action.Description ?? action.Text);
+            ApplyStatusColors();
+        }
+
+        void ApplyStatusColors()
+        {
+            if (_action is not { IsStatus: true } action)
+                return;
+
+            var secondary = _owner.Foreground?.WithAlpha(0.6f) ?? (IsDark ? Color.FromArgb("#AEAEB2") : Color.FromArgb("#6C6C70"));
+            _statusText.TextColor = secondary;
+            var names = IPlatformApplication.Current?.Services.GetService<ResourceNameCache>();
+            _statusIcon.IsVisible = !string.IsNullOrWhiteSpace(action.Svg) && names?.Resolve(action.Svg!) is not null;
+            if (_statusIcon.IsVisible)
+                _statusIcon.Source = SvgBitmapLoader.LoadFromEmbedded(names!.Resolve(action.Svg!)!, StatusGlyphSize, StatusGlyphSize,
+                    Tint() ?? secondary, Thickness.Zero, lineWidthScale: (float)HeaderBarConstants.GlyphLineWidthScale, roundLineEnds: true);
         }
 
         /// <summary>
@@ -836,6 +888,7 @@ internal sealed class PageActionView : ContentView
 
             if (_owner._morph && _morphIcon.IsVisible)
                 ApplyMorphingImage();
+            ApplyStatusColors();
         }
 
         // The glyph turning for a busy action that spins, or null; any other busy action only dims.
@@ -868,8 +921,16 @@ internal sealed class PageActionView : ContentView
                 _textButton.IsVisible = false;
                 _imageButton.IsVisible = false;
                 _badge.IsVisible = false;
+                _status.IsVisible = false;
                 return;
             }
+
+            if (action.IsStatus)
+            {
+                ApplyStatus(action);
+                return;
+            }
+            _status.IsVisible = false;
 
             var hasSvg = !string.IsNullOrWhiteSpace(action.Svg);
 

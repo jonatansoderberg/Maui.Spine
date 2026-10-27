@@ -249,6 +249,20 @@ public sealed partial class PageAction : ObservableObject
     public partial bool SpinsWhenBusy { get; set; }
 
     /// <summary>
+    /// Shows the action as a status rather than a button, such as "Sent 14:05" beside a desk app's buttons: a small
+    /// <see cref="Svg"/> glyph drawn in <see cref="Tint"/> (green for done, red for a fault) followed by
+    /// <see cref="Text"/> in the secondary label colour, with no button shape or glass. A tap runs
+    /// <see cref="Command"/> when there is one; <see cref="Description"/> is the tooltip.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// _sent = new PageAction(null, OpenDeviceCommand) { IsStatus = true, Svg = "Check.svg", Tint = Colors.Green, Text = "Sent 14:05" };
+    /// </code>
+    /// </example>
+    [ObservableProperty]
+    public partial bool IsStatus { get; set; }
+
+    /// <summary>
     /// Short text shown in a small pill over the button, such as a count. <see langword="null"/> hides the pill.
     /// </summary>
     [ObservableProperty]
