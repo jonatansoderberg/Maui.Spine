@@ -55,6 +55,23 @@
             </Example.Code>
         </Example>
 
+        <Example Title="A toggle with a colour of its own"
+                 Summary="IsSelected shows that what the button stands for is on. Filled, the default, fills the button; Tinted draws the glyph in the action's Tint over a faint wash of it. Tint also colours the glyph or text when the button is off. Tap the star to turn it on."
+                 OptionsCommand="{Binding ShowStarOptionsCommand}">
+            <Button Text="{Binding StarLabel}" Command="{Binding ShowStarCommand}" />
+            <Example.Code>
+                _star = new PageAction(null, ToggleStarCommand)
+                {
+                    Svg = "star.svg",
+                    SelectedStyle = PageActionSelectedStyle.Tinted,
+                    Tint = Color.FromArgb("#FF9500"),
+                    DarkTint = Color.FromArgb("#FF9F0A"),
+                };
+
+                _star.IsSelected = !_star.IsSelected;
+            </Example.Code>
+        </Example>
+
         <Example Title="Replace the back button"
                  Summary="A Primary action takes the leading slot in place of Back: a Cancel on a page that edits something. Add it and remove it while the page shows.">
             <Button Text="{Binding CancelLabel}" Command="{Binding ToggleCancelCommand}" />
