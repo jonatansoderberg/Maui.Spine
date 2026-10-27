@@ -268,6 +268,20 @@ edge.Intensity = () => voice.UpdateFrame().OutputLevel;
 - **Recovery.** When the hardware configuration changes (voice processing comes on, a headset is plugged in), the engine is started again. When media services are reset, it is rebuilt. Interruptions pause and resume it. Notifications are handled on the main thread, and no exception leaves an audio callback, which would end the app.
 - **A Mac that refuses voice processing.** If the voice-processing unit fails to start, the engine starts without it and logs a warning. `IsVoiceProcessingOn` is then `false`.
 
+## Live tests
+
+`tests/Plugin.Maui.Spine.Voice.LiveTests` runs every session kind against the real models, as the app runs it. The user asks "Vad är klockan?", which only the app's `show_time` knows, then says goodbye, and the session must end on its own. The kinds covered are typed chat through the server (with ChatView's `end_conversation`), Realtime, GPT-Live through the relay, and a Claude pipeline.
+
+- The server is the push sample's AI features, hosted in the test.
+- The questions are spoken by OpenAI's voice and fed in real time through an audio engine without a device.
+- The keys come from the environment, never from a file. Without them the tests are skipped. A run costs a few cents:
+
+```bash
+OPENAI_API_KEY=… ANTHROPIC_API_KEY=… dotnet test tests/Plugin.Maui.Spine.Voice.LiveTests
+```
+
+The session's log and states go to the test output (`--logger "console;verbosity=detailed"`). Run them after a change to a session, the relay or the functions.
+
 ## Measured
 
 The Showcase's **Voice lab** page plays 14 seconds of Swedish speech through the engine's own player while the microphone records, once without echo cancellation and once with it. It reports the median level of 100 ms windows, so someone talking does not skew it, plus the loudest window, the room, the latency and the CPU. The results go to `voice-lab.json` in the app's data, and each take to a WAV file beside it.

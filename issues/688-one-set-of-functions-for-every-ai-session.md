@@ -1,8 +1,8 @@
 # Issue #688 — One set of functions for every AI session: device and server everywhere, ending on intent, the user's context
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/688
-**Branch:** one per PR: issue/688-ai-function-context (PR 2, #691, merged), issue/688-one-invoker (PR 3, #692, merged), issue/688-catalogue (PR 4, #693, merged), issue/688-end-on-intent (PR 5)
-**Status:** In Progress
+**Branch:** one per PR: issue/688-ai-function-context (PR 2, #691, merged), issue/688-one-invoker (PR 3, #692, merged), issue/688-catalogue (PR 4, #693, merged), issue/688-end-on-intent (PR 5, #694, merged), issue/688-live-tests (PR 6, #695)
+**Status:** Completed
 
 ## Plan
 The proposal `docs/proposals/spine-ai-functions-unified.md` (accepted 2026-10-27 with the owner's answers), plan step 4.8. Six PRs in order, each merged when its tests pass (owner, 2026-10-27):
@@ -71,7 +71,27 @@ The proposal `docs/proposals/spine-ai-functions-unified.md` (accepted 2026-10-27
   - The call then ends 3 s after the hang-up if the voice says nothing more and had spoken since the user's last words, or 8 s after if it had not.
   - The relay tells the voice with `session.instructions.append` when the app turns ending on or off mid-call, using the same goodbye line as the policy.
 
+### PR 6: every session kind against the real models
+- **`tests/Plugin.Maui.Spine.Voice.LiveTests`** runs each session kind as the app runs it: the user asks for the time, which only the app's `show_time` knows, then says goodbye, and the session must end on its own.
+  - It covers typed chat through the server (with ChatView's `end_conversation`), Realtime, GPT-Live through the relay, and a Claude pipeline (the server writes down and reads aloud).
+  - The server is the push sample's AI features, hosted in the test on a free port.
+  - The questions are spoken by OpenAI's voice and fed through a real-time audio engine (`LiveAudio`) that plays the answers into nothing at the speaker's pace.
+- **Skipped without keys:** `[LiveFact]` needs `OPENAI_API_KEY` (and `ANTHROPIC_API_KEY` for Claude). Without them `dotnet test` reports four skipped.
+- **The session's log and states go to the test output,** so a failed run says what the session saw.
+- **First full run, 2026-10-27:** all four passed.
+
+  | Session kind | Time |
+  |---|---|
+  | Typed chat | 5 s |
+  | Realtime | 25 s |
+  | GPT-Live | 22 s |
+  | Claude pipeline | 76 s |
+
+  The app's clock was asked every time and the server's never; every call hung up on goodbye.
+
 ## Decisions
+- **PR 6, a live test says goodbye again when the call goes on, as a person would.** The transcriber once heard "Tack, hej då!" as "Heador", and Claude rightly answered a greeting. The provider's hearing is not what the test checks. The limits are 90 s per answer because OpenAI's speech has taken 33 s for its first audio.
+- **PR 6, the calls run off xUnit's synchronization context.** The first failures were in the test itself: a failure message read `Task.Result` eagerly and blocked until the call's time limit.
 - **PR 5, typed chat starts anew in ChatView itself.** The owner's choice ("Conversation ended", the next message starts anew) is the view's default, because almost every app wants it. `Ended` lets an app do more. A marker message in `Messages` was rejected: the conversation is the app's, and a voice session given it would read the marker as history.
 - **PR 5, GPT-Live lets the voice decide whether it already said goodbye.** Its voice talks while the backend works, so audio after the user's words can be a filler. Without a language-specific check of the text, only the voice knows whether that audio was the goodbye.
 - **The conversation id is ours, not the provider's.** `ChatOptions.ConversationId` reaches the provider as its own conversation (OpenAI Responses), so Spine's id travels in a header and an `AdditionalProperties` key.

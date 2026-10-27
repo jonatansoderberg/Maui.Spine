@@ -63,6 +63,7 @@
   <Project Path="tests/Plugin.Maui.Spine.Server.Messaging.Tests/Plugin.Maui.Spine.Server.Messaging.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.AI.Tests/Plugin.Maui.Spine.AI.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Voice.Tests/Plugin.Maui.Spine.Voice.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Voice.LiveTests/Plugin.Maui.Spine.Voice.LiveTests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Svg.Tests/Plugin.Maui.Spine.Svg.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Barcodes.Tests/Plugin.Maui.Spine.Barcodes.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Controls.Tests/Plugin.Maui.Spine.Controls.Tests.csproj" />

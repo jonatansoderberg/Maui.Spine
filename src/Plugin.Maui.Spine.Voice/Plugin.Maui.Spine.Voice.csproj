@@ -46,6 +46,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice.LiveTests" />
 		<!-- The avatar's voice driver reads a session's engine (IVoiceAudioOwner.Audio) for the playback clock. -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />

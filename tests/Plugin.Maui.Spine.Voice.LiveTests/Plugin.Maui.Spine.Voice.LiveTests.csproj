@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<IsPackable>false</IsPackable>
+		<RootNamespace>Plugin.Maui.Spine.Voice.LiveTests</RootNamespace>
+		<NoWarn>$(NoWarn);MEAI001</NoWarn>
+	</PropertyGroup>
+
+	<!-- Every session kind against the real models, through a Spine.Server.AI host in the test: skipped without the keys. -->
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI\Plugin.Maui.Spine.AI.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Voice\Plugin.Maui.Spine.Voice.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.AI\Plugin.Maui.Spine.Server.AI.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
+		<Using Include="Plugin.Maui.Spine.AI" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Anthropic" />
+		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" />
+		<PackageReference Include="xunit" />
+		<PackageReference Include="xunit.runner.visualstudio" />
+	</ItemGroup>
+
+</Project>
