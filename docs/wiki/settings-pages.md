@@ -123,7 +123,7 @@ The last section but the delete section, with the header "About". It always has 
 </SpineSection>
 ```
 
-- **About <app>** opens a sheet with the app's own page: what the app does, what is important to know (a medical or financial disclaimer, unofficial data sources), privacy, sources, licences and how to reach the developer. The text is a markdown file in the app (`Resources/Raw/about.md`, and `about.sv.md` beside it for each further language), drawn with [`MarkdownView`](markdown.md) in a scrolling sheet. The sheet loads the file after it is up (a sheet waits for `OnAppearingAsync`), and links in it open with `Launcher`. Licences and sources live there, not in footers.
+- **About <app>** opens a sheet with the app's own page: what the app does, what is important to know (a medical or financial disclaimer, unofficial data sources), privacy, sources, licences and how to reach the developer. The text is a markdown file in the app (`Resources/Raw/about.md`, and `about.sv.md` beside it for each further language), drawn with [`MarkdownView`](markdown.md) in a scrolling sheet: `[NavigableSheet(AllowedDetents = [SheetDetent.Expanded, SheetDetent.FullScreen])]`, closed with the sheet's own close button and no Done action. The sheet loads the file after it is up (a sheet waits for `OnAppearingAsync`), and links in it open with `Launcher`. Licences and sources live there, not in footers.
 - **Send feedback** opens a mail to the developer with the app's name and version as the subject, through `Email.Default.ComposeAsync`, or a `mailto:` link when Mail isn't set up.
 - **Version** shows `AppInfo.Current.VersionString` as the value, `1.0.431494`, and the build time as the detail, `27 October 2026 16:47`, in the app's language. No brackets and no separate build string.
 
@@ -140,6 +140,11 @@ Every build gets a new build number: the minutes since 1 January 2026 UTC. It is
     <AppBuildNumber Condition="'$(AppBuildNumber)' == ''">$([System.Math]::Floor($([MSBuild]::Divide($([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), 639028224000000000)), 600000000))))</AppBuildNumber>
     <ApplicationDisplayVersion>1.0.$(AppBuildNumber)</ApplicationDisplayVersion>
     <ApplicationVersion>$(AppBuildNumber)</ApplicationVersion>
+    <!-- MAUI derives the assembly's versions from ApplicationDisplayVersion, and an assembly version part stops at
+         65535 (CS7034). Fixed ones also keep the build number from recompiling the assembly on every build. -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0</InformationalVersion>
 </PropertyGroup>
 ```
 
