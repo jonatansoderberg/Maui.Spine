@@ -184,8 +184,9 @@ internal sealed class PageActionView : ContentView
     {
         base.OnPropertyChanged(propertyName);
 
+        // A compact bar (a Mac title bar row) gives its actions a smaller height: the circle and the glyph follow.
         if (propertyName == HeightRequestProperty.PropertyName && _front is not null)
-            _front.ApplyIconWidth();
+            ForEachFace(face => face.ApplySize());
     }
 
     void ForEachFace(Action<Face> apply)
@@ -369,11 +370,20 @@ internal sealed class PageActionView : ContentView
             InputTransparent = true,
             IsVisible = false,
         };
+        // A status (PageAction.IsStatus): a small glyph and secondary text, no button
+        readonly HorizontalStackLayout _status;
+        readonly Image _statusIcon = new() { WidthRequest = StatusGlyphSize, HeightRequest = StatusGlyphSize, VerticalOptions = LayoutOptions.Center };
+        readonly Label _statusText = new() { FontSize = 15, VerticalOptions = LayoutOptions.Center, LineBreakMode = LineBreakMode.NoWrap };
+        const double StatusGlyphSize = 13;
         string? _currentSvg;
+        PageAction? _action;
         // A confirm action leads the screen: tinted glass on iOS 26, a filled accent circle elsewhere. A selected
-        // action (a toggle that is on) is filled the same way, with the foreground instead of the accent.
+        // action (a toggle that is on) is filled the same way, with the foreground instead of the accent. A selected
+        // Tinted action is washed instead: its tint at a low alpha under a glyph in the tint.
         bool _prominent;
         bool _selected;
+        bool _washed;
+        Color? _appliedTint;
 
         public Face(PageActionView owner)
         {
@@ -471,12 +481,59 @@ internal sealed class PageActionView : ContentView
                 IsVisible = false,
             };
 
+            _status = new HorizontalStackLayout
+            {
+                Spacing = 6,
+                Padding = new Thickness(8, 0),
+                VerticalOptions = LayoutOptions.Center,
+                IsVisible = false,
+                Children = { _statusIcon, _statusText },
+            };
+            var statusTap = new TapGestureRecognizer();
+            statusTap.Tapped += (_, _) =>
+            {
+                if (_action is { Command: { } command } action && command.CanExecute(action.CommandParameter))
+                    command.Execute(action.CommandParameter);
+            };
+            _status.GestureRecognizers.Add(statusTap);
+
             Children.Add(_textButton);
             Children.Add(_imageButton);
             Children.Add(_morphIcon);
             Children.Add(_badge);
+            Children.Add(_status);
 
             ApplyForeground();
+        }
+
+        /// <summary>A status: the glyph in the action's tint and the text in the secondary label colour, nothing to press.</summary>
+        void ApplyStatus(PageAction action)
+        {
+            Spin(null, action);
+            _textButton.IsVisible = false;
+            _imageButton.IsVisible = false;
+            _morphIcon.IsVisible = false;
+            _badge.IsVisible = false;
+            _status.IsVisible = true;
+            _status.Opacity = action.IsEnabled ? 1 : 0.4;
+            _statusText.Text = action.Text ?? string.Empty;
+            ToolTipProperties.SetText(_status, action.Description);
+            SemanticProperties.SetDescription(_status, action.Description ?? action.Text);
+            ApplyStatusColors();
+        }
+
+        void ApplyStatusColors()
+        {
+            if (_action is not { IsStatus: true } action)
+                return;
+
+            var secondary = _owner.Foreground?.WithAlpha(0.6f) ?? (IsDark ? Color.FromArgb("#AEAEB2") : Color.FromArgb("#6C6C70"));
+            _statusText.TextColor = secondary;
+            var names = IPlatformApplication.Current?.Services.GetService<ResourceNameCache>();
+            _statusIcon.IsVisible = !string.IsNullOrWhiteSpace(action.Svg) && names?.Resolve(action.Svg!) is not null;
+            if (_statusIcon.IsVisible)
+                _statusIcon.Source = SvgBitmapLoader.LoadFromEmbedded(names!.Resolve(action.Svg!)!, StatusGlyphSize, StatusGlyphSize,
+                    Tint() ?? secondary, Thickness.Zero, lineWidthScale: (float)HeaderBarConstants.GlyphLineWidthScale, roundLineEnds: true);
         }
 
         /// <summary>
@@ -501,7 +558,7 @@ internal sealed class PageActionView : ContentView
             Haptics.SetOnTap(_textButton, action.Haptic);
 
             _currentSvg = hasSvg ? action.Svg : null;
-            ApplyProminence(action.Role == PageActionRole.Confirm || action.IsSelected, action.IsSelected);
+            ApplyProminence(action);
 
             // The icon is not the glass button's image: a glass configuration that has held an
             // image draws later titles in the label colour, not the accent.
@@ -527,7 +584,7 @@ internal sealed class PageActionView : ContentView
 
             _textButton.Command = CommandGuards.Wrap(action.Command);
             _textButton.CommandParameter = action.CommandParameter;
-            Spin(action.IsBusy && hasSvg ? _morphIcon : null, action);
+            Spin(action.IsBusy && action.SpinsWhenBusy && hasSvg ? _morphIcon : null, action);
         }
 
         // The glyph at the size and weight a UIBarButtonItem's symbol has, tinted like the icon buttons.
@@ -538,11 +595,24 @@ internal sealed class PageActionView : ContentView
                 return;
 
             var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
-            var tint = _prominent ? OnFill() : _owner.Foreground ?? (dark ? Colors.White : Colors.Black);
+            var tint = GlyphTint() ?? (dark ? Colors.White : Colors.Black);
             var size = GlyphSize(svg);
             _morphIcon.WidthRequest = size;
             _morphIcon.HeightRequest = size;
             _morphIcon.Source = SvgBitmapLoader.LoadFromEmbedded(resource, size, size, tint, Thickness.Zero, lineWidthScale: (float)LineWidthScale(svg), roundLineEnds: true);
+        }
+
+        public void ApplySize()
+        {
+            // With glass morphing the circle is the text button, sized when the action was applied.
+            if (_morphIcon.IsVisible && _currentSvg is not null)
+            {
+                _textButton.WidthRequest = _owner.HeightRequest;
+                _textButton.HeightRequest = _owner.HeightRequest;
+            }
+            ApplyIconWidth();
+            ApplyShape();
+            ApplyMorphingImage();
         }
 
         /// <summary>A glass icon is a circle as tall as the row; otherwise it fills the slot the bar gives it.</summary>
@@ -557,9 +627,11 @@ internal sealed class PageActionView : ContentView
         // How far a filled circle's outer edge sits inside its slot.
         const double GlyphInset = 5;
 
-        // The back button's chevron has a size and weight of its own, as UIKit's back indicator does.
-        static double GlyphSize(string? svg) =>
-            svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphSize : HeaderBarConstants.GlyphSize;
+        // The back button's chevron has a size and weight of its own, as UIKit's back indicator does. A compact
+        // button (shorter than the row) has a toolbar item's smaller glyph.
+        double GlyphSize(string? svg) =>
+            _owner.HeightRequest is > 0 and < HeaderBarConstants.Height ? HeaderBarConstants.CompactGlyphSize
+            : svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphSize : HeaderBarConstants.GlyphSize;
 
         static double LineWidthScale(string? svg) =>
             svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphLineWidthScale : HeaderBarConstants.GlyphLineWidthScale;
@@ -591,7 +663,7 @@ internal sealed class PageActionView : ContentView
         // frosted glass does, where a bare icon would not.
         bool Tonal => !_owner._glass && !_prominent && _owner.Glass == HeaderBarGlass.Regular && _owner.OverContent;
 
-        bool Filled => _prominent || Scrim || Tonal;
+        bool Filled => _prominent || _washed || Scrim || Tonal;
 
         // Slightly translucent, so the picture still shows through a little, as through glass.
         static readonly Color TonalLight = Color.FromRgba(0.95f, 0.95f, 0.96f, 0.88f);
@@ -670,21 +742,28 @@ internal sealed class PageActionView : ContentView
         /// <summary>
         /// The prominent look of a confirm: the glass tinted with the accent (iOS 26's prominent bar button), or
         /// without glass a filled accent circle; the glyph or text in the colour that reads on the accent. A selected
-        /// action takes the same look in the foreground colour.
+        /// action takes the same look in the foreground colour, a tinted one in its tint. A selected Tinted action is
+        /// washed with its tint.
         /// </summary>
-        void ApplyProminence(bool prominent, bool selected)
+        void ApplyProminence(PageAction action)
         {
-            if (prominent == _prominent && selected == _selected)
+            var selected = action.IsSelected;
+            var washed = selected && action.SelectedStyle == PageActionSelectedStyle.Tinted;
+            var prominent = action.Role == PageActionRole.Confirm || selected && !washed;
+            var tint = Tint();
+            if (prominent == _prominent && washed == _washed && selected == _selected && Equals(tint, _appliedTint))
                 return;
 
             _selected = selected;
-            if (prominent == _prominent)
+            _appliedTint = tint;
+            if (prominent == _prominent && washed == _washed)
             {
                 ApplyForeground();
                 return;
             }
 
             _prominent = prominent;
+            _washed = washed;
             if (_owner._glass)
                 ApplyGlass();
             else
@@ -723,11 +802,21 @@ internal sealed class PageActionView : ContentView
         static Color Accent() => SpineTheme.GetAccent(IsDark ? AppTheme.Dark : AppTheme.Light)
             ?? Color.FromArgb(IsDark ? "#0A84FF" : "#007AFF");
 
-        Color Fill() => _selected
+        Color? Tint() => _action is null ? null : IsDark ? _action.DarkTint ?? _action.Tint : _action.Tint;
+
+        Color Fill() => Tint() ?? (_selected
             ? _owner.Foreground ?? (IsDark ? Colors.White : Colors.Black)
-            : Accent();
+            : Accent());
 
         Color OnFill() => SpineAccent.TextOn(Fill());
+
+        // Light enough that the glass or the bar still reads as itself, strong enough to tell on from off.
+        const float WashAlpha = 0.15f;
+
+        Color Wash() => (Tint() ?? Accent()).WithAlpha(WashAlpha);
+
+        // Null leaves an icon to the bar's own light or dark glyph.
+        Color? GlyphTint() => _prominent ? OnFill() : _washed ? Tint() ?? Accent() : Tint() ?? _owner.Foreground;
 
         /// <summary>Holds the face at its current size while it fades out.</summary>
         public void Freeze()
@@ -759,10 +848,14 @@ internal sealed class PageActionView : ContentView
                 return;
             }
 
-            var clear = _owner.Glass == HeaderBarGlass.Clear;
-            var style = _prominent
-                ? clear ? GlassStyle.ProminentClear : GlassStyle.Prominent
-                : clear ? GlassStyle.Clear : GlassStyle.Regular;
+            var style = (_prominent || _washed, _owner.Glass) switch
+            {
+                (true, HeaderBarGlass.Clear) => GlassStyle.ProminentClear,
+                (true, _) => GlassStyle.Prominent,
+                (false, HeaderBarGlass.Clear) => GlassStyle.Clear,
+                (false, HeaderBarGlass.Transient) => GlassStyle.Transient,
+                _ => GlassStyle.Regular,
+            };
             Extensions.Glass.SetStyle(_imageButton, style);
             Extensions.Glass.SetStyle(_textButton, style);
         }
@@ -770,7 +863,11 @@ internal sealed class PageActionView : ContentView
         public void ApplyForeground()
         {
             // Read again on every theme or accent change, so the prominent fill follows the accent
-            var fill = _prominent ? Fill() : Scrim ? ContainerFill(ScrimFill) : Tonal ? ContainerFill(TonalFill()) : Colors.Transparent;
+            var fill = _prominent ? Fill()
+                : Scrim ? ContainerFill(ScrimFill)
+                : Tonal ? ContainerFill(TonalFill())
+                : _washed ? Wash()
+                : Colors.Transparent;
             _imageButton.BackgroundColor = fill;
             _textButton.BackgroundColor = fill;
 
@@ -781,24 +878,20 @@ internal sealed class PageActionView : ContentView
                 ApplyFilledStates(fill);
             }
 
-            if (_prominent)
-                _textButton.TextColor = OnFill();
-            else if (_owner.Foreground is { } foreground)
-                _textButton.TextColor = foreground;
-            else
-                _textButton.TextColor = Accent();
+            _textButton.TextColor = GlyphTint() ?? Accent();
 
             if (_imageButton.Behaviors.OfType<SvgImageSourceBehavior>().FirstOrDefault() is { } svg)
             {
-                svg.TintColor = _prominent ? OnFill() : _owner.Foreground;
+                svg.TintColor = GlyphTint();
                 svg.UpdateImage();
             }
 
             if (_owner._morph && _morphIcon.IsVisible)
                 ApplyMorphingImage();
+            ApplyStatusColors();
         }
 
-        // The glyph turning for a busy action, or null; a text-only action only dims.
+        // The glyph turning for a busy action that spins, or null; any other busy action only dims.
         View? _spinning;
         PageAction? _spinningFor;
 
@@ -818,6 +911,7 @@ internal sealed class PageActionView : ContentView
 
         public void Apply(PageAction? action)
         {
+            _action = action;
             WidthRequest = -1;
             ApplyIconWidth();
 
@@ -827,8 +921,16 @@ internal sealed class PageActionView : ContentView
                 _textButton.IsVisible = false;
                 _imageButton.IsVisible = false;
                 _badge.IsVisible = false;
+                _status.IsVisible = false;
                 return;
             }
+
+            if (action.IsStatus)
+            {
+                ApplyStatus(action);
+                return;
+            }
+            _status.IsVisible = false;
 
             var hasSvg = !string.IsNullOrWhiteSpace(action.Svg);
 
@@ -846,12 +948,12 @@ internal sealed class PageActionView : ContentView
             // The app's Disabled visual state may not reach a button whose colour is set directly.
             _imageButton.Opacity = enabled ? 1 : 0.4;
             _textButton.Opacity = enabled ? 1 : 0.4;
-            Spin(action.IsBusy && hasSvg ? _imageButton : null, action);
+            Spin(action.IsBusy && action.SpinsWhenBusy && hasSvg ? _imageButton : null, action);
 
             _badgeLabel.Text = action.Badge ?? string.Empty;
             SemanticProperties.SetDescription(_imageButton, action.Description);
             SemanticProperties.SetDescription(_textButton, action.Description);
-            ApplyProminence(action.Role == PageActionRole.Confirm || action.IsSelected, action.IsSelected);
+            ApplyProminence(action);
 
             MenuButton.SetItems(_imageButton, action.Menu);
             MenuButton.SetItems(_textButton, action.Menu);
@@ -870,7 +972,7 @@ internal sealed class PageActionView : ContentView
                         Svg = action.Svg!,
                         LightTintColor = Colors.Black,
                         DarkTintColor = Colors.White,
-                        TintColor = _prominent ? OnFill() : _owner.Foreground,
+                        TintColor = GlyphTint(),
                         Padding = GlyphPadding(action.Svg),
                         LineWidthScale = LineWidthScale(action.Svg),
                         RoundLineEnds = true,

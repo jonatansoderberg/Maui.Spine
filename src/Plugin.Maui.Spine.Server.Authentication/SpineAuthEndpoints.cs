@@ -218,14 +218,18 @@ public static class SpineAuthEndpoints
 
     /// <summary>
     /// <c>POST /auth/link/{provider}</c>: an ID token from the provider's sheet (<see cref="SpineIdTokenRequest"/>) adds the
-    /// provider to the signed-in user. Answers with new tokens, whose user lists the logins.
+    /// provider to the signed-in user. Answers with new tokens, whose user lists the logins. <c>POST /auth/link/password</c>
+    /// with a <see cref="SpinePasswordSignIn"/> adds email and password instead; an email other than the account's own
+    /// replaces it, unverified.
     /// </summary>
     /// <param name="request">The incoming request, with the user's access token.</param>
-    /// <param name="provider">The provider's name, from the route.</param>
+    /// <param name="provider">The provider's name, from the route; <c>password</c> for email and password.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>
     /// <see cref="SpineTokens"/>, or a <see cref="SpineAuthProblem"/>: 401 without a valid access token or with a refused ID
-    /// token, 404 unknown provider, 409 <c>identity_in_use</c> when another account signs in with it.
+    /// token, 404 unknown provider, 409 <c>identity_in_use</c> when another account signs in with it. For <c>password</c>:
+    /// 202 when a code went to the email to verify it, 400 <c>weak_password</c>, 409 <c>email_taken</c> when another account
+    /// has the email, 409 when the account has a password already, 501 when the app's user store cannot change an email.
     /// </returns>
     public static async Task<IResult> LinkAsync(HttpRequest request, string provider, CancellationToken cancellationToken = default)
     {
@@ -233,6 +237,13 @@ public static class SpineAuthEndpoints
         ArgumentNullException.ThrowIfNull(provider);
 
         if (await CallerAsync(request) is not { } caller) return Results.Unauthorized();
+        if (provider.Equals(SpineAuthDefaults.PasswordProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            return await BodyAsync(request, SpineAuthJsonTypes.SignIn, cancellationToken) is { } password
+                ? Answer(request, await Service<SpineAccounts>(request).AddPasswordAsync(password, caller, cancellationToken))
+                : BadBody();
+        }
+
         if (await BodyAsync(request, SpineAuthJsonTypes.IdToken, cancellationToken) is not { } body) return BadBody();
         return Answer(request, await Service<SpineAccounts>(request).LinkWithIdTokenAsync(provider.ToLowerInvariant(), body, caller, cancellationToken));
     }

@@ -96,6 +96,34 @@
             </Example.Code>
         </Example>
 
+        <Example Title="Text fields"
+                 Summary="SpineEntryRow is a text field as a row: no frame of its own, the rows' insets, height and separators. IsPassword hides what is typed and adds an eye button that shows it.">
+            <VerticalStackLayout Spacing="10">
+                <SpineSection Header="Account" Footer="Return on the email moves to the password; return on the password signs in.">
+                    <SpineEntryRow Text="{Binding Email}" Placeholder="Email" Keyboard="Email"
+                                   IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
+                                   ReturnType="Next" Completed="OnEmailCompleted" />
+                    <SpineEntryRow x:Name="PasswordRow" Text="{Binding Password}" Placeholder="Password" IsPassword="True"
+                                   ReturnType="Go" ReturnCommand="{Binding SignInCommand}" />
+                </SpineSection>
+                <Label Text="{Binding SignInState}" FontSize="15" Margin="16,0" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;SpineSection Header="Account"&gt;
+                    &lt;SpineEntryRow Text="{Binding Email}" Placeholder="Email"
+                                   Keyboard="Email" ReturnType="Next"
+                                   IsSpellCheckEnabled="False"
+                                   IsTextPredictionEnabled="False" /&gt;
+                    &lt;SpineEntryRow Text="{Binding Password}" Placeholder="Password"
+                                   IsPassword="True" ReturnType="Go"
+                                   ReturnCommand="{Binding SignInCommand}" /&gt;
+                &lt;/SpineSection&gt;
+
+                // Return on one field moves to the next
+                passwordRow.FocusField();
+            </Example.Code>
+        </Example>
+
         <Example Title="Make any view a button"
                  Summary="A whole card as the tap target, with the same press feedback as a row. Semantic.Merge makes it one element to a screen reader.">
             <SpineSection>

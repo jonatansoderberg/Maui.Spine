@@ -59,6 +59,7 @@ Bodies and answers are the records in `Plugin.Maui.Spine.Authentication` in `.Co
 | `DELETE /auth/account` | Deletes the user behind the access token | 204; 401 without a token |
 | `POST /auth/password/{signup,verify,resend,signin,forgot,reset}` | Email and password | see below |
 | `POST /auth/link/{provider}` | With the user's access token: an ID token (`SpineIdTokenRequest`) adds the provider to that user | `SpineTokens`; 409 `identity_in_use` |
+| `POST /auth/link/password` | With the user's access token: email and password (`SpinePasswordSignIn`) become a way into that user. Another email than the account's replaces it, unverified | `SpineTokens`; 202 with a code sent when `RequireVerifiedEmail`; 400 `weak_password`; 409 `email_taken`, or when the account has a password; 501 when the app's `IUserResolver` cannot change an email |
 | `POST /auth/link/ticket` | With the user's access token: a one-time ticket (5 minutes) for linking through the browser, passed as `link=` to `/{provider}/start` | `SpineLinkTicket` |
 | `DELETE /auth/link/{provider}/{subject}` | With the user's access token: removes one login of a provider, such as one passkey (`SpineLoginInfo.Subject`) | as below |
 | `DELETE /auth/link/{provider}` | With the user's access token: removes a provider, or `password` | `SpineTokens`; 404; 409 `last_login`; 501 when the app's `IUserResolver` cannot delete logins |
@@ -167,7 +168,8 @@ A user has one `Id` and any number of logins: a provider and its subject, with t
 - **An identity that belongs to another user** is refused with 409 `identity_in_use`. Nothing is merged.
 - **Unlinking** never removes the last way in (409 `last_login`). Removing `password` also clears the password hash. Apple's tokens are revoked.
 - **A pending identity.** With `a.AskBeforeNewAccount = true`, a sign-in with a provider account the server does not know answers 202 with a `SpinePendingIdentity` (a ticket, the provider, a vouched email, a name, an expiry of `PendingIdentityLifetime`, 10 minutes) and makes no user. `POST /auth/pending/create` makes the account; `POST /auth/pending/link` with an access token adds it to the account the user just signed in to. It works for the ID-token endpoint and the browser broker's code exchange alike. `LinkByVerifiedEmail` still links first, without asking.
-- `IUserResolver.DeleteLoginAsync` is a default interface method that throws `NotSupportedException`, so an app's own resolver still compiles; unlinking answers 501 until it implements it.
+- **Adding email and password** (`POST /auth/link/password`) to a user who signed in some other way, or removed the password. An email other than the account's own replaces it through `IUserResolver.ChangeEmailAsync`, unverified, and is refused with `email_taken` when another user has it; the caller is signed in, so saying so tells them nothing a sign-up would not. With `RequireVerifiedEmail` the answer is 202 and a code goes to the email, as on sign-up. An account that already has a password is refused with 409; it removes it or resets it. A Functions host that maps `link/{provider}` to `SpineAuthEndpoints.LinkAsync` gets it with no new route.
+- `IUserResolver.DeleteLoginAsync` is a default interface method that throws `NotSupportedException`, so an app's own resolver still compiles; unlinking answers 501 until it implements it. `ChangeEmailAsync` works the same way: adding a password with a new email answers 501 until the resolver implements it.
 
 ## Passkeys
 
@@ -204,11 +206,11 @@ Keys from outside are base64url-encoded. `UseInMemoryStore()` is for tests and s
 
 `UseUsers(sp => …)` puts users in the app's own database through `IUserResolver`, while tokens stay in the chosen store. `IUserResolver.CreateAsync` returns `false` when the email is taken. `UpdateAsync` returns `false` when `SpineAuthUser.Version` (an ETag or row version) no longer matches. `ISpineAuthStore` is the token side, for a store of your own with `UseStore(...)`.
 
-Expired refresh tokens and one-time values stay until `ISpineAuthStore.PruneAsync(now)` removes them. Run it now and then, for example from a timer trigger.
+Expired refresh tokens and one-time values stay until `ISpineAuthStore.PruneAsync(now)` removes them. Run it now and then, for example from a timer trigger. It also removes the token families that can no longer sign in: revoked ones (after a sign-out everywhere, a reset or a replayed refresh token), and those whose refresh tokens have all expired. A missing family reads as revoked, so this changes nothing for the user.
 
 ## Account deletion
 
-`DELETE /auth/account` with the user's access token runs `OnAccountDeleting(userId, services, ct)` first, so the app can delete its own data. An exception there stops the deletion. It then revokes Apple's tokens, revokes every Spine sign-in and removes the user and their logins. Access tokens already issued keep working until they expire, at most `AccessTokenLifetime`. The same Apple id signing in again later is a new user.
+`DELETE /auth/account` with the user's access token runs `OnAccountDeleting(userId, services, ct)` first, so the app can delete its own data. An exception there stops the deletion. It then revokes Apple's tokens, removes every Spine sign-in (`ISpineAuthStore.ForgetUserAsync`: the refresh tokens and their families) and removes the user, their email and their logins. Nothing of the account is left in the tables. Access tokens already issued keep working until they expire, at most `AccessTokenLifetime`. The same Apple id signing in again later is a new user.
 
 ## Push
 

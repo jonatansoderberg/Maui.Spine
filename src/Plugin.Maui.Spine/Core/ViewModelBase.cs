@@ -128,6 +128,21 @@ public abstract partial class ViewModelBase : ObservableObject
     /// </summary>
     internal Action? ReapplyHeaderBar { get; set; }
 
+    /// <summary>Whether the page's header bar lies in the Mac title bar row (<c>SpineOptions.MacOS.UnifiedTitleBar</c>).</summary>
+    internal bool InTitleBarRow { get; set; }
+
+    /// <summary>The page's view, for measuring its content (<see cref="WindowHeightFor"/>).</summary>
+    internal WeakReference<View>? PageView { get; set; }
+
+    /// <summary>
+    /// The window height that shows all of this page's scrolling content at <paramref name="windowWidth"/>, without
+    /// scrolling: what lies outside the page's scroll view, its insets (the header bar, the title bar row) and the
+    /// content's natural height, in the app's points. For <see cref="SuggestWindowSizes"/>. Null before the page has been
+    /// laid out, or when it has no <see cref="ScrollView"/>.
+    /// </summary>
+    protected double? WindowHeightFor(double windowWidth) =>
+        PageView?.TryGetTarget(out var view) == true ? Extensions.WindowMeasure.HeightFor(view, windowWidth) : null;
+
     /// <summary>The page's <see cref="NavigableLightboxAttribute"/> when it is a lightbox, otherwise <see langword="null"/>.</summary>
     internal NavigableLightboxAttribute? Lightbox { get; set; }
 
@@ -707,6 +722,22 @@ public abstract partial class ViewModelBase : ObservableObject
     /// Called before a sheet close is executed. Return <see langword="false"/> to cancel the dismissal.
     /// </summary>
     public virtual Task<bool> OnCloseRequestedAsync() => Task.FromResult(true);
+
+    /// <summary>
+    /// Window sizes that fit this page's content, offered when the header bar is right-clicked on the Mac: one
+    /// column of cards, two, the whole list without scrolling. Asked each time the menu opens, so they follow the
+    /// content. <paramref name="screen"/> is the room the screen leaves, in the app's points. None by default, and
+    /// then right-clicking does nothing.
+    /// </summary>
+    public virtual IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) => [];
+
+    /// <summary>
+    /// Gives the window the size this page suggests for its width (<see cref="SuggestWindowSizes"/>), smaller or
+    /// larger: after the content changed, for example when an item was hidden. Mac only; elsewhere it does nothing.
+    /// </summary>
+    protected void FitWindowToContent() => WindowFitter?.Invoke(this);
+
+    internal static Action<ViewModelBase>? WindowFitter { get; set; }
 
     /// <summary>
     /// Called on a tab root's ViewModel when its already-active tab is re-selected while the

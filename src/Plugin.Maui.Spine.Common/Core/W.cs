@@ -44,11 +44,19 @@ public static class W
     /// anywhere the width is tight, the Dynamic Island's compact presentation most of all.
     /// </param>
     /// <param name="prefix">Text in front of the time, drawn as one text with it; see <see cref="Timer"/>.</param>
-    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false, string? prefix = null) =>
-        new(date) { Compact = compact ? true : null, Prefix = prefix };
+    /// <param name="rounded">
+    /// <see langword="true"/> for whole minutes, then hours and minutes: <c>5 minutes</c>, <c>1 hour, 5 minutes</c>. iOS 18
+    /// and later; see <see cref="RelativeDateNode.Rounded"/>.
+    /// </param>
+    /// <param name="ago">
+    /// <see langword="true"/> for how long ago: <c>now</c>, then <c>2 minutes ago</c>, <c>3 hours ago</c>. iOS 18 and later;
+    /// see <see cref="RelativeDateNode.Ago"/>.
+    /// </param>
+    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false, string? prefix = null, bool rounded = false, bool ago = false) =>
+        new(date) { Compact = compact ? true : null, Prefix = prefix, Rounded = rounded ? true : null, Ago = ago ? true : null };
 
-    /// <summary>A platform symbol by SF Symbols name.</summary>
-    public static IconNode Icon(string systemName, WidgetColor? color = null) => new(systemName) { Color = color };
+    /// <summary>A platform symbol by SF Symbols name, <paramref name="size"/> points square (18 on iOS, 20 dp on Android by default).</summary>
+    public static IconNode Icon(string systemName, WidgetColor? color = null, double? size = null) => new(systemName) { Color = color, Size = size };
 
     /// <summary>A bitmap previously stored with <see cref="IWidgetService.StoreAssetAsync"/>.</summary>
     public static ImageNode Image(string assetId, double? height = null) => new(assetId) { Height = height };
@@ -59,8 +67,61 @@ public static class W
     /// <summary>Flexible space.</summary>
     public static SpacerNode Spacer() => new();
 
+    /// <summary>A share (0–1) as a ring of <paramref name="size"/> points; null for unknown. See <see cref="RingNode"/>.</summary>
+    public static RingNode Ring(double? value, WidgetColor? color = null, double size = 56) =>
+        new(value is { } v ? Math.Clamp(v, 0, 1) : null) { Color = color, Size = size };
+
     /// <summary>A separator line.</summary>
     public static DividerNode Divider() => new();
+
+    /// <summary>
+    /// A line through <paramref name="points"/> from <paramref name="from"/> to <paramref name="to"/>, drawn by the
+    /// platform; see <see cref="SparklineNode"/>. The points are put on an even time axis, one value per
+    /// <paramref name="step"/>, the latest of each step kept. A short run of steps with none is bridged; a run longer
+    /// than a tenth of the steps breaks the line. The values
+    /// are rounded to a hundredth of their range, finer than the line is wide, so an hour at one value a
+    /// minute takes just under 500 bytes.
+    /// </summary>
+    /// <param name="points">Time and value, in any order. Points outside <paramref name="from"/>–<paramref name="to"/> are left out.</param>
+    /// <param name="from">The time at the left edge.</param>
+    /// <param name="to">The time at the right edge, usually now.</param>
+    /// <param name="step">The time between two values; a sixtieth of the span when <see langword="null"/>.</param>
+    /// <param name="color">The line's colour; the platform accent when <see langword="null"/>.</param>
+    /// <param name="height">The height in points.</param>
+    public static SparklineNode Sparkline(IEnumerable<(DateTimeOffset Time, double Value)> points, DateTimeOffset from, DateTimeOffset to,
+        TimeSpan? step = null, WidgetColor? color = null, double height = 48)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(to, from);
+        var interval = step ?? TimeSpan.FromSeconds(Math.Max(1, Math.Round((to - from).TotalSeconds / 60)));
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(interval, TimeSpan.Zero, nameof(step));
+
+        var values = new double?[(int)Math.Floor((to - from) / interval) + 1];
+        var times = new DateTimeOffset[values.Length];
+        foreach (var (time, value) in points)
+        {
+            if (time < from || time > to || !double.IsFinite(value)) continue;
+            var i = (int)((time - from) / interval);
+            if (values[i] is null || time >= times[i]) (values[i], times[i]) = (value, time);
+        }
+
+        return new(Rounded(values)) { From = from, To = to, Step = interval.TotalSeconds, Color = color, Height = height };
+    }
+
+    /// <summary>A line through <paramref name="values"/> spread evenly across the width; see <see cref="SparklineNode"/>.</summary>
+    /// <param name="values">The values in order, <see langword="null"/> for a gap.</param>
+    /// <param name="color">The line's colour; the platform accent when <see langword="null"/>.</param>
+    /// <param name="height">The height in points.</param>
+    public static SparklineNode Sparkline(IEnumerable<double?> values, WidgetColor? color = null, double height = 48) =>
+        new(Rounded([.. values.Select(v => v is { } d && double.IsFinite(d) ? v : null)])) { Color = color, Height = height };
+
+    private static double?[] Rounded(double?[] values)
+    {
+        var known = values.OfType<double>().ToArray();
+        if (known.Length == 0) return values;
+        var range = known.Max() - known.Min();
+        var decimals = range > 0 ? Math.Clamp(2 - (int)Math.Ceiling(Math.Log10(range)), 0, 10) : 2;
+        return [.. values.Select(v => v is { } d ? Math.Round(d, decimals) : (double?)null)];
+    }
 
     /// <summary>
     /// A tappable <paramref name="child"/> that sends <paramref name="actionId"/> to the provider's
@@ -77,6 +138,17 @@ public static class W
     /// </summary>
     public static AdaptiveNode Adaptive(WidgetNode fallback, IReadOnlyDictionary<WidgetFamily, WidgetNode> trees) =>
         new(fallback, trees.ToDictionary(t => Serialization.WidgetJson.FamilyKey(t.Key), t => t.Value));
+
+    /// <summary>
+    /// The Live Activity layout's shared node <paramref name="name"/> (<see cref="LiveActivityLayout.Shared"/>), here
+    /// <paramref name="height"/> points high when set: a graph sent once and drawn at 56 on the Lock Screen and 44 in
+    /// the Dynamic Island.
+    /// </summary>
+    public static UseNode Use(string name, double? height = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new(name) { Height = height };
+    }
 }
 
 /// <summary>Fluent styling for text-like nodes. Each call returns a new node.</summary>
@@ -94,6 +166,26 @@ public static class WidgetNodeStyling
     /// <summary>Renders in the platform's caption style.</summary>
     public static T Caption<T>(this T node) where T : TextLikeNode => node.Role(TextRole.Caption);
 
+    /// <summary>Renders in the platform's largest text style.</summary>
+    public static T LargeTitle<T>(this T node) where T : TextLikeNode => node.Role(TextRole.LargeTitle);
+
+    /// <summary>
+    /// Draws the text in the system font's <paramref name="design"/>: <see cref="TextDesign.Rounded"/> for values in SF Pro
+    /// Rounded. iOS; Android draws the default.
+    /// </summary>
+    public static T FontDesign<T>(this T node, TextDesign design) where T : TextLikeNode =>
+        (T)(node with { Design = design == TextDesign.Default ? null : design });
+
+    /// <summary>
+    /// Draws the text at <paramref name="points"/> (sp on Android) instead of its role's size, which follows the user's
+    /// text size. For a region with an exact amount of room, such as the Dynamic Island's.
+    /// </summary>
+    public static T FontSize<T>(this T node, double points) where T : TextLikeNode
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(points);
+        return (T)(node with { FontSize = points });
+    }
+
     /// <summary>Renders in bold weight.</summary>
     public static T Bold<T>(this T node) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Bold = true });
 
@@ -105,6 +197,12 @@ public static class WidgetNodeStyling
     /// </summary>
     public static T Fill<T>(this T node) where T : StackNode => (T)(node with { Fill = true });
 
+    /// <summary>Centres a vertical stack's children on its axis (a ring tile: label, ring and time under each other).</summary>
+    public static VStackNode CenterItems(this VStackNode node) => node with { Align = "center" };
+
+    /// <summary>Spreads a horizontal stack's children evenly: the same space at its ends as between them.</summary>
+    public static HStackNode Evenly(this HStackNode node) => node with { Distribute = "evenly" };
+
     /// <summary>
     /// Centres the text: its lines on each other, and a timer's or relative date's text — which takes
     /// all the width it is offered — in that width. It claims no width of its own, so it cannot push a
@@ -112,6 +210,26 @@ public static class WidgetNodeStyling
     /// text is centred in its own view.
     /// </summary>
     public static T Centered<T>(this T node) where T : TextLikeNode => (T)(node with { IsCentered = true });
+
+    /// <summary>
+    /// Aligns the text to the trailing edge: its lines, and a timer's or relative date's text — which takes all the width
+    /// it is offered — in that width, so an age after a <see cref="W.Spacer"/> hugs the right edge, as a card's top-right
+    /// corner does. Like <see cref="Centered{T}"/> it claims no width of its own. Android aligns the text to the end of
+    /// its view.
+    /// </summary>
+    public static T Trailing<T>(this T node) where T : TextLikeNode => (T)(node with { IsTrailing = true });
+
+    /// <summary>
+    /// Keeps the text on one line where it would wrap, such as an age in the Dynamic Island's narrow side regions: it
+    /// shrinks to as little as <paramref name="minimumScale"/> of its size to fit, and is cut off with an ellipsis past
+    /// that. Android cannot shrink a widget's text and only keeps it on one line.
+    /// </summary>
+    public static T SingleLine<T>(this T node, double minimumScale = 0.7) where T : TextLikeNode
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(minimumScale);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(minimumScale, 1);
+        return (T)(node with { SingleLine = minimumScale });
+    }
 
     /// <summary>
     /// Marks the node as changed by the widget's buttons: from a tap until the rebuild that follows
@@ -161,6 +279,34 @@ public static class WidgetNodeStyling
         ArgumentOutOfRangeException.ThrowIfNegative(points);
         return (T)(node with { CornerRadius = points });
     }
+
+    /// <summary>
+    /// A target band from <paramref name="low"/> to <paramref name="high"/>: the line takes <paramref name="above"/> over it
+    /// and <paramref name="below"/> under it, cut square to the line where it crosses an edge. <paramref name="shaded"/> also
+    /// draws the band faintly behind the line; without it the graph stays relative.
+    /// </summary>
+    public static SparklineNode Band(this SparklineNode node, double low, double high, WidgetColor? above = null, WidgetColor? below = null, bool shaded = false)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(low, high);
+        return node with { Low = low, High = high, AboveColor = above, BelowColor = below, Shade = shaded ? true : null };
+    }
+
+    /// <summary>
+    /// A fixed scale from <paramref name="min"/> at the bottom edge to <paramref name="max"/> at the top, so every graph
+    /// of one subject (lock screen, Dynamic Island, the app's own chart) puts a value at the same height. A value outside
+    /// widens the scale to fit.
+    /// </summary>
+    public static SparklineNode Scale(this SparklineNode node, double min, double max)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(min, max);
+        return node with { Min = min, Max = max };
+    }
+
+    /// <summary>A soft fill under the line, in its colour at each point, fading out downwards.</summary>
+    public static SparklineNode Area(this SparklineNode node) => node with { Area = true };
+
+    /// <summary>A dot on the last value, in its colour.</summary>
+    public static SparklineNode Dot(this SparklineNode node) => node with { Dot = true };
 
     private static T Role<T>(this T node, TextRole role) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Role = role });
 }

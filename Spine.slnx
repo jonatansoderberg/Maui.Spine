@@ -23,6 +23,7 @@
   <Project Path="src/Plugin.Maui.Spine.Controls.Rows/Plugin.Maui.Spine.Controls.Rows.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.HeroCollectionView/Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.DataGrid/Plugin.Maui.Spine.Controls.DataGrid.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.Charts/Plugin.Maui.Spine.Controls.Charts.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Shimmer/Plugin.Maui.Spine.Controls.Shimmer.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.MeshBackground/Plugin.Maui.Spine.Controls.MeshBackground.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Highlight/Plugin.Maui.Spine.Controls.Highlight.csproj" />

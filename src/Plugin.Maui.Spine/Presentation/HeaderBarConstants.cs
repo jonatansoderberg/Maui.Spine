@@ -62,6 +62,15 @@ public static class HeaderBarConstants
     /// </summary>
     public const double ScrollEdgeFadeLength = 12;
 
+    /// <summary>
+    /// A compact bar's buttons, as a Mac toolbar's items beside the window buttons (<c>SpineOptions.MacOS.UnifiedTitleBar</c>):
+    /// shorter than the row, which keeps its <see cref="Height"/> so the title stays centred on them.
+    /// </summary>
+    public const double CompactButtonHeight = 34;
+
+    /// <summary>The glyph in a compact button.</summary>
+    public const double CompactGlyphSize = 20;
+
 
 #if ANDROID
 

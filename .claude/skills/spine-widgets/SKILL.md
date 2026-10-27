@@ -71,10 +71,13 @@ A per-family dictionary must have a tree for **every declared family** — iOS s
 |---|---|
 | `W.VStack(spacing, …)` / `W.HStack` / `W.ZStack` | Stacks: VStack leading-aligned, HStack vertically centered, ZStack centered; default spacing 4. Only stacks take `.Padding()`, `.Background()`, `.CornerRadius()` |
 | `W.Text(s)` | Text; style with `.Title() .Headline() .Body() .Caption() .Bold() .Secondary() .Color(c)` — the platform's type ramp, no point sizes, no custom fonts |
-| `W.Timer(until)` / `W.Relative(date, compact)` | A countdown / "3 min ago", redrawn by the **system** — never compute these as text |
+| `W.Timer(until)` / `W.Relative(date, compact, prefix, rounded, ago)` | A countdown / "3 min ago", redrawn by the **system** — never compute these as text. `ago: true` (iOS 18) is "now", then "2 minutes ago" — the age of a reading; `rounded: true` (iOS 18) is whole minutes, then hours and minutes ("1 hour, 5 minutes"); the system's times follow the app's language (`ISpineStrings.Culture`) |
 | `W.Icon(name, color)` | A monochrome SVG by name (dots as underscores: `figure_run.svg`), fixed size (18 pt iOS, 20 dp Android); an SF Symbol of that name is the iOS fallback |
 | `W.Image(assetId, height)` | A picture stored with `IWidgetService.StoreAssetAsync`, aspect kept; `.FullColor()` keeps its colors in iOS's Tinted/Clear appearances |
 | `W.Progress(0..1, color)` / `W.Spacer()` / `W.Divider()` | |
+| `W.Sparkline(points, from, to, step, color, height)` + `.Band(low, high, above, below, shaded)` `.Area()` `.Dot()` | A line over time drawn by the platform, so a **server push can carry the graph** (a stored picture cannot). It is compact: an hour at one value a minute is about 550 bytes. Android: a picture `Aspect`× as wide as high |
+| `.LargeTitle()` / `.FontDesign(TextDesign.Rounded)` / `.FontSize(pt)` / `.Trailing()` / `.SingleLine(minScale)` on text, `W.Icon(name, color, size)` | The largest role; SF Pro Rounded for values (iOS only); a fixed size for the Dynamic Island's exact room; `.Trailing()` makes a timer or age after a `W.Spacer()` hug the right edge (it takes all the width offered); `.SingleLine()` keeps an age in the island's narrow side regions on one line, shrinking to 0.7 then cutting off (Android: one line only); an icon of any size (sharp up to ~40 pt) |
+| `W.Ring(0..1 or null, color, size)` | A ring drawn natively (Android: a picture); a `ZStack` with a text puts the number in it. `VStack(...).CenterItems()` centres a ring tile, `HStack(...).Evenly()` spreads tiles 1-*-1-*-1 |
 | `W.Button(actionId, child)` | A tap that reaches `IWidgetActionHandler` **without opening the app**; mark what changes `.Pending()` |
 | `W.Adaptive(fallback, perFamily)` | One subtree that differs per family |
 
@@ -146,7 +149,7 @@ public sealed class NextEventWidget(…) : IWidgetProvider, IWidgetActionHandler
 
 ## 6. Live Activities
 
-Same vocabulary, eight named regions. **Start it from a button the user pressed** — iOS only starts an activity while the app is in the foreground, and Android asks for the notification permission there.
+Same vocabulary, nine named regions. **Start it from a button the user pressed** — iOS only starts an activity while the app is in the foreground, and Android asks for the notification permission there.
 
 ```csharp
 var layout = new LiveActivityLayout
@@ -169,9 +172,12 @@ await activity.EndAsync();
 
 - Lifecycle: start (foreground, or push-to-start) → update (replaces the whole layout) → stale past `staleAt` (dimmed on iOS) → end (`EndAsync`/`EndAllAsync`, the user's swipe, a push, or iOS after 8 hours).
 - Put clocks on `LockScreen` and the expanded regions; compact and minimal get a plain text or an icon.
+- CarPlay (iOS 26) and the Apple Watch Smart Stack show `CompactLeading` + `CompactTrailing` side by side. For a layout of their own, set `Small` (one row, large text) **and** `<SpineWidgetsLiveActivitySmall>true</SpineWidgetsLiveActivitySmall>` in the project, which declares the small family in the extension; without the property `Small` is ignored and a warning is logged.
+- A node several regions repeat (a graph, an age) goes once in `Shared = new Dictionary<string, WidgetNode> { ["graph"] = … }`. Each region then uses it with `W.Use("graph", height: 44)`, and the height set there replaces the node's own. This saves the bytes of every repeat in a push's 4 KB. A missing name throws when the layout is serialized. The extension reads it from Spine 0.1.34, so send the full form to older apps.
 - `StartAsync` returns `null` when refused (activities off in Settings, app not in foreground, Android below 16); `AreActivitiesEnabled` tells you whether to show the button at all.
 - `Active` lists running activities, including ones started before the app was last killed — ask it instead of keeping a handle in a ViewModel. `ActivitiesChanged` / `ActivityEnded` report ends the app did not make (swipe, push, stale date); subscribe right after `builder.Build()` to hear about ends while the app was closed.
 - A `W.Button` in an activity reaches the `[Widget]` provider whose kind equals the **activity's kind**; with no such provider the tap is dropped. Android Live Updates have no buttons.
+- A Live Activity with no `<SpineWidget>` (and no control): set `<SpineWidgetsLiveActivities>true</SpineWidgetsLiveActivities>` in the project, or no extension is built and the activity never appears.
 - An activity lives at most 8 hours on iOS. For around-the-clock subjects, let the server restart it with the push-to-start token (see the wiki, "Keeping one on screen around the clock").
 - Push updates: `UseSpineWidgets(o => o.LiveActivityPushTokens = true)`, send `activity.GetPushTokenAsync()` and `GetPushToStartTokenAsync()` to the backend at every launch and foreground; `Plugin.Maui.Spine.Server`'s `IPushSender` has `StartLiveActivityAsync`, `UpdateLiveActivityAsync` and `BroadcastLiveActivityAsync`.
 

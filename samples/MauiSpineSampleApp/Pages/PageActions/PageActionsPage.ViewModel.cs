@@ -2,14 +2,63 @@ namespace MauiSpineSampleApp.Pages.PageActions;
 
 public partial class PageActionsPageViewModel : SampleViewModel
 {
+    private static readonly Color Orange = Color.FromArgb("#FF9500");
+    private static readonly Color DarkOrange = Color.FromArgb("#FF9F0A");
+
     private int _count;
     private PageAction? _cancel;
+    private readonly PageAction _star;
 
     public PageActionsPageViewModel()
     {
         // The header bar has one trailing slot, and it goes to the first visible Secondary action:
         // the base class's theme menu would take it from the actions this page is about.
         PageActions.Remove(PageActions.Single(a => a.Menu == ThemeMenu));
+
+        // Added before the declared actions, so it sits at the trailing edge while it shows.
+        _star = new PageAction(null, ToggleStarCommand)
+        {
+            Svg = "star.svg",
+            Description = "Favourite",
+            IsVisible = false,
+            SelectedStyle = PageActionSelectedStyle.Tinted,
+            Tint = Orange,
+            DarkTint = DarkOrange,
+        };
+        PageActions.Add(_star);
+
+        // A status rather than a button: a green check and secondary text, as a desk app shows "Sent 14:05".
+        _status = new PageAction(null, ToggleStatusCommand)
+        {
+            IsStatus = true,
+            Svg = "check.svg",
+            Tint = Color.FromArgb("#34C759"),
+            Text = $"Saved {DateTime.Now:HH:mm}",
+            Description = "Tap to toggle between saved and not saved",
+            IsVisible = false,
+        };
+        PageActions.Add(_status);
+    }
+
+    private readonly PageAction _status;
+
+    [ObservableProperty]
+    public partial string StatusLabel { get; set; } = "Show a status";
+
+    [RelayCommand]
+    private void ShowStatus()
+    {
+        _status.IsVisible = !_status.IsVisible;
+        StatusLabel = _status.IsVisible ? "Hide the status" : "Show a status";
+    }
+
+    [RelayCommand]
+    private void ToggleStatus()
+    {
+        var saved = _status.Svg != "check.svg";
+        _status.Svg = saved ? "check.svg" : "close.svg";
+        _status.Tint = Color.FromArgb(saved ? "#34C759" : "#FF3B30");
+        _status.Text = saved ? $"Saved {DateTime.Now:HH:mm}" : "Not saved";
     }
 
     [ObservableProperty]
@@ -18,13 +67,16 @@ public partial class PageActionsPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial string CancelLabel { get; set; } = "Show Cancel instead of Back";
 
+    [ObservableProperty]
+    public partial string StarLabel { get; set; } = "Show the star";
+
     // Declared once by the attribute; nothing to add in OnAppearingAsync.
     [PageAction("Filter", Order = 0)]
     [RelayCommand]
     private void Filter() => Log = $"Filter tapped at {DateTime.Now:HH:mm:ss}";
 
-    // Second in the Secondary slot: takes over when Filter hides itself. Busy while it rings, so its icon turns.
-    [PageAction(Svg = "bell.svg", Order = 1, ShowsBusy = true)]
+    // Second in the Secondary slot: takes over when Filter hides itself. Busy while it rings, and its icon turns.
+    [PageAction(Svg = "bell.svg", Order = 1, ShowsBusy = true, SpinsWhenBusy = true)]
     [RelayCommand]
     private async Task Bell()
     {
@@ -49,7 +101,7 @@ public partial class PageActionsPageViewModel : SampleViewModel
     private Task ShowFilterOptions() => ShowOptionsAsync("Filter",
         new ToggleOption("Enabled", "Off, the button greys out and takes no taps.", () => FilterAction.IsEnabled, value => FilterAction.IsEnabled = value),
         new ToggleOption("Visible", "Off, Filter leaves the header, and Bell, the next Secondary action, takes its place.", () => FilterAction.IsVisible, value => FilterAction.IsVisible = value),
-        new ToggleOption("Busy", "On, the button dims and takes no taps; a text button does not turn.", () => FilterAction.IsBusy, value => FilterAction.IsBusy = value));
+        new ToggleOption("Busy", "On, the button dims and takes no taps, without turning.", () => FilterAction.IsBusy, value => FilterAction.IsBusy = value));
 
     [RelayCommand]
     private void CountUp()
@@ -66,6 +118,27 @@ public partial class PageActionsPageViewModel : SampleViewModel
         FilterAction.Text = "Filter";
         FilterAction.Badge = null;
     }
+
+    [RelayCommand]
+    private void ToggleStar() => _star.IsSelected = !_star.IsSelected;
+
+    [RelayCommand]
+    private void ShowStar()
+    {
+        _star.IsVisible = !_star.IsVisible;
+        StarLabel = _star.IsVisible ? "Hide the star" : "Show the star";
+    }
+
+    [RelayCommand]
+    private Task ShowStarOptions() => ShowOptionsAsync("Star",
+        new ToggleOption("Selected", "On, the toggle the star stands for is on. Tapping the star does the same.", () => _star.IsSelected, value => _star.IsSelected = value),
+        new ToggleOption("Tinted", "On, a selected star is orange on a faint orange wash. Off, it is filled, with its tint or the bar's foreground.", () => _star.SelectedStyle == PageActionSelectedStyle.Tinted,
+            value => _star.SelectedStyle = value ? PageActionSelectedStyle.Tinted : PageActionSelectedStyle.Filled),
+        new ToggleOption("Orange", "Off, the star has no colour of its own: it follows the bar, and Tinted uses the accent.", () => _star.Tint is not null, value =>
+        {
+            _star.Tint = value ? Orange : null;
+            _star.DarkTint = value ? DarkOrange : null;
+        }));
 
     // Adding and removing at runtime works too; a Primary action replaces the back button.
     [RelayCommand]

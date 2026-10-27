@@ -67,7 +67,7 @@ One version, thirty-seven packages, all on [nuget.org](https://www.nuget.org/pac
 |---|---|---|
 | Core | `Plugin.Maui.Spine` | Navigation, sheets, tab host, header bar, glass buttons, shortcuts, Windows windowing |
 | Core | `Plugin.Maui.Spine.Svg` | Embedded SVG image sources and icon services (a dependency of the core) |
-| Core | `Plugin.Maui.Spine.Svg.Icons` | 236 ready-made SVG icons, resolved by file name once referenced |
+| Core | `Plugin.Maui.Spine.Svg.Icons` | 242 ready-made SVG icons, resolved by file name once referenced |
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes run by BGTaskScheduler and JobScheduler while the app is closed |
@@ -83,13 +83,14 @@ One version, thirty-seven packages, all on [nuget.org](https://www.nuget.org/pac
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source |
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid: named layouts, sorting, grouping, swipe actions, load more |
+| Controls | `Plugin.Maui.Spine.Controls.Charts` | `RingChart`, `BarChart`, `ColumnChart`: shares and values per day for dashboards |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: a shimmer over placeholders, `Skeleton.IsActive` on real layouts |
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients (accent, Aurora, Sunset or your own colours) that drift slowly behind glass |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view: a moving rim while a model works, rings that say tap here, a sweep, a running light or a breathing halo; once per install with a key |
 | Controls | `Plugin.Maui.Spine.Controls.Chat` | `ChatView` and `ChatComposer`: a conversation with any `IChatClient`, answers streamed as markdown that follow the end, Stop, suggestions, tool cards |
 | Controls | `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: animated characters and ambient visuals from `.spineavatar` files, driven by state, text, speech or a realtime voice conversation; built-in `bars` and `ring` that show a voice's sound in and out |
 | Controls | `Plugin.Maui.Spine.Controls.Markdown` | `MarkdownView`: markdown on native views (lists, code with Copy, quotes, tables, images), themed; a streamed answer rebuilds only its last block |
-| Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron |
+| Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron; `SpineEntryRow`: text-field rows with a show-password button |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes such as 12 × 12 |
 | Controls | `Plugin.Maui.Spine.Scanner` | Camera barcode scanning: a scanner view and a scan sheet, including codes shown by a grid of lamps |
 | Controls | `Plugin.Maui.Spine.Images` | Remote images that keep a list light: memory and disk cache, decoding at the view's size off the main thread, prefetching, BlurHash placeholders |
@@ -201,6 +202,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Segmented control and top tabs** | The platform's own segmented control with text or SVG icons, and `TopTabs` that build each tab's content when it is first picked and keep it | [Segmented control](docs/wiki/segmented-control.md) |
 | **Action sheets** | `ShowActionsAsync` from a view model: the platform's action sheet with icons and destructive rows, the picked row as the result, a popover at the button on iPad | [Action sheets](docs/wiki/menus.md#action-sheets) |
 | **Windows options** | Window chrome, tray, single-instance | [Windows Options](docs/wiki/windows-options.md) |
+| **macOS options** | Translucent window, menu bar, Mac pitfalls | [macOS Options](docs/wiki/macos-options.md) |
 | **Custom transitions** | Replace the built-in slide animation | [Custom Transitions](docs/wiki/custom-transitions.md) |
 | **Shared elements and zoom** | One `Transition.Tag` on each page: a view flies from one page to the next and back, or the page grows out of the view it opens from and shrinks back into it under the finger | [Shared Elements and Zoom](docs/wiki/transitions.md) |
 | **Lightbox** | `[NavigableLightbox]` and a `Lightbox`: photos full screen on black that open out of their thumbnail, page sideways, pinch and double-tap zoom, drag down to close into the thumbnail, Share and Save | [Lightbox](docs/wiki/lightbox.md) |
@@ -230,6 +232,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Shortcuts](docs/wiki/shortcuts.md) | App shortcuts and tray menu |
 | [Searchable items](docs/wiki/searchable-items.md) | Spotlight and searchable items that open a page |
 | [Windows Platform Options](docs/wiki/windows-options.md) | Window size, tray, single-instance, title bar |
+| [macOS Platform Options](docs/wiki/macos-options.md) | Translucent window, menu bar, and what goes wrong in a Mac app |
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
 | [Shared Elements and Zoom](docs/wiki/transitions.md) | `Transition.Tag` on a view on each page for a shared element, on the page itself for a zoom; a focus view inside the zooming page; the back-swipe zoom |
 | [Lightbox](docs/wiki/lightbox.md) | A full-screen photo viewer page: opening from the thumbnail, paging, zoom, drag down to close, Share, Save and the page's own actions |
@@ -255,7 +258,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Chat](docs/wiki/chat.md) | `ChatView` and `ChatComposer`: the conversation the app owns, streaming and following the end, Stop and Try again, the composer in the footer, styling |
 | [Markdown](docs/wiki/markdown.md) | `MarkdownView`: what each block becomes, line breaks, streaming that rebuilds only the last block, links, style options |
 | [MeshBackground](docs/wiki/mesh-background.md) | Mesh gradients on SkiaSharp: points from the accent, a preset or your own list, a slow drift at a capped frame rate, still under Reduce Motion; a background for materials |
-| [Rows and taps](docs/wiki/rows.md) | `SpineRow` settings and key/value rows; `Tap.Command` with native press feedback on any view; `Semantic.Merge` for one screen-reader element |
+| [Rows and taps](docs/wiki/rows.md) | `SpineRow` settings and key/value rows; `SpineEntryRow` text fields as rows; `Tap.Command` with native press feedback on any view; `Semantic.Merge` for one screen-reader element |
 | [Remote images](docs/wiki/images.md) | Every `UriImageSource` through a memory and disk cache, decoded at the view's size off the main thread; `IImageCache` to prefetch and clear; `ImageOptions.BlurHash` placeholders; a copy for a widget |
 | [Barcodes and scanning](docs/wiki/barcodes.md) | `Barcode.Encode` and `BarcodeView` for QR, Data Matrix and more; `BarcodeScannerView` and a scan sheet; reading a code shown on a word clock |
 | [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
@@ -289,6 +292,7 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | App shortcuts → navigation | `ShortcutHandler` → `ShortcutsPage`, `LiveActivitiesPage`, `WidgetsPage`, the scanner sheet on `BarcodesPage`, `ThemePage` |
 | Windows tray icon + close-to-background | `MauiProgram.cs` options |
 | Home-screen and Lock Screen widgets with buttons (iOS, Android) | `Widgets/Hockey/ScoreWidget.cs`, `Widgets/SampleWidget.cs`, `WidgetsPage` |
+| A sparkline the widget draws itself, with a target band (the medium sample widget) | `Widgets/SampleWidget.cs` |
 | Live Activity updated from the app, with a lock-screen button (iOS, Android 16) | `Widgets/Hockey/ScoreActivity.cs`, `LiveActivitiesPage` |
 | Background tasks: a scheduled task that rebuilds a widget, one that fails, status and Run now | `BackgroundTasks/SampleSyncTask.cs`, `BackgroundTasksPage` |
 | An unlock before a page or a command: `[RequiresUnlock]`, `Fresh`, `Unlock.Command`, `IUnlock` | `BiometricsPage`, `PinPage` |

@@ -34,6 +34,7 @@ public static partial class SpineWidgetsExtensions
                 ListenForActions();
                 ListenForActivities();
                 ListenForWidgetPushToken();
+                ShareLanguage(Services());
 
                 // At launch too, not only at foreground: an activity that ended while the app was not
                 // running is found here, against what the app last knew, and announced.
@@ -67,6 +68,20 @@ public static partial class SpineWidgetsExtensions
             url.AbsoluteString is { } value
             && Uri.TryCreate(value, UriKind.Absolute, out var uri)
             && TryHandleLink(Services(), uri);
+    }
+
+    // The language the app shows, ISpineStrings.Culture, for the extension to write the system's times in. Widgets are
+    // redrawn when it changes; an activity takes it at its next update.
+    private static void ShareLanguage(IServiceProvider services)
+    {
+        if (services.GetService<IWidgetPlatform>() is not WidgetPlatform platform) return;
+        var strings = services.GetService<ISpineStrings>() ?? SpineStrings.Current;
+        platform.WriteLanguage(strings.Culture);
+        strings.Changed += (_, _) =>
+        {
+            platform.WriteLanguage(strings.Culture);
+            platform.ReloadAll();
+        };
     }
 
     private static IServiceProvider Services() => IPlatformApplication.Current?.Services

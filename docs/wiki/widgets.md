@@ -95,8 +95,9 @@ On iOS the items become the widget extension; on Android they become manifest en
 | Property | Default | Meaning |
 |---|---|---|
 | `SpineWidgetsAppGroup` | `group.$(ApplicationId)` | The App Group the app and the extension share. |
-| `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. On Android: whether the manifest gets the notification permissions a Live Update needs. |
+| `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. On Android: whether the manifest gets the notification permissions a Live Update needs. Set to `true` in the project, it does both for an app with no `<SpineWidget>` at all; see [A Live Activity without widgets](#a-live-activity-without-widgets). |
 | `SpineWidgetsFrequentUpdates` | `false` | Declares `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget of Live Activities. |
+| `SpineWidgetsLiveActivitySmall` | `false` | Declares the small activity family on iOS 18 and later, so CarPlay and the Apple Watch Smart Stack draw `LiveActivityLayout.Small`. See [CarPlay and Apple Watch](#carplay-and-apple-watch). |
 | `SpineWidgetsBackgroundRefresh` | `true` | Adds `UIBackgroundModes: fetch` and the task identifier for [background runs](#background-runs); on Android, the alarm receiver. With `Plugin.Maui.Spine.BackgroundTasks` the identifier is that package's instead. |
 | `SpineWidgetsMinimumOSVersion` | `17.0` | Deployment target of the extension. |
 | `SpineWidgetsExtensionName` | `SpineWidgets` | Bundle name of the appex. |
@@ -224,31 +225,63 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.VStack` / `W.HStack` / `W.ZStack` | Stacks, with optional spacing in points |
 | `W.Text(string)` | A run of text |
 | `W.Timer(until, prefix)` | A countdown the **system** redraws every second, with optional text in front of it |
-| `W.Relative(date, compact, prefix)` | Relative text ("3 min ago"), also system-drawn |
-| `W.Icon(name, color)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
+| `W.Relative(date, compact, prefix, rounded, ago)` | Relative text ("3 min ago"), also system-drawn. `ago` gives "now", then "3 minutes ago"; `rounded` gives whole minutes, then hours and minutes (see [Choosing a time node](#choosing-a-time-node)) |
+| `W.Icon(name, color, size)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
+| `W.Ring(value, color, size)` | A share (0 to 1, null for unknown) as a ring: a faint track all round, the value clockwise from 12 o'clock. Put it in a `ZStack` with a text for the number. SwiftUI draws it; Android draws it as a picture |
+| `W.Sparkline(points, from, to, step, color, height)` | A line through values over time, drawn by the platform, with an optional target band, a fading area and a dot on the last value. It is small enough to push to a Live Activity. See [Sparklines](#sparklines) |
 | `W.Spacer()` / `W.Divider()` | Flexible space, separator |
 | `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
+| `W.Use(name, height)` | A Live Activity layout's shared node, at its own height (see [Shared nodes](#shared-nodes)) |
 
 A stack takes `.Fill()`, which gives it an equal share of its parent's axis instead of the width of its
 content: three filled stacks in a row are three equal columns, the shape of every scoreboard, and they
 come out the same on both platforms. Spacers still centre a single node; `.Fill()` divides a row.
 
-Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
+A `VStack` takes `.CenterItems()`, which centres its children on its axis: a ring with its label above and its
+time below, all on the ring's centre. An `HStack` takes `.Evenly()`, which leaves the same space at its ends as between
+its children, the children at their own width: two ring tiles spread 1-*-1-*-1 rather than as two columns, whose gaps
+come out 1-2-1.
 
-**A system-drawn time takes all the width it is offered**, and draws its digits from the leading edge, so spacers either side cannot centre it and a label beside it cannot be centred with it. `W.Timer(start, prefix: "Face-off in ")` makes the label and the digits one text, and `.Centered()` centres it in the width it takes. `.Centered()` is alignment only — it claims no width — so a centred node in a Dynamic Island's centre region does not squeeze the regions beside it.
+Text-like nodes take fluent styling: `.LargeTitle()`, `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.FontDesign(TextDesign.Rounded)`, `.FontSize(points)`, `.Trailing()`, `.SingleLine()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
+
+**A system-drawn time takes all the width it is offered**, and draws its digits from the leading edge, so spacers either side cannot centre it and a label beside it cannot be centred with it. `W.Timer(start, prefix: "Face-off in ")` makes the label and the digits one text, and `.Centered()` centres it in the width it takes. `.Centered()` is alignment only — it claims no width — so a centred node in a Dynamic Island's centre region does not squeeze the regions beside it. `.Trailing()` is the same toward the trailing edge: `W.HStack(W.Text(name), W.Spacer(), W.Relative(at, ago: true).Trailing())` puts the name top left and the age top right, as a card does. Without it the age's digits start from the leading edge of the width it took, next to the name. In the expanded island's narrow trailing region a long age such as "för 3 minuter sedan" wraps and meets the island's rounded corner. `.SingleLine(minimumScale)` keeps it on one line: the text shrinks to as little as that share of its size (0.7 by default) and is cut off with an ellipsis past it. Android cannot size a widget's text to fit and only keeps it on one line. A row that should keep its full size fits better in `ExpandedBottom`, which spans the whole width.
+
+There is no shorter self-updating age, such as "2 min sedan": iOS writes the units' full names in every live format a widget can use (`.reference`, `.offset`), and the relative style's short form ("2 min, 5 sek") counts seconds.
 
 `WidgetColor` is either one of the platform's semantic colors (`Primary`, `Secondary`, `Accent`, `Surface`, `OnAccent`, `Green`, `Red`, `Orange`, `Yellow`, `Blue`), which adapt to light and dark, or a fixed value from `WidgetColor.FromHex("#2E8B57")` (or `#AARRGGBB` with alpha) / `WidgetColor.From(mauiColor)`. Prefer semantic colors for anything but a brand accent — a fixed color is a fixed color in dark mode too.
 
 How the renderers lay the tree out, so a design can be planned before it is run:
 
-- **`VStack` aligns its children to the leading edge, `HStack` centers them vertically, `ZStack` centers them.** There is no alignment parameter; a `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
-- **Text roles are the platform's type ramp**: `Title` is SwiftUI's `.title2` and 22 sp on Android, `Headline` `.headline` and 16 sp, `Body` `.body` and 14 sp, `Caption` `.caption` and 12 sp. Text follows the user's text size on both platforms; there is no point size and no custom font.
-- **`W.Icon` has a fixed size**: 18 points square on iOS, 20 dp on Android, tinted with its color. For anything larger, use a picture.
+- **`VStack` aligns its children to the leading edge (or centres them with `.CenterItems()`), `HStack` centers them vertically, `ZStack` centers them.** A `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
+- **Text roles are the platform's type ramp**: `LargeTitle` is SwiftUI's `.largeTitle` and 28 sp on Android, `Title` `.title2` and 22 sp, `Headline` `.headline` and 16 sp, `Body` `.body` and 14 sp, `Caption` `.caption` and 12 sp. A role follows the user's text size on both platforms; `.FontSize(points)` fixes it instead. There is no custom font.
+- **`.FontDesign(TextDesign.Rounded)` draws the text in SF Pro Rounded**, as Health and Fitness show their values; `Monospaced` and `Serif` are there too. iOS only: `RemoteViews` cannot set a typeface, so Android draws the default. `.FontSize(points)` replaces the role's size with a fixed one (sp on Android), for a region with an exact amount of room such as the Dynamic Island's; a role follows the user's text size and is the better choice anywhere else.
+- **`W.Icon` is 18 points square on iOS and 20 dp on Android** unless it is given a `size`, tinted with its color. The SVG is rasterized at 128 px, sharp up to about 40 points on a 3x screen. Android resizes the icon from Android 12; below it the icon stays 20 dp.
 - **`W.Image` keeps its aspect ratio.** With a `height` it is scaled to that height; without one it is scaled to fit the room it is offered. See [Images](#images).
 - **The tree is the whole widget.** iOS gives it the system's content margins; Android pads it by 16 dp and centers it vertically. Nothing is drawn outside the tree except the [surface](#backgrounds-and-boxes).
+
+### Sparklines
+
+`W.Sparkline` draws a line through values over time, such as the last hour of a reading, a price or a queue. The platform draws it from the values, so unlike a picture made with `StoreAssetAsync` it can travel in a server's push to a Live Activity.
+
+```csharp
+var graph = W.Sparkline(readings.Select(r => (r.Time, r.Value)), now.AddHours(-1), now, TimeSpan.FromMinutes(1), Teal, height: 56)
+    .Band(3.9, 10, above: Amber, below: Coral)   // the line takes these colours outside the target band
+    .Area()                                       // a soft fill under the line, fading downwards
+    .Dot()                                        // the last value marked, in its colour
+    .Scale(2, 14);                                // the same scale as the app's own chart
+```
+
+- **The axis is even.** The points are put one value per `step`, from `from` to `to`, keeping the latest of each step. A step with no point is bridged, and so is a short run of them (up to a tenth of the steps, at least two), so a reading that came a little early or late leaves no hole. A longer run, such as a sensor that was off, breaks the line. With no `step`, the span is cut into 60. `W.Sparkline(values)` takes plain values spread across the width instead.
+- **It is compact.** Values are rounded to a hundredth of their range, finer than the line is wide, and times are not repeated per point. An hour at one value a minute takes just under 500 bytes of the 4 KB a Live Activity push may carry, and at one value every five minutes about 250. Three graphs in one layout, on the Lock Screen, in the expanded island and in CarPlay, fit with the rest of a card.
+- **It is drawn smooth but true.** The curve is a monotone cubic, so it never swings above or below the values around it. The vertical scale fits the values with 15 % room above and below, so the graph is relative. The band does not stretch the scale. It colours the line, and `shaded: true` also draws it faintly behind the line, wherever it falls.
+- **One scale for one subject.** `.Scale(min, max)` fixes the value at the bottom and top edges, so the Lock Screen, the expanded island, CarPlay and the app's own chart put a value at the same height whatever the last hour held. A value outside the scale widens it rather than leaving the graph. Give every graph of the subject the same `min`, `max` and `step`.
+- **Colour by value.** Inside the band, or without one, the line is `color` (the accent when null). Above the band it is `above` and below it `below`; each defaults to `color`. The curve is split where it crosses an edge of the band, so each colour ends in a cut square to the line rather than a horizontal one. The area under the line takes the line's colour, softened over about 10 points so a change of colour fades across rather than cutting. It is strongest at the height of the line's highest point and fades slowly downwards to clear at the bottom, and it is drawn only under the line. Past the line's two ends it reaches 2 points further and fades out over 4. The dot takes the colour of the last value.
+- **The area is a picture.** The extension draws the area into an image (`ImageRenderer`), and the platform only shows that image. The iPhone's Lock Screen (iOS 27) draws nothing of a gradient mask, nor of a gradient whose colours are all translucent, and it drew a gradient filled path cut off under the line. It also crushes translucent pixels towards black. The Dynamic Island and the simulator drew all of them, so check a graph on a phone. In the island, which is always black, the area is blended onto black beforehand and drawn opaque. The Lock Screen darkens the dim shades of the picture (a share k of the line's colour shows as about k^1.6). The island and CarPlay draw them as they are, so they apply the same curve themselves and all three look alike.
+- **Edges.** The last value sits on the graph's trailing edge, so the graph ends where text aligned to the same edge ends; its dot, and the area's fade, reach over by a few points into the margin. With an area the line starts 2 points in from the leading edge, which leaves room for the fade. In the Dynamic Island, which clips its regions, and on Android, whose picture cannot reach over, the dot stays inside.
+- **Size.** On iOS the line fills the width it is offered, at `height` points (48 by default). Android draws it as a picture `height` dp high and `Aspect` times as wide (3 by default). Android's Live Update notification has no place for a graph and leaves it out.
 
 ### Backgrounds and boxes
 
@@ -628,7 +661,7 @@ canvas.DrawText(day.Day.ToString(), 38, 52, SKTextAlign.Center, date, cut);   //
 
 ## Live Activities
 
-A Live Activity is the same tree vocabulary in eight named regions. Unlike a widget it is updated **directly by the app**, with no budget while the app is running.
+A Live Activity is the same tree vocabulary in nine named regions. Unlike a widget it is updated **directly by the app**, with no budget while the app is running.
 
 <p align="center">
   <img src="images/live-activity-lock-screen.png" width="240" alt="The Live Activity on the lock screen">
@@ -674,8 +707,78 @@ await activity.EndAsync();
 | `ExpandedBottom` | Under all three, full width | A few lines | Details, a `W.Progress` |
 | `CompactLeading` / `CompactTrailing` | Either side of the camera while the activity runs | About 44 points each | An icon; one short `W.Text` — not a clock (see [below](#why-a-dynamic-island-holding-one-clock-can-still-span-the-screen)) |
 | `Minimal` | A small circle when another app's activity also runs | One glyph | An icon |
+| `Small` | CarPlay's Dashboard and the Apple Watch Smart Stack, with `SpineWidgetsLiveActivitySmall` (see [below](#carplay-and-apple-watch)) | A small tile; padded by Spine | One row: the value, its trend, how old it is |
 
 A region left `null` is empty. The Dynamic Island is always black, so fixed colors there are drawn on black whatever the appearance; the Lock Screen is drawn on `Background`, on the system material with `SystemBackground`, or on Spine's translucent black. A `W.Adaptive` node renders its fallback in every region.
+
+### CarPlay and Apple Watch
+
+iOS 26 shows a running Live Activity on CarPlay's Dashboard, and iOS 18 on the paired Apple Watch's Smart Stack. Both use the **small activity family**. By default an app does not declare it, and both surfaces show `CompactLeading` and `CompactTrailing` side by side. Those are laid out for the Dynamic Island, either side of the camera, so on a car's screen they often read poorly.
+
+To give those surfaces a layout of their own, turn the family on in the project and set `Small`:
+
+```xml
+<SpineWidgetsLiveActivitySmall>true</SpineWidgetsLiveActivitySmall>
+```
+
+```csharp
+var layout = new LiveActivityLayout
+{
+    LockScreen      = …,
+    CompactLeading  = W.Icon("drop.fill"),
+    CompactTrailing = W.Text("5.4 →").Caption().Bold(),
+    Small           = W.HStack(6, W.Icon("drop.fill"), W.Text("5.4 →").Title().Bold(), W.Spacer(), W.Relative(reading.At, compact: true).Caption().Secondary()),
+};
+```
+
+- The family is declared when the widget extension is built, not per activity: ActivityKit reads it from the extension's `ActivityConfiguration` (`.supplementalActivityFamilies([.small])`). That is why it takes a build property as well as the tree.
+- With the property on, an activity whose layout has no `Small` (another kind in the same app, say) is drawn as the system would draw it without the family: its compact leading and trailing views in a row.
+- With the property off, `Small` is ignored, and the app logs a warning the first time it starts or updates an activity that sets it.
+- Before iOS 18 the extension leaves the family out, so it still runs on iOS 17.
+- Keep it to one row of large text: on the dashboard it is read at a glance while driving.
+- `Small` travels in the same push as the rest of the layout. A row of five nodes adds about 400 bytes, which a layout near APNs' 4 KB limit may not have room for. Whatever it repeats from the other regions can be [shared](#shared-nodes).
+- Android has no such surface and ignores `Small`.
+
+### Shared nodes
+
+A card shown on the Lock Screen, in the expanded island and in CarPlay often draws the same thing in all three: the hour as a graph, how old the reading is. Each region is a tree of its own, so a push carries each of them as many times as regions show it. A graph of twelve values is about 270 bytes, so three copies take a fifth of the 4 KB a push may carry. Put such a node in `Shared` under a name, and use it in the regions with `W.Use`:
+
+```csharp
+var layout = new LiveActivityLayout
+{
+    Shared = new Dictionary<string, WidgetNode>
+    {
+        ["graph"] = W.Sparkline(points, from, to, TimeSpan.FromMinutes(5), color).Band(3.9, 10).Area().Dot(),
+        ["age"]   = W.Relative(reading.At, ago: true).Caption().Secondary().Trailing(),
+    },
+    LockScreen     = W.VStack(8, W.HStack(W.Text(name).Caption().Bold(), W.Spacer(), W.Use("age")), W.Use("graph", height: 56)),
+    ExpandedBottom = W.Use("graph", height: 44),
+    Small          = W.HStack(12, W.VStack(2, W.Text("5.4 →").Title().Bold(), W.Use("age")), W.Use("graph", height: 36)),
+};
+```
+
+- The node travels once, in `shared`. Each use is replaced by it where the layout is read: by the widget extension on iOS, and by Spine in the app on Android.
+- A use can set its own height (a sparkline's or picture's height, an icon's or ring's size). That height replaces the shared node's, so one graph is drawn at three heights. Everything else is the shared node's.
+- In the test that sends the glucose card above, sharing the graph and the age makes an update about 540 bytes smaller (2.9 KB instead of 3.45 KB).
+- A use whose name is not in `Shared` is refused when the layout is serialized (`ArgumentException`). So is a shared node that uses another.
+- The widget extension reads `shared` from Spine 0.1.34. An app built with an older Spine draws nothing where a node is used. A server should therefore send the shared form only to apps that are updated, and the full form to the rest.
+- Live Activity layouts only. A widget timeline has no `Shared`, and a widget draws nothing for a use.
+
+### A Live Activity without widgets
+
+The extension that draws a Live Activity on iOS is the widget extension, and the build makes it only for an app that declares a `<SpineWidget>` or a `<SpineControl>`. An app whose only surface is a Live Activity says so instead:
+
+```xml
+<PropertyGroup>
+  <SpineWidgetsLiveActivities>true</SpineWidgetsLiveActivities>
+</PropertyGroup>
+```
+
+- The value is the default, but here it has to be in the project. Referencing the package does not build an extension the app never asked for.
+- iOS gets an extension holding only the Live Activity. Nothing shows in the widget gallery. Start, update, push tokens, push-to-start, `SpineWidgetsFrequentUpdates` and the App Group work as they do with widgets. Device builds still need the extension's App ID and profile; see [Register the extension](#4-register-the-extension-in-the-developer-portal-for-device-builds).
+- Android gets the notification permissions a Live Update needs, and no widget receivers. The background-refresh receiver is left out, since there is nothing for it to refresh.
+- `SpineWidgetsPush` is ignored without a widget: it would only raise the extension to iOS 26. Pushes to the activity itself work either way.
+- Mac Catalyst has no Live Activities, so it gets nothing.
 
 ### Lifecycle
 
@@ -700,15 +803,17 @@ await _backend.RegisterAsync(await activity!.GetPushTokenAsync());
 await _backend.RegisterStartTokenAsync(await _liveActivities.GetPushToStartTokenAsync());
 ```
 
-Tokens rotate, so send them at every launch and foreground as well. The server pushes with `apns-push-type: liveactivity` and `apns-topic: <bundle-id>.push-type.liveactivity`; the content state is a single string holding the layout's JSON, which the server builds with the same types and `LiveActivityLayout.ToJson()`:
+Tokens rotate, so send them at every launch and foreground as well. The server pushes with `apns-push-type: liveactivity` and `apns-topic: <bundle-id>.push-type.liveactivity`; the content state holds the layout's JSON as an object under `layout`, which the server builds with the same types and `LiveActivityLayout.ToJson()`:
 
 ```json
 { "aps": {
     "timestamp": 1757236800,
     "event": "update",
-    "content-state": { "json": "{\"lockScreen\":{\"type\":\"text\",\"text\":\"6,8 ↗\"}}" }
+    "content-state": { "layout": { "lockScreen": { "type": "text", "text": "6,8 ↗" } } }
 } }
 ```
+
+Before 0.1.27 the layout was a string under `json`, every quote escaped. The extension still reads that, so a server that has not been updated keeps working, but an app built with an older Spine cannot read the object: update the app before the server. Priority 5, the default for an update, lets iOS hold it back for a while; ask for `PushPriority.High` only when the update cannot wait.
 
 `event: start` with `attributes-type: SpineActivityAttributes` and `attributes: { "kind": "…" }` starts an activity through the push-to-start token. Set `SpineWidgetsFrequentUpdates=true` in the project to declare `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget. Android has no tokens: a server reaches a Live Update through the app's own push handler (FCM), which calls `UpdateAsync` or `RefreshAsync` like any other code.
 
@@ -842,15 +947,23 @@ The consequence for Spine: **anything that must tick has to be a `W.Timer` or `W
 
 ### Choosing a time node
 
-Three forms of the same idea — text the system keeps current without the app running:
+Five forms of the same idea — text the system keeps current without the app running:
 
 | Node | Shows | Counts |
 |---|---|---|
 | `W.Timer(until)` | `18:35` | down to a moment |
-| `W.Relative(date)` | `18 min, 35 secs` | up from a moment |
-| `W.Relative(date, compact: true)` | `18:35` | up from a moment |
+| `W.Relative(date)` | `18 min, 35 secs` | up from a moment, every second |
+| `W.Relative(date, compact: true)` | `18:35` | up from a moment, every second |
+| `W.Relative(date, rounded: true)` | `18 minutes`, `1 hour, 5 minutes` | up from a moment, every minute (iOS 18) |
+| `W.Relative(date, ago: true)` | `now`, `18 minutes ago`, `1 hour ago` | up from a moment, every minute (iOS 18) |
 
 Pick by the room the region has. **Lock screen and expanded** can carry a sentence, and "18 min, 35 secs" says what it means without the reader converting anything. **Compact and minimal** cannot: use `compact: true`, or `W.Timer` when there is an end to count down to.
+
+**`ago: true` is for how old something is, read at a glance**, such as the age of a reading. It says `now` right after the moment, then `2 minutes ago`, `3 hours ago`, `yesterday`, `3 days ago`, each rounded to the nearest unit. In Swedish that is `nu`, `för 2 minuter sedan`. It is drawn with SwiftUI's live reference format, the only live format with a word for under a minute; an app's own word such as "just now" cannot go into it. Before iOS 18 it is drawn as `W.Relative(date)`, and on Android as the counting-up clock.
+
+**`rounded: true` is the alternative without "ago"**: whole minutes, then hours and minutes, where the seconds are only noise but the minutes past the hour still count. Under a minute it says `0 minutes`. It is drawn with SwiftUI's live offset format, which writes the units' full names; iOS has no self-updating form with `min` or `h`. Before iOS 18 it is drawn as `W.Relative(date)`. Android draws it as the same counting-up clock as every `W.Relative` (see [Known gaps](#known-gaps)).
+
+**The system's times are in the app's language.** The widget extension has no localizations of its own, so iOS would write "secs" and "minutes" in English whatever the app shows. Spine writes the language the app shows, `ISpineStrings.Culture`, to the App Group at launch and whenever it changes, and the renderer writes the times in it. That works for any language, also one the app chooses in its own settings rather than the phone's, and widgets are redrawn when it changes. An activity takes the new language at its next update. Before the app has run, the renderer matches the app's `CFBundleLocalizations` against the user's languages, as iOS does for the app itself. The user's region still decides the formats. The result reads `1 min, 49 s` and `1 timme, 5 minuter` in Swedish, and `1 Min., 54 Sek.` and `1 Stunde und 5 Minuten` in German.
 
 #### Why a Dynamic Island holding one clock can still span the screen
 
@@ -956,9 +1069,10 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 
 ### Known gaps
 
-- `W.Relative` is a chronometer counting up (`03:12`), not "3 min ago" — `RemoteViews` has no system-drawn relative text, and a text the app computed would stand still.
+- `W.Relative` is a chronometer counting up (`03:12`), not "3 min ago" — `RemoteViews` has no system-drawn relative text, and a text the app computed would stand still. `rounded: true` and `ago: true` are drawn the same way.
 - `W.Spacer` only stretches inside a stack that is wider than its content; stacks are full-width, so the usual `HStack(text, Spacer(), timer)` works, a spacer in a nested vertical stack does not.
-- No custom fonts and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
+- No custom fonts, no rounded design and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
+- `W.Icon`'s `size` needs Android 12; below it an icon stays 20 dp.
 - `.CornerRadius` needs Android 12; below it a stack's background is square, and so is a widget's own `Background` — `RemoteViews` can neither clip nor tint there.
 - Stack spacing needs Android 12; below it children sit edge to edge.
 - Nine widget kinds, as on iOS.

@@ -49,6 +49,16 @@ public abstract class NavigableDefaults
 
     /// <summary>Default for <see cref="NavigableAttribute.KeyboardAvoidance"/>: <see langword="true"/>.</summary>
     public bool KeyboardAvoidance { get; set; } = true;
+
+    /// <summary>
+    /// Whether a page whose scroll source (<see cref="ScrollView"/> or <see cref="CollectionView"/>) reaches its bottom
+    /// edge scrolls under the bottom bar — the home indicator, Android's gesture bar, the floating tab bar — the way a
+    /// list does under a navigation controller: Spine leaves <see cref="SafeAreaEdges.Bottom"/> out of the page's safe
+    /// area and gives the scroll source a bottom scroll inset, so its last row still scrolls clear of the bar.
+    /// Only for a page that sets neither <c>SafeAreaEdges</c> nor <c>ScrollInset</c> (on its attribute, in these
+    /// defaults, or <c>SafeArea.ScrollInset</c> on the view). Defaults to <see langword="true"/>.
+    /// </summary>
+    public bool ScrollUnderBottomBar { get; set; } = true;
 }
 
 /// <summary>
@@ -430,6 +440,39 @@ public sealed class SpineOptions
     /// </summary>
     public sealed class MacOSPlatformOptions
     {
+        /// <summary>
+        /// The window's backdrop on Mac Catalyst. <see cref="WindowBackdrop.Acrylic"/> blurs the desktop behind the window,
+        /// clearly translucent, as System Settings' sidebar is; <see cref="WindowBackdrop.Mica"/> is the subtler material
+        /// AppKit uses under a window's content. As with <see cref="WindowsPlatformOptions.Backdrop"/>, the host page's
+        /// background is cleared and pages show the material where they have no background of their own; cards and rows
+        /// keep theirs. A page with no opaque background moves over the material during navigation, not on a colour.
+        /// Defaults to <see cref="WindowBackdrop.None"/>: an opaque window. Reduce Transparency keeps it opaque.
+        /// </summary>
+        public WindowBackdrop Backdrop { get; set; } = WindowBackdrop.None;
+
+        /// <summary>
+        /// Puts a region page's header bar in the window's title bar row, beside the close, minimise and zoom
+        /// buttons, as a unified toolbar does and as the header bar sits beside the caption buttons on Windows.
+        /// The window gets one row instead of a title bar with the header bar under it; the title starts after
+        /// the window buttons, so a leading <c>TitleAlignment</c> reads like a Mac toolbar's title. Sheets and pages
+        /// without a header bar are unchanged. Defaults to false.
+        /// </summary>
+        public bool UnifiedTitleBar { get; set; }
+
+        /// <summary>
+        /// At launch, when the first page's content does not fit the window, the window takes the size the page
+        /// suggests for its width (<see cref="ViewModelBase.SuggestWindowSizes"/>): the widest suggestion that is no
+        /// wider than the window, or the narrowest. It happens once; after that the size is the user's. Defaults to false.
+        /// </summary>
+        public bool FitWindowToContent { get; set; }
+
+        /// <summary>
+        /// For a menu-bar app (<c>LSUIElement</c>): while its window is open the app is in the Dock and in Cmd+Tab, like
+        /// any app, and when <see cref="CloseToBackground"/> hides the window it goes back to the menu bar only. macOS
+        /// lists only apps with a Dock icon in Cmd+Tab, so there is no Cmd+Tab without it. Defaults to false.
+        /// </summary>
+        public bool InDockWhileOpen { get; set; }
+
         /// <summary>
         /// When true, a menu-bar (tray) icon is shown in the macOS status bar.
         /// Pair with <see cref="CloseToBackground"/> to allow the user to restore

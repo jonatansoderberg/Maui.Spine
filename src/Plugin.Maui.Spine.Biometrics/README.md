@@ -15,7 +15,7 @@ builder.UseSpine(options => options.AddAssembly(typeof(MauiProgram).Assembly)); 
 [NavigableRegion(Title = "PIN"), RequiresUnlock("Show the PIN")]
 public partial class PinPage { … }
 
-[PageAction(Svg = "trashcan.svg"), RequiresUnlock("Delete the account", Fresh = true)]
+[PageAction(Svg = "delete.svg"), RequiresUnlock("Delete the account", Fresh = true)]
 [RelayCommand]
 private Task DeleteAccountAsync() { … }
 

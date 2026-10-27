@@ -47,6 +47,7 @@ The command property is found by the toolkit's naming rule (`SaveAsync` and `Sav
 | `Badge` | `null` | Initial badge text |
 | `IsVisible` | `true` | Initial visibility |
 | `ShowsBusy` | `false` | `IsBusy` follows the async command while it runs; see [A busy action](#a-busy-action) |
+| `SpinsWhenBusy` | `false` | The icon turns while the action is busy, rather than only dimming |
 | `Command` | `null` | Name of the command property, when not derived from the member |
 
 ### Adding actions by hand
@@ -84,8 +85,12 @@ void OnEditingChanged(bool editing) => FilterAction.IsVisible = !editing;
 | `Svg` | `string?` | `null` | SVG resource name from `Resources/Images`; changing it cross-fades |
 | `Badge` | `string?` | `null` | Short text in a small pill over the button, e.g. `"3"`; `null` hides it |
 | `IsEnabled` | `bool` | `true` | Whether the button responds to taps |
-| `IsBusy` | `bool` | `false` | Work the button started is under way: dimmed, no taps, the icon turns; see below |
+| `IsBusy` | `bool` | `false` | Work the button started is under way: dimmed, no taps; see [A busy action](#a-busy-action) |
+| `SpinsWhenBusy` | `bool` | `false` | The icon turns while `IsBusy`, such as a refresh |
 | `IsSelected` | `bool` | `false` | Whether a toggle the button stands for is on; see below |
+| `SelectedStyle` | `PageActionSelectedStyle` | `Filled` | How a selected button shows it: `Filled`, or `Tinted` (the glyph in the tint over a faint wash of it) |
+| `Tint` | `Color?` | `null` | A colour of the button's own for its glyph or text; it also fills a confirm or a selected button |
+| `DarkTint` | `Color?` | `null` | The `Tint` in dark mode; `null` uses `Tint` in both |
 | `IsVisible` | `bool` | `true` | Whether the button is shown; the next visible action in the slot takes over |
 | `Command` | `ICommand` | — | Command executed when the button is tapped (fixed at creation) |
 | `CommandParameter` | `object?` | `null` | Optional parameter forwarded to the command |
@@ -109,14 +114,55 @@ void OnEditingChanged(bool editing) => FilterAction.IsVisible = !editing;
 partial void OnIsTorchOnChanged(bool value) => _torch.IsSelected = value;
 ```
 
-## A busy action
+### A colour of its own
 
-`IsBusy = true` shows that the work a button started is under way, such as a refresh: the button dims and does not respond to taps, and its icon turns until `IsBusy` is set back, finishing the turn it is on rather than snapping back. Only the glyph turns; the glass circle or filled circle under it stays still. A text button only dims, and with Reduce Motion the icon only dims too.
+`Tint` gives a button a colour of its own: its glyph or text is drawn in it instead of the header bar's foreground (or the accent of a text button), and a confirm or a filled selected button is filled with it instead. `DarkTint` replaces it in dark mode. A tint follows the theme as it changes; a fixed `HeaderBarForeground` over a photo does not override it.
 
-`ShowsBusy = true` on the attribute sets it for as long as the async command runs, so the page needs no code of its own:
+`SelectedStyle = PageActionSelectedStyle.Tinted` shows a selected button another way: the glyph or text in the tint (the accent without one) over a faint wash of the same colour, about 15 %, on the glass circle on iOS 26 and in the button's circle or capsule elsewhere. It suits a toggle whose "on" is a colour, such as a green bolt while a Live Activity runs, where a black fill would read as a pressed button. For a button that looks as usual while it is off, set the tint with the state:
 
 ```csharp
-[PageAction(Svg = "Reload.svg", Placement = PageActionPlacement.Primary, ShowsBusy = true)]
+_bolt = new PageAction(null, LiveMenu) { Svg = "Bolt.svg", SelectedStyle = PageActionSelectedStyle.Tinted };
+
+partial void OnIsLiveChanged(bool value)
+{
+    _bolt.IsSelected = value;
+    _bolt.Tint = value ? Color.FromArgb("#34C759") : null;
+    _bolt.DarkTint = value ? Color.FromArgb("#30D158") : null;
+}
+```
+
+## A status beside the buttons
+
+`IsStatus = true` shows an action as a status instead of a button: a small `Svg` glyph in its `Tint` followed by `Text` in the secondary label colour, with no button shape and no glass. It suits a desk app's header, where there is room for a line such as "Sent 14:05" next to the buttons. A tap runs `Command` when there is one, and `Description` is the tooltip. Change `Text`, `Svg` and `Tint` as the state changes:
+
+```csharp
+_sent = new PageAction(null, OpenDeviceCommand) { IsStatus = true, Svg = "Check.svg" };
+
+void ShowSent(DateTimeOffset at, string? error)
+{
+    _sent.Svg = error is null ? "Check.svg" : "Warning.svg";
+    _sent.Tint = Color.FromArgb(error is null ? "#34C759" : "#FF3B30");
+    _sent.Text = error is null ? $"Sent {at:HH:mm}" : "Not sent";
+    _sent.Description = error;
+}
+```
+
+On a phone the header has no room for it; show the same line in the page instead.
+
+## A busy action
+
+`IsBusy = true` shows that the work a button started is under way, such as saving: the button dims and does not respond to taps until `IsBusy` is set back. That is all a confirm, send or save button needs.
+
+`SpinsWhenBusy = true` also turns the icon while it is busy, for a glyph that means going round, such as a refresh. It turns until `IsBusy` is set back, finishing the turn it is on rather than snapping back. Only the glyph turns; the glass circle or filled circle under it stays still. A text button only dims, and with Reduce Motion the icon only dims too.
+
+`ShowsBusy = true` on the attribute sets `IsBusy` for as long as the async command runs, so the page needs no code of its own; add `SpinsWhenBusy = true` for the turn:
+
+```csharp
+[PageAction("Save", Role = PageActionRole.Confirm, ShowsBusy = true)]
+[RelayCommand]
+private Task SaveAsync() => StoreAsync();
+
+[PageAction(Svg = "Reload.svg", Placement = PageActionPlacement.Primary, ShowsBusy = true, SpinsWhenBusy = true)]
 [RelayCommand]
 private Task RefreshAsync() => LoadAsync();
 ```
@@ -129,6 +175,8 @@ try { await Task.WhenAll(SyncAsync(), Task.Delay(900)); }   // at least one turn
 finally { _refresh.IsBusy = false; }
 ```
 
+Up to Spine 0.1.19 every busy icon turned. A button that should keep turning, such as a refresh, now needs `SpinsWhenBusy = true` on the attribute or the `PageAction`.
+
 ## A haptic on tap
 
 `[PageAction("Save", Haptic = Haptic.Success)]` or `new PageAction("Save", SaveCommand) { Haptic = Haptic.Success }` plays a haptic when the button is tapped, before the command runs. See [Haptics](haptics.md).
@@ -136,6 +184,10 @@ finally { _refresh.IsBusy = false; }
 ## Liquid Glass on iOS 26
 
 On iOS 26 and Mac Catalyst 26 the header bar renders its back button and page actions as Liquid Glass, the way a `UINavigationBar` shows its items. The SVG keeps the tint `PageActionView` gives it (black in light theme, white in dark); a text action keeps the app's accent (`Primary`, or `IThemeService.Accent`). Turn it off in `UseSpine` with `options.Apple.GlassHeaderActions = false`. See [Glass buttons](glass-buttons.md) for the attached property behind it.
+
+`HeaderBarGlass = HeaderBarGlass.Transient` (on the attribute, in `options.RegionDefaults`/`SheetDefaults`, or on the view model) draws the buttons as plain icons and shows regular glass only while one is pressed (`GlassStyle.Transient`), like the icons of a Mac toolbar. A `Confirm` stays prominent glass. Where the buttons are not glass, `Transient` is a bare icon button with the platform's pressed state. On iOS 26 transient buttons sit next to each other without a gap, as one group of a navigation bar's does, so the bare icons are not spread out.
+
+With glass buttons (iOS 26) a left-aligned title on a page without a leading action starts at the page margin (`HeaderBarConstants.PageMargin`), where the page's content and the outer button's edge are.
 
 ---
 
@@ -146,7 +198,20 @@ On iOS 26 and Mac Catalyst 26 the header bar renders its back button and page ac
 | `Secondary` | Trailing / right side | Page-specific actions (Save, Edit, Share) |
 | `Primary` | Leading / left side | Navigation-level actions (Menu, Cancel) |
 
-Each slot shows the **first visible** action with that placement. The back button occupies the `Primary` slot implicitly; an explicit `Primary` action replaces it for that page.
+The leading side shows the **first visible** `Primary` action. The back button occupies it implicitly; an explicit `Primary` action replaces it for that page.
+
+The trailing side shows **every visible** `Secondary` action, as a navigation bar's right bar button items: the first one declared sits at the edge and the next ones line up inward. An action that hides itself (`IsVisible = false`) leaves the row and the others close up.
+
+```csharp
+[PageAction(Svg = "Settings.svg")]   // at the edge
+[RelayCommand] private Task OpenSettings() => …;
+
+[PageAction(Svg = "WifiOff.svg")]    // next to it, only while offline
+[RelayCommand] private Task Retry() => …;
+
+[PageAction(Svg = "Reload.svg")]     // innermost
+[RelayCommand] private Task Refresh() => …;
+```
 
 ```csharp
 [PageAction("Cancel", Role = PageActionRole.Cancel)]   // Primary by its role

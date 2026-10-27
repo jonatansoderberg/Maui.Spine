@@ -23,6 +23,22 @@ public enum PageActionPlacement
     Secondary
 }
 
+/// <summary>How a <see cref="PageAction"/> shows that it is <see cref="PageAction.IsSelected"/>.</summary>
+public enum PageActionSelectedStyle
+{
+    /// <summary>
+    /// The button is filled, with its <see cref="PageAction.Tint"/> or else the header bar's foreground colour, and
+    /// draws its glyph or text in the colour that reads on the fill.
+    /// </summary>
+    Filled,
+
+    /// <summary>
+    /// The glyph or text is drawn in the <see cref="PageAction.Tint"/> (the accent without one) over a faint wash of
+    /// the same colour, on the glass or the circle the button already has.
+    /// </summary>
+    Tinted,
+}
+
 /// <summary>
 /// Represents a button that appears in Spine's header bar.
 /// Declare one with <see cref="PageActionAttribute"/> on a command, or add instances to
@@ -160,8 +176,9 @@ public sealed partial class PageAction : ObservableObject
     public partial bool IsVisible { get; set; } = true;
 
     /// <summary>
-    /// Whether a toggle the button stands for is on, such as a torch. A selected button is filled with the header
-    /// bar's foreground colour and draws its glyph or text in the colour that reads on it.
+    /// Whether a toggle the button stands for is on, such as a torch. How it shows is the <see cref="SelectedStyle"/>:
+    /// by default the button is filled with the header bar's foreground colour (or its <see cref="Tint"/>) and draws
+    /// its glyph or text in the colour that reads on it.
     /// </summary>
     /// <example>
     /// <code>
@@ -171,24 +188,79 @@ public sealed partial class PageAction : ObservableObject
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
+    /// <summary>How the button shows that it <see cref="IsSelected"/>. Defaults to <see cref="PageActionSelectedStyle.Filled"/>.</summary>
+    [ObservableProperty]
+    public partial PageActionSelectedStyle SelectedStyle { get; set; }
+
+    /// <summary>
+    /// A colour of the button's own for its glyph or text, in place of the header bar's foreground (and the accent of
+    /// a text button). It also fills a <see cref="PageActionRole.Confirm"/> and a selected button, or with
+    /// <see cref="PageActionSelectedStyle.Tinted"/> washes it. <see cref="DarkTint"/> replaces it in dark mode.
+    /// <see langword="null"/>, the default, follows the bar.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// // A green bolt on a faint green wash while the Live Activity runs, the usual bolt otherwise.
+    /// _bolt = new PageAction(null, menu) { Svg = "Bolt.svg", SelectedStyle = PageActionSelectedStyle.Tinted };
+    /// partial void OnIsLiveChanged(bool value)
+    /// {
+    ///     _bolt.IsSelected = value;
+    ///     _bolt.Tint = value ? Color.FromArgb("#34C759") : null;
+    /// }
+    /// </code>
+    /// </example>
+    [ObservableProperty]
+    public partial Color? Tint { get; set; }
+
+    /// <summary>The <see cref="Tint"/> in dark mode; <see langword="null"/> uses <see cref="Tint"/> in both.</summary>
+    [ObservableProperty]
+    public partial Color? DarkTint { get; set; }
+
     /// <summary>Whether the button responds to taps. Defaults to <see langword="true"/>.</summary>
     [ObservableProperty]
     public partial bool IsEnabled { get; set; } = true;
 
     /// <summary>
-    /// Whether the work the button starts is under way: the button is dimmed and does not respond to taps, and an
-    /// icon turns until it is set back, finishing the turn it is on. With Reduce Motion the icon only dims.
+    /// Whether the work the button starts is under way: the button is dimmed and does not respond to taps until it
+    /// is set back. With <see cref="SpinsWhenBusy"/> an icon also turns, finishing the turn it is on.
     /// <see cref="PageActionAttribute.ShowsBusy"/> sets it while an async command runs.
     /// </summary>
     /// <example>
     /// <code>
-    /// _refresh.IsBusy = true;
-    /// try { await LoadAsync(); }
-    /// finally { _refresh.IsBusy = false; }
+    /// _save.IsBusy = true;
+    /// try { await SaveAsync(); }
+    /// finally { _save.IsBusy = false; }
     /// </code>
     /// </example>
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
+
+    /// <summary>
+    /// Whether the icon turns while <see cref="IsBusy"/>, for a button whose glyph means going round, such as a
+    /// refresh. Defaults to <see langword="false"/>: a busy button only dims, which suits a confirm or send. Only the
+    /// glyph turns, never the circle under it; a text button and Reduce Motion only dim.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// _refresh = new PageAction(null, RefreshCommand) { Svg = "Reload.svg", SpinsWhenBusy = true };
+    /// </code>
+    /// </example>
+    [ObservableProperty]
+    public partial bool SpinsWhenBusy { get; set; }
+
+    /// <summary>
+    /// Shows the action as a status rather than a button, such as "Sent 14:05" beside a desk app's buttons: a small
+    /// <see cref="Svg"/> glyph drawn in <see cref="Tint"/> (green for done, red for a fault) followed by
+    /// <see cref="Text"/> in the secondary label colour, with no button shape or glass. A tap runs
+    /// <see cref="Command"/> when there is one; <see cref="Description"/> is the tooltip.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// _sent = new PageAction(null, OpenDeviceCommand) { IsStatus = true, Svg = "Check.svg", Tint = Colors.Green, Text = "Sent 14:05" };
+    /// </code>
+    /// </example>
+    [ObservableProperty]
+    public partial bool IsStatus { get; set; }
 
     /// <summary>
     /// Short text shown in a small pill over the button, such as a count. <see langword="null"/> hides the pill.

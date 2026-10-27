@@ -23,7 +23,7 @@ namespace Plugin.Maui.Spine.Core;
 ///     Actions =
 ///     [
 ///         new("Share", SpineIcons.Share, ShareCommand),
-///         new("Remove", SpineIcons.Trashcan, RemoveCommand) { IsDestructive = true },
+///         new("Remove", SpineIcons.Delete, RemoveCommand) { IsDestructive = true },
 ///     ],
 /// });
 /// </code>

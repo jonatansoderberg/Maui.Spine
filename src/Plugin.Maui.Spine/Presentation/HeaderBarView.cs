@@ -35,8 +35,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         propertyChanged: static (b, _, v) =>
         {
             var bar = (HeaderBarView)b;
-            bar._primaryPageActionView.Foreground = (Color?)v;
-            bar._secondaryPageActionView.Foreground = (Color?)v;
+            foreach (var view in bar.ActionViews)
+                view.Foreground = (Color?)v;
         });
 
     public Color? Foreground
@@ -51,8 +51,9 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         propertyChanged: static (b, _, v) =>
         {
             var bar = (HeaderBarView)b;
-            bar._primaryPageActionView.Glass = (HeaderBarGlass)v;
-            bar._secondaryPageActionView.Glass = (HeaderBarGlass)v;
+            foreach (var view in bar.ActionViews)
+                view.Glass = (HeaderBarGlass)v;
+            bar.ApplyTrailingSpacing();
         });
 
     public HeaderBarGlass Glass
@@ -67,8 +68,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         propertyChanged: static (b, _, v) =>
         {
             var bar = (HeaderBarView)b;
-            bar._primaryPageActionView.OverContent = (bool)v;
-            bar._secondaryPageActionView.OverContent = (bool)v;
+            foreach (var view in bar.ActionViews)
+                view.OverContent = (bool)v;
         });
 
     public bool OverContent
@@ -83,8 +84,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         propertyChanged: static (b, _, v) =>
         {
             var bar = (HeaderBarView)b;
-            bar._primaryPageActionView.BackgroundProgress = (double)v;
-            bar._secondaryPageActionView.BackgroundProgress = (double)v;
+            foreach (var view in bar.ActionViews)
+                view.BackgroundProgress = (double)v;
         });
 
     public double BackgroundProgress
@@ -105,6 +106,96 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
     readonly PageActionView _primaryPageActionView;
     readonly PageActionView _secondaryPageActionView;
+
+    // The trailing actions after the secondary one, innermost first, left of it in _trailing.
+    readonly HorizontalStackLayout _trailing;
+    readonly List<PageActionView> _moreTrailing = [];
+
+    IEnumerable<PageActionView> ActionViews => [_primaryPageActionView, _secondaryPageActionView, .. _moreTrailing];
+
+    /// <summary>The page's further trailing actions, from the edge inward (see NavigationRegionViewModel.MoreSecondaryPageActions).</summary>
+    public static readonly BindableProperty MoreTrailingActionsProperty = BindableProperty.Create(
+        nameof(MoreTrailingActions), typeof(IReadOnlyList<PageAction>), typeof(HeaderBarView), null,
+        propertyChanged: static (b, _, v) => ((HeaderBarView)b).SyncMoreTrailing((IReadOnlyList<PageAction>?)v ?? []));
+
+    public IReadOnlyList<PageAction>? MoreTrailingActions
+    {
+        get => (IReadOnlyList<PageAction>?)GetValue(MoreTrailingActionsProperty);
+        set => SetValue(MoreTrailingActionsProperty, value);
+    }
+
+    /// <summary>
+    /// Keeps one view per further trailing action: a view whose action stays keeps its place, a new one
+    /// materializes like the secondary action, and one whose action left fades out first.
+    /// </summary>
+    void SyncMoreTrailing(IReadOnlyList<PageAction> actions)
+    {
+        foreach (var view in _moreTrailing.Where(v => !actions.Contains(v.Action!)).ToList())
+        {
+            _moreTrailing.Remove(view);
+            _ = RemoveTrailingAsync(view);
+        }
+
+        var added = new List<PageActionView>();
+        for (var i = 0; i < actions.Count; i++)
+        {
+            var view = _moreTrailing.FirstOrDefault(v => ReferenceEquals(v.Action, actions[i]));
+            if (view is null)
+                added.Add(view = NewTrailingView(actions[i]));
+            _moreTrailing.Remove(view);
+            _moreTrailing.Insert(i, view);
+        }
+
+        // _trailing holds the views still fading out first, then the further actions innermost first, then
+        // the secondary action at the edge.
+        IView[] desired = [.. Enumerable.Reverse(_moreTrailing), _secondaryPageActionView];
+        var leaving = _trailing.Children.Count(c => !desired.Contains(c));
+        for (var k = 0; k < desired.Length; k++)
+        {
+            if (_trailing.Children.Count > leaving + k && ReferenceEquals(_trailing.Children[leaving + k], desired[k]))
+                continue;
+            _trailing.Children.Remove(desired[k]);
+            _trailing.Children.Insert(leaving + k, desired[k]);
+        }
+
+        // Only the new ones: showing one that is already there would play its arrival again.
+        foreach (var view in added)
+            UpdateMoreTrailingVisibility(view);
+        PublishActionSlots();
+    }
+
+    PageActionView NewTrailingView(PageAction action)
+    {
+        var view = new PageActionView
+        {
+            HorizontalOptions = LayoutOptions.End,
+            VerticalOptions = LayoutOptions.Center,
+            HeightRequest = ButtonHeight,
+            IconWidth = IconButtonWidth,
+            ButtonPadding = _secondaryPageActionView.ButtonPadding,
+            Foreground = Foreground,
+            Glass = Glass,
+            OverContent = OverContent,
+            BackgroundProgress = BackgroundProgress,
+            Opacity = 0,
+            IsVisible = false,
+        };
+        view.Action = action;
+        view.VisibilityChanged += () => UpdateMoreTrailingVisibility(view);
+        view.SizeChanged += (_, _) => PublishActionSlots();
+        return view;
+    }
+
+    void UpdateMoreTrailingVisibility(PageActionView view) =>
+        _ = AnimateVisibility(view, !(IsWindowsDesktop() && IsTitleBarVisible) && view.Action is { IsVisible: true });
+
+    async Task RemoveTrailingAsync(PageActionView view)
+    {
+        await AnimateVisibility(view, show: false);
+        if (!_moreTrailing.Contains(view))
+            _trailing.Children.Remove(view);
+        PublishActionSlots();
+    }
     SearchField? _searchField;
 
     /// <summary>
@@ -174,6 +265,30 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         if (_searchField is not null)
             _searchField.Margin = new Thickness(0, 0, _secondaryPageActionView.IsVisible ? HeaderBarConstants.TitleActionGap : 0, 0);
     }
+
+    /// <summary>
+    /// Room kept free at the leading edge for the Mac window buttons when the bar is in the title bar row
+    /// (<c>SpineOptions.MacOS.UnifiedTitleBar</c>), 0 otherwise. The leading action and the title start after it.
+    /// </summary>
+    public double LeadingInset
+    {
+        get;
+        set
+        {
+            if (Math.Abs(field - value) < 0.5) return;
+            field = value;
+            UpdatePresentationSizes();
+            PublishActionSlots();
+        }
+    }
+
+    // A Mac toolbar's first item starts this far after the zoom button.
+    const double WindowButtonsGap = 12;
+
+    double LeadingColumn => LeadingInset > 0 ? LeadingInset + WindowButtonsGap : SideMargin;
+
+    // In the title bar row the buttons are a toolbar's, smaller than the row.
+    double ButtonHeight => LeadingInset > 0 ? HeaderBarConstants.CompactButtonHeight : HeaderBarConstants.Height;
 
     /// <summary>
     /// Raised when <see cref="PrimaryActionSlot"/> or <see cref="SecondaryActionSlot"/> changes.
@@ -294,6 +409,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     {
         var view = (HeaderBarView)bindable;
         view.UpdateSecondaryActionVisibility();
+        foreach (var more in view._moreTrailing)
+            view.UpdateMoreTrailingVisibility(more);
     }
 
     static void OnPresentationChanged(BindableObject bindable, object oldValue, object newValue)
@@ -366,8 +483,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     /// </summary>
     void PublishActionSlots()
     {
-        var primary = SlotFor(_primaryPageActionView, leading: true);
-        var secondary = SlotFor(_secondaryPageActionView, leading: false);
+        var primary = Math.Max(SlotFor(_primaryPageActionView, leading: true), LeadingInset > 0 ? LeadingColumn : 0);
+        var secondary = TrailingSlot();
 
         // The title keeps clear of a search field at the trailing end too.
         if (_searchField is { IsVisible: true, Bounds.Width: > 0 } field && Width > 0)
@@ -395,10 +512,29 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
         // Before the first layout there is no frame yet. An icon action has a known width, so
         // seed with that rather than let the title start full-width and jump on the next pass.
-        return SideMargin + IconButtonWidth;
+        return (leading ? LeadingColumn : SideMargin) + IconButtonWidth;
+    }
+
+    /// <summary>How far the trailing actions reach in from the right edge: the leftmost visible one's left edge.</summary>
+    double TrailingSlot()
+    {
+        var visible = _trailing.Children.OfType<PageActionView>().Where(v => v.IsVisible).ToList();
+        if (visible.Count == 0)
+            return 0;
+        if (Width > 0 && _trailing.Width > 0 && visible.All(v => v.Width > 0))
+            return Math.Max(0, Width - (_trailing.X + visible.Min(v => v.X)));
+        return visible.Count * (SideMargin + IconButtonWidth);
     }
 
     void UpdateActionWidth(PageActionView pageActionView) => pageActionView.IconWidth = IconButtonWidth;
+
+    // Transient glass buttons have no shape at rest, so the gap between their circles read as a wide gap between
+    // bare icons; they touch instead, as the buttons in one group of a UINavigationBar do.
+    void ApplyTrailingSpacing()
+    {
+        if (_trailing is not null)
+            _trailing.Spacing = PageActionView.UseGlassHeaderActions && Glass == HeaderBarGlass.Transient ? 0 : HeaderBarConstants.TitleActionGap;
+    }
 
     // Glass buttons are 44-point circles whose edge lines up with the page's content, as a
     // UINavigationBar's do; without glass the older, platform-specific slots stay.
@@ -407,7 +543,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         : Presentation is NavigationPresentation.Sheet ? HeaderBarConstants.SheetSideMargin : HeaderBarConstants.RegionSideMargin;
 
     internal double IconButtonWidth => PageActionView.UseGlassHeaderActions
-        ? HeaderBarConstants.Height
+        ? ButtonHeight
         : Presentation is NavigationPresentation.Sheet
             ? HeaderBarConstants.SheetButtonWidth
             // Slightly larger for region pages, to accommodate caption buttons on Windows desktop.
@@ -427,7 +563,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         }
         else
         {
-            buttonGrid.ColumnDefinitions[0].Width = SideMargin;
+            buttonGrid.ColumnDefinitions[0].Width = LeadingColumn;
 
             if(IsWindowsDesktop())
             {
@@ -440,7 +576,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             }
         }
 
-        _primaryPageActionView.HeightRequest = HeaderBarConstants.Height;
+        _primaryPageActionView.HeightRequest = ButtonHeight;
+        UpdateActionWidth(_primaryPageActionView);
 
         _primaryPageActionView.ButtonPadding = Presentation is NavigationPresentation.Sheet
             ? new Thickness(HeaderBarConstants.SheetButtonPadding)
@@ -455,13 +592,21 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         // that much closer to the edge (the padding is zero on Apple and Windows).
         _primaryPageActionView.Margin = new Thickness(0);
 
-        _secondaryPageActionView.HeightRequest = HeaderBarConstants.Height;
+        _secondaryPageActionView.HeightRequest = ButtonHeight;
+        UpdateActionWidth(_secondaryPageActionView);
 
         _secondaryPageActionView.ButtonPadding = Presentation is NavigationPresentation.Sheet
             ? new Thickness(HeaderBarConstants.SheetButtonPadding)
             : new Thickness(HeaderBarConstants.RegionButtonPadding);
 
         _secondaryPageActionView.Margin = new Thickness(0);
+
+        foreach (var more in _moreTrailing)
+        {
+            more.HeightRequest = ButtonHeight;
+            more.IconWidth = IconButtonWidth;
+            more.ButtonPadding = _secondaryPageActionView.ButtonPadding;
+        }
 
 
         UpdateSecondaryActionVisibility();
@@ -584,7 +729,16 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         //buttonGrid.Add(new Border { BackgroundColor = Colors.LimeGreen.WithAlpha(0.5f) }, 4);
 
         buttonGrid.Add(_primaryPageActionView, 1);
-        buttonGrid.Add(_secondaryPageActionView, 3);
+        _trailing = new HorizontalStackLayout
+        {
+            HorizontalOptions = LayoutOptions.End,
+            VerticalOptions = LayoutOptions.Center,
+            Spacing = HeaderBarConstants.TitleActionGap,
+            Children = { _secondaryPageActionView },
+        };
+        ApplyTrailingSpacing();
+        _trailing.SizeChanged += (_, _) => PublishActionSlots();
+        buttonGrid.Add(_trailing, 3);
 
         Content = buttonGrid;
 

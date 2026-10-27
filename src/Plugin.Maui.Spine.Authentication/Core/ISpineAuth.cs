@@ -88,6 +88,19 @@ public interface ISpineAuth
     Task<SignInResult> LinkAsync(string provider, CancellationToken cancellationToken = default) => NotHere();
 
     /// <summary>
+    /// Adds email and password to the signed-in user, who signed in some other way, or removed the password before. An
+    /// email other than the account's own replaces it, unverified. Answers <see cref="SignInStatus.SignedIn"/> with the
+    /// user, whose <see cref="SpineUser.Logins"/> now has <c>password</c>; <see cref="SignInStatus.CodeSent"/> when the
+    /// server requires a verified email and sent a code to it (then <see cref="VerifyEmailAsync"/>); or
+    /// <see cref="SignInStatus.Failed"/> with <see cref="SpineAuthErrors.EmailTaken"/> when another account has the email,
+    /// or <see cref="SpineAuthErrors.WeakPassword"/>. Needs a Spine server with email and password sign-in.
+    /// </summary>
+    /// <param name="email">The email to sign in with.</param>
+    /// <param name="password">The new password.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    Task<SignInResult> AddPasswordAsync(string email, string password, CancellationToken cancellationToken = default) => NotHere();
+
+    /// <summary>
     /// Removes a provider, or <c>password</c>, from the signed-in user. The server never removes the last way to sign in:
     /// <see cref="SignInStatus.Failed"/> with <see cref="SpineAuthErrors.LastLogin"/>.
     /// </summary>

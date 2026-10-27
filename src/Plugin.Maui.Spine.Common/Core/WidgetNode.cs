@@ -17,10 +17,13 @@ namespace Plugin.Maui.Spine.Common;
 [JsonDerivedType(typeof(IconNode), "image")]
 [JsonDerivedType(typeof(ImageNode), "asset")]
 [JsonDerivedType(typeof(ProgressNode), "progress")]
+[JsonDerivedType(typeof(RingNode), "ring")]
+[JsonDerivedType(typeof(SparklineNode), "sparkline")]
 [JsonDerivedType(typeof(SpacerNode), "spacer")]
 [JsonDerivedType(typeof(DividerNode), "divider")]
 [JsonDerivedType(typeof(ButtonNode), "button")]
 [JsonDerivedType(typeof(AdaptiveNode), "adaptive")]
+[JsonDerivedType(typeof(UseNode), "use")]
 public abstract record WidgetNode
 {
     /// <summary>
@@ -72,6 +75,20 @@ public abstract record StackNode : WidgetNode
     [JsonPropertyName("fill")]
     public bool? Fill { get; init; }
 
+    /// <summary>
+    /// <c>"center"</c> centres a vertical stack's children on its axis instead of aligning them to the leading edge. Set
+    /// with <see cref="WidgetNodeStyling.CenterItems"/>.
+    /// </summary>
+    [JsonPropertyName("align")]
+    public string? Align { get; init; }
+
+    /// <summary>
+    /// <c>"evenly"</c> spreads a horizontal stack's children with equal space at its ends and between them, the
+    /// children at their own width. Set with <see cref="WidgetNodeStyling.Evenly"/>.
+    /// </summary>
+    [JsonPropertyName("distribute")]
+    public string? Distribute { get; init; }
+
     /// <summary>The children in layout order.</summary>
     public IReadOnlyList<WidgetNode> Children { get; init; } = [];
 }
@@ -103,12 +120,17 @@ public abstract record TextLikeNode : WidgetNode
     // serialized layout in a data message and is rendered in the app's process. Without the setters
     // the structure came back but every style fell to its default, silently.
 
+    // The defaults, Body and not bold, are left out: a Live Activity push has 4 KB, and the renderers read a
+    // missing key as the default.
+
     /// <summary>The text role, exposed flat for serialization.</summary>
     [JsonPropertyName("font")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public TextRole Role { get => Style.Role; init => Style = Style with { Role = value }; }
 
     /// <summary>Bold weight, exposed flat for serialization.</summary>
     [JsonPropertyName("bold")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Bold { get => Style.Bold; init => Style = Style with { Bold = value }; }
 
     /// <summary>Foreground color, exposed flat for serialization.</summary>
@@ -121,6 +143,35 @@ public abstract record TextLikeNode : WidgetNode
     /// </summary>
     [JsonPropertyName("centered")]
     public bool? IsCentered { get; init; }
+
+    /// <summary>
+    /// Aligns the text to the trailing edge: its lines, and a timer's or relative date's text in the width it takes;
+    /// see <see cref="WidgetNodeStyling.Trailing{T}"/>.
+    /// </summary>
+    [JsonPropertyName("trailing")]
+    public bool? IsTrailing { get; init; }
+
+    /// <summary>
+    /// Keeps the text on one line: it shrinks to as little as this share of its size to fit the width, and is cut off past
+    /// that. Set with <see cref="WidgetNodeStyling.SingleLine{T}"/>.
+    /// </summary>
+    [JsonPropertyName("singleLine")]
+    public double? SingleLine { get; init; }
+
+    /// <summary>
+    /// The system font's design: <see cref="TextDesign.Rounded"/> for values in SF Pro Rounded, as Apple's own apps
+    /// show them. iOS; Android has no such system font and draws the default. Set with
+    /// <see cref="WidgetNodeStyling.FontDesign{T}"/>.
+    /// </summary>
+    [JsonPropertyName("design")]
+    public TextDesign? Design { get; init; }
+
+    /// <summary>
+    /// A fixed size in points (sp on Android) in place of the role's, which follows the user's text size. For a region
+    /// with an exact amount of room, such as the Dynamic Island's. Set with <see cref="WidgetNodeStyling.FontSize{T}"/>.
+    /// </summary>
+    [JsonPropertyName("size")]
+    public double? FontSize { get; init; }
 
     /// <summary>Returns a copy of this node with <paramref name="style"/> applied.</summary>
     public abstract TextLikeNode WithStyle(TextStyle style);
@@ -163,6 +214,20 @@ public sealed record RelativeDateNode(DateTimeOffset Date) : TextLikeNode
     /// </summary>
     public bool? Compact { get; init; }
 
+    /// <summary>
+    /// Whole minutes, then hours and minutes: <c>5 minutes</c>, <c>1 hour, 5 minutes</c>, in the app's language. iOS 18
+    /// draws the units' full names, the only form of this it updates by itself; earlier iOS draws it as without, and
+    /// Android as a clock. Wins over <see cref="Compact"/> where it is drawn.
+    /// </summary>
+    public bool? Rounded { get; init; }
+
+    /// <summary>
+    /// How long ago, in the app's language: <c>now</c> for the first minute, then <c>2 minutes ago</c>, <c>3 hours ago</c>,
+    /// <c>2 days ago</c>, each rounded to the nearest whole unit. iOS 18 draws it; earlier iOS draws it as without, and Android
+    /// as a clock. Wins over <see cref="Rounded"/> and <see cref="Compact"/> where it is drawn.
+    /// </summary>
+    public bool? Ago { get; init; }
+
     /// <summary>Text drawn in front of the time as part of the same text: <c>"Uppdaterad "</c>.</summary>
     public string? Prefix { get; init; }
 
@@ -176,6 +241,10 @@ public sealed record IconNode([property: JsonPropertyName("systemImage")] string
 {
     /// <summary>Tint color; the platform's primary color when <see langword="null"/>.</summary>
     public WidgetColor? Color { get; init; }
+
+    /// <summary>The icon's size in points (dp on Android); 18 on iOS and 20 on Android when <see langword="null"/>.</summary>
+    [JsonPropertyName("height")]
+    public double? Size { get; init; }
 }
 
 /// <summary>A bitmap the app has placed in the shared container under <see cref="AssetId"/>.</summary>
@@ -198,6 +267,92 @@ public sealed record ProgressNode(double Value) : WidgetNode
 {
     /// <summary>Tint color; the platform accent when <see langword="null"/>.</summary>
     public WidgetColor? Color { get; init; }
+}
+
+/// <summary>
+/// A share as a ring: a faint track all round, the value clockwise from 12 o'clock with round ends. Null draws only the
+/// track (unknown). For a number in the middle, put the ring and a text in a <see cref="ZStackNode"/>.
+/// </summary>
+/// <param name="Value">The share, 0 to 1, or <see langword="null"/> for unknown.</param>
+public sealed record RingNode(double? Value) : WidgetNode
+{
+    /// <summary>The value's colour; the track is the same colour, faint. The platform accent when <see langword="null"/>.</summary>
+    public WidgetColor? Color { get; init; }
+
+    /// <summary>The ring's diameter in points.</summary>
+    [JsonPropertyName("height")]
+    public double Size { get; init; } = 56;
+
+    /// <summary>The ring's width in points; a tenth of the diameter when <see langword="null"/>.</summary>
+    public double? Thickness { get; init; }
+}
+
+/// <summary>
+/// A line through <see cref="Values"/>, drawn by the platform. A server can push one inside a Live
+/// Activity, which a stored picture cannot travel in. It is drawn smooth, without overshooting a point.
+/// The vertical scale fits the values with a little room above and below. The node fills the width it
+/// is offered on iOS; on Android it is a picture <see cref="Aspect"/> times as wide as it is high. Build it
+/// with <see cref="W.Sparkline(IEnumerable{ValueTuple{DateTimeOffset, double}}, DateTimeOffset, DateTimeOffset, TimeSpan?, WidgetColor?, double)"/>.
+/// </summary>
+/// <param name="Values">
+/// The values in time order, <see langword="null"/> where there is none. A short run of them is bridged; a run of more
+/// than a tenth of the values (at least two) breaks the line. With
+/// <see cref="From"/> and <see cref="Step"/> value <c>i</c> is at <c>From + i × Step</c>; without them the values
+/// are spread evenly across the width.
+/// </param>
+public sealed record SparklineNode(IReadOnlyList<double?> Values) : WidgetNode
+{
+    /// <summary>The time at the left edge, and of the first value.</summary>
+    public DateTimeOffset? From { get; init; }
+
+    /// <summary>The time at the right edge. A line that ends before it leaves the rest of the width empty.</summary>
+    public DateTimeOffset? To { get; init; }
+
+    /// <summary>The time between two values, in seconds.</summary>
+    public double? Step { get; init; }
+
+    /// <summary>The line's colour, and inside the band its colour there; the platform accent when <see langword="null"/>.</summary>
+    public WidgetColor? Color { get; init; }
+
+    /// <summary>The lower edge of the target band, below which the line takes <see cref="BelowColor"/>.</summary>
+    public double? Low { get; init; }
+
+    /// <summary>The upper edge of the target band.</summary>
+    public double? High { get; init; }
+
+    /// <summary>The line's colour above <see cref="High"/>; <see cref="Color"/> when <see langword="null"/>.</summary>
+    public WidgetColor? AboveColor { get; init; }
+
+    /// <summary>The line's colour below <see cref="Low"/>; <see cref="Color"/> when <see langword="null"/>.</summary>
+    public WidgetColor? BelowColor { get; init; }
+
+    /// <summary>
+    /// The band drawn faintly behind the line. Without it the graph stays relative: the band only colours the line,
+    /// and the scale fits the values alone either way.
+    /// </summary>
+    public bool? Shade { get; init; }
+
+    /// <summary>
+    /// The value at the bottom edge. Graphs of one subject that share <see cref="Min"/> and <see cref="Max"/> draw the
+    /// same value at the same height; without them the scale fits the values with a little room over and under.
+    /// A value outside still shows: the scale widens to take it.
+    /// </summary>
+    public double? Min { get; init; }
+
+    /// <summary>The value at the top edge; see <see cref="Min"/>.</summary>
+    public double? Max { get; init; }
+
+    /// <summary>A soft fill under the line, in the line's colour at each point, fading out downwards.</summary>
+    public bool? Area { get; init; }
+
+    /// <summary>A dot on the last value, in its colour.</summary>
+    public bool? Dot { get; init; }
+
+    /// <summary>The height in points.</summary>
+    public double Height { get; init; } = 48;
+
+    /// <summary>Android: the picture's width as a multiple of <see cref="Height"/>; 3 when <see langword="null"/>.</summary>
+    public double? Aspect { get; init; }
 }
 
 /// <summary>Flexible space that pushes siblings apart.</summary>
@@ -224,6 +379,22 @@ public sealed record ButtonNode(string ActionId, WidgetNode Child) : WidgetNode;
 /// <param name="Trees">The subtree per family name.</param>
 public sealed record AdaptiveNode(WidgetNode Fallback, IReadOnlyDictionary<string, WidgetNode> Trees) : WidgetNode;
 
+/// <summary>
+/// One of the layout's <see cref="LiveActivityLayout.Shared"/> nodes, used here: the renderer puts that node in its place,
+/// with what is set on this one laid over the node's own. A Live Activity push then carries a subtree that several
+/// regions show once. Live Activity layouts only; a widget draws nothing for it. Build it with
+/// <see cref="W.Use(string, double?)"/>.
+/// </summary>
+/// <param name="Name">The shared node's name.</param>
+public sealed record UseNode([property: JsonPropertyName("ref")] string Name) : WidgetNode
+{
+    /// <summary>
+    /// The height in points here, in place of the shared node's: a sparkline's or picture's height, an icon's or
+    /// ring's size.
+    /// </summary>
+    public double? Height { get; init; }
+}
+
 /// <summary>The text styles a <see cref="TextLikeNode"/> can take, mapped to each platform's type ramp.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TextRole>))]
 public enum TextRole
@@ -236,4 +407,20 @@ public enum TextRole
     Title,
     /// <summary>Small secondary text.</summary>
     Caption,
+    /// <summary>The largest text, for a value that is the whole point of the widget.</summary>
+    LargeTitle,
+}
+
+/// <summary>The design of the system font a <see cref="TextLikeNode"/> is drawn in.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<TextDesign>))]
+public enum TextDesign
+{
+    /// <summary>The platform's default design.</summary>
+    Default,
+    /// <summary>Rounded: SF Pro Rounded on iOS, as Health and Fitness show their values.</summary>
+    Rounded,
+    /// <summary>Monospaced, every character as wide as the next.</summary>
+    Monospaced,
+    /// <summary>Serif: New York on iOS.</summary>
+    Serif,
 }

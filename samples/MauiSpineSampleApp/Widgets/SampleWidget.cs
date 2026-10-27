@@ -40,7 +40,8 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
                 W.Spacer(),
                 W.Adaptive(W.Spacer(), new Dictionary<WidgetFamily, WidgetNode>
                 {
-                    [WidgetFamily.Medium] = W.Relative(refreshed).Caption().Color(Muted),
+                    // "now", then "3 minutes ago", rather than a count of seconds; iOS 18 and later.
+                    [WidgetFamily.Medium] = W.Relative(refreshed, ago: true).Caption().Color(Muted),
                 })),
             W.Adaptive(W.Text("Next event").Caption().Color(Muted), new Dictionary<WidgetFamily, WidgetNode>
             {
@@ -49,7 +50,10 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
             W.HStack(4,
                 W.Adaptive(W.Spacer(), new Dictionary<WidgetFamily, WidgetNode> { [WidgetFamily.Medium] = W.Text("Starts in").Headline().Color(Ink) }),
                 W.Timer(nextEvent).Title().Bold().Color(Mint)),
-            W.Progress(0.35, Mint),
+            W.Adaptive(W.Progress(0.35, Mint), new Dictionary<WidgetFamily, WidgetNode>
+            {
+                [WidgetFamily.Medium] = Load(refreshed),
+            }),
             W.HStack(6,
                 W.Button(BumpAction, W.HStack(W.Text("Bump").Caption().Bold().Color(Surface)).Background(Mint).Padding(6).CornerRadius(8)),
                 // Pending: iOS pulses the count from the tap until the rebuild that follows the handler.
@@ -72,6 +76,17 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
             .OpenUrl(_widgets.LinkFor(context.Kind));
 
         return Task.FromResult(timeline);
+    }
+
+    /// <summary>
+    /// The last two hours as a line the widget draws itself, so a server could push it too: in the band
+    /// in mint, over it in amber, the latest value marked.
+    /// </summary>
+    private static SparklineNode Load(DateTimeOffset now)
+    {
+        var points = Enumerable.Range(0, 24).Select(i => (now.AddMinutes(5 * (i - 23)), 52 + 22 * Math.Sin(i / 3.5) + i * 0.8));
+        return W.Sparkline(points, now.AddHours(-2), now, TimeSpan.FromMinutes(5), Mint, height: 34)
+            .Band(30, 70, above: WidgetColor.FromHex("#FFC845"), shaded: true).Area().Dot();
     }
 
     public Task OnWidgetOpenedAsync(WidgetLink link) => _navigation.ShowAsync<WidgetsPage>();

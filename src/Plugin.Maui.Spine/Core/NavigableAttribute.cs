@@ -69,6 +69,17 @@ public abstract class NavigableAttribute : Attribute
     public NavigationPresentation Presentation { get; }
 
     /// <summary>
+    /// Resolved: the page leaves its edges to Spine and <see cref="NavigableDefaults.ScrollUnderBottomBar"/> is on, so
+    /// a scroll source that reaches the bottom edge scrolls under the bottom bar.
+    /// </summary>
+    internal bool ScrollsUnderBottomBar { get; private protected set; }
+
+    private protected static bool LeavesBottomToSpine(bool edgesSet, bool insetSet, NavigableDefaults defaults,
+        SafeAreaEdges defaultEdges, SafeAreaEdges defaultInset) =>
+        defaults.ScrollUnderBottomBar && !edgesSet && !insetSet
+        && defaultEdges == SafeAreaEdges.All && defaultInset == SafeAreaEdges.None;
+
+    /// <summary>
     /// Text displayed as the page title in the header bar or title bar.
     /// When empty the title area is not populated.
     /// </summary>
@@ -149,7 +160,8 @@ public abstract class NavigableAttribute : Attribute
     private bool _headerBarGlassSet;
     /// <summary>
     /// The Liquid Glass of the header bar's buttons on iOS 26: <see cref="Core.HeaderBarGlass.Regular"/>,
-    /// or <see cref="Core.HeaderBarGlass.Clear"/> for a bar that lies over a photo or a map. Where the
+    /// <see cref="Core.HeaderBarGlass.Clear"/> for a bar that lies over a photo or a map, or
+    /// <see cref="Core.HeaderBarGlass.Transient"/> for plain icons that show glass only while pressed. Where the
     /// buttons are not glass (Android, Windows), <see cref="Core.HeaderBarGlass.Clear"/> puts each one on a
     /// dark translucent circle, so it reads over the picture; <see cref="Core.HeaderBarGlass.Regular"/>
     /// changes nothing there. When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
@@ -200,6 +212,8 @@ public sealed class NavigableRegionAttribute : NavigableAttribute
         IsTitleBarVisible = source.IsTitleBarVisibleSet ? source.IsTitleBarVisible : defaults.IsTitleBarVisible;
         SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
         ScrollInset = source.ScrollInsetSet ? source.ScrollInset : defaults.ScrollInset;
+        ScrollsUnderBottomBar = LeavesBottomToSpine(source.SafeAreaEdgesSet, source.ScrollInsetSet, defaults,
+            defaults.SafeAreaEdges, defaults.ScrollInset);
     }
 
     internal NavigableRegionAttribute WithDefaults(SpineOptions.RegionDefaultsConfig defaults) => new(this, defaults);
@@ -272,6 +286,8 @@ public sealed class NavigableTabAttribute : NavigableAttribute
         IsTitleBarVisible = source.IsTitleBarVisibleSet ? source.IsTitleBarVisible : defaults.IsTitleBarVisible;
         SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
         ScrollInset = source.ScrollInsetSet ? source.ScrollInset : defaults.ScrollInset;
+        ScrollsUnderBottomBar = LeavesBottomToSpine(source.SafeAreaEdgesSet, source.ScrollInsetSet, defaults,
+            defaults.SafeAreaEdges, defaults.ScrollInset);
     }
 
     internal NavigableTabAttribute WithDefaults(SpineOptions.TabDefaultsConfig defaults) => new(this, defaults);
@@ -357,6 +373,8 @@ public sealed class NavigableSheetAttribute : NavigableAttribute
         BackgroundPageOverlay = source.BackgroundPageOverlaySet ? source.BackgroundPageOverlay : defaults.BackgroundPageOverlay;
         SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
         ScrollInset = source.ScrollInsetSet ? source.ScrollInset : defaults.ScrollInset;
+        ScrollsUnderBottomBar = LeavesBottomToSpine(source.SafeAreaEdgesSet, source.ScrollInsetSet, defaults,
+            defaults.SafeAreaEdges, defaults.ScrollInset);
         InitialDetent = source.InitialDetent;
         AllowedDetents = source.AllowedDetents;
     }

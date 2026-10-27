@@ -132,6 +132,7 @@ public sealed partial class NavigationRegion : ContentView
 
         _frameActionView.SetBinding(HeaderBarView.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: viewModel));
         _frameActionView.SetBinding(HeaderBarView.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: viewModel));
+        _frameActionView.SetBinding(HeaderBarView.MoreTrailingActionsProperty, new Binding(nameof(NavigationRegionViewModel.MoreSecondaryPageActions), source: viewModel));
 
         // The header bar is the only thing that knows how wide its actions ended up. The title
         // lives in the page content, one visual tree away, so the measurement is routed through
@@ -143,6 +144,15 @@ public sealed partial class NavigationRegion : ContentView
         };
 
         _container.Children.Add(_frameActionView);
+#if MACCATALYST
+        // Right-clicking the bar offers the window sizes the page suggests for its content.
+        if (presentation is NavigationPresentation.Region && insetsProvider is SystemInsetsProvider mac)
+        {
+            WindowSizeMenu.Attach(_frameActionView, () => ViewModel.CurrentRegionViewModel, mac);
+            // The option is read when it runs: the region can exist before the window has been set up.
+            WindowSizeMenu.FitOnce(_frameActionView, () => ViewModel.CurrentRegionViewModel, mac);
+        }
+#endif
 
         _lightboxToolbar = new LightboxToolbar();
         _container.Children.Add(_lightboxToolbar);
@@ -198,6 +208,7 @@ public sealed partial class NavigationRegion : ContentView
     private void UpdateContainerMargin()
     {
         var insets = _insetsProvider.SystemBarInsets;
+        double? headerTop = null;
 
 #if ANDROID
         // Nothing offsets an overlay's window on Android, so there is nothing to counteract; the bars
@@ -238,30 +249,40 @@ public sealed partial class NavigationRegion : ContentView
         // ApplySafeAreaPadding on other pages is unaffected.
         {
             var vm = ViewModel.CurrentRegionViewModel;
-            var titleBarH = (_insetsProvider as SystemInsetsProvider)?.MacTitleBarHeight ?? 0;
+            var mac = _insetsProvider as SystemInsetsProvider;
+            var titleBarH = mac?.MacTitleBarHeight ?? 0;
+            bool unified = Unified(vm, mac, ViewModel.Presentation is NavigationPresentation.Region);
             bool fullBleed = titleBarH > 0
                 && vm is not null
                 && !vm.IsHeaderBarVisible
                 && vm.SafeAreaEdges == SpineSafeArea.None;
             bool overlay = titleBarH > 0 && vm is not null && ViewModel.Presentation is NavigationPresentation.Region && OverlaysTitleBar(vm);
-            _container.Margin = fullBleed || overlay
+            _container.Margin = fullBleed || overlay || unified
                 ? new Thickness(0, -titleBarH, 0, 0)
                 : Thickness.Zero;
 
-            // The page starts under the title bar; its header bar stays below it.
-            if (overlay)
+            // The page starts under the title bar; its header bar stays below it, or with a unified title bar
+            // sits in it, after the window buttons, its items centred on them.
+            if (unified)
+            {
+                insets.Top = UnifiedTop(mac!.MacTitleBarRow);
+                // The bar is as tall as its compact buttons; it is centred on the window buttons itself.
+                headerTop = (mac.MacTitleBarRow - HeaderBarConstants.CompactButtonHeight) / 2;
+            }
+            else if (overlay)
                 insets.Top = titleBarH;
+            _frameActionView.LeadingInset = unified ? mac!.MacWindowButtonsEnd : 0;
 
             // A full-bleed page draws its own top, so the window's title would sit on the page.
             if (ViewModel.Presentation is NavigationPresentation.Region
                 && (Window?.Handler?.PlatformView as UIKit.UIWindow)?.WindowScene?.Titlebar is { } titlebar)
             {
-                titlebar.TitleVisibility = fullBleed ? UIKit.UITitlebarTitleVisibility.Hidden : UIKit.UITitlebarTitleVisibility.Visible;
+                titlebar.TitleVisibility = fullBleed || mac?.MacUnifiedTitleBar == true ? UIKit.UITitlebarTitleVisibility.Hidden : UIKit.UITitlebarTitleVisibility.Visible;
             }
         }
 #endif
 
-        var topMargin = insets.Top;
+        var topMargin = headerTop ?? insets.Top;
         if (ViewModel.Presentation is NavigationPresentation.Sheet)
             topMargin += HeaderBarConstants.SheetTopPadding;
 
@@ -291,11 +312,29 @@ public sealed partial class NavigationRegion : ContentView
     {
         var insets = provider.SystemBarInsets;
 #if MACCATALYST
-        if (region && OverlaysTitleBar(vm) && provider is SystemInsetsProvider mac)
-            insets.Top = mac.MacTitleBarHeight;
+        vm.InTitleBarRow = false;
+        if (provider is SystemInsetsProvider mac && Unified(vm, mac, region))
+        {
+            insets.Top = UnifiedTop(mac.MacTitleBarRow);
+            vm.InTitleBarRow = true;
+        }
+        else if (region && OverlaysTitleBar(vm) && provider is SystemInsetsProvider mac2)
+            insets.Top = mac2.MacTitleBarHeight;
 #endif
         return insets;
     }
+
+#if MACCATALYST
+    /// <summary>Whether this page's header bar is laid over the title bar row (<c>SpineOptions.MacOS.UnifiedTitleBar</c>).</summary>
+    static bool Unified(ViewModelBase? vm, SystemInsetsProvider? mac, bool region) =>
+        region && mac is { MacUnifiedTitleBar: true, MacTitleBarHeight: > 0, MacTitleBarRow: > 0 } && vm is { IsHeaderBarVisible: true };
+
+    /// <summary>
+    /// The top bar a unified page keeps above its header bar, as a status bar on a phone: what centres the bar's
+    /// items (and the title, which follows the same inset) on the window buttons in the title bar row.
+    /// </summary>
+    static double UnifiedTop(double titleBarRow) => Math.Max(0, (titleBarRow - HeaderBarConstants.Height) / 2);
+#endif
 
     private static bool OverlaysTitleBar(ViewModelBase vm) =>
         vm.IsHeaderBarVisible && vm.HeaderBarFloats;
@@ -451,8 +490,11 @@ public sealed partial class NavigationRegion : ContentView
         var overlay = vm.HeaderBarFloats;
 
         // Under a floating header the content must keep the status bar, the bar itself and a search row below it clear.
+        // In the Mac title bar row (UnifiedTitleBar) the bar is the row: the content starts where it ends, so the space
+        // above the title equals the space below it, rather than a navigation bar's extra 10 points further down.
+        var bar = vm.InTitleBarRow ? HeaderBarConstants.Height + insets.Top : HeaderBarConstants.BarHeight;
         var top = overlay
-            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.BarHeight + vm.SearchRowHeight : 0)
+            ? insets.Top + (vm.IsHeaderBarVisible ? bar + vm.SearchRowHeight : 0)
             : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
 
         // Above the keyboard the page no longer reaches the screen's bottom edge.
@@ -743,11 +785,14 @@ public sealed partial class NavigationRegion : ContentView
     /// behind the region, so the layer carries its page's colour to hide what is under it, and
     /// takes the screen's corners where the platform rounds pages. A sheet's pages sit on the
     /// sheet's surface instead, which a layer cannot carry: there the front page stays see-through
-    /// and the page underneath is cut off at its edge, so only the sheet shows under it.
+    /// and the page underneath is cut off at its edge, so only the sheet shows under it. A page with
+    /// no opaque background anywhere under it (a translucent window) is lifted the same way: a colour
+    /// would show as a solid band over the window's material while the page moved.
     /// </summary>
     private void LiftFront(bool lift)
     {
-        if (ViewModel.Presentation is NavigationPresentation.Sheet)
+        if (ViewModel.Presentation is NavigationPresentation.Sheet
+            || (!FrontIsLightbox && ViewModel.FrontView.OwnBackground() is null && (lift || _cutsBack)))
         {
             _cutsBack = lift;
             CutBackAt(lift ? _contentHostFront.TranslationX : null);

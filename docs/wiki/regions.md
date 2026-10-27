@@ -33,12 +33,12 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `IsTitleBarVisible` | `bool` | platform default | Show/hide the native window title bar (desktop only) |
 | `TitlePlacement` | `TitlePlacement` | platform default | `HeaderBar` or `TitleBar` |
 | `TitleAlignment` | `TitleAlignment` | platform default | `Left` or `Center` |
-| `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
+| `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually. A page that sets neither this nor `ScrollInset` and whose scroll view reaches its bottom edge scrolls under the bottom bar by itself; see [Scrolling under a bar](#scrolling-under-a-bar) |
 | `HeaderBar` | `HeaderBarMode` | `Normal` | Where the content starts: below the bar (`Normal`) or at the top of the screen behind it (`Overlay`). See [Header bar](#header-bar) |
 | `LargeTitle` | `bool` | `false` | The page opens on its own large title, which collapses into the header bar as it scrolls. See [Large title](#large-title) |
 | `HeaderBarBackground` | `HeaderBarBackground` | `Auto` | What is behind the header bar when content is under it: `Auto`, `Solid`, `Transparent`, `SoftEdge`, `SoftStatusBar` or `HardEdge`. See [Backgrounds](#backgrounds) |
 | `HeaderBarForeground` | `string?` | `null` (Auto) | A fixed colour (hex) for the header bar's title and action icons; `null` follows the theme |
-| `HeaderBarGlass` | `HeaderBarGlass` | `Regular` | The Liquid Glass of the header bar's buttons on iOS 26: `Regular`, or `Clear` for a bar that lies over a photo or a map. Where the buttons are not glass (Android, Windows, iOS before 26), `Clear` puts each on a dark translucent circle so it reads over the picture, and `Regular` on an `Overlay` page puts each on a tonal circle (Material 3's filled tonal icon button). Either circle fades out as the bar's background fades in |
+| `HeaderBarGlass` | `HeaderBarGlass` | `Regular` | The Liquid Glass of the header bar's buttons on iOS 26: `Regular`, `Clear` for a bar that lies over a photo or a map, or `Transient` for plain icons that show glass only while pressed, like a toolbar's (a `Confirm` keeps its tinted glass). Where the buttons are not glass (Android, Windows, iOS before 26), `Clear` puts each on a dark translucent circle so it reads over the picture, and `Regular` on an `Overlay` page puts each on a tonal circle (Material 3's filled tonal icon button). Either circle fades out as the bar's background fades in |
 | `StatusBarStyle` | `StatusBarStyle` | `Auto` | `Auto` follows the theme; `LightContent` or `DarkContent` fix the status bar's clock and icons while the page is shown |
 | `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
 | `KeyboardAvoidance` | `bool` | `true` | The content and footer end above the on-screen keyboard while it is up. Turn it off for a page that handles the keyboard itself. See [The on-screen keyboard](#the-on-screen-keyboard) |
@@ -332,6 +332,19 @@ The title's text centres on the item row, not on the whole bar, so it lines up w
 ---
 
 ## Scrolling under a bar
+
+A page whose `ScrollView` or `CollectionView` reaches its bottom edge scrolls under the bottom bar — the home indicator,
+Android's gesture bar, the floating tab bar inside the tab host — by default, as a list does under a navigation
+controller: nothing to set on the page. Spine leaves `Bottom` out of the page's `SafeAreaEdges` and gives that scroll
+view `SafeArea.ScrollInset="Bottom"`, so the content runs to the screen's edge while scrolling and the last row still
+comes clear of the bar. Without it the content stops above the bar and is cut off there.
+
+"Reaches the bottom edge" means every container between the page and the scroll view holds only that branch, or is a
+grid in which it spans to the last row (a list with a floating button over it). A page with a footer under its list
+keeps its bottom padding. The default applies only to a page that leaves its edges to Spine: one that sets
+`SafeAreaEdges` or `ScrollInset` (on the attribute or in `options.RegionDefaults` / `TabDefaults` / `SheetDefaults`),
+or `SafeArea.ScrollInset` on the scroll view, keeps exactly what it set. Turn it off with
+`options.RegionDefaults.ScrollUnderBottomBar = false` (and `TabDefaults` / `SheetDefaults`).
 
 Excluding an edge from `SafeAreaEdges` lets content draw behind that bar — the home indicator, the gesture bar, or the floating tab bar inside the tab host. A list that does this still has to let its last row scroll clear of the bar. Give the list the inset as a *content inset* instead of a spacer:
 

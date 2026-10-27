@@ -10,6 +10,7 @@
   <s key="Spine.Lightbox.SaveFailed.Title">The photo wasn't saved</s>
   <s key="Spine.Header.Done">Done</s>
   <s key="Spine.Header.Cancel">Cancel</s>
+  <s key="Spine.Tray.Quit">Quit</s>
   <s key="Spine.State.Loading">Loading</s>
   <s key="Spine.State.Error.Title">Couldn't load</s>
   <s key="Spine.State.Error.Retry">Try again</s>

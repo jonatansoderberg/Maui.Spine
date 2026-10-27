@@ -46,6 +46,14 @@ public static partial class SpineExtensions
 
         if (scrollView is UICollectionView collectionView)
             ApplyPageMargin(collectionView, SafeArea.PageMarginOf(view));
+
+#if MACCATALYST
+        if (view is ScrollView scroll)
+        {
+            ScrollFit.Attach(scroll);
+            ScrollFit.Update(scroll);
+        }
+#endif
     }
 
     /// <summary>

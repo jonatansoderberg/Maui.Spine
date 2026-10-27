@@ -33,6 +33,7 @@ public static class ScoreActivity
             LockScreen = W.VStack(8, [Board(home, away, Centre(game, now)), Footer(game), .. NextGame(game)]).Padding(14),
             Background = Surface,
             Link = link,
+            Shared = Badges(home, away),
 
             // Android's Live Update says it in words: a tree of three columns has no line that reads as a
             // title, and the badge is a picture rather than a status-bar glyph.
@@ -44,13 +45,20 @@ public static class ScoreActivity
 
             // Each side's badge and goals beside the camera; between them one centred text. A centre
             // made of stacks and spacers would take the width of the regions beside it.
-            ExpandedLeading = W.HStack(8, W.Image(home.LogoAsset, 44).FullColor(), W.Text($"{game.HomeGoals}").Title().Bold()),
-            ExpandedTrailing = W.HStack(8, W.Text($"{game.AwayGoals}").Title().Bold(), W.Image(away.LogoAsset, 44).FullColor()),
+            // The goals in SF Pro Rounded, at a size that fills the island's side beside the badge.
+            ExpandedLeading = W.HStack(8, W.Use(HomeBadge), W.Text($"{game.HomeGoals}").FontSize(34).Bold().FontDesign(TextDesign.Rounded)),
+            ExpandedTrailing = W.HStack(8, W.Text($"{game.AwayGoals}").FontSize(34).Bold().FontDesign(TextDesign.Rounded), W.Use(AwayBadge)),
             ExpandedCenter = W.Text(string.Join('\n', IslandLines(game, now))).Caption().Centered(),
 
             CompactLeading = W.HStack(W.Image(home.LogoAsset, 22), W.Text($"{game.HomeGoals}").Headline().Bold()),
             CompactTrailing = W.HStack(W.Text($"{game.AwayGoals}").Headline().Bold(), W.Image(away.LogoAsset, 22)),
             Minimal = W.Text(game.Score).Caption().Bold(),
+
+            // CarPlay's Dashboard and the Apple Watch Smart Stack (SpineWidgetsLiveActivitySmall in the
+            // project): the score between the badges, and where the game is.
+            Small = W.HStack(8,
+                W.Use(HomeBadge, 28), W.Text(game.Score).Title().Bold().Color(Ink), W.Use(AwayBadge, 28),
+                W.Spacer(), W.Text(game.PhaseText(now)).Caption().Color(Muted)),
         };
     }
 
@@ -70,6 +78,7 @@ public static class ScoreActivity
             LockScreen = W.VStack(8, Board(home, away, [W.Text("Face-off").Caption().Color(Muted), W.Text(time).Title().Bold().Color(Ink)]), countdown).Padding(14),
             Background = Surface,
             Link = link,
+            Shared = Badges(home, away),
 
             Android = new LiveUpdateText(
                 Title: $"{home.ShortName}–{away.ShortName}",
@@ -77,30 +86,47 @@ public static class ScoreActivity
                 Chip: time,
                 Icon: Teams.Followed.BadgeAsset),
 
-            ExpandedLeading = W.Image(home.LogoAsset, 44).FullColor(),
-            ExpandedTrailing = W.Image(away.LogoAsset, 44).FullColor(),
+            ExpandedLeading = W.Use(HomeBadge),
+            ExpandedTrailing = W.Use(AwayBadge),
             ExpandedCenter = W.Text(time).Title().Bold(),
             ExpandedBottom = countdown,
 
             CompactLeading = W.HStack(W.Image(home.LogoAsset, 22), W.Image(away.LogoAsset, 22)),
             CompactTrailing = W.Text(time).Caption().Bold(),
             Minimal = W.Image(Teams.Followed.LogoAsset, 22),
+
+            Small = W.HStack(8,
+                W.Use(HomeBadge, 28), W.Use(AwayBadge, 28),
+                W.Spacer(), W.Text(time).Title().Bold().Color(Ink)),
         };
     }
+
+    private const string HomeBadge = "home";
+    private const string AwayBadge = "away";
+
+    /// <summary>
+    /// The badges in full colour, sent once in the push and drawn by the regions that show them, each at its own size:
+    /// 44 on the lock screen and in the island, 28 in CarPlay.
+    /// </summary>
+    private static Dictionary<string, WidgetNode> Badges(Team home, Team away) => new()
+    {
+        [HomeBadge] = W.Image(home.LogoAsset, 44).FullColor(),
+        [AwayBadge] = W.Image(away.LogoAsset, 44).FullColor(),
+    };
 
     /// <summary>
     /// Badge over name on each side and the score between, in three columns of equal width. A stack
     /// lays out from its leading edge, so every line is centred between spacers of its own.
     /// </summary>
     private static WidgetNode Board(Team home, Team away, WidgetNode[] centre) => W.HStack(0,
-        Column(W.Image(home.LogoAsset, 44).FullColor(), W.Text(home.ShortName).Caption().Bold().Color(Ink)),
+        Column(W.Use(HomeBadge), W.Text(home.ShortName).Caption().Bold().Color(Ink)),
         Column(centre),
-        Column(W.Image(away.LogoAsset, 44).FullColor(), W.Text(away.ShortName).Caption().Bold().Color(Ink)));
+        Column(W.Use(AwayBadge), W.Text(away.ShortName).Caption().Bold().Color(Ink)));
 
     private static WidgetNode[] Centre(Game game, DateTimeOffset now)
     {
         var phase = W.Text(game.IsRunning ? $"Period {game.Period}" : game.PhaseText(now)).Caption().Color(Muted);
-        var score = W.Text(game.Score).Title().Bold().Color(Ink);
+        var score = W.Text(game.Score).LargeTitle().Bold().FontDesign(TextDesign.Rounded).Color(Ink);
         return game.IsRunning
             ? [phase, score, W.Text(game.Clock(now)).Headline().Bold().Color(Ink)]
             : [phase, score];

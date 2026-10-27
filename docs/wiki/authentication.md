@@ -225,6 +225,7 @@ public sealed partial class AccountViewModel(ISpineAuth auth) : ViewModelBase
 | `SignOutAsync()` | Signs out here and revokes the refresh token on the server. |
 | `DeleteAccountAsync()` | Deletes the account on the server, which revokes Apple's tokens and every session, and signs out. The App Store asks an app with sign-up to offer it. |
 | `LinkAsync("google")`, `UnlinkAsync("google")` | Adds a provider to the signed-in user through its sheet or the browser, or removes one; see [One account, several ways in](#one-account-several-ways-in). |
+| `AddPasswordAsync(email, password)` | Adds email and password to the signed-in user; `CodeSent` when the email must be verified first. |
 | `CreateAccountAsync(pending)`, `LinkPendingAsync(pending)` | What becomes of a provider account the server asked about (`ChooseAccount`). The sign-in sheet calls them by itself. |
 | `SignedIn`, `SignedOut` | Raised after a sign-in, and after a sign-out, a deletion or a refresh the server refused. A link or an unlink raises only `UserChanged`. |
 
@@ -283,12 +284,18 @@ The server's `Id` is the user, whichever provider they sign in with. `User.Login
 ```csharp
 await auth.LinkAsync("google");    // Google's sheet or the browser; the same user after, with a new login
 await auth.UnlinkAsync("google");  // never the last way in: Failed with last_login
+await auth.AddPasswordAsync(email, password);  // email and password as a way in, also after UnlinkAsync("password")
 
 foreach (var login in auth.User!.Logins!)
     Console.WriteLine($"{login.Provider} {login.Email} {login.LinkedAt}");
 ```
 
 A provider account that already belongs to another user is refused with `identity_in_use`, and nothing is merged: the user signs in to that account and removes it there first.
+
+`AddPasswordAsync(email, password)` gives an account that signed in with Apple, Google, Microsoft or a passkey, or one that removed its password, email and password as a way in. Offer it as a row such as "Add email and password" that opens a sheet for the two fields:
+- **The email** may be the account's own, or another one, such as a real address in place of Apple's private relay. Another one replaces the account's email and is not verified.
+- **A verified email** is needed when the server has `RequireVerifiedEmail`: the answer is `CodeSent`, a code goes to the email, and `VerifyEmailAsync(email, code)` finishes it. Without it, the answer is `SignedIn` with `password` in `User.Logins`.
+- **Refusals:** `Failed` with `email_taken` when another account has the email, and `weak_password` when the password is too short. An account that has a password already is refused too: remove it first, or reset it.
 
 **A first sign-in.** With `a.AskBeforeNewAccount = true` on the server, a provider account it does not know makes no user. The result is `ChooseAccount`, and the sign-in sheet asks:
 - "Create a new account": `CreateAccountAsync(result.Pending)`;

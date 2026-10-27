@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <strings culture="sv">
   <s key="Spine.Row.Selected">Vald</s>
+  <s key="Spine.Row.ShowPassword">Visa lösenord</s>
+  <s key="Spine.Row.HidePassword">Dölj lösenord</s>
 </strings>

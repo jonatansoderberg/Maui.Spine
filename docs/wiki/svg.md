@@ -76,11 +76,13 @@ The file itself stays as it was exported.
 
 ### The built-in icon set
 
-`Plugin.Maui.Spine.Svg.Icons` carries 236 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
+`Plugin.Maui.Spine.Svg.Icons` carries 242 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Svg.Icons
 ```
+
+**Delete and remove** use `Delete.svg` (`SpineIcons.Delete`), in menus, action sheets, swipe actions and header buttons alike. `Trashcan.svg` is the trash can as an object, not the action.
 
 Referencing it is all it takes: `Plugin.Maui.Spine.Svg` loads the assembly by name at startup and its files resolve like the app's own. `SpineIcons` lists every file name as a constant (`SpineIcons.Bell` is `"Bell.svg"`); plain strings work just as well. `SpineIcons.All` holds every name, for a picker or a gallery. The package is `net10.0` and holds nothing but the SVG files and those constants; for a trimmed build its targets root the assembly so it is kept.
 

@@ -41,10 +41,10 @@
         </Example>
 
         <Example Title="Show that it is working"
-                 Summary="IsBusy dims the button, takes no taps and turns its icon until the work is done, finishing the turn it is on. ShowsBusy sets it for as long as an async command runs.">
+                 Summary="IsBusy dims the button and takes no taps until the work is done. SpinsWhenBusy turns its icon as well, finishing the turn it is on. ShowsBusy sets IsBusy for as long as an async command runs.">
             <Button Text="Ring the bell" Command="{Binding RingCommand}" />
             <Example.Code>
-                [PageAction(Svg = "bell.svg", ShowsBusy = true)]
+                [PageAction(Svg = "bell.svg", ShowsBusy = true, SpinsWhenBusy = true)]
                 [RelayCommand]
                 private Task Bell() => RingAsync();
 
@@ -52,6 +52,24 @@
                 bell.IsBusy = true;
                 try { await RingAsync(); }
                 finally { bell.IsBusy = false; }
+            </Example.Code>
+        </Example>
+
+        <Example Title="A toggle with a colour of its own"
+                 Summary="IsSelected shows that what the button stands for is on. Filled, the default, fills the button; Tinted draws the glyph in the action's Tint over a faint wash of it. Tint also colours the glyph or text when the button is off. Tap the star to turn it on."
+                 OptionsCommand="{Binding ShowStarOptionsCommand}">
+            <Button Text="{Binding StarLabel}" Command="{Binding ShowStarCommand}" />
+            <Button Text="{Binding StatusLabel}" Command="{Binding ShowStatusCommand}" />
+            <Example.Code>
+                _star = new PageAction(null, ToggleStarCommand)
+                {
+                    Svg = "star.svg",
+                    SelectedStyle = PageActionSelectedStyle.Tinted,
+                    Tint = Color.FromArgb("#FF9500"),
+                    DarkTint = Color.FromArgb("#FF9F0A"),
+                };
+
+                _star.IsSelected = !_star.IsSelected;
             </Example.Code>
         </Example>
 

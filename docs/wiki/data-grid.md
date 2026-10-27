@@ -178,7 +178,7 @@ public MenuItems RowMenu { get; } =
         new MenuAction("Details", "info.svg", OpenCommand),
         new MenuAction("Star", "star.svg", StarCommand),
     },
-    new MenuAction("Delete", "trashcan.svg", DeleteCommand) { IsDestructive = true },
+    new MenuAction("Delete", "delete.svg", DeleteCommand) { IsDestructive = true },
 ];
 ```
 
@@ -216,7 +216,7 @@ Groups are sorted by their text, the local sort applies within each group, and s
 
 ```xml
 <DataGrid.RightSwipeActions>
-    <DataGridSwipeAction Text="Delete" IconSvg="Trashcan.svg" BackgroundColor="#E5484D"
+    <DataGridSwipeAction Text="Delete" IconSvg="Delete.svg" BackgroundColor="#E5484D"
                          Command="{Binding DeleteCommand}" />
 </DataGrid.RightSwipeActions>
 ```

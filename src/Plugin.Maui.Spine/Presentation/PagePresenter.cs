@@ -424,17 +424,29 @@ internal sealed partial class PagePresenter : Grid
             && Application.Current?.PlatformAppTheme == AppTheme.Dark);
 
     /// <summary>
-    /// The colour the page sits on: the first opaque background from the page view up through the
-    /// host page (an app styles its <c>ContentPage</c>), otherwise what the platform paints behind
-    /// pages in the current theme, so the collapsed bar reads as the page continuing behind the title.
+    /// The first opaque background from the page view up through the host page, or <see langword="null"/> when
+    /// the page and everything it sits on are see-through, as in a translucent window.
     /// </summary>
-    internal Color PageBackground()
+    internal Color? OwnBackground()
     {
         for (Element? element = Content ?? (Element)this; element is not null; element = element.Parent)
         {
             if (element is VisualElement { BackgroundColor: { Alpha: >= 1 } own })
                 return own;
         }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The colour the page sits on: the first opaque background from the page view up through the
+    /// host page (an app styles its <c>ContentPage</c>), otherwise what the platform paints behind
+    /// pages in the current theme, so the collapsed bar reads as the page continuing behind the title.
+    /// </summary>
+    internal Color PageBackground()
+    {
+        if (OwnBackground() is { } own)
+            return own;
 
         var isDark = IsDarkTheme();
 
@@ -749,10 +761,12 @@ internal class ActionsToTitleSlotsConverter : IMultiValueConverter
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         => new Thickness(Reserve(values, 0), 0, Reserve(values, 1), 0);
 
+    // With glass buttons a side without an action keeps the page margin, so a left-aligned title starts where the
+    // page's content and the buttons' edges do, as a UINavigationBar's does.
     private static double Reserve(object[] values, int index) =>
         values.Length > index && values[index] is double slot && slot > 0
             ? slot + HeaderBarConstants.TitleActionGap
-            : PagePresenter.TitleEdgePadding;
+            : PageActionView.UseGlassHeaderActions ? HeaderBarConstants.PageMargin : PagePresenter.TitleEdgePadding;
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
     {

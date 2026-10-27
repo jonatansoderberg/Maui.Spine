@@ -58,11 +58,108 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_rounded_age_says_so_and_a_plain_one_does_not()
+    {
+        var reading = new DateTimeOffset(2026, 10, 23, 14, 0, 0, TimeSpan.Zero);
+        var layout = new LiveActivityLayout { LockScreen = W.Relative(reading, prefix: "för ", rounded: true).Caption() };
+
+        var json = layout.ToJson();
+        var back = Assert.IsType<RelativeDateNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Contains("\"rounded\":true", json);
+        Assert.True(back.Rounded);
+        Assert.Null(back.Compact);
+        Assert.Equal("för ", back.Prefix);
+        Assert.DoesNotContain("rounded", new LiveActivityLayout { LockScreen = W.Relative(reading, compact: true) }.ToJson());
+    }
+
+    [Fact]
+    public void How_long_ago_says_so_and_a_plain_age_does_not()
+    {
+        var reading = new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero);
+        var json = new LiveActivityLayout { LockScreen = W.Relative(reading, prefix: "Stabilt · ", ago: true).Caption() }.ToJson();
+        var back = Assert.IsType<RelativeDateNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Contains("\"ago\":true", json);
+        Assert.True(back.Ago);
+        Assert.Null(back.Rounded);
+        Assert.Equal("Stabilt · ", back.Prefix);
+        Assert.DoesNotContain("ago", new LiveActivityLayout { LockScreen = W.Relative(reading, rounded: true) }.ToJson());
+    }
+
+    [Fact]
+    public void A_rounded_large_value_and_a_sized_icon_come_back()
+    {
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(6,
+                W.Icon("drop.fill", Brand, size: 28),
+                W.Text("6,3").LargeTitle().Bold().FontDesign(TextDesign.Rounded),
+                W.Text("→").FontSize(30).FontDesign(TextDesign.Rounded)),
+        };
+
+        var json = layout.ToJson();
+        var row = Assert.IsType<HStackNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Equal(28, Assert.IsType<IconNode>(row.Children[0]).Size);
+        var value = Assert.IsType<TextNode>(row.Children[1]);
+        Assert.Equal(TextRole.LargeTitle, value.Role);
+        Assert.Equal(TextDesign.Rounded, value.Design);
+        Assert.True(value.Bold);
+        Assert.Equal(30, Assert.IsType<TextNode>(row.Children[2]).FontSize);
+        Assert.Contains("\"design\":\"Rounded\"", json);
+    }
+
+    [Fact]
+    public void Plain_text_and_icons_say_nothing_about_design_or_size()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.HStack(W.Icon("bell"), W.Text("x").FontDesign(TextDesign.Default)) }.ToJson();
+
+        Assert.DoesNotContain("design", json);
+        Assert.DoesNotContain("size", json);
+        Assert.DoesNotContain("height", json);
+    }
+
+    [Fact]
+    public void A_trailing_age_comes_back_trailing()
+    {
+        var json = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(W.Text("Jonatan"), W.Spacer(), W.Relative(DateTimeOffset.UnixEpoch, ago: true).Trailing().Caption()),
+        }.ToJson();
+
+        var row = Assert.IsType<HStackNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.True(Assert.IsType<RelativeDateNode>(row.Children[2]).IsTrailing);
+        Assert.Null(Assert.IsType<TextNode>(row.Children[0]).IsTrailing);
+        Assert.Equal(1, json.Split("\"trailing\":true").Length - 1);
+    }
+
+    [Fact]
+    public void A_single_line_age_keeps_its_scale_and_other_text_says_nothing()
+    {
+        var json = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(W.Text("Jonatan"), W.Spacer(), W.Relative(DateTimeOffset.UnixEpoch, ago: true).SingleLine(0.6).Caption()),
+        }.ToJson();
+
+        var row = Assert.IsType<HStackNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Equal(0.6, Assert.IsType<RelativeDateNode>(row.Children[2]).SingleLine);
+        Assert.Null(Assert.IsType<TextNode>(row.Children[0]).SingleLine);
+        Assert.Equal(1, json.Split("\"singleLine\":0.6").Length - 1);
+        Assert.Equal(0.7, W.Text("x").SingleLine().SingleLine);
+        Assert.Throws<ArgumentOutOfRangeException>(() => W.Text("x").SingleLine(0));
+    }
+
+    [Fact]
     public void Text_that_is_not_centred_says_nothing_about_it()
     {
         var json = new LiveActivityLayout { LockScreen = W.Timer(DateTimeOffset.UnixEpoch) }.ToJson();
 
         Assert.DoesNotContain("centered", json);
+        Assert.DoesNotContain("trailing", json);
+        Assert.DoesNotContain("singleLine", json);
         Assert.DoesNotContain("prefix", json);
     }
 
@@ -114,12 +211,23 @@ public class WidgetLayoutRoundTripTests
             CompactLeading = W.Icon("clock"),
             CompactTrailing = W.Text("10:24").Caption(),
             Minimal = W.Icon("house"),
+            Small = W.HStack(4, W.Icon("drop"), W.Text("10:24").Headline()),
             Background = WidgetColor.Blue,
         };
 
         var json = layout.ToJson();
 
         Assert.Equal(json, WidgetJson.DeserializeLayout(json)!.ToJson());
+    }
+
+    [Fact]
+    public void The_small_family_is_written_only_when_set()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.Text("x"), Small = W.Text("5,4 →").Headline() }.ToJson();
+
+        Assert.Contains("\"small\":", json);
+        Assert.Equal("5,4 →", Assert.IsType<TextNode>(WidgetJson.DeserializeLayout(json)!.Small).Text);
+        Assert.DoesNotContain("\"small\"", new LiveActivityLayout { LockScreen = W.Text("x") }.ToJson());
     }
 
     [Fact]
