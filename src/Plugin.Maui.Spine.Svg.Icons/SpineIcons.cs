@@ -80,6 +80,8 @@ public static class SpineIcons
     public const string Compass = "Compass.svg";
     /// <summary>The <c>Copy.svg</c> icon.</summary>
     public const string Copy = "Copy.svg";
+    /// <summary>The <c>CreditCard.svg</c> icon.</summary>
+    public const string CreditCard = "CreditCard.svg";
     /// <summary>The <c>Crossfade.svg</c> icon.</summary>
     public const string Crossfade = "Crossfade.svg";
     /// <summary>The <c>Curtain.svg</c> icon.</summary>
@@ -236,6 +238,8 @@ public static class SpineIcons
     public const string Play = "Play.svg";
     /// <summary>The <c>Plus.svg</c> icon.</summary>
     public const string Plus = "Plus.svg";
+    /// <summary>The <c>Power.svg</c> icon.</summary>
+    public const string Power = "Power.svg";
     /// <summary>The <c>Previous.svg</c> icon.</summary>
     public const string Previous = "Previous.svg";
     /// <summary>The <c>Printer.svg</c> icon.</summary>
@@ -336,6 +340,8 @@ public static class SpineIcons
     public const string TowelRailRadiator = "TowelRailRadiator.svg";
     /// <summary>The <c>Trashcan.svg</c> icon.</summary>
     public const string Trashcan = "Trashcan.svg";
+    /// <summary>The <c>Trend.svg</c> icon.</summary>
+    public const string Trend = "Trend.svg";
     /// <summary>The <c>Tv.svg</c> icon.</summary>
     public const string Tv = "Tv.svg";
     /// <summary>The <c>Unlink.svg</c> icon.</summary>
@@ -521,6 +527,7 @@ public static class SpineIcons
         Cold,
         Compass,
         Copy,
+        CreditCard,
         Crossfade,
         Curtain,
         Delete,
@@ -599,6 +606,7 @@ public static class SpineIcons
         Pin,
         Play,
         Plus,
+        Power,
         Previous,
         Printer,
         Provider,
@@ -649,6 +657,7 @@ public static class SpineIcons
         Timer,
         TowelRailRadiator,
         Trashcan,
+        Trend,
         Tv,
         Unlink,
         Unlock,
