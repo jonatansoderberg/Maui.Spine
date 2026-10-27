@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Time.Testing;
+using Plugin.Maui.Spine.AI;
 
 namespace Plugin.Maui.Spine.Voice.Tests;
 
@@ -71,6 +72,31 @@ internal sealed class ScriptedChat(params string[] pieces) : IChatClient
                 await hold.Task.WaitAsync(cancellationToken);
             yield return new ChatResponseUpdate(ChatRole.Assistant, pieces[i]);
         }
+    }
+
+    public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+    public void Dispose()
+    {
+    }
+}
+
+/// <summary>A chat model that calls <c>show_time</c> first and then reads its result out.</summary>
+internal sealed class ClockChat : IChatClient
+{
+    public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+        IEnumerable<ChatMessage> messages, ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await Task.Yield();
+        if (messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>().FirstOrDefault() is { } result)
+            yield return new ChatResponseUpdate(ChatRole.Assistant, $"Klockan är {result.Result}.");
+        else if (options?.Tools?.Any(t => t.Name == "show_time") == true)
+            yield return new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent("call_1", "show_time")]);
+        else
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "Jag vet inte.");
     }
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
@@ -323,6 +349,23 @@ public sealed class PipelineTests : IAsyncLifetime
         await Until(() => _ended.Count == 1, "ended");
         Assert.Equal(VoiceSessionEnd.Failed, _ended[0].Reason);
         Assert.Equal("503 from the server", _ended[0].Error?.Message);
+    }
+
+    [Fact]
+    public async Task The_apps_own_chat_client_runs_the_apps_functions()
+    {
+        SpineAIFunctionContext? seen = null;
+        _options.Functions.Add("show_time", "Says the time.", (SpineAIFunctionContext context) => { seen = context; return "14:05"; });
+        Declare(p => p.AddServerSpeechToText("Transcribe").AddChat(new ClockChat()).AddServerTextToSpeech("Read"));
+        await ConnectAsync();
+
+        await _session.SendTextAsync("Vad är klockan?");
+
+        await Until(() => _server.Spoken.Any(), "read aloud");
+        Assert.Equal(["Klockan är 14:05."], _server.Spoken);
+        Assert.Equal(SpineAIFunctionSide.Device, seen?.RunsOn);
+        Assert.Equal("call_1", seen?.CallId);
+        Assert.Matches("^[0-9a-f]{32}$", seen?.ConversationId);
     }
 
     [Fact]

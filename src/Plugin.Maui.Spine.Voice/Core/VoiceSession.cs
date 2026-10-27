@@ -333,6 +333,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
     public Task SendTextAsync(string text, CancellationToken cancellationToken = default)
     {
+        NewTurn();
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         if (!_connected)
             throw new InvalidOperationException("Connect the voice session before sending text.");
@@ -492,6 +493,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
                 break;
 
             case "input_audio_buffer.committed" when Text(e, "item_id") is { } userItem:
+                NewTurn();
                 _dispatch(() => AddMessage(userItem, new ChatMessage(ChatRole.User, "") { AdditionalProperties = new() { [PendingKey] = true } }));
                 break;
 
@@ -542,8 +544,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
             case "response.function_call_arguments.done":
                 // Off the receive loop: a slow tool must not hold up the answer's audio or the user's interruption.
-                var (callId, name, arguments) = (Text(e, "call_id"), Text(e, "name"), Text(e, "arguments"));
-                _ = Task.Run(() => CallToolAsync(callId, name, arguments, cancellationToken), cancellationToken);
+                var (callId, name, arguments, round) = (Text(e, "call_id"), Text(e, "name"), Text(e, "arguments"), Text(e, "response_id"));
+                _ = Task.Run(() => CallToolAsync(callId, name, arguments, cancellationToken, round), cancellationToken);
                 break;
 
             case "response.done":
@@ -594,7 +596,23 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         Evaluate();
     }
 
-    private async Task CallToolAsync(string? callId, string? name, string? arguments, CancellationToken cancellationToken)
+    // The rounds of calls in the user's current turn: a response (Realtime) or a delegation (GPT-Live) is one round.
+    private readonly HashSet<string> _rounds = new(StringComparer.Ordinal);
+
+    private void NewTurn()
+    {
+        lock (_rounds)
+            _rounds.Clear();
+    }
+
+    /// <summary>Whether <paramref name="round"/> is past the feature's <c>MaxToolRounds</c> for this turn.</summary>
+    private bool TooManyRounds(string? round)
+    {
+        lock (_rounds)
+            return round is not null && _rounds.Add(round) && _rounds.Count > (_token?.MaxToolRounds ?? 4);
+    }
+
+    private async Task CallToolAsync(string? callId, string? name, string? arguments, CancellationToken cancellationToken, string? round = null)
     {
         if (callId is null || name is null)
             return;
@@ -615,6 +633,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             result = SayGoodbye;
         else if (!readable)
             result = invalid;
+        else if (TooManyRounds(round))
+            result = SpineAIFunctionResult.Error($"This turn has used its {_token?.MaxToolRounds} rounds of function calls. Answer with what you have.", "refused");
         else
         {
             try
@@ -720,7 +740,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     /// </summary>
     private SpineAIFunctionSide? SideOf(string name)
     {
-        var device = _options.Functions[name];
+        // Only what the feature lists: a function of the app's that the catalogue does not list for the device is no one's.
+        var device = _token?.Tools.Any(t => t.Name == name && t.OnDevice) == true ? _options.Functions[name] : null;
         var server = _token?.Tools.FirstOrDefault(t => t.Name == name && t.OnServer);
 
         if (device is null) return server is null ? null : SpineAIFunctionSide.Server;
@@ -737,7 +758,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     }
 
     private Task<SpineAIFunctionContext> DeviceContextAsync(string? callId, CancellationToken cancellationToken) =>
-        SpineAIFunctionContext.ForDeviceAsync(_services, _tokens.InstallationIdAsync, _token?.Feature, _tokens.ConversationId, callId, cancellationToken);
+        SpineAIFunctionContext.ForDeviceAsync(_services, _tokens.InstallationIdAsync, _token?.Feature, _tokens.ConversationId, callId, cancellationToken,
+            _token?.MaxResultCharacters);
 
 
     private JsonObject ToolsUpdate()
@@ -756,9 +778,10 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
                 ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
             });
         }
-        // The server's functions from the token, then the app's own: one declaration per name, from the side that runs it.
-        var names = (_token?.Tools.Where(t => t.OnServer || _options.Functions[t.Name] is not null).Select(t => t.Name) ?? [])
-            .Concat(_options.Functions.Select(f => f.Name)).Distinct(StringComparer.Ordinal);
+        // The feature's catalogue from the token, and nothing else: a server function, or a device function the app has.
+        // One declaration per name, from the side that runs it.
+        var names = (_token?.Tools.Where(t => t.OnServer || t.OnDevice && _options.Functions[t.Name] is not null).Select(t => t.Name) ?? [])
+            .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
             var (description, schema) = SideOf(name) == SpineAIFunctionSide.Device && _options.Functions[name] is { } device
@@ -946,6 +969,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
                 break;
 
             case "session.input_transcript.delta":
+                NewTurn();
                 LiveWords(e, user: true);
                 break;
 
@@ -967,7 +991,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
                             _dispatch(() => _transcript.Add(new ChatMessage(ChatRole.Assistant, [new FunctionCallContent(callId, name, ParseArguments(arguments))])));
                             break;
                         }
-                        _ = Task.Run(() => CallToolAsync(callId, name, arguments, cancellationToken), cancellationToken);
+                        var delegation = Text(e, "delegation_id");
+                        _ = Task.Run(() => CallToolAsync(callId, name, arguments, cancellationToken, delegation), cancellationToken);
                         break;
 
                     case "response.completed" or "response.failed" or "response.incomplete":

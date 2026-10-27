@@ -15,7 +15,8 @@ public sealed class LiveSessionTests : IAsyncLifetime
         Body = """
             { "feature": "Voice", "protocol": "openai-live", "model": "gpt-live-1", "url": "realtime/Voice/relay?ticket=t1",
               "token": "t1", "expiresAt": "2026-10-20T10:01:00+00:00", "maxMinutes": 2, "voice": "marin",
-              "tools": [ { "name": "get_my_bookings", "description": "Bookings.", "parameters": { "type": "object" }, "runsOn": [ "server" ], "prefer": "server" } ] }
+              "tools": [ { "name": "get_my_bookings", "description": "Bookings.", "parameters": { "type": "object" }, "runsOn": [ "server" ], "prefer": "server" },
+                         { "name": "show_time", "description": "The time.", "parameters": { "type": "object" }, "runsOn": [ "device" ], "prefer": "device" } ] }
             """,
     };
     private readonly SpineVoiceOptions _options = new();

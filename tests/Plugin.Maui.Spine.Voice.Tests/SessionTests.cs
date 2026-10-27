@@ -234,6 +234,7 @@ public sealed class SessionTests : IAsyncLifetime
     [Fact]
     public async Task Client_tools_are_added_to_the_session_when_it_connects()
     {
+        _tokens.Body = TokenWithShowTime;
         _options.Functions.Add(AIFunctionFactory.Create(() => "12:00", "show_time", "Says what time it is."));
 
         await ConnectAsync();
@@ -369,6 +370,7 @@ public sealed class SessionTests : IAsyncLifetime
     [Fact]
     public async Task A_client_tool_runs_and_its_answer_goes_back_to_the_model()
     {
+        _tokens.Body = TokenWithShowTime;
         _options.Functions.Add(AIFunctionFactory.Create((string city) => $"12:00 i {city}", "show_time", "Says what time it is."));
         await ConnectAsync();
 
@@ -382,6 +384,13 @@ public sealed class SessionTests : IAsyncLifetime
         Assert.Contains(_session.Transcript, m => m.Contents.OfType<FunctionCallContent>().Any(c => c.Name == "show_time"));
         Assert.Contains(_session.Transcript, m => m.Contents.OfType<FunctionResultContent>().Any(r => r.CallId == "c1"));
     }
+
+    /// <summary>A token whose feature lists one device function, <c>show_time</c>.</summary>
+    private const string TokenWithShowTime = """
+        { "feature": "Voice", "protocol": "openai", "model": "gpt-realtime", "url": "wss://api.openai.com/v1/realtime?model=gpt-realtime",
+          "token": "ek_test", "expiresAt": "2026-10-15T10:01:00+00:00", "maxMinutes": 3,
+          "tools": [ { "name": "show_time", "description": "The time.", "parameters": { "type": "object", "properties": {} }, "runsOn": ["device"], "prefer": "device" } ] }
+        """;
 
     private const string TokenWithFunctions = """
         { "feature": "Voice", "protocol": "openai", "model": "gpt-realtime", "url": "wss://api.openai.com/v1/realtime?model=gpt-realtime",
@@ -463,7 +472,7 @@ public sealed class SessionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task The_servers_functions_from_the_token_are_declared_with_the_apps_own()
+    public async Task The_features_catalogue_decides_and_an_app_function_it_does_not_list_is_not_offered()
     {
         _tokens.Body = TokenWithFunctions;
         _options.Functions.Add("show_time", "Says the time on the phone.", () => "12:00");
@@ -473,7 +482,7 @@ public sealed class SessionTests : IAsyncLifetime
 
         await Until(() => _socket.OfType("session.update").Any(), "a session.update");
         var tools = _socket.OfType("session.update").Single().GetProperty("session").GetProperty("tools").EnumerateArray().ToList();
-        Assert.Equal(["get_my_bookings", "show_time", "open_page"], tools.Select(t => t.GetProperty("name").GetString()));
+        Assert.Equal(["get_my_bookings", "show_time"], tools.Select(t => t.GetProperty("name").GetString()));
         Assert.True(tools[0].GetProperty("parameters").GetProperty("properties").TryGetProperty("days", out _));
         Assert.Equal("Says the time on the phone.", tools[1].GetProperty("description").GetString());
     }
@@ -498,6 +507,7 @@ public sealed class SessionTests : IAsyncLifetime
     [Fact]
     public async Task Arguments_that_are_not_JSON_reach_the_model_as_an_error_and_the_function_never_runs()
     {
+        _tokens.Body = TokenWithShowTime;
         var ran = false;
         _options.Functions.Add(AIFunctionFactory.Create((string city) => { ran = true; return city; }, "show_time", "Says what time it is."));
         await ConnectAsync();
@@ -507,6 +517,28 @@ public sealed class SessionTests : IAsyncLifetime
         await Until(() => _socket.OfType("response.create").Any(), "a new response");
         Assert.Contains(SpineAIFunctionResult.InvalidArgumentsError, _socket.OfType("conversation.item.create").Single().GetProperty("item").GetProperty("output").GetString());
         Assert.False(ran);
+    }
+
+    [Fact]
+    public async Task A_turn_past_the_features_rounds_answers_the_model_instead_of_calling()
+    {
+        _tokens.Body = TokenWithShowTime.Replace("\"maxMinutes\": 3,", "\"maxMinutes\": 3, \"maxToolRounds\": 2,");
+        var calls = 0;
+        _options.Functions.Add(AIFunctionFactory.Create(() => { calls++; return "12:00"; }, "show_time", "Says what time it is."));
+        await ConnectAsync();
+
+        foreach (var round in new[] { "r1", "r2", "r3" })
+            _socket.Push(new { type = "response.function_call_arguments.done", response_id = round, call_id = "c_" + round, name = "show_time", arguments = "{}" });
+        await Until(() => _socket.OfType("conversation.item.create").Count() == 3, "three answers");
+
+        Assert.Equal(2, calls);
+        // The calls run side by side, so whichever round came third is the one refused.
+        Assert.Single(_socket.OfType("conversation.item.create"), m => m.GetProperty("item").GetProperty("output").GetString()!.Contains("refused"));
+
+        // A new turn of the user starts the count again.
+        _socket.Push(new { type = "input_audio_buffer.committed", item_id = "u2" });
+        _socket.Push(new { type = "response.function_call_arguments.done", response_id = "r4", call_id = "c_r4", name = "show_time", arguments = "{}" });
+        await Until(() => calls == 3, "the new turn's call");
     }
 
     [Fact]

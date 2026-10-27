@@ -257,10 +257,24 @@ public static class SharedFunctions
 builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
 {
     …
-    ai.Functions.Add(SharedFunctions.GetMyBookings);     // runs here
-    ai.Functions.AddDevice(SharedFunctions.ShowTime);    // the app runs it; declared here so text chat can offer it
+    ai.Functions.Add(SharedFunctions.GetMyBookings);                              // runs here
+    ai.Functions.Add(SharedFunctions.ShowTime, SpineAIFunctionSides.Both);        // here or in the app
+    ai.Functions.Add(SharedFunctions.OpenPage, SpineAIFunctionSides.Device);      // the app runs it (AddDevice)
 });
 ```
+
+**The feature is the catalogue.** A function is declared once, with the sides that may run it. A feature offers what its `Functions` lists, and nothing else, in every session kind:
+- typed chat through the server;
+- a model on the device;
+- Realtime and GPT-Live;
+- a voice pipeline.
+An app function the feature does not list is not offered anywhere. The catalogue is published:
+- in a voice token's `tools`;
+- at `GET {prefix}/features/{name}/functions`, with each function's schema, `runsOn`, `prefer`, and the feature's `maxToolRounds` and `maxResultCharacters`.
+
+**A model on the device** (Apple Intelligence through `o.Feature(…).OnDevice(…).Server(…)`) takes its tools from that catalogue:
+- the app's own functions where the device runs them;
+- the server's functions, forwarded to `POST {prefix}/functions/{feature}/{name}` with the user's sign-in, so the same question gets the same answer whichever model answers.
 
 ```json
 "Assistant": { "Provider": "openai", "Model": "<model id>", "Expose": true,
@@ -289,7 +303,7 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
 A device function runs in the app: the device's own state, such as the time or the current page. The exposed chat still refuses client-sent tool messages; device calls go through a channel of their own:
 
 1. The app's request names the device functions it has, never their schemas: `"functions": [ { "name": "show_time", "prefer": "device" } ]`. Spine.AI sends it from `SpineAIOptions.Functions`, and adds the functions in the call's own `ChatOptions.Tools` (a voice pipeline's `end_conversation`), which it then runs itself.
-2. The server offers only names the feature lists and that it declared with `AddDevice`, with its own declaration.
+2. The server offers only names the feature lists and that it declared for the device (`Add(…, Device)` or `Both`), with its own declaration.
 3. When the model calls one, the answer ends with that `FunctionCallContent`. The server keeps the call (its id, name and arguments, for this caller and feature, ten minutes) in memory, or in the host's `IDistributedCache` when one is registered.
 4. The app runs the function and posts the conversation again with the call and its result.
 5. The server takes a result only for a call it keeps for this caller, once, and puts its own record of the call before it. A forged, replayed or other caller's result is dropped.

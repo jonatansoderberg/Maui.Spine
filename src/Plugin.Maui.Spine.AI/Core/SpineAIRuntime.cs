@@ -61,8 +61,9 @@ internal sealed class SpineAIRuntime
     }
 
     /// <summary>The context the app's functions run with (<see cref="SpineAIFunctionContext.ForDeviceAsync"/>).</summary>
-    public Task<SpineAIFunctionContext> DeviceContextAsync(string feature, string? conversationId, IServiceProvider services, CancellationToken cancellationToken) =>
-        SpineAIFunctionContext.ForDeviceAsync(services, InstallationIdAsync, feature, conversationId, null, cancellationToken);
+    public Task<SpineAIFunctionContext> DeviceContextAsync(
+        string feature, string? conversationId, IServiceProvider services, CancellationToken cancellationToken, int? maxResultCharacters = null) =>
+        SpineAIFunctionContext.ForDeviceAsync(services, InstallationIdAsync, feature, conversationId, null, cancellationToken, maxResultCharacters);
 
     /// <summary>The client for <paramref name="feature"/>, or <see langword="null"/> when the app declared no such feature.</summary>
     public IChatClient? Feature(string feature, IServiceProvider services) =>

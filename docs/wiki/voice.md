@@ -34,6 +34,8 @@ builder.UseSpineVoice(o =>
 });
 ```
 
+The session offers only what the server's feature lists, the same list typed chat uses. An app function is offered when the feature lists it and the server declared it for the device (`ai.Functions.Add(fn, SpineAIFunctionSides.Device)` or `Both`); the app's `o.Functions` only supplies its implementation. The token also carries the feature's `MaxToolRounds`, the calls allowed per user turn: one more answers `refused`. It also carries `MaxToolResultCharacters`, the cap on a device result.
+
 ```csharp
 public partial class AssistantViewModel(IVoiceSession voice) : ViewModelBase   // a new session per page
 {

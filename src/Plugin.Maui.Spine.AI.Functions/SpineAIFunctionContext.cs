@@ -88,7 +88,7 @@ public sealed class SpineAIFunctionContext
     /// </summary>
     internal static async Task<SpineAIFunctionContext> ForDeviceAsync(
         IServiceProvider? services, Func<CancellationToken, Task<string?>> installationId, string? feature, string? conversationId,
-        string? callId, CancellationToken cancellationToken)
+        string? callId, CancellationToken cancellationToken, int? maxResultCharacters = null)
     {
         var signedIn = services?.GetService<ISpineSignedInUser>()?.User;
         var userId = signedIn?.Id ?? (services?.GetService<ISignedInSession>()?.UserId is { Length: > 0 } linked ? linked : null);
@@ -106,6 +106,7 @@ public sealed class SpineAIFunctionContext
             SignedInUser = signedIn,
             Services = services ?? EmptyServices.Instance,
             CancellationToken = cancellationToken,
+            MaxResultCharacters = maxResultCharacters ?? SpineAIFunction.DefaultMaxResultCharacters,
         };
     }
 

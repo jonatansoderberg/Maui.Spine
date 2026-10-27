@@ -17,12 +17,20 @@ public sealed class SpineAIServerFunctions
     /// <summary>The functions the app runs, as the server declares them.</summary>
     public IReadOnlyCollection<SpineAIFunction> Device => _device;
 
-    /// <summary>Runs <paramref name="function"/> on the server with the caller's context.</summary>
+    /// <summary>
+    /// Declares <paramref name="function"/> once, for the sides that may run it: the server with the caller's context,
+    /// the app (which must register its own implementation), or both. A feature offers it when its <c>Functions</c> lists it.
+    /// </summary>
     /// <param name="function">The function, often from a project the app shares.</param>
+    /// <param name="sides">Who may run it. <see cref="SpineAIFunctionSides.Server"/> by default.</param>
     /// <returns>The same set, for chaining.</returns>
-    public SpineAIServerFunctions Add(SpineAIFunction function)
+    public SpineAIServerFunctions Add(SpineAIFunction function, SpineAIFunctionSides sides = SpineAIFunctionSides.Server)
     {
-        _server.Add(function);
+        ArgumentNullException.ThrowIfNull(function);
+        if (sides.HasFlag(SpineAIFunctionSides.Server))
+            _server.Add(function);
+        if (sides.HasFlag(SpineAIFunctionSides.Device))
+            _device.Add(function);
         return this;
     }
 
@@ -36,8 +44,9 @@ public sealed class SpineAIServerFunctions
         Add(SpineAIFunction.Create(name, description, method, prefer));
 
     /// <summary>
-    /// Declares a function the app runs. The server never calls <paramref name="function"/>'s implementation; it gives the
-    /// model the declaration when the app says it has the function, and takes the app's result only for a call it made.
+    /// Declares a function the app runs: <c>Add(function, SpineAIFunctionSides.Device)</c>. The server never calls its
+    /// implementation; it gives the model the declaration when the app says it has the function, and takes the app's
+    /// result only for a call it made.
     /// </summary>
     /// <param name="function">The function, from a project the app shares.</param>
     /// <returns>The same set, for chaining.</returns>
@@ -73,4 +82,18 @@ public sealed class SpineAIServerFunctions
         protected override ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken) =>
             throw new InvalidOperationException($"'{Name}' is a device function; the app runs it, not the server.");
     }
+}
+
+/// <summary>The sides that may run a function the server declares.</summary>
+[Flags]
+public enum SpineAIFunctionSides
+{
+    /// <summary>The server, with the caller's context.</summary>
+    Server = 1,
+
+    /// <summary>The app, with its own implementation.</summary>
+    Device = 2,
+
+    /// <summary>Either: the session's or the function's preference decides.</summary>
+    Both = Server | Device,
 }

@@ -198,6 +198,30 @@ public sealed class FunctionClientTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_model_on_the_device_gets_the_features_server_functions_and_they_run_on_the_server()
+    {
+        var device = new CallingModel { Calls = "get_my_bookings" };
+
+        var answer = await Feature(f => f.OnDevice(_ => device).Server()).GetResponseAsync([new(ChatRole.User, "Mina bokningar?")]);
+
+        Assert.Equal("Svar: two bookings", answer.Text);
+        Assert.Equal([SpineAIFunctionSide.Server], _ran);
+        Assert.Empty(_model.Options);                // the server's model was never asked
+    }
+
+    [Fact]
+    public async Task A_model_on_the_device_is_offered_what_the_feature_lists_and_nothing_else()
+    {
+        var device = new CallingModel { Calls = "nothing" };
+        _runtime.Options.Functions.Add("open_page", "Opens a page.", () => "opened");
+
+        await Feature(f => f.OnDevice(_ => device).Server()).GetResponseAsync([new(ChatRole.User, "Hej")]);
+
+        var offered = device.Options[0]!.Tools!.Select(t => t.Name).Order();
+        Assert.Equal(["get_my_bookings", "show_time"], offered);
+    }
+
+    [Fact]
     public void The_body_names_the_apps_functions_and_the_side_the_chat_wants()
     {
         var body = SpineServerChatClient.Body([new(ChatRole.User, "Hej")], null, [("show_time", SpineAIFunctionSide.Device)]);

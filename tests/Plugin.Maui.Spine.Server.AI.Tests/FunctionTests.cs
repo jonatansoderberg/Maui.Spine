@@ -480,12 +480,37 @@ public sealed class FunctionTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task A_chat_feature_takes_forwarded_calls_too_for_a_model_on_the_device()
+    {
+        var response = await Post("/ai/functions/Assistant/get_my_bookings", new JsonObject { ["callId"] = "call_3", ["arguments"] = new JsonObject() });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Assistant", Assert.Single(_seen).Feature);
+    }
+
+    [Fact]
+    public async Task The_catalogue_lists_the_features_functions_with_their_sides_and_limits()
+    {
+        var response = await _http.GetAsync("/ai/features/Assistant/functions");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var catalogue = JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
+        Assert.Equal(["get_my_bookings", "show_time"], catalogue["tools"]!.AsArray().Select(t => (string)t!["name"]!));
+        Assert.Equal(["server"], catalogue["tools"]![0]!["runsOn"]!.AsArray().Select(s => (string)s!));
+        Assert.Equal(["device"], catalogue["tools"]![1]!["runsOn"]!.AsArray().Select(s => (string)s!));
+        Assert.Equal(FeatureFunctionsChatClient.DefaultMaxToolRounds, (int)catalogue["maxToolRounds"]!);
+        Assert.Equal(SpineAIFunction.DefaultMaxResultCharacters, (int)catalogue["maxResultCharacters"]!);
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/ai/features/Rounds/functions")).StatusCode);
+    }
+
     [Theory]
     [InlineData("/ai/functions/Voice/show_time")]
     [InlineData("/ai/functions/Voice/delete_everything")]
-    [InlineData("/ai/functions/Assistant/get_my_bookings")]
+    [InlineData("/ai/functions/Plain/get_my_bookings")]
+    [InlineData("/ai/functions/Rounds/get_my_bookings")]
     [InlineData("/ai/functions/Nothing/get_my_bookings")]
-    public async Task Only_a_listed_server_function_of_a_realtime_feature_can_be_forwarded(string url)
+    public async Task Only_a_listed_server_function_of_an_exposed_feature_can_be_forwarded(string url)
     {
         var response = await Post(url, new JsonObject());
 
