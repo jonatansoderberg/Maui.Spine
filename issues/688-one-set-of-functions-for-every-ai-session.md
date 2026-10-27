@@ -1,7 +1,7 @@
 # Issue #688 — One set of functions for every AI session: device and server everywhere, ending on intent, the user's context
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/688
-**Branch:** one per PR: issue/688-ai-function-context (PR 2, #691, merged), issue/688-one-invoker (PR 3, #692, merged), issue/688-catalogue (PR 4)
+**Branch:** one per PR: issue/688-ai-function-context (PR 2, #691, merged), issue/688-one-invoker (PR 3, #692, merged), issue/688-catalogue (PR 4, #693, merged), issue/688-end-on-intent (PR 5)
 **Status:** In Progress
 
 ## Plan
@@ -51,7 +51,29 @@ The proposal `docs/proposals/spine-ai-functions-unified.md` (accepted 2026-10-27
   - `MaxToolRounds` bounds the app's function-invoking loop in typed chat, and the rounds per user turn in Realtime and GPT-Live. A call past the limit answers `refused`, and a new user turn starts the count again.
 - **A pipeline's own `IChatClient`** (`AddChat(client)`) runs the app's functions through `FunctionInvokingChatClient`, with the device context and the session's conversation. Spine.Voice now references `Microsoft.Extensions.AI`.
 
+### PR 5: ending on intent is built in
+- **`SpineAIFunctions.EndConversation`** in Spine.AI.Functions is one name, one description and the answers `SayGoodbye`, `GoodbyeSaid` and `GoodbyeUnlessSaid`, all public. `VoiceSession.EndConversationTool`/`EndConversationDescription` point at them, and GPT-Live's tool has the same description, no longer a copy.
+- **The server offers it whenever the app does** (`AIFunctionCalls`), with Spine's declaration and without `AddDevice` or a `Functions` entry. The sample server's hand-written declaration and its `Functions` entries are gone.
+- **Typed chat:**
+  - `ChatView.EndsOnIntent` offers the function to each answer.
+  - The call (run by the client, or only seen in the stream) shows "Conversation ended" (`Spine.Chat.Ended`, also in Swedish) under the farewell and raises `ChatView.Ended`.
+  - The next message clears `Messages` and starts anew.
+  - The app changing the conversation (a call adding turns) takes the ending back.
+  - The Showcase's option "End on goodbye" sets both `EndsOnGoodbye` and `EndsOnIntent`.
+  - Its demo client ends on "bye"/"hej då", so ending can be tried without a server.
+- **One farewell state machine** (`FarewellTracker`) for Realtime, GPT-Live and pipelines:
+  - The states are asked, under way and said.
+  - The call hangs up after 0.7 s of quiet.
+  - A farewell that never comes ends the call after 8 s.
+  - The pipeline uses it too. Turning `EndsOnGoodbye` off now cancels a pipeline farewell under way, as it already did for Realtime.
+- **GPT-Live:**
+  - What the voice said before the backend's hang-up may be a filler ("one moment"), so the answer is `GoodbyeUnlessSaid`, not `GoodbyeSaid`.
+  - The call then ends 3 s after the hang-up if the voice says nothing more and had spoken since the user's last words, or 8 s after if it had not.
+  - The relay tells the voice with `session.instructions.append` when the app turns ending on or off mid-call, using the same goodbye line as the policy.
+
 ## Decisions
+- **PR 5, typed chat starts anew in ChatView itself.** The owner's choice ("Conversation ended", the next message starts anew) is the view's default, because almost every app wants it. `Ended` lets an app do more. A marker message in `Messages` was rejected: the conversation is the app's, and a voice session given it would read the marker as history.
+- **PR 5, GPT-Live lets the voice decide whether it already said goodbye.** Its voice talks while the backend works, so audio after the user's words can be a filler. Without a language-specific check of the text, only the voice knows whether that audio was the goodbye.
 - **The conversation id is ours, not the provider's.** `ChatOptions.ConversationId` reaches the provider as its own conversation (OpenAI Responses), so Spine's id travels in a header and an `AdditionalProperties` key.
 - **On the server without a zone, UTC.** The server's own zone says nothing about the user.
 - **`ISpineSignedInUser` beside `ISignedInSession`.** The push link stays opt-in (Q11). The new interface only tells the app's own functions who is signed in and sends nothing to any server.

@@ -70,6 +70,7 @@ internal sealed class AIRealtimeRelay
     private bool _confirmed;
     private string? _reason;
     private volatile bool _closing;
+    private bool _endsOnIntent;
 
     private volatile bool _timeLimit;
 
@@ -112,6 +113,7 @@ internal sealed class AIRealtimeRelay
 
             var session = start["session"] as JsonObject;
             var tools = Tools(session?["tools"] as JsonArray);
+            _endsOnIntent = EndsOnIntent(tools);
             var request = new AIRealtimeRequest(_feature.Name, _feature.Model, _feature.Options.SystemPrompt, _feature.Options.MaxOutputTokens, Options, _caller)
             {
                 Tools = _features.FunctionsOf(_feature),
@@ -273,6 +275,7 @@ internal sealed class AIRealtimeRelay
                     break;
 
                 case "session.update" when (Parse(message)?["session"]?["tools"]) is JsonArray tools:
+                    var backendTools = Tools(tools);
                     await SendProviderAsync(new JsonObject
                     {
                         ["type"] = "session.update",
@@ -281,10 +284,21 @@ internal sealed class AIRealtimeRelay
                             ["delegation"] = new JsonObject
                             {
                                 ["type"] = "responses",
-                                ["responses"] = new JsonObject { ["tools"] = Tools(tools), ["tool_choice"] = "auto" },
+                                ["responses"] = new JsonObject { ["tools"] = backendTools, ["tool_choice"] = "auto" },
                             },
                         },
                     }.ToJsonString(), cancellationToken);
+                    // The voice's instructions are fixed at the start: ending on goodbye turned on or off is told to it.
+                    if (EndsOnIntent(backendTools) is var ends && ends != _endsOnIntent)
+                    {
+                        _endsOnIntent = ends;
+                        await SendProviderAsync(new JsonObject
+                        {
+                            ["type"] = "session.instructions.append",
+                            ["delegation_id"] = null,
+                            ["content"] = ends ? EndsOnIntentNow : NoLongerEndsOnIntent,
+                        }.ToJsonString(), cancellationToken);
+                    }
                     break;
 
                 default:
@@ -554,7 +568,17 @@ internal sealed class AIRealtimeRelay
     }
 
     /// <summary>The tool Spine.Voice gives the backend while the app ends calls on goodbye (<c>IVoiceSession.EndsOnGoodbye</c>).</summary>
-    private const string EndConversation = "end_conversation";
+    private const string EndConversation = SpineAIFunctions.EndConversationName;
+
+    private const string GoodbyeDelegates =
+        "the user says goodbye in any words, even a single word such as \"hejdå\", \"hej då\" or \"bye\", thanks you and is done, or wants to end the call: the backend hangs up with end_conversation. Do this every time, even if goodbyes were said before in the conversation.";
+
+    private const string EndsOnIntentNow = "From now on, also generate <|SpawnThinking|> when " + GoodbyeDelegates;
+
+    private const string NoLongerEndsOnIntent =
+        "From now on, the call does not end on goodbye: the backend can no longer hang up. Answer a goodbye yourself, without <|SpawnThinking|>.";
+
+    private static bool EndsOnIntent(JsonArray tools) => tools.OfType<JsonObject>().Any(t => Text(t, "name") == EndConversation);
 
     /// <summary>
     /// The voice's delegation policy, in the terms OpenAI's GPT-Live prompting guide gives: the backend's tools, and when
@@ -580,7 +604,7 @@ internal sealed class AIRealtimeRelay
             .Append("- the user asks again for something a tool answered earlier: the time and the user's data change, so an earlier answer in the conversation is out of date;\n")
             .Append("- the user disagrees with or corrects a result, or a correction changes a backend task already in progress;\n");
         if (functions.Any(f => Text(f, "name") == EndConversation))
-            policy.Append("- the user says goodbye in any words, even a single word such as \"hejdå\", \"hej då\" or \"bye\", thanks you and is done, or wants to end the call: the backend hangs up with end_conversation. Do this every time, even if goodbyes were said before in the conversation.\n");
+            policy.Append("- ").Append(GoodbyeDelegates).Append('\n');
 
         policy.Append("\n## Do not generate <|SpawnThinking|> when\n")
             .Append("- the answer is general knowledge or small talk that no tool has;\n")

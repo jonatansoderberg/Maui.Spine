@@ -60,7 +60,7 @@ public partial class ChatPageViewModel : SampleViewModel
                 };
         };
         Driver = new VoiceAvatarDriver(Session);
-        // "Tack, hej då" ends the call, as with a person.
+        // "Tack, hej då" ends the call, as with a person, and a typed conversation too (ChatView.EndsOnIntent).
         Session.EndsOnGoodbye = true;
         // A simulator has no echo cancellation: the Mac's speaker reaches its microphone, the model hears its own answer
         // as the user talking over it, and cuts it off. Not sending the microphone while it speaks avoids that.
@@ -110,7 +110,7 @@ public partial class ChatPageViewModel : SampleViewModel
             new ToggleOption("Read the clock on the server", "show_time is on both sides; this chat runs it on the server instead of the phone (ChatOptions.Prefer for typed turns, IVoiceSession.Prefer for spoken ones).", () => ClockOnServer, value => ClockOnServer = value),
             new ToggleOption("Show function calls", "A card for each function the model called (ChatView.ShowToolCalls), for debugging; the model tells the user the result anyway.", () => ShowToolCalls, value => ShowToolCalls = value),
             avatars,
-            new ToggleOption("Hang up after goodbye", "Say goodbye (\"tack, hej då\") and the call ends once the answer has been said. Claude calls too, when the server feature offers end_conversation.", () => Session.EndsOnGoodbye, value => Session.EndsOnGoodbye = value),
+            new ToggleOption("End on goodbye", "Say or type goodbye (\"tack, hej då\") and the conversation ends once the answer has been said: a call hangs up (IVoiceSession.EndsOnGoodbye), a typed chat shows \"Conversation ended\" and the next message starts anew (ChatView.EndsOnIntent). Every model, Claude's included: end_conversation is built into Spine.", () => EndsOnIntent, value => EndsOnIntent = value),
             new ToggleOption("Glow the screen's edge", "During a call the window's edge glows with the answer's level (Spine.Controls.Highlight).", () => Edge, value => Edge = value),
             new TextOption("Server", "The push sample server's AI prefix for calls; on a phone, the Mac's address on the network or the Azure one.", () => Server, value => Server = value, Microsoft.Maui.Keyboard.Url),
         ];
@@ -131,6 +131,12 @@ public partial class ChatPageViewModel : SampleViewModel
 
     [ObservableProperty]
     public partial IChatClient Client { get; set; }
+
+    /// <summary>Whether goodbye ends the conversation: the call's EndsOnGoodbye and the typed chat's EndsOnIntent.</summary>
+    [ObservableProperty]
+    public partial bool EndsOnIntent { get; set; } = true;
+
+    partial void OnEndsOnIntentChanged(bool value) => Session.EndsOnGoodbye = value;
 
     /// <summary>What the line above the chat says: the model for typed turns, or the call's state.</summary>
     [ObservableProperty]

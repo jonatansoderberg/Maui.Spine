@@ -16,6 +16,32 @@ public class SpineAIFunctions : IReadOnlyCollection<SpineAIFunction>
     /// <summary>The app's own set, which <c>UseSpineAI</c> and <c>UseSpineVoice</c> both hand out.</summary>
     internal static SpineAIFunctions App { get; } = new();
 
+    /// <summary>The name of <see cref="EndConversation"/>, the one the model calls.</summary>
+    public const string EndConversationName = "end_conversation";
+
+    /// <summary>What the model is told <see cref="EndConversation"/> is for, in every session kind.</summary>
+    public const string EndConversationDescription = "Ends the conversation. Call it when the user says goodbye in any words, thanks you and is done, or otherwise wants to end the conversation; then say only a goodbye of two or three words in their language, without saying that you are ending it. Do not call it for a pause or a thank-you in the middle of a conversation.";
+
+    /// <summary>The answer to <see cref="EndConversation"/> when the farewell is still to be said.</summary>
+    public const string SayGoodbye = "The conversation ends after your goodbye. Now say only a goodbye of two or three words in the user's language, such as \"Hej då!\"; do not say that you are ending it.";
+
+    /// <summary>The answer to <see cref="EndConversation"/> when the model already said goodbye in the same answer.</summary>
+    public const string GoodbyeSaid = "The conversation ends once your goodbye has been said. Say nothing more.";
+
+    /// <summary>
+    /// The answer to <see cref="EndConversation"/> when the session cannot tell whether the farewell was said: GPT-Live's
+    /// voice talks while its backend works, so what it said before the call may be a goodbye or only "one moment".
+    /// </summary>
+    public const string GoodbyeUnlessSaid = "The conversation ends after your goodbye. If you have not said goodbye yet, say only a goodbye of two or three words in the user's language; if you have, say nothing more.";
+
+    /// <summary>
+    /// Spine's built-in function that ends a conversation on the user's intent: offered by a voice session while
+    /// <c>IVoiceSession.EndsOnGoodbye</c> is on, and by typed chat while <c>ChatView.EndsOnIntent</c> is. Each session
+    /// runs it itself, as the app's own function; a Spine.AI server offers it to a feature's model whenever the app does,
+    /// without a <c>Functions</c> entry, since it only ends the app's own session.
+    /// </summary>
+    public static SpineAIFunction EndConversation { get; } = SpineAIFunction.Create(EndConversationName, EndConversationDescription, () => SayGoodbye);
+
     /// <inheritdoc />
     public int Count => _functions.Length;
 

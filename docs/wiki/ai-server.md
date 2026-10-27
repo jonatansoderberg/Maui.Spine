@@ -272,6 +272,8 @@ An app function the feature does not list is not offered anywhere. The catalogue
 - in a voice token's `tools`;
 - at `GET {prefix}/features/{name}/functions`, with each function's schema, `runsOn`, `prefer`, and the feature's `maxToolRounds` and `maxResultCharacters`.
 
+**Ending on intent is built in.** Spine's `end_conversation` (`SpineAIFunctions.EndConversation`) ends only the app's own session: a call (`IVoiceSession.EndsOnGoodbye`) or a typed chat (`ChatView.EndsOnIntent`). The server offers it to a feature's model whenever the app's request offers it, with Spine's own declaration. It needs no `AddDevice` and no `Functions` entry, and the app runs it.
+
 **A model on the device** (Apple Intelligence through `o.Feature(…).OnDevice(…).Server(…)`) takes its tools from that catalogue:
 - the app's own functions where the device runs them;
 - the server's functions, forwarded to `POST {prefix}/functions/{feature}/{name}` with the user's sign-in, so the same question gets the same answer whichever model answers.

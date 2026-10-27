@@ -51,7 +51,9 @@ Every call sends the whole conversation to `Client`, with `ChatOptions` when the
 | `IsBusy` | Whether an answer is on its way |
 | `SendAsync(text)`, `SendCommand` | Send from code or a button of the app's own |
 | `Stop()`, `StopCommand` | Stop the answer on its way |
+| `EndsOnIntent` | Ends the conversation when the user says goodbye or is done. Each answer offers the model Spine's built-in `end_conversation` (`SpineAIFunctions.EndConversation`), as a voice session's `EndsOnGoodbye` does. When the model calls it, the farewell is said, "Conversation ended" shows under it (`Spine.Chat.Ended`), `Ended` is raised, and the next message starts a new conversation: `Messages` is cleared first. A Spine.AI feature runs it on the device or through its server, which offers it without a declaration. Off by default |
 | `Sent`, `Answered`, `Failed` | Events. `Answered` carries the whole `ChatResponse`, usage included |
+| `Ended` | The model ended the conversation (`EndsOnIntent`), once its farewell is in it. The app decides what else ending means: close the page, sign out of a kiosk |
 | `Streamed` | Each piece of an answer's text as it arrives (`Delta`, `Text` so far), and once more with `IsComplete` when it ends, however it ends. While `IsBusy` is true and no piece has come, the model is thinking |
 
 ## Streaming

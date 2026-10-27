@@ -366,6 +366,28 @@ public sealed class LiveRelayTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Turning_goodbyes_on_or_off_mid_call_is_told_to_the_voice()
+    {
+        var (app, provider) = await StartAsync();
+        var hangUp = new { type = "function", name = "end_conversation", description = "Ends.", parameters = new { type = "object", properties = new { } } };
+
+        await app.SendAsync(new { type = "session.update", session = new { tools = new object[] { hangUp } } });
+        Assert.Contains("end_conversation", (await provider.NextAsync("session.update")).ToJsonString());
+        var on = await provider.NextAsync();
+        Assert.Equal("session.instructions.append", (string?)on!["type"]);
+        Assert.Contains("the backend hangs up with end_conversation", (string?)on["content"]);
+
+        // The same tools again change nothing the voice was told.
+        await app.SendAsync(new { type = "session.update", session = new { tools = new object[] { hangUp } } });
+        await provider.NextAsync("session.update");
+        await app.SendAsync(new { type = "session.update", session = new { tools = Array.Empty<object>() } });
+        Assert.DoesNotContain("end_conversation", (await provider.NextAsync("session.update")).ToJsonString());
+        var off = await provider.NextAsync();
+        Assert.Equal("session.instructions.append", (string?)off!["type"]);
+        Assert.Contains("does not end on goodbye", (string?)off["content"]);
+    }
+
+    [Fact]
     public async Task Audio_goes_both_ways_and_what_only_the_server_may_set_stays_behind()
     {
         var (app, provider) = await StartAsync();
