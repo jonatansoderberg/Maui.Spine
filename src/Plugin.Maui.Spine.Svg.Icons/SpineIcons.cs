@@ -86,6 +86,8 @@ public static class SpineIcons
     public const string Curtain = "Curtain.svg";
     /// <summary>The <c>Delete.svg</c> icon.</summary>
     public const string Delete = "Delete.svg";
+    /// <summary>The <c>DeskDisplay.svg</c> icon.</summary>
+    public const string DeskDisplay = "DeskDisplay.svg";
     /// <summary>The <c>Dishwasher.svg</c> icon.</summary>
     public const string Dishwasher = "Dishwasher.svg";
     /// <summary>The <c>Door.svg</c> icon.</summary>
@@ -522,6 +524,7 @@ public static class SpineIcons
         Crossfade,
         Curtain,
         Delete,
+        DeskDisplay,
         Dishwasher,
         Door,
         Down,
