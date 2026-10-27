@@ -85,7 +85,7 @@ builder.UseSpineAI(o =>
   - `RunsOn` is `Device`.
   - `Caller` is the signed-in user when Spine.Authentication is used (`ISpineSignedInUser`, no push link needed), else the push link's user, else the installation. `GetUserAsync()` gives that user's name and email.
   - `TimeZone` and `Locale` are the device's own. `Now()` is the time in the user's zone.
-  - `ConversationId` is the voice session's or the pipeline's own id, and `CallId` the model's id for the call when the path has it.
+  - `ConversationId` is the voice session's or the pipeline's own id, and `CallId` the model's id for the call.
   - `Services` are the app's.
 - **The user's context on the server.** Every request to the server carries the device's time zone and language (`Spine-Time-Zone`, `Spine-Locale`) and, from a voice session or a pipeline, its conversation (`Spine-Conversation`). The server's functions then get the same `TimeZone`, `Locale` and `ConversationId`.
 - **The order.** A function both sides have runs where `SpineAIFunction.Prefer` says, and a chat changes it with `ChatOptions.Prefer(name, side)`, for example on `ChatView.ChatOptions`.

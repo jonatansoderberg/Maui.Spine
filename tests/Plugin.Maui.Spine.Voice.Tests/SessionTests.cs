@@ -496,6 +496,46 @@ public sealed class SessionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Arguments_that_are_not_JSON_reach_the_model_as_an_error_and_the_function_never_runs()
+    {
+        var ran = false;
+        _options.Functions.Add(AIFunctionFactory.Create((string city) => { ran = true; return city; }, "show_time", "Says what time it is."));
+        await ConnectAsync();
+
+        _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = "show_time", arguments = """{"city":"Vis""" });
+
+        await Until(() => _socket.OfType("response.create").Any(), "a new response");
+        Assert.Contains(SpineAIFunctionResult.InvalidArgumentsError, _socket.OfType("conversation.item.create").Single().GetProperty("item").GetProperty("output").GetString());
+        Assert.False(ran);
+    }
+
+    [Fact]
+    public async Task A_rate_limited_forward_tells_the_model_why()
+    {
+        _tokens.Body = TokenWithFunctions;
+        _tokens.Function = (HttpStatusCode.TooManyRequests, "{}");
+        await ConnectAsync();
+
+        var output = await CallAsync("c1", "get_my_bookings");
+
+        Assert.Contains("refused", output.GetProperty("output").GetString());
+        Assert.Contains("Too many function calls", output.GetProperty("output").GetString());
+    }
+
+    [Fact]
+    public async Task A_forward_carries_the_users_time_zone_and_conversation()
+    {
+        _tokens.Body = TokenWithFunctions;
+        await ConnectAsync();
+
+        await CallAsync("c1", "get_my_bookings");
+
+        var (forwarded, _) = _tokens.FunctionCalls.Single();
+        Assert.False(string.IsNullOrEmpty(forwarded.Headers.GetValues("Spine-Time-Zone").Single()));
+        Assert.Matches("^[0-9a-f]{32}$", forwarded.Headers.GetValues("Spine-Conversation").Single());
+    }
+
+    [Fact]
     public async Task A_refused_forward_tells_the_model_to_ask_for_sign_in()
     {
         _tokens.Body = TokenWithFunctions;

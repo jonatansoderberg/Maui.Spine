@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Text;
@@ -405,6 +406,9 @@ internal sealed class AIRealtimeRelay
             using var lease = _gate.Acquire(_feature, _caller, "functions");
             await _gate.CheckAsync(_feature, _caller, cancellationToken);
 
+            // A scope of its own per call: the session's calls run side by side for minutes, and a scoped service (a
+            // DbContext) must not be shared between them or outlive one.
+            await using var scope = _context.RequestServices.GetRequiredService<IServiceScopeFactory>().CreateAsyncScope();
             var client = AIClientContext.From(_context.Request);
             var context = new SpineAIFunctionContext(_caller, SpineAIFunctionSide.Server)
             {
@@ -414,13 +418,15 @@ internal sealed class AIRealtimeRelay
                 TimeZone = client.TimeZone,
                 Locale = client.Locale,
                 User = _caller.Kind == AICallerKind.SignedIn ? _context.User : new ClaimsPrincipal(new ClaimsIdentity()),
-                Services = _context.RequestServices,
+                Services = scope.ServiceProvider,
                 CancellationToken = cancellationToken,
                 MaxResultCharacters = _feature.Options.MaxToolResultCharacters ?? SpineAIFunction.DefaultMaxResultCharacters,
             };
 
             _logger.LogInformation("AI feature '{Feature}': the Live backend called '{Function}' ({CallId}) for {Caller}.", _feature.Name, function.Name, callId, _caller.Key);
-            result = await function.InvokeAsync(Arguments(arguments), context);
+            result = SpineAIFunctionResult.TryParseArguments(arguments, out var parsed, out var invalid)
+                ? await function.InvokeAsync(parsed, context)
+                : invalid;
         }
         catch (AIFeatureException e)
         {
@@ -463,25 +469,6 @@ internal sealed class AIRealtimeRelay
         catch (Exception e) when (e is WebSocketException or OperationCanceledException or ObjectDisposedException)
         {
         }
-    }
-
-    private static Dictionary<string, object?> Arguments(string? arguments)
-    {
-        var parsed = new Dictionary<string, object?>(StringComparer.Ordinal);
-        if (string.IsNullOrWhiteSpace(arguments)) return parsed;
-        try
-        {
-            using var json = JsonDocument.Parse(arguments);
-            if (json.RootElement.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var property in json.RootElement.EnumerateObject())
-                    parsed[property.Name] = property.Value.Clone();
-            }
-        }
-        catch (JsonException)
-        {
-        }
-        return parsed;
     }
 
     /// <summary>

@@ -166,10 +166,8 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         {
             Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json"),
         };
-        if (options.AuthorizationHeader is { } authorization && await authorization(cancellationToken) is { Length: > 0 } header)
-            request.Headers.TryAddWithoutValidation("Authorization", header);
-        if (await installationId(cancellationToken) is { Length: > 0 } installation)
-            request.Headers.TryAddWithoutValidation(SpineInstallation.Header, installation);
+        foreach (var (header, value) in await AppHeadersAsync(cancellationToken))
+            request.Headers.TryAddWithoutValidation(header, value);
 
         using var response = await _http.Value.SendAsync(request, cancellationToken);
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -178,8 +176,17 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         if (response.IsSuccessStatusCode && json?.RootElement.ValueKind == JsonValueKind.Object && json.RootElement.TryGetProperty("result", out var result))
             return result.Clone();
 
-        if (AIOffReasons.FromJson(Text(json, "off")) == AIOffReason.SignInRequired)
-            return SpineAIFunctionResult.SignInRequired();
+        // The server's refusals reach the model as they do from the relay, so it can tell the user why.
+        switch (AIOffReasons.FromJson(Text(json, "off")))
+        {
+            case AIOffReason.SignInRequired:
+                return SpineAIFunctionResult.SignInRequired();
+            case { } off:
+                return SpineAIFunctionResult.Error($"The function '{name}' is not available now ({off}).", "refused");
+        }
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            return SpineAIFunctionResult.Error(
+                $"Too many function calls; try again in {response.Headers.RetryAfter?.Delta?.TotalSeconds ?? 60:0} seconds.", "refused");
 
         throw new HttpRequestException(
             $"The server function '{name}' of '{feature}' got {(int)response.StatusCode} {response.ReasonPhrase} from {url}: {(text.Length <= 300 ? text : text[..300] + "…")}",

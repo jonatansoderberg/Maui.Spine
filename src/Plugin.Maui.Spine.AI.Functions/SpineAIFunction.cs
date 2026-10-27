@@ -109,10 +109,14 @@ public sealed class SpineAIFunction
 
     /// <summary>The function for one conversation: every call runs with <paramref name="context"/>, is logged, and answers the model even when it fails.</summary>
     /// <param name="context">Who the calls are for, where they run, and the services.</param>
-    public AIFunction Bind(SpineAIFunctionContext context)
+    /// <param name="callId">
+    /// The id of the call being run, read for each call into <see cref="SpineAIFunctionContext.CallId"/>; such as
+    /// <c>() =&gt; FunctionInvokingChatClient.CurrentContext?.CallContent.CallId</c>.
+    /// </param>
+    public AIFunction Bind(SpineAIFunctionContext context, Func<string?>? callId = null)
     {
         ArgumentNullException.ThrowIfNull(context);
-        return new BoundFunction(this, context);
+        return new BoundFunction(this, context, callId);
     }
 
     /// <summary>The function's declaration only, for a model that should call it on the other side.</summary>
@@ -173,10 +177,11 @@ public sealed class SpineAIFunction
     /// <inheritdoc />
     public override string ToString() => Name;
 
-    private sealed class BoundFunction(SpineAIFunction declared, SpineAIFunctionContext context) : DelegatingAIFunction(declared.Function)
+    private sealed class BoundFunction(SpineAIFunction declared, SpineAIFunctionContext conversation, Func<string?>? callId) : DelegatingAIFunction(declared.Function)
     {
         protected override async ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
         {
+            var context = callId?.Invoke() is { Length: > 0 } id ? conversation.WithCall(id) : conversation;
             var logger = context.Services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.AI.Functions") ?? NullLogger.Instance;
 
             if (Check(arguments) is { } invalid)
@@ -287,6 +292,41 @@ public static class SpineAIFunctionResult
 
         using var json = JsonDocument.Parse(new JsonObject { ["error"] = error, ["message"] = message }.ToJsonString());
         return json.RootElement.Clone();
+    }
+
+    /// <summary>The <c>error</c> value for arguments the model sent that are not a JSON object.</summary>
+    public const string InvalidArgumentsError = "invalidArguments";
+
+    /// <summary>
+    /// The model's arguments, from the JSON it sent: an object, or nothing for none. Anything else is answered with
+    /// <see cref="InvalidArgumentsError"/>, so the model hears what was wrong and the function never runs with guesses.
+    /// </summary>
+    /// <param name="json">The arguments as the model sent them.</param>
+    /// <param name="arguments">The arguments by name, as JSON values.</param>
+    /// <param name="error">The answer for the model when they cannot be read.</param>
+    internal static bool TryParseArguments(string? json, out Dictionary<string, object?> arguments, out JsonElement error)
+    {
+        arguments = new Dictionary<string, object?>(StringComparer.Ordinal);
+        error = default;
+        if (string.IsNullOrWhiteSpace(json))
+            return true;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                error = Error($"The arguments must be a JSON object, not {document.RootElement.ValueKind}.", InvalidArgumentsError);
+                return false;
+            }
+            foreach (var property in document.RootElement.EnumerateObject())
+                arguments[property.Name] = property.Value.Clone();
+            return true;
+        }
+        catch (JsonException e)
+        {
+            error = Error($"The arguments are not valid JSON: {e.Message}", InvalidArgumentsError);
+            return false;
+        }
     }
 
     /// <summary>Whether <paramref name="result"/> is an error made here, and which.</summary>

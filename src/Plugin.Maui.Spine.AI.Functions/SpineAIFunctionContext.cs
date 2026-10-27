@@ -67,6 +67,21 @@ public sealed class SpineAIFunctionContext
     public DateTimeOffset Now() =>
         TimeZoneInfo.ConvertTime((Services.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow(), GetTimeZone());
 
+    /// <summary>This context for one call.</summary>
+    internal SpineAIFunctionContext WithCall(string callId) => new(Caller, RunsOn)
+    {
+        Feature = Feature,
+        ConversationId = ConversationId,
+        CallId = callId,
+        TimeZone = TimeZone,
+        Locale = Locale,
+        SignedInUser = SignedInUser,
+        User = User,
+        Services = Services,
+        CancellationToken = CancellationToken,
+        MaxResultCharacters = MaxResultCharacters,
+    };
+
     /// <summary>
     /// The context for the app's own functions: the signed-in user when Spine.Authentication is used (with their name
     /// and email), else the push link's user id, else the installation; the device's time zone and language.

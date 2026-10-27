@@ -599,7 +599,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         if (callId is null || name is null)
             return;
 
-        var call = new FunctionCallContent(callId, name, ParseArguments(arguments));
+        var readable = SpineAIFunctionResult.TryParseArguments(arguments, out var parsed, out var invalid);
+        var call = new FunctionCallContent(callId, name, parsed);
         _dispatch(() => _transcript.Add(new ChatMessage(ChatRole.Assistant, [call])));
 
         object? result;
@@ -612,6 +613,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             result = GoodbyeSaid;
         else if (goodbye)
             result = SayGoodbye;
+        else if (!readable)
+            result = invalid;
         else
         {
             try

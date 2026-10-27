@@ -639,10 +639,11 @@ public static class SpineAIEndpoints
                 {
                     // The call is the server's own record: the client's copy of it, and any result for a call the server
                     // did not hand to this caller, never reaches the model.
-                    if (result.CallId is { Length: > 0 } id && await pending.TakeAsync(feature.Name, caller, id, cancellationToken) is { } call)
+                    if (result.CallId is { Length: > 0 } id && await pending.TakeAsync(feature.Name, caller, id, cancellationToken) is var (call, ran))
                     {
+                        // A call the server ran itself keeps the server's result; only a device call takes the app's.
                         messages.Add(new ChatMessage(ChatRole.Assistant, [call]));
-                        messages.Add(new ChatMessage(ChatRole.Tool, [new FunctionResultContent(id, Capped(result.Result, call.Name, max))]));
+                        messages.Add(new ChatMessage(ChatRole.Tool, [new FunctionResultContent(id, ran is { } own ? own : Capped(result.Result, call.Name, max))]));
                         logger.LogInformation("AI feature '{Feature}': the app's result for '{Function}' ({CallId}) from {Caller}.", feature.Name, call.Name, id, caller.Key);
                     }
                     else

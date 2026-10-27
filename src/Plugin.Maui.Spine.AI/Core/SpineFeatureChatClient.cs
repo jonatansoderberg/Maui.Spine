@@ -112,7 +112,7 @@ internal sealed class SpineFeatureChatClient : IChatClient
 
         var context = await _runtime.DeviceContextAsync(
             _feature, SpineClientHeaders.ConversationOf(options?.AdditionalProperties) ?? options?.ConversationId, _services, cancellationToken);
-        var bound = functions.Select(f => (AITool)f.Bind(context)).ToList();
+        var bound = functions.Select(f => (AITool)f.Bind(context, CurrentCallId)).ToList();
 
         // Apple Intelligence runs its tools itself and reports the calls as information only, which this then leaves alone.
         var invoking = new FunctionInvokingChatClient(client, _services.GetService(typeof(ILoggerFactory)) as ILoggerFactory, _services);
@@ -128,6 +128,8 @@ internal sealed class SpineFeatureChatClient : IChatClient
         invoking.AdditionalTools = bound;
         return (invoking, options);
     }
+
+    private static string? CurrentCallId() => FunctionInvokingChatClient.CurrentContext?.CallContent.CallId;
 
     private bool IsAvailable(AISource source)
     {

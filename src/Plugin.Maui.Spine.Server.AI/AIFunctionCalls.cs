@@ -38,11 +38,15 @@ internal sealed class FeatureFunctionsChatClient(
     public override async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var (invoking, prepared, device) = Prepare(options, cancellationToken);
+        var (invoking, prepared, device, server) = Prepare(options, cancellationToken);
         var response = await invoking.GetResponseAsync(messages, prepared, cancellationToken);
 
+        var contents = response.Messages.SelectMany(m => m.Contents).ToList();
+        var ran = await RunLeftServerCallsAsync(contents, device, server, cancellationToken);
         foreach (var message in response.Messages)
             message.Contents = await MarkAsync(message.Contents, device, cancellationToken);
+        if (ran.Count > 0)
+            response.Messages.Add(new ChatMessage(ChatRole.Tool, ran));
 
         return response;
     }
@@ -50,10 +54,12 @@ internal sealed class FeatureFunctionsChatClient(
     public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var (invoking, prepared, device) = Prepare(options, cancellationToken);
+        var (invoking, prepared, device, server) = Prepare(options, cancellationToken);
+        var seen = new List<AIContent>();
 
         await foreach (var update in invoking.GetStreamingResponseAsync(messages, prepared, cancellationToken))
         {
+            seen.AddRange(update.Contents.Where(c => c is FunctionCallContent or FunctionResultContent));
             if (!update.Contents.Any(c => c is FunctionCallContent))
             {
                 yield return update;
@@ -65,9 +71,12 @@ internal sealed class FeatureFunctionsChatClient(
             copy.Contents = await MarkAsync(update.Contents, device, cancellationToken);
             yield return copy;
         }
+
+        if (await RunLeftServerCallsAsync(seen, device, server, cancellationToken) is { Count: > 0 } ran)
+            yield return new ChatResponseUpdate(ChatRole.Tool, ran);
     }
 
-    private (IChatClient Invoking, ChatOptions Options, HashSet<string> Device) Prepare(ChatOptions? options, CancellationToken cancellationToken)
+    private (IChatClient Invoking, ChatOptions Options, HashSet<string> Device, Dictionary<string, AIFunction> Server) Prepare(ChatOptions? options, CancellationToken cancellationToken)
     {
         var prepared = options?.Clone() ?? new ChatOptions();
         var offers = prepared.AdditionalProperties?.TryGetValue(OffersKey, out var value) == true ? value as IReadOnlyList<AIFunctionOffer> : null;
@@ -89,6 +98,7 @@ internal sealed class FeatureFunctionsChatClient(
 
         var tools = prepared.Tools is { } own ? new List<AITool>(own) : [];
         var device = new HashSet<string>(StringComparer.Ordinal);
+        var runs = new Dictionary<string, AIFunction>(StringComparer.Ordinal);
 
         foreach (var name in feature.Options.Functions ?? [])
         {
@@ -98,7 +108,9 @@ internal sealed class FeatureFunctionsChatClient(
 
             if (server is not null && (declared is null || Side(offer, server) == SpineAIFunctionSide.Server))
             {
-                tools.Add(server.Bind(context));
+                var bound = server.Bind(context, static () => FunctionInvokingChatClient.CurrentContext?.CallContent.CallId);
+                tools.Add(bound);
+                runs[name] = bound;
             }
             else if (declared is not null)
             {
@@ -114,7 +126,32 @@ internal sealed class FeatureFunctionsChatClient(
             MaximumIterationsPerRequest = Math.Max(1, feature.Options.MaxToolRounds ?? DefaultMaxToolRounds),
         };
 
-        return (invoking, prepared, device);
+        return (invoking, prepared, device, runs);
+    }
+
+    /// <summary>
+    /// A round that also asks the app for a device function ends with every call unanswered: the function-invoking
+    /// client hands the whole round back. The server's own calls in it run here, at once; the app is shown their results
+    /// and the server keeps them, so the model gets them with the app's answer (without them the call was lost).
+    /// </summary>
+    private async Task<List<AIContent>> RunLeftServerCallsAsync(
+        List<AIContent> contents, HashSet<string> device, Dictionary<string, AIFunction> server, CancellationToken cancellationToken)
+    {
+        var answered = contents.OfType<FunctionResultContent>().Select(r => r.CallId).ToHashSet(StringComparer.Ordinal);
+        var calls = contents.OfType<FunctionCallContent>().Where(c => !c.InformationalOnly && !answered.Contains(c.CallId)).ToList();
+        if (!calls.Any(c => device.Contains(c.Name)))
+            return [];
+
+        var ran = new List<AIContent>();
+        foreach (var call in calls.Where(c => !device.Contains(c.Name)))
+        {
+            if (!server.TryGetValue(call.Name, out var function))
+                continue;
+            var result = await function.InvokeAsync(new AIFunctionArguments(call.Arguments), cancellationToken);
+            await pending.RecordAsync(feature.Name, caller, call, cancellationToken, result);
+            ran.Add(new FunctionResultContent(call.CallId, result));
+        }
+        return ran;
     }
 
     private static SpineAIFunctionSide Side(AIFunctionOffer? offer, SpineAIFunction server) => offer?.Prefer?.ToLowerInvariant() switch
@@ -171,9 +208,11 @@ internal sealed class AIPendingCalls(IServiceProvider services, TimeProvider tim
 
     private readonly ConcurrentDictionary<string, (string Json, DateTimeOffset Until)> _memory = new(StringComparer.Ordinal);
 
-    public async Task RecordAsync(string feature, AICaller caller, FunctionCallContent call, CancellationToken cancellationToken)
+    /// <summary>Keeps <paramref name="call"/> for this caller: a device call waiting for the app's result, or a server call with the result the server got.</summary>
+    public async Task RecordAsync(string feature, AICaller caller, FunctionCallContent call, CancellationToken cancellationToken, object? result = null)
     {
-        var json = JsonSerializer.Serialize(new Pending(call.Name, Arguments(call)), SpineAIEndpoints.Json.GetTypeInfo(typeof(Pending)));
+        var ran = result is null ? (JsonElement?)null : JsonSerializer.SerializeToElement(result, SpineAIEndpoints.Json.GetTypeInfo(typeof(object)));
+        var json = JsonSerializer.Serialize(new Pending(call.Name, Arguments(call), ran), SpineAIEndpoints.Json.GetTypeInfo(typeof(Pending)));
         var key = Key(feature, caller, call.CallId);
 
         if (services.GetService<IDistributedCache>() is { } cache)
@@ -189,8 +228,11 @@ internal sealed class AIPendingCalls(IServiceProvider services, TimeProvider tim
         _memory[key] = (json, now + Life);
     }
 
-    /// <summary>The call the server made with <paramref name="callId"/> for this caller, removed, or <see langword="null"/>.</summary>
-    public async Task<FunctionCallContent?> TakeAsync(string feature, AICaller caller, string callId, CancellationToken cancellationToken)
+    /// <summary>
+    /// The call the server made with <paramref name="callId"/> for this caller, removed, or <see langword="null"/>; with the
+    /// server's own result when the server ran it.
+    /// </summary>
+    public async Task<(FunctionCallContent Call, JsonElement? Result)?> TakeAsync(string feature, AICaller caller, string callId, CancellationToken cancellationToken)
     {
         var key = Key(feature, caller, callId);
         string? json;
@@ -207,8 +249,8 @@ internal sealed class AIPendingCalls(IServiceProvider services, TimeProvider tim
 
         if (json is null || JsonSerializer.Deserialize(json, SpineAIEndpoints.Json.GetTypeInfo(typeof(Pending))) is not Pending made) return null;
 
-        return new FunctionCallContent(callId, made.Name,
-            made.Arguments?.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value.Clone(), StringComparer.Ordinal));
+        return (new FunctionCallContent(callId, made.Name,
+            made.Arguments?.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value.Clone(), StringComparer.Ordinal)), made.Result);
     }
 
     private static string Key(string feature, AICaller caller, string callId) => $"spine-ai-call:{feature}:{caller.Key}:{callId}";
@@ -216,5 +258,5 @@ internal sealed class AIPendingCalls(IServiceProvider services, TimeProvider tim
     private static JsonElement? Arguments(FunctionCallContent call) =>
         call.Arguments is null ? null : JsonSerializer.SerializeToElement(call.Arguments, SpineAIEndpoints.Json.GetTypeInfo(typeof(IDictionary<string, object?>)));
 
-    private sealed record Pending(string Name, JsonElement? Arguments);
+    private sealed record Pending(string Name, JsonElement? Arguments, JsonElement? Result = null);
 }
