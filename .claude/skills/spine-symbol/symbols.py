@@ -148,13 +148,15 @@ def S(p, w=2):
     return (p.s if isinstance(p, P) else p, "stroke", w)
 
 
-def F(p, evenodd=False):
-    """A filled part: dots, modules, levels, badges. evenodd cuts inner subpaths out as holes (RepeatOne)."""
-    return (p.s if isinstance(p, P) else p, "evenodd" if evenodd else "fill", 0)
+def F(p, evenodd=False, color=None):
+    """A filled part: dots, modules, levels, badges. evenodd cuts inner subpaths out as holes (RepeatOne). color is a
+    fixed fill for a part that means that colour (a status dot, the weather symbols' sun); otherwise currentColor."""
+    part = (p.s if isinstance(p, P) else p, "evenodd" if evenodd else "fill", 0)
+    return part + (color,) if color else part
 
 
-def dot(cx, cy, r=1.56):
-    return F(circle(cx, cy, r))
+def dot(cx, cy, r=1.56, color=None):
+    return F(circle(cx, cy, r), color=color)
 
 
 def sq(x0, y0, x1, y1):
@@ -175,12 +177,13 @@ def existing(name):
 
 def svg(parts):
     out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" version="1.1">', "<g>"]
-    for d, kind, w in parts:
+    for d, kind, w, *rest in parts:
         if kind == "stroke":
             out.append(f'<path d="{d}"  stroke="currentColor" stroke-width="{n(w)}" stroke-opacity="1" fill-opacity="0"></path>')
         else:
             rule = ' fill-rule="evenodd"' if kind == "evenodd" else ""
-            out.append(f'<path d="{d}"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"{rule}></path>')
+            fill = rest[0] if rest and rest[0] else "currentColor"
+            out.append(f'<path d="{d}"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="{fill}" fill-opacity="1"{rule}></path>')
     return "\n".join(out + ["</g>", "</svg>", ""])
 
 
@@ -291,9 +294,9 @@ def knockout(parts, a, b, gap=2.34):
     """Cuts every stroked part where it comes within `gap` of the slash a-b, so the background shows
     round the slash in both themes. Draw the slash itself on top afterwards (TemperatureRestore)."""
     out = []
-    for d, kind, w in parts:
+    for d, kind, w, *rest in parts:
         if kind != "stroke":
-            out.append((d, kind, w)); continue
+            out.append((d, kind, w, *rest)); continue
         inside = lambda p: _dist(p, a, b) < gap + w / 2
         pieces = []
         for sub in _parse(d):

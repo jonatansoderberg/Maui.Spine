@@ -38,7 +38,7 @@ def _():
 ```
 
 Helpers (coordinates are viewBox units, 0–50):
-- `S(path, w=2)` is a stroked part. Use `w=1` only for secondary detail. `F(path)` is a filled part, `dot(cx, cy, r=1.56)` a filled dot and `sq(x0, y0, x1, y1)` a filled square.
+- `S(path, w=2)` is a stroked part. Use `w=1` only for secondary detail. `F(path)` is a filled part, `dot(cx, cy, r=1.56)` a filled dot and `sq(x0, y0, x1, y1)` a filled square. `F(path, color="#34C759")` and `dot(..., color=...)` fill with a fixed colour instead of `currentColor`, for a part that means that colour (`DeskDisplayOnline`).
 - `line(*points, closed=False, tf=None)`, `circle(cx, cy, r)`, `rrect(x0, y0, x1, y1, r)`.
 - `P()` is a free path: `.M .L .C .Z`, plus `.arc(cx, cy, r, a0, a1)` with degrees in SVG orientation (0 = right, 90 = down), emitted as cubics.
 - `rot(cx, cy, deg)` gives a transform to pass as `tf=`, for rotated shapes such as the links in `Link`.
