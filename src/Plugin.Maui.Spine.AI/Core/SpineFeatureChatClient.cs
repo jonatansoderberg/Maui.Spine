@@ -110,7 +110,8 @@ internal sealed class SpineFeatureChatClient : IChatClient
         var functions = _runtime.Options.Functions;
         if (functions.Count == 0 && options?.Tools is not { Count: > 0 }) return (client, options);
 
-        var context = await _runtime.DeviceContextAsync(_feature, options?.ConversationId, _services, cancellationToken);
+        var context = await _runtime.DeviceContextAsync(
+            _feature, SpineClientHeaders.ConversationOf(options?.AdditionalProperties) ?? options?.ConversationId, _services, cancellationToken);
         var bound = functions.Select(f => (AITool)f.Bind(context)).ToList();
 
         // Apple Intelligence runs its tools itself and reports the calls as information only, which this then leaves alone.

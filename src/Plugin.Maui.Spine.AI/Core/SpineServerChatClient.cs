@@ -139,6 +139,8 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(stream ? "text/event-stream" : "application/json"));
 
         await runtime.AddHeadersAsync(request, cancellationToken);
+        if (SpineClientHeaders.ConversationOf(options?.AdditionalProperties) is { } conversation)
+            request.Headers.TryAddWithoutValidation(SpineClientHeaders.Conversation, conversation);
         return request;
     }
 

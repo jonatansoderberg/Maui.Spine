@@ -148,6 +148,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         _connecting = true;
         _ended = 0;
         _farewell = false;
+        _server.ConversationId = Guid.NewGuid().ToString("N");
         _dispatch(() =>
         {
             _byItem.Clear();
@@ -675,7 +676,11 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
     private ChatOptions ChatOptions(AIFunction? goodbye)
     {
-        var options = new ChatOptions { Tools = goodbye is null ? null : [goodbye] };
+        var options = new ChatOptions
+        {
+            Tools = goodbye is null ? null : [goodbye],
+            AdditionalProperties = new() { [SpineClientHeaders.ConversationKey] = _server.ConversationId },
+        };
         lock (_preferred)
         {
             foreach (var (function, side) in _preferred)

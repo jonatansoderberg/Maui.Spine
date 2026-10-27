@@ -81,7 +81,13 @@ builder.UseSpineAI(o =>
 - **One set for the app.** `SpineAIOptions.Functions` and `SpineVoiceOptions.Functions` are the same set, so a function reaches text chat, on-device models and voice sessions alike.
 - **On the device.** An on-device source gets every function in `ChatOptions.Tools`. Apple Intelligence runs them itself; any other device client is run through Microsoft.Extensions.AI's `FunctionInvokingChatClient`. Server-only functions are not offered to it.
 - **On the server.** The request names the app's functions, and a server feature that lists one (and declared it with `AddDevice`) hands the model's call back. The client runs it and asks again with the result, all inside one `GetResponseAsync` or stream. Calls the server ran itself arrive marked `InformationalOnly` and are never run again.
-- **The context.** A `SpineAIFunctionContext` parameter is filled in and left out of the schema: `RunsOn` is `Device`, `Caller` the installation, or the signed-in user's id when Spine.Authentication shares it (`ISignedInSession`), `Services` the app's.
+- **The context.** A `SpineAIFunctionContext` parameter is filled in and left out of the schema:
+  - `RunsOn` is `Device`.
+  - `Caller` is the signed-in user when Spine.Authentication is used (`ISpineSignedInUser`, no push link needed), else the push link's user, else the installation. `GetUserAsync()` gives that user's name and email.
+  - `TimeZone` and `Locale` are the device's own. `Now()` is the time in the user's zone.
+  - `ConversationId` is the voice session's or the pipeline's own id, and `CallId` the model's id for the call when the path has it.
+  - `Services` are the app's.
+- **The user's context on the server.** Every request to the server carries the device's time zone and language (`Spine-Time-Zone`, `Spine-Locale`) and, from a voice session or a pipeline, its conversation (`Spine-Conversation`). The server's functions then get the same `TimeZone`, `Locale` and `ConversationId`.
 - **The order.** A function both sides have runs where `SpineAIFunction.Prefer` says, and a chat changes it with `ChatOptions.Prefer(name, side)`, for example on `ChatView.ChatOptions`.
 - **What the user sees.** The model tells the user what a function did, from its result. `ChatView` shows a card per call only with `ShowToolCalls="True"`, for debugging; every call is in the log.
 - **Failures.** A function that throws, gets arguments its schema does not have, or answers more than 16 000 characters gives the model an error result instead (`failed`, `invalidArguments`, `tooLarge`), so the model can say so.

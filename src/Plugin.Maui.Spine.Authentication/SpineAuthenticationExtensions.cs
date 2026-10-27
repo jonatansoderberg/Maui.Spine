@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Plugin.Maui.Spine.Core;
@@ -96,6 +97,9 @@ public static class SpineAuthenticationExtensions
                 || options.BrowserProviders.Any(options.IsBrowser);
             options.Validate(returnsToScheme: browser && !OperatingSystem.IsWindows(), appStore: OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst());
         }
+
+        // Spine.AI and Spine.Voice read the user for the app's functions; unlike the push link it shares nothing with a server.
+        services.TryAddSingleton<ISpineSignedInUser>(static sp => sp.GetRequiredService<SpineAuthSession>());
 
         // PushNotifications resolves it when it is referenced; there only when the app asks for the link (Q11).
         if (options.LinkPushNotifications && !services.Any(static d => d.ServiceType == typeof(ISignedInSession)))

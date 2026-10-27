@@ -221,6 +221,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
         _connecting = true;
         _ended = 0;
+        // One conversation id per call, for the app's functions and, in the requests' headers, the server's.
+        _tokens.ConversationId = Guid.NewGuid().ToString("N");
         // Taken now, on the caller's thread: the conversation is the app's list, and it changes on the main thread.
         var history = conversation is null ? [] : History(conversation).ToList();
         _dispatch(() =>
@@ -616,7 +618,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             {
                 result = SideOf(name) switch
                 {
-                    SpineAIFunctionSide.Device => await _options.Functions[name]!.InvokeAsync(call.Arguments, await DeviceContextAsync(cancellationToken)),
+                    SpineAIFunctionSide.Device => await _options.Functions[name]!.InvokeAsync(call.Arguments, await DeviceContextAsync(callId, cancellationToken)),
                     SpineAIFunctionSide.Server => await _tokens.CallFunctionAsync(_token!.Feature, name, callId, arguments, cancellationToken),
                     _ => Unknown(name),
                 };
@@ -731,26 +733,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         return SpineAIFunctionResult.Error($"There is no function named '{name}'.", "notFound");
     }
 
-    private async Task<SpineAIFunctionContext> DeviceContextAsync(CancellationToken cancellationToken)
-    {
-        var caller = _services?.GetService(typeof(Plugin.Maui.Spine.Authentication.ISignedInSession)) is Plugin.Maui.Spine.Authentication.ISignedInSession { UserId: { Length: > 0 } user }
-            ? AICaller.SignedIn(user)
-            : await _tokens.InstallationIdAsync(cancellationToken) is { Length: > 0 } installation ? AICaller.Installation(installation) : AICaller.Anonymous(null);
+    private Task<SpineAIFunctionContext> DeviceContextAsync(string? callId, CancellationToken cancellationToken) =>
+        SpineAIFunctionContext.ForDeviceAsync(_services, _tokens.InstallationIdAsync, _token?.Feature, _tokens.ConversationId, callId, cancellationToken);
 
-        return new SpineAIFunctionContext(caller, SpineAIFunctionSide.Device)
-        {
-            Feature = _token?.Feature,
-            Services = _services ?? EmptyServices.Instance,
-            CancellationToken = cancellationToken,
-        };
-    }
-
-    private sealed class EmptyServices : IServiceProvider
-    {
-        public static EmptyServices Instance { get; } = new();
-
-        public object? GetService(Type serviceType) => null;
-    }
 
     private JsonObject ToolsUpdate()
     {

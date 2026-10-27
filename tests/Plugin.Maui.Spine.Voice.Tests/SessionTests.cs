@@ -143,6 +143,9 @@ public sealed class SessionTests : IAsyncLifetime
         Assert.Equal(HttpMethod.Post, _tokens.Last?.Method);
         Assert.Equal("Bearer app-token", _tokens.Last?.Headers.Authorization?.ToString());
         Assert.Equal("phone-1", _tokens.Last?.Headers.GetValues("Spine-Installation").Single());
+        // The user's time zone and the call's conversation, for the server's functions.
+        Assert.False(string.IsNullOrEmpty(_tokens.Last?.Headers.GetValues("Spine-Time-Zone").Single()));
+        Assert.Matches("^[0-9a-f]{32}$", _tokens.Last?.Headers.GetValues("Spine-Conversation").Single());
         Assert.Equal("wss://api.openai.com/v1/realtime?model=gpt-realtime", _socket.Url?.ToString());
         Assert.Equal("ek_test", _socket.Bearer);
         Assert.True(_audio.IsRunning);

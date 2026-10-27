@@ -42,7 +42,7 @@ internal sealed partial class StoredSessionJson : JsonSerializerContext;
 /// The signed-in user and their tokens. The access token lives in memory and is refreshed when less than a minute is
 /// left, one refresh at a time; a refresh the server refuses signs the user out.
 /// </summary>
-internal sealed class SpineAuthSession(ITokenEndpoint client, ISpineAuthStorage storage, TimeProvider time, ILogger logger) : ISignedInSession
+internal sealed class SpineAuthSession(ITokenEndpoint client, ISpineAuthStorage storage, TimeProvider time, ILogger logger) : ISignedInSession, ISpineSignedInUser
 {
     private static readonly TimeSpan Margin = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan RefreshTimeout = TimeSpan.FromSeconds(30);

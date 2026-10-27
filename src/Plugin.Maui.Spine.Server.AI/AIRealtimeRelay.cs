@@ -405,9 +405,14 @@ internal sealed class AIRealtimeRelay
             using var lease = _gate.Acquire(_feature, _caller, "functions");
             await _gate.CheckAsync(_feature, _caller, cancellationToken);
 
+            var client = AIClientContext.From(_context.Request);
             var context = new SpineAIFunctionContext(_caller, SpineAIFunctionSide.Server)
             {
                 Feature = _feature.Name,
+                ConversationId = client.Conversation,
+                CallId = callId,
+                TimeZone = client.TimeZone,
+                Locale = client.Locale,
                 User = _caller.Kind == AICallerKind.SignedIn ? _context.User : new ClaimsPrincipal(new ClaimsIdentity()),
                 Services = _context.RequestServices,
                 CancellationToken = cancellationToken,

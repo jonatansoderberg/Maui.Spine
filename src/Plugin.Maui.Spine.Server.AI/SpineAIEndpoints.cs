@@ -387,9 +387,14 @@ public static class SpineAIEndpoints
             return e.ToResult();
         }
 
+        var client = AIClientContext.From(request);
         var context = new SpineAIFunctionContext(caller, SpineAIFunctionSide.Server)
         {
             Feature = found.Name,
+            ConversationId = client.Conversation,
+            CallId = body?.CallId,
+            TimeZone = client.TimeZone,
+            Locale = client.Locale,
             User = caller.Kind == AICallerKind.SignedIn ? request.HttpContext.User : new ClaimsPrincipal(new ClaimsIdentity()),
             Services = services,
             CancellationToken = cancellationToken,

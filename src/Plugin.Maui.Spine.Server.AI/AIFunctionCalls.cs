@@ -74,10 +74,13 @@ internal sealed class FeatureFunctionsChatClient(
         prepared.AdditionalProperties?.Remove(OffersKey);
 
         var http = services.GetService<IHttpContextAccessor>()?.HttpContext;
+        var client = AIClientContext.From(http?.Request);
         var context = new SpineAIFunctionContext(caller, SpineAIFunctionSide.Server)
         {
             Feature = feature.Name,
-            ConversationId = prepared.ConversationId,
+            ConversationId = client.Conversation ?? prepared.ConversationId,
+            TimeZone = client.TimeZone,
+            Locale = client.Locale,
             User = caller.Kind == AICallerKind.SignedIn && http?.User is { } user ? user : new ClaimsPrincipal(new ClaimsIdentity()),
             Services = http?.RequestServices ?? services,
             CancellationToken = cancellationToken,

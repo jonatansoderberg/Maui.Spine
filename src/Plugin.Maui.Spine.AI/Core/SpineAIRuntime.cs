@@ -55,26 +55,14 @@ internal sealed class SpineAIRuntime
 
         if (await InstallationIdAsync(cancellationToken) is { Length: > 0 } installation)
             request.Headers.TryAddWithoutValidation(Common.SpineInstallation.Header, installation);
+
+        foreach (var (name, value) in SpineClientHeaders.ForDevice())
+            request.Headers.TryAddWithoutValidation(name, value);
     }
 
-    /// <summary>
-    /// The context the app's functions run with: the signed-in user's id when Spine.Authentication shares it
-    /// (<see cref="ISignedInSession"/>), and otherwise the installation.
-    /// </summary>
-    public async Task<SpineAIFunctionContext> DeviceContextAsync(string feature, string? conversationId, IServiceProvider services, CancellationToken cancellationToken)
-    {
-        var caller = services.GetService(typeof(ISignedInSession)) is ISignedInSession { UserId: { Length: > 0 } user }
-            ? AICaller.SignedIn(user)
-            : await InstallationIdAsync(cancellationToken) is { Length: > 0 } installation ? AICaller.Installation(installation) : AICaller.Anonymous(null);
-
-        return new SpineAIFunctionContext(caller, SpineAIFunctionSide.Device)
-        {
-            Feature = feature,
-            ConversationId = conversationId,
-            Services = services,
-            CancellationToken = cancellationToken,
-        };
-    }
+    /// <summary>The context the app's functions run with (<see cref="SpineAIFunctionContext.ForDeviceAsync"/>).</summary>
+    public Task<SpineAIFunctionContext> DeviceContextAsync(string feature, string? conversationId, IServiceProvider services, CancellationToken cancellationToken) =>
+        SpineAIFunctionContext.ForDeviceAsync(services, InstallationIdAsync, feature, conversationId, null, cancellationToken);
 
     /// <summary>The client for <paramref name="feature"/>, or <see langword="null"/> when the app declared no such feature.</summary>
     public IChatClient? Feature(string feature, IServiceProvider services) =>

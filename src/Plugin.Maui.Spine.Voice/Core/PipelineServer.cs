@@ -13,6 +13,9 @@ namespace Plugin.Maui.Spine.Voice;
 internal sealed class PipelineServer(SpineVoiceOptions options, Func<CancellationToken, Task<string?>> installationId)
 {
     private const string SampleRateHeader = "Spine-Sample-Rate";
+
+    /// <summary>The session's conversation, sent with every request.</summary>
+    public string? ConversationId { get; set; }
     private static readonly Lazy<HttpClient> Shared = new(() => new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
 
     private readonly Lazy<HttpClient> _http = options.HttpHandler is { } handler
@@ -71,6 +74,8 @@ internal sealed class PipelineServer(SpineVoiceOptions options, Func<Cancellatio
             request.Headers.TryAddWithoutValidation("Authorization", header);
         if (await installationId(cancellationToken) is { Length: > 0 } installation)
             request.Headers.TryAddWithoutValidation(SpineInstallation.Header, installation);
+        foreach (var (name, value) in SpineClientHeaders.ForDevice(ConversationId))
+            request.Headers.TryAddWithoutValidation(name, value);
         return request;
     }
 

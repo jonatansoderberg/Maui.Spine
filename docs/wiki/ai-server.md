@@ -267,7 +267,13 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
                "Functions": [ "get_my_bookings", "show_time" ], "MaxToolRounds": 4 }
 ```
 
-- **The context.** A `SpineAIFunctionContext` parameter is filled from the call and left out of the schema, so the model never sees it, and so are `CancellationToken` and `IServiceProvider`. It carries `Caller` (`AICaller`), `Feature`, `ConversationId`, `RunsOn`, `User` (the request's `ClaimsPrincipal` for a signed-in caller), `Services` (the request's) and `CancellationToken`.
+- **The context.** A `SpineAIFunctionContext` parameter is filled from the call and left out of the schema, so the model never sees it, and so are `CancellationToken` and `IServiceProvider`. It carries:
+  - `Caller` (`AICaller`), `Feature` and `RunsOn`;
+  - `User`: the request's `ClaimsPrincipal` for a signed-in caller;
+  - `TimeZone` and `Locale`: what the app sent in `Spine-Time-Zone` and `Spine-Locale`, checked; an unknown zone or language is `null`;
+  - `ConversationId` (`Spine-Conversation`, else the chat's provider conversation) and `CallId` (the model's id for a forwarded or relayed call);
+  - `Services` (the request's) and `CancellationToken`.
+- **The user's time.** `Now()` is the time in the user's zone, and `GetTimeZone()` the zone: on the server UTC when the app sent none, never the server's own zone.
 - **The user.** `GetUserAsync()` answers the signed-in user's `SpineUser` (id, email, names, provider, organization) through Spine.Server.Authentication when it is registered, and otherwise from the access token's claims. Installations and anonymous callers get `null`. Server-only code that needs the whole `SpineAuthUser` resolves `IUserResolver` from `context.Services`.
 - **Signed out.** Return `SpineAIFunctionResult.SignInRequired()`: the model reads `{ "error": "signInRequired", "message": … }` and tells the user to sign in. `SpineAIFunctionResult.Error(message, code)` covers other refusals.
 - **Checks before it runs.** Arguments the schema does not have, and missing required ones, answer `invalidArguments` without calling the function. An exception answers `failed` (its message goes to the log only), and a result longer than `MaxToolResultCharacters` (16 000 by default) answers `tooLarge`.
