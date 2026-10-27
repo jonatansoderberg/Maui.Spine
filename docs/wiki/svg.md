@@ -76,7 +76,7 @@ The file itself stays as it was exported.
 
 ### The built-in icon set
 
-`Plugin.Maui.Spine.Svg.Icons` carries 240 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
+`Plugin.Maui.Spine.Svg.Icons` carries 242 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Svg.Icons
