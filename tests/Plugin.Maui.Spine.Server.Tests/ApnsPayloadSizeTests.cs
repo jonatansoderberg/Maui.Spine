@@ -57,16 +57,17 @@ public class ApnsPayloadSizeTests(ITestOutputHelper output)
     /// A glucose card as the Glukos app builds it: name and age, the value large and rounded with its unit and trend, and
     /// the hour as a graph three times over, on the lock screen, at the bottom of the expanded island and in CarPlay.
     /// </summary>
-    private static LiveActivityLayout GlucoseCard()
+    private static LiveActivityLayout GlucoseCard(bool shared = false)
     {
         var at = new DateTimeOffset(2026, 10, 26, 11, 42, 17, TimeSpan.FromHours(1));
         var color = WidgetColor.FromHex("#2BB894");
         var muted = WidgetColor.FromHex("#A6FFFFFF");
         var points = Enumerable.Range(0, 60).Select(i => (at.AddMinutes(i - 59).AddSeconds(i % 7), 6.2 + 0.9 * Math.Sin(i / 9.0))).ToList();
-        SparklineNode Graph(double height) => W.Sparkline(points, at.AddHours(-1), at, TimeSpan.FromMinutes(5), color, height)
+        SparklineNode Sparkline(double height) => W.Sparkline(points, at.AddHours(-1), at, TimeSpan.FromMinutes(5), color, height)
             .Band(3.9, 10, WidgetColor.FromHex("#F5B83D"), WidgetColor.FromHex("#F2614A")).Area().Dot();
+        WidgetNode Graph(double height) => shared ? W.Use("graph", height) : Sparkline(height);
         WidgetNode Title() => W.Text("Jonatan").Caption().Bold().Color(WidgetColor.FromHex("#FFFFFF"));
-        TextLikeNode Age() => W.Relative(at, ago: true).Caption().Color(muted).Trailing();
+        WidgetNode Age() => shared ? W.Use("age") : W.Relative(at, ago: true).Caption().Color(muted).Trailing();
         WidgetNode Reading(double size, bool drop = true)
         {
             var number = W.Text("6,8").FontSize(size).Bold().FontDesign(TextDesign.Rounded).Color(color);
@@ -87,7 +88,33 @@ public class ApnsPayloadSizeTests(ITestOutputHelper output)
             CompactTrailing = W.Text("6,8 →").Headline().Bold().FontDesign(TextDesign.Rounded).Color(color),
             Minimal = W.Text("6,8").Headline().Bold().FontDesign(TextDesign.Rounded).Color(color),
             Small = W.HStack(12, W.VStack(2, Title(), Reading(26, drop: false), Age()), Graph(40)),
+            Shared = shared
+                ? new Dictionary<string, WidgetNode> { ["graph"] = Sparkline(56), ["age"] = W.Relative(at, ago: true).Caption().Color(muted).Trailing() }
+                : null,
         };
+    }
+
+    [Fact]
+    public void A_graph_and_an_age_sent_once_save_half_a_kilobyte_of_the_glucose_card()
+    {
+        var options = new LiveActivityOptions { StaleAt = DateTimeOffset.UnixEpoch.AddYears(57) };
+        string Update(LiveActivityLayout layout) => PushPayloads.ApnsLiveActivity("glucose:p2qoh7wot5", layout, LiveActivityEvent.Update,
+            alert: null, options, "se.cosmomedia.glukos", DateTimeOffset.UnixEpoch.AddYears(56)).Json;
+        var repeated = Bytes(Update(GlucoseCard()));
+        var shared = Bytes(Update(GlucoseCard(shared: true)));
+
+        output.WriteLine($"update {repeated} bytes with every region's own graph and age, {shared} bytes with them shared");
+
+        // 3454 against 2913 bytes when written: the graph's two repeats and the age's.
+        Assert.True(repeated - shared > 500, $"{repeated - shared} of {repeated} bytes saved");
+    }
+
+    [Fact]
+    public void A_shared_card_resolves_to_the_card_it_was_built_from()
+    {
+        var resolved = JsonNode.Parse(WidgetJson.ResolveShared(GlucoseCard(shared: true).ToJson()));
+
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(GlucoseCard().ToJson()), resolved), resolved!.ToJsonString());
     }
 
     [Fact]

@@ -138,6 +138,17 @@ public static class W
     /// </summary>
     public static AdaptiveNode Adaptive(WidgetNode fallback, IReadOnlyDictionary<WidgetFamily, WidgetNode> trees) =>
         new(fallback, trees.ToDictionary(t => Serialization.WidgetJson.FamilyKey(t.Key), t => t.Value));
+
+    /// <summary>
+    /// The Live Activity layout's shared node <paramref name="name"/> (<see cref="LiveActivityLayout.Shared"/>), here
+    /// <paramref name="height"/> points high when set: a graph sent once and drawn at 56 on the Lock Screen and 44 in
+    /// the Dynamic Island.
+    /// </summary>
+    public static UseNode Use(string name, double? height = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new(name) { Height = height };
+    }
 }
 
 /// <summary>Fluent styling for text-like nodes. Each call returns a new node.</summary>

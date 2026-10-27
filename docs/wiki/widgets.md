@@ -234,6 +234,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Spacer()` / `W.Divider()` | Flexible space, separator |
 | `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
+| `W.Use(name, height)` | A Live Activity layout's shared node, at its own height (see [Shared nodes](#shared-nodes)) |
 
 A stack takes `.Fill()`, which gives it an equal share of its parent's axis instead of the width of its
 content: three filled stacks in a row are three equal columns, the shape of every scoreboard, and they
@@ -735,8 +736,33 @@ var layout = new LiveActivityLayout
 - With the property off, `Small` is ignored, and the app logs a warning the first time it starts or updates an activity that sets it.
 - Before iOS 18 the extension leaves the family out, so it still runs on iOS 17.
 - Keep it to one row of large text: on the dashboard it is read at a glance while driving.
-- `Small` travels in the same push as the rest of the layout. A row of five nodes adds about 400 bytes, which a layout near APNs' 4 KB limit may not have room for.
+- `Small` travels in the same push as the rest of the layout. A row of five nodes adds about 400 bytes, which a layout near APNs' 4 KB limit may not have room for. Whatever it repeats from the other regions can be [shared](#shared-nodes).
 - Android has no such surface and ignores `Small`.
+
+### Shared nodes
+
+A card shown on the Lock Screen, in the expanded island and in CarPlay often draws the same thing in all three: the hour as a graph, how old the reading is. Each region is a tree of its own, so a push carries each of them as many times as regions show it. A graph of twelve values is about 270 bytes, so three copies take a fifth of the 4 KB a push may carry. Put such a node in `Shared` under a name, and use it in the regions with `W.Use`:
+
+```csharp
+var layout = new LiveActivityLayout
+{
+    Shared = new Dictionary<string, WidgetNode>
+    {
+        ["graph"] = W.Sparkline(points, from, to, TimeSpan.FromMinutes(5), color).Band(3.9, 10).Area().Dot(),
+        ["age"]   = W.Relative(reading.At, ago: true).Caption().Secondary().Trailing(),
+    },
+    LockScreen     = W.VStack(8, W.HStack(W.Text(name).Caption().Bold(), W.Spacer(), W.Use("age")), W.Use("graph", height: 56)),
+    ExpandedBottom = W.Use("graph", height: 44),
+    Small          = W.HStack(12, W.VStack(2, W.Text("5.4 →").Title().Bold(), W.Use("age")), W.Use("graph", height: 36)),
+};
+```
+
+- The node travels once, in `shared`. Each use is replaced by it where the layout is read: by the widget extension on iOS, and by Spine in the app on Android.
+- A use can set its own height (a sparkline's or picture's height, an icon's or ring's size). That height replaces the shared node's, so one graph is drawn at three heights. Everything else is the shared node's.
+- In the test that sends the glucose card above, sharing the graph and the age makes an update about 540 bytes smaller (2.9 KB instead of 3.45 KB).
+- A use whose name is not in `Shared` is refused when the layout is serialized (`ArgumentException`). So is a shared node that uses another.
+- The widget extension reads `shared` from Spine 0.1.34. An app built with an older Spine draws nothing where a node is used. A server should therefore send the shared form only to apps that are updated, and the full form to the rest.
+- Live Activity layouts only. A widget timeline has no `Shared`, and a widget draws nothing for a use.
 
 ### A Live Activity without widgets
 
