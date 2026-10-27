@@ -54,7 +54,7 @@ internal sealed partial class LayoutReorderState
         switch (recognizer.State)
         {
             case UIGestureRecognizerState.Began:
-                if (!Begin(point))
+                if (!Begin(point, liftOnMove: OperatingSystem.IsMacCatalyst()))
                 {
                     recognizer.Enabled = false;
                     recognizer.Enabled = true;

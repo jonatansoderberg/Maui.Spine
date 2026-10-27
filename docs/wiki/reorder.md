@@ -110,7 +110,7 @@ A header and a footer stay where they are. Grouped lists (`IsGrouped="True"`) ar
                         Reorder.Command="{Binding SaveOrderCommand}" />
 ```
 
-- A long-press lifts the item, which then follows the pointer. With a pointer on the Mac, 0.1 seconds is enough.
+- A long-press lifts the item, which then follows the pointer. With a pointer on the Mac, 0.1 seconds is enough, and the item lifts when the pointer starts to move (4 points), so a click on it does not make it grow.
 - The other items slide to their new places, and the item's place shows as an empty dashed frame with the item's corners (a `Border`'s rounded rectangle).
 - On the drop the item settles in its place, the source moves once, and `Reorder.Command` runs with the `ReorderMove`.
 - The item views stay in the tree during the drag: only the layout's children are reordered, so a template is never rebuilt under the pointer.
