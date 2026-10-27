@@ -40,7 +40,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
     private VoicePipeline? _pipeline;
     private List<SpeechToTextPart> _ears = [];
-    private List<(string Name, IChatClient Client)> _chats = [];
+    private List<(string Name, IChatClient Client, bool Own)> _chats = [];
     private List<TextToSpeechPart> _mouths = [];
     private int _mouth;
     private TurnDetector? _detector;
@@ -162,7 +162,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         try
         {
             _pipeline = pipeline;
-            _chats = [.. pipeline.Chats.Select(c => (c.Name, c.Create(_services)))];
+            _chats = [.. pipeline.Chats.Select(c => (c.Name, c.Own ? new FunctionInvokingChatClient(c.Create(_services), null, _services) : c.Create(_services), c.Own))];
             _mouths = [.. pipeline.Mouths.Select(m => m(_services, _server))];
             _mouth = 0;
             _ears = [.. pipeline.Ears.Select(e => e(_services, _server))];
@@ -496,7 +496,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
             {
                 try
                 {
-                    await foreach (var update in _chats[i].Client.GetStreamingResponseAsync(history, options, cancellationToken))
+                    var chatOptions = _chats[i].Own ? await WithAppFunctionsAsync(options, cancellationToken) : options;
+                    await foreach (var update in _chats[i].Client.GetStreamingResponseAsync(history, chatOptions, cancellationToken))
                     {
                         finish = update.FinishReason ?? finish;
                         foreach (var content in update.Contents)
@@ -603,6 +604,17 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         await Task.Delay(VoiceSession.FarewellTail, _time);
         if (_connected && _farewell)
             await EndCoreAsync(VoiceSessionEnd.Goodbye, null);
+    }
+
+    /// <summary>The options for the app's own chat client: the app's functions too, run with the device's context.</summary>
+    private async Task<ChatOptions> WithAppFunctionsAsync(ChatOptions options, CancellationToken cancellationToken)
+    {
+        if (_options.Functions.Count == 0)
+            return options;
+        var context = await SpineAIFunctionContext.ForDeviceAsync(_services, _server.InstallationIdAsync, _pipeline?.Name, _server.ConversationId, null, cancellationToken);
+        var own = options.Clone();
+        own.Tools = [.. options.Tools ?? [], .. _options.Functions.Select(f => (AITool)f.Bind(context, static () => FunctionInvokingChatClient.CurrentContext?.CallContent.CallId))];
+        return own;
     }
 
     /// <summary>The hang-up tool, run here: a farewell already said in this answer is the farewell.</summary>

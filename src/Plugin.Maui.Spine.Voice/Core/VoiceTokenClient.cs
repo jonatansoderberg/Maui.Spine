@@ -17,8 +17,14 @@ namespace Plugin.Maui.Spine.Voice;
 /// <param name="MaxMinutes">How long the server allows the session; the client ends it then.</param>
 public sealed record VoiceSessionToken(string Feature, string Protocol, Uri Url, string Token, DateTimeOffset ExpiresAt, double? MaxMinutes, string? Voice = null)
 {
-    /// <summary>The feature's functions, as the server lists them with the token.</summary>
+    /// <summary>The feature's functions, as the server lists them with the token: the session offers these and no others.</summary>
     public IReadOnlyList<VoiceSessionTool> Tools { get; init; } = [];
+
+    /// <summary>How many rounds of function calls one turn of the user may take; the feature's <c>MaxToolRounds</c>.</summary>
+    public int MaxToolRounds { get; init; } = 4;
+
+    /// <summary>The longest result of a function that reaches the model; the feature's <c>MaxToolResultCharacters</c>.</summary>
+    public int MaxResultCharacters { get; init; } = SpineAIFunction.DefaultMaxResultCharacters;
 }
 
 /// <summary>A function a realtime feature lists.</summary>
@@ -73,7 +79,13 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         {
             var expires = json.RootElement.TryGetProperty("expiresAt", out var e) && e.TryGetDateTimeOffset(out var at) ? at : DateTimeOffset.MaxValue;
             var minutes = json.RootElement.TryGetProperty("maxMinutes", out var m) && m.TryGetDouble(out var max) ? max : (double?)null;
-            return new VoiceSessionToken(Text(json, "feature") ?? feature, protocol, socket, token, expires, minutes, Text(json, "voice")) { Tools = Tools(json) };
+            var root = json.RootElement;
+            return new VoiceSessionToken(Text(json, "feature") ?? feature, protocol, socket, token, expires, minutes, Text(json, "voice"))
+            {
+                Tools = Tools(json),
+                MaxToolRounds = root.TryGetProperty("maxToolRounds", out var rounds) && rounds.TryGetInt32(out var r) && r > 0 ? r : 4,
+                MaxResultCharacters = root.TryGetProperty("maxResultCharacters", out var cap) && cap.TryGetInt32(out var c) && c > 0 ? c : SpineAIFunction.DefaultMaxResultCharacters,
+            };
         }
 
         switch (response.StatusCode)

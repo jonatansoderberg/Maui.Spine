@@ -217,16 +217,49 @@ public static class SpineAIEndpoints
             expiresAt = session.ExpiresAt,
             maxMinutes = session.MaxMinutes,
             voice = session.Voice,
-            tools = features.FunctionsOf(found).Select(tool => new
-            {
-                name = tool.Name,
-                description = tool.Description,
-                parameters = tool.Parameters,
-                runsOn = (string[])[.. tool.OnServer ? ["server"] : Array.Empty<string>(), .. tool.OnDevice ? ["device"] : Array.Empty<string>()],
-                prefer = tool.Prefer == SpineAIFunctionSide.Server ? "server" : "device",
-            }),
+            tools = ToolsOf(features, found),
+            maxToolRounds = MaxToolRoundsOf(found),
+            maxResultCharacters = MaxResultOf(found),
         }, Json);
     }
+
+    /// <summary>
+    /// <c>GET {prefix}/features/{name}/functions</c>: the feature's catalogue, the one list of what its sessions may call,
+    /// with each function's schema, the sides that can run it, the side it prefers, and the feature's limits. An app's
+    /// model on the device takes its tools from here, and a voice session from its token, which carries the same.
+    /// </summary>
+    public static async Task<IResult> FunctionsAsync(HttpRequest request, string feature, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var services = request.HttpContext.RequestServices;
+        var features = services.GetRequiredService<AIFeatures>();
+        var registry = services.GetRequiredService<AIFeatureRegistry>();
+
+        if (!registry.Current.Features.TryGetValue(feature, out var found) || !found.Options.Expose)
+            return new AIFeatureOffException(feature, AIOffReason.NotConfigured).ToResult();
+
+        await Task.CompletedTask;
+        return Results.Json(new
+        {
+            feature = found.Name,
+            tools = ToolsOf(features, found),
+            maxToolRounds = MaxToolRoundsOf(found),
+            maxResultCharacters = MaxResultOf(found),
+        }, Json);
+    }
+
+    private static IEnumerable<object> ToolsOf(AIFeatures features, AIFeature found) => features.FunctionsOf(found).Select(tool => new
+    {
+        name = tool.Name,
+        description = tool.Description,
+        parameters = tool.Parameters,
+        runsOn = (string[])[.. tool.OnServer ? ["server"] : Array.Empty<string>(), .. tool.OnDevice ? ["device"] : Array.Empty<string>()],
+        prefer = tool.Prefer == SpineAIFunctionSide.Server ? "server" : "device",
+    });
+
+    private static int MaxToolRoundsOf(AIFeature found) => Math.Max(1, found.Options.MaxToolRounds ?? FeatureFunctionsChatClient.DefaultMaxToolRounds);
+
+    private static int MaxResultOf(AIFeature found) => found.Options.MaxToolResultCharacters ?? SpineAIFunction.DefaultMaxResultCharacters;
 
     /// <summary>
     /// The WebSocket a GPT-Live session talks through: the app connects with the ticket <see cref="RealtimeSessionAsync"/>
@@ -343,7 +376,8 @@ public static class SpineAIEndpoints
         var registry = services.GetRequiredService<AIFeatureRegistry>();
         var options = services.GetRequiredService<SpineAIOptions>();
 
-        if (!registry.Current.Features.TryGetValue(feature, out var found) || !found.Options.Expose || found.Options.Kind != AIFeatureKind.Realtime
+        // Any exposed feature: a realtime session forwards its calls here, and so does an app's model on the device.
+        if (!registry.Current.Features.TryGetValue(feature, out var found) || !found.Options.Expose
             || found.Options.Functions?.Contains(function, StringComparer.Ordinal) != true || options.Functions.ServerFunction(function) is not { } declared)
             return new AIFeatureOffException(feature, AIOffReason.NotConfigured).ToResult();
 
@@ -749,6 +783,7 @@ public static class SpineAIEndpointRouteBuilderExtensions
         endpoints.MapPost($"{root}/features/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.FeatureAsync(request, name, ct));
         endpoints.MapPost($"{root}/speech/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.SpeechAsync(request, name, ct));
         endpoints.MapPost($"{root}/transcribe/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.TranscribeAsync(request, name, ct));
+        endpoints.MapGet($"{root}/features/{{name}}/functions", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.FunctionsAsync(request, name, ct));
         endpoints.MapPost($"{root}/functions/{{feature}}/{{name}}", (HttpRequest request, string feature, string name, CancellationToken ct) => SpineAIEndpoints.FunctionAsync(request, feature, name, ct));
         endpoints.MapGet($"{root}/usage", (HttpRequest request, CancellationToken ct) => SpineAIEndpoints.UsageAsync(request, ct));
 

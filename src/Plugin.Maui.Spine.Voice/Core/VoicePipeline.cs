@@ -61,7 +61,7 @@ public sealed class VoicePipeline
     public TimeSpan MaxTurn { get; set; } = TimeSpan.FromSeconds(30);
 
     internal List<Func<IServiceProvider?, PipelineServer, SpeechToTextPart>> Ears { get; } = [];
-    internal List<(string Name, Func<IServiceProvider?, IChatClient> Create)> Chats { get; } = [];
+    internal List<(string Name, Func<IServiceProvider?, IChatClient> Create, bool Own)> Chats { get; } = [];
     internal List<Func<IServiceProvider?, PipelineServer, TextToSpeechPart>> Mouths { get; } = [];
 
     /// <summary>Writes the user down on the device (<see cref="ISpineSpeechRecognizer"/>; iOS and Mac Catalyst).</summary>
@@ -85,17 +85,19 @@ public sealed class VoicePipeline
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         Chats.Add((key, services => (services as IKeyedServiceProvider)?.GetKeyedService<IChatClient>(key)
-            ?? throw new InvalidOperationException($"The voice pipeline '{Name}' answers with the chat client '{key}', which the app has not registered (AddSpineAI's o.Feature(\"{key}\", …) registers one).")));
+            ?? throw new InvalidOperationException($"The voice pipeline '{Name}' answers with the chat client '{key}', which the app has not registered (AddSpineAI's o.Feature(\"{key}\", …) registers one)."), false));
         return this;
     }
 
-    /// <summary>Answers with <paramref name="client"/>.</summary>
+    /// <summary>Answers with <paramref name="client"/>, which is offered the app's functions (<c>SpineVoiceOptions.Functions</c>).</summary>
     /// <param name="client">The chat model.</param>
     /// <param name="name">What the log calls it.</param>
     public VoicePipeline AddChat(IChatClient client, string name = "chat")
     {
         ArgumentNullException.ThrowIfNull(client);
-        Chats.Add((name, _ => client));
+        // The app's functions run here, through Microsoft.Extensions.AI's function-invoking client; a Spine.AI feature
+        // (AddChat(key)) runs them itself, with the server's catalogue.
+        Chats.Add((name, _ => client, true));
         return this;
     }
 

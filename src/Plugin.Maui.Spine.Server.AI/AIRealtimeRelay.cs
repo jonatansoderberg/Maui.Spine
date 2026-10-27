@@ -480,9 +480,12 @@ internal sealed class AIRealtimeRelay
         var list = new JsonArray();
         var appRuns = new HashSet<string>(StringComparer.Ordinal);
 
+        // The app's own tools only as far as the feature lists them and the server declared them for the device: the
+        // feature's catalogue decides in every session kind. The session's hang-up is the app's own.
+        var listed = _features.FunctionsOf(_feature).Where(t => t.OnDevice).Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
         foreach (var tool in appTools?.OfType<JsonObject>() ?? [])
         {
-            if (Text(tool, "name") is not { Length: > 0 } name || !appRuns.Add(name)) continue;
+            if (Text(tool, "name") is not { Length: > 0 } name || !(listed.Contains(name) || name == EndConversation) || !appRuns.Add(name)) continue;
             list.Add(new JsonObject
             {
                 ["type"] = "function",

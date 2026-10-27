@@ -17,6 +17,7 @@ internal sealed class SpineFeatureChatClient : IChatClient
     private readonly SpineAIRuntime _runtime;
     private readonly (AISource Source, Lazy<IChatClient> Client)[] _sources;
     private readonly IServiceProvider _services;
+    private readonly string? _serverFeature;
 
     public SpineFeatureChatClient(string feature, AIFeatureChain chain, SpineAIRuntime runtime, IServiceProvider services)
     {
@@ -26,6 +27,7 @@ internal sealed class SpineFeatureChatClient : IChatClient
         _sources = [.. chain.Sources.Select(source => (source, new Lazy<IChatClient>(() => source.Kind == AIAnsweredBy.Server
             ? new SpineServerChatClient(source.ServerFeature ?? feature, runtime)
             : new DeviceMeteredChatClient(source.Factory!(services), feature, runtime))))];
+        _serverFeature = chain.Sources.FirstOrDefault(s => s.Kind == AIAnsweredBy.Server) is { } server ? server.ServerFeature ?? feature : null;
     }
 
     public async Task<ChatResponse> GetResponseAsync(
@@ -108,25 +110,51 @@ internal sealed class SpineFeatureChatClient : IChatClient
     private async Task<(IChatClient Client, ChatOptions? Options)> PrepareAsync(AISource source, IChatClient client, ChatOptions? options, CancellationToken cancellationToken)
     {
         var functions = _runtime.Options.Functions;
-        if (functions.Count == 0 && options?.Tools is not { Count: > 0 }) return (client, options);
+        // The server feature's catalogue decides what may be called, for the server and for a model on the device alike.
+        var catalogue = _serverFeature is { } server ? await SpineFeatureCatalogue.GetAsync(_runtime, server, cancellationToken) : null;
+        if (functions.Count == 0 && options?.Tools is not { Count: > 0 } && catalogue is not { Functions.Count: > 0 }) return (client, options);
 
         var context = await _runtime.DeviceContextAsync(
-            _feature, SpineClientHeaders.ConversationOf(options?.AdditionalProperties) ?? options?.ConversationId, _services, cancellationToken);
-        var bound = functions.Select(f => (AITool)f.Bind(context, CurrentCallId)).ToList();
+            _feature, SpineClientHeaders.ConversationOf(options?.AdditionalProperties) ?? options?.ConversationId, _services, cancellationToken,
+            catalogue?.MaxResultCharacters);
 
         // Apple Intelligence runs its tools itself and reports the calls as information only, which this then leaves alone.
         var invoking = new FunctionInvokingChatClient(client, _services.GetService(typeof(ILoggerFactory)) as ILoggerFactory, _services);
+        if (catalogue is not null)
+            invoking.MaximumIterationsPerRequest = catalogue.MaxToolRounds;
 
         if (source.Kind == AIAnsweredBy.Device)
         {
             var prepared = options?.Clone() ?? new ChatOptions();
+            var preferred = SpineAIFunctionOrder.PreferredSides(options);
             prepared.AdditionalProperties?.Remove(SpineAIFunctionOrder.PreferKey);
-            prepared.Tools = [.. prepared.Tools ?? [], .. bound];
+            prepared.Tools = [.. prepared.Tools ?? [], .. catalogue is null
+                ? functions.Select(f => (AITool)f.Bind(context, CurrentCallId))
+                : catalogue.Functions.Select(f => ForDevice(f, catalogue, context, preferred)).OfType<AITool>()];
             return (invoking, prepared);
         }
 
-        invoking.AdditionalTools = bound;
+        // The server offers what its feature lists; the app runs those of its own that the catalogue lists for the device.
+        invoking.AdditionalTools = [.. functions
+            .Where(f => catalogue is null || catalogue.Functions.Any(c => c.Name == f.Name && c.OnDevice))
+            .Select(f => (AITool)f.Bind(context, CurrentCallId))];
         return (invoking, options);
+    }
+
+    /// <summary>
+    /// A catalogue function for a model on the device: the app's own when the device runs it, and otherwise the server's,
+    /// forwarded; nothing when neither side can.
+    /// </summary>
+    private AIFunction? ForDevice(SpineCatalogueFunction listed, SpineFeatureCatalogue catalogue, SpineAIFunctionContext context, IReadOnlyDictionary<string, SpineAIFunctionSide>? preferred)
+    {
+        var own = listed.OnDevice ? _runtime.Options.Functions[listed.Name] : null;
+        var side = own is null ? SpineAIFunctionSide.Server
+            : listed.OnServer ? SpineAIFunctionOrder.SideOf(own, preferred)
+            : SpineAIFunctionSide.Device;
+
+        return side == SpineAIFunctionSide.Device ? own!.Bind(context, CurrentCallId)
+            : listed.OnServer ? new ForwardedFunction(listed, catalogue.Feature, _runtime)
+            : null;
     }
 
     private static string? CurrentCallId() => FunctionInvokingChatClient.CurrentContext?.CallContent.CallId;

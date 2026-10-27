@@ -14,6 +14,8 @@ internal sealed class PipelineServer(SpineVoiceOptions options, Func<Cancellatio
 {
     private const string SampleRateHeader = "Spine-Sample-Rate";
 
+    public Task<string?> InstallationIdAsync(CancellationToken cancellationToken) => installationId(cancellationToken);
+
     /// <summary>The session's conversation, sent with every request.</summary>
     public string? ConversationId { get; set; }
     private static readonly Lazy<HttpClient> Shared = new(() => new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
