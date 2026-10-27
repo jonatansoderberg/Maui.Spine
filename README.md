@@ -258,7 +258,8 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Chat](docs/wiki/chat.md) | `ChatView` and `ChatComposer`: the conversation the app owns, streaming and following the end, Stop and Try again, the composer in the footer, styling |
 | [Markdown](docs/wiki/markdown.md) | `MarkdownView`: what each block becomes, line breaks, streaming that rebuilds only the last block, links, style options |
 | [MeshBackground](docs/wiki/mesh-background.md) | Mesh gradients on SkiaSharp: points from the accent, a preset or your own list, a slow drift at a capped frame rate, still under Reduce Motion; a background for materials |
-| [Rows and taps](docs/wiki/rows.md) | `SpineRow` settings and key/value rows; `SpineEntryRow` text fields as rows; `Tap.Command` with native press feedback on any view; `Semantic.Merge` for one screen-reader element |
+| [Rows and taps](docs/wiki/rows.md) | `SpineRow` settings and key/value rows with pop-up menus, status marks and destructive rows; `SpineEntryRow` text fields as rows; `Tap.Command` with native press feedback on any view; `Semantic.Merge` for one screen-reader element |
+| [Settings pages](docs/wiki/settings-pages.md) | The convention for a settings page: layout, opening at once, the order of sections, which row for which setting, icon colours, the About section |
 | [Remote images](docs/wiki/images.md) | Every `UriImageSource` through a memory and disk cache, decoded at the view's size off the main thread; `IImageCache` to prefetch and clear; `ImageOptions.BlurHash` placeholders; a copy for a widget |
 | [Barcodes and scanning](docs/wiki/barcodes.md) | `Barcode.Encode` and `BarcodeView` for QR, Data Matrix and more; `BarcodeScannerView` and a scan sheet; reading a code shown on a word clock |
 | [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |

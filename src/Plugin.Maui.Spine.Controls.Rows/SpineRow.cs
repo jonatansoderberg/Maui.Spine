@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Windows.Input;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Core;
@@ -7,7 +9,7 @@ using Plugin.Maui.Spine.Svg;
 namespace Plugin.Maui.Spine.Controls;
 
 /// <summary>
-/// One row of a list or a settings screen: <c>[icon] [title / detail] [value] [accessory] [check] [chevron]</c>.
+/// One row of a list or a settings screen: <c>[icon] [title / detail] [value] [accessory] [status] [check] [chevron]</c>.
 /// Every part but the title is optional. Group rows in a <see cref="SpineSection"/> for the
 /// platform's settings look.
 /// </summary>
@@ -22,6 +24,11 @@ namespace Plugin.Maui.Spine.Controls;
 /// The row is one element to a screen reader (<see cref="Semantic.MergeProperty"/>): title,
 /// detail and value are read together, a switch accessory makes it a toggle and a command a button.
 /// A title with a value and nothing else is the key/value preset.
+/// </para>
+/// <para>
+/// A row with a <see cref="Menu"/> opens the platform's own pop-up menu on a tap instead, and shows
+/// the picked choice as its value. <see cref="Status"/> marks what is set up or needs the user, and
+/// <see cref="IsDestructive"/> colours the title of a row that deletes or removes.
 /// </para>
 /// <para>
 /// The defaults follow the platform: on Android the value sits under the title
@@ -81,6 +88,18 @@ public class SpineRow : ContentView
     public static readonly BindableProperty StyleOptionsProperty = BindableProperty.Create(
         nameof(StyleOptions), typeof(SpineRowStyleOptions), typeof(SpineRow), null,
         propertyChanged: static (b, _, _) => ((SpineRow)b).Repaint());
+
+    public static readonly BindableProperty MenuProperty = BindableProperty.Create(
+        nameof(Menu), typeof(MenuItems), typeof(SpineRow), null,
+        propertyChanged: static (b, o, _) => ((SpineRow)b).ApplyMenu((MenuItems?)o));
+
+    public static readonly BindableProperty StatusProperty = BindableProperty.Create(
+        nameof(Status), typeof(SpineRowStatus), typeof(SpineRow), SpineRowStatus.None,
+        propertyChanged: static (b, _, _) => ((SpineRow)b).ApplyStatus());
+
+    public static readonly BindableProperty IsDestructiveProperty = BindableProperty.Create(
+        nameof(IsDestructive), typeof(bool), typeof(SpineRow), false,
+        propertyChanged: static (b, _, _) => ((SpineRow)b).ApplyDestructive());
 
     /// <summary>Short name of an embedded SVG drawn at the start of the row, tinted with <see cref="SpineRowStyleOptions.IconColor"/>.</summary>
     public string? Icon
@@ -184,7 +203,43 @@ public class SpineRow : ContentView
         set => SetValue(StyleOptionsProperty, value);
     }
 
+    /// <summary>
+    /// A menu the row opens on a tap, through the platform's own pop-up menu (<see cref="MenuButton"/>),
+    /// for a choice of a few options such as a theme or a unit. The row ends in a small up-and-down
+    /// chevron instead of the chevron (none on Android) and, without a <see cref="Value"/> of its own,
+    /// shows the title of its first <see cref="MenuPicker"/>'s selection. The menu is the row's action:
+    /// give it no <see cref="Command"/>.
+    /// </summary>
+    public MenuItems? Menu
+    {
+        get => (MenuItems?)GetValue(MenuProperty);
+        set => SetValue(MenuProperty, value);
+    }
+
+    /// <summary>
+    /// A mark at the end of the row: a green check on what is set up and working, an orange "!" on
+    /// what needs the user. A row with a status shows no chevron unless <see cref="ShowChevron"/> asks for one.
+    /// </summary>
+    public SpineRowStatus Status
+    {
+        get => (SpineRowStatus)GetValue(StatusProperty);
+        set => SetValue(StatusProperty, value);
+    }
+
+    /// <summary>
+    /// A row that deletes, removes or signs out for good: the title turns red
+    /// (<see cref="SpineRowStyleOptions.DestructiveColor"/>) and the row shows no chevron, as a button
+    /// rather than a way somewhere. Ask before the command does what cannot be undone.
+    /// </summary>
+    public bool IsDestructive
+    {
+        get => (bool)GetValue(IsDestructiveProperty);
+        set => SetValue(IsDestructiveProperty, value);
+    }
+
     static readonly bool IsAndroid = DeviceInfo.Platform == DevicePlatform.Android;
+    const string MenuGlyph = "spinerowmenu.svg";
+    const string AttentionGlyph = "spinerowexclamation.svg";
 
     readonly Grid _grid;
     readonly Border _iconBadge;
@@ -194,10 +249,17 @@ public class SpineRow : ContentView
     readonly Label _value;
     readonly Label _valueBelow;
     readonly ContentView _accessory;
+    readonly Border _status;
+    readonly Image _statusGlyph;
     readonly Image _check;
     readonly Image _chevron;
+    readonly Image _menuGlyph;
     View? _detail;
     Command? _toggle;
+    Button? _menuButton;
+    MenuItems? _watchedMenu;
+    MenuPicker? _picker;
+    MenuAction? _picked;
 
     static SpineRow() => RowsStrings.EnsureRegistered();
 
@@ -228,6 +290,16 @@ public class SpineRow : ContentView
 
         _accessory = new ContentView { VerticalOptions = LayoutOptions.Center };
 
+        _statusGlyph = new Image { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
+        _status = new Border
+        {
+            StrokeThickness = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
+            VerticalOptions = LayoutOptions.Center,
+            IsVisible = false,
+            Content = _statusGlyph,
+        };
+
         _check = new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 30, HeightRequest = 30 };
         SvgImageSource.SetSvg(_check, "check.svg");
 
@@ -241,6 +313,10 @@ public class SpineRow : ContentView
         };
         SvgImageSource.SetSvg(_chevron, Presentation.HeaderBarConstants.BackGlyph);
 
+        // chevron.up.chevron.down, which says a tap opens a menu rather than a page.
+        _menuGlyph = new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 34, HeightRequest = 34 };
+        SvgImageSource.SetSvg(_menuGlyph, MenuGlyph);
+
         _grid = new Grid
         {
             ColumnDefinitions =
@@ -251,15 +327,18 @@ public class SpineRow : ContentView
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
             ],
-            Children = { _iconBadge, _text, _value, _accessory, _check, _chevron },
+            Children = { _iconBadge, _text, _value, _accessory, _status, _check, _chevron, _menuGlyph },
         };
 
         Grid.SetColumn(_text, 1);
         Grid.SetColumn(_value, 2);
         Grid.SetColumn(_accessory, 3);
-        Grid.SetColumn(_check, 4);
-        Grid.SetColumn(_chevron, 5);
+        Grid.SetColumn(_status, 4);
+        Grid.SetColumn(_check, 5);
+        Grid.SetColumn(_chevron, 6);
+        Grid.SetColumn(_menuGlyph, 6);
 
         Content = _grid;
         Semantic.SetMerge(this, true);
@@ -321,19 +400,25 @@ public class SpineRow : ContentView
                 break;
         }
 
-        var hasValue = !string.IsNullOrEmpty(Value);
+        var value = !string.IsNullOrEmpty(Value) ? Value : FindPicker(Menu)?.Selected?.Title;
+        var hasValue = !string.IsNullOrEmpty(value);
         var below = ValuePlacement == SpineRowValuePlacement.Below
             || (ValuePlacement == SpineRowValuePlacement.Auto && IsAndroid);
 
-        _value.Text = Value;
+        _value.Text = value;
         _value.IsVisible = hasValue && !below;
-        _valueBelow.Text = Value;
+        _valueBelow.Text = value;
         _valueBelow.IsVisible = hasValue && below;
 
         _check.IsVisible = IsSelected == true;
         SemanticProperties.SetDescription(_check, SpineStrings.Current["Spine.Row.Selected"]);
 
-        _chevron.IsVisible = ShowChevron ?? (Command is not null && Accessory is null && IsSelected is null && !IsAndroid);
+        _chevron.IsVisible = Menu is null && (ShowChevron
+            ?? (Command is not null && Accessory is null && IsSelected is null && Status == SpineRowStatus.None && !IsDestructive && !IsAndroid));
+        _menuGlyph.IsVisible = Menu is not null && !IsAndroid;
+
+        if (_menuButton is not null)
+            SemanticProperties.SetDescription(_menuButton, string.Join(", ", new[] { Title, Detail, value }.Where(s => !string.IsNullOrEmpty(s))));
 
         ApplyHeight();
     }
@@ -383,6 +468,146 @@ public class SpineRow : ContentView
         ApplyContent();
     }
 
+    void ApplyStatus()
+    {
+        _status.IsVisible = Status != SpineRowStatus.None;
+        if (_status.IsVisible)
+        {
+            var ok = Status == SpineRowStatus.Ok;
+            SvgImageSource.SetSvg(_statusGlyph, ok ? "check.svg" : AttentionGlyph);
+            SemanticProperties.SetDescription(_status, SpineStrings.Current[ok ? "Spine.Row.StatusOk" : "Spine.Row.StatusNeedsAttention"]);
+        }
+
+        ApplyContent();
+        Repaint();
+    }
+
+    void ApplyDestructive()
+    {
+        ApplyContent();
+        Repaint();
+    }
+
+    void ApplyMenu(MenuItems? old)
+    {
+        if (Menu is null)
+        {
+            if (_menuButton is not null)
+            {
+                _grid.Remove(_menuButton);
+                _menuButton = null;
+            }
+        }
+        else if (_menuButton is null)
+        {
+            // The platform opens a tap-to-open menu only from a button, so one lies over the whole row.
+            _menuButton = new Button { BackgroundColor = Colors.Transparent, BorderWidth = 0, Padding = 0 };
+            Grid.SetColumnSpan(_menuButton, _grid.ColumnDefinitions.Count);
+            _grid.Add(_menuButton);
+        }
+
+        if (_menuButton is not null)
+            MenuButton.SetItems(_menuButton, Menu);
+
+        // A screen reader reaches the menu through that button; a merged row would hide it with the
+        // rest of its parts, so the parts are hidden instead and the button reads the row.
+        View[] parts = [_iconBadge, _text, _value, _accessory, _status, _check, _chevron, _menuGlyph];
+        if (Menu is null)
+        {
+            foreach (var part in parts)
+                part.ClearValue(AutomationProperties.ExcludedWithChildrenProperty);
+            Semantic.SetMerge(this, true);
+        }
+        else if (old is null)
+        {
+            Semantic.SetMerge(this, false);
+            foreach (var part in parts)
+                AutomationProperties.SetExcludedWithChildren(part, true);
+        }
+
+        WatchMenu();
+        ApplyContent();
+        Repaint();
+    }
+
+    protected override void OnHandlerChanged()
+    {
+        base.OnHandlerChanged();
+        WatchMenu();
+    }
+
+    // Follows the picked choice while the row is on screen, so its value changes with the menu.
+    void WatchMenu()
+    {
+        var menu = Handler is null ? null : Menu;
+        if (_watchedMenu != menu)
+        {
+            if (_watchedMenu is not null)
+                _watchedMenu.CollectionChanged -= OnMenuChanged;
+            _watchedMenu = menu;
+            if (menu is not null)
+                menu.CollectionChanged += OnMenuChanged;
+        }
+
+        var picker = FindPicker(menu);
+        if (_picker != picker)
+        {
+            if (_picker is not null)
+                _picker.PropertyChanged -= OnPickerChanged;
+            _picker = picker;
+            if (picker is not null)
+                picker.PropertyChanged += OnPickerChanged;
+        }
+
+        var picked = picker?.Selected;
+        if (_picked != picked)
+        {
+            if (_picked is not null)
+                _picked.PropertyChanged -= OnPickedChanged;
+            _picked = picked;
+            if (picked is not null)
+                picked.PropertyChanged += OnPickedChanged;
+        }
+    }
+
+    void OnMenuChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        WatchMenu();
+        ApplyContent();
+    }
+
+    void OnPickerChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MenuPicker.Selected))
+            return;
+
+        WatchMenu();
+        ApplyContent();
+    }
+
+    void OnPickedChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MenuAction.Title))
+            ApplyContent();
+    }
+
+    static MenuPicker? FindPicker(IEnumerable<MenuElement>? items)
+    {
+        foreach (var item in items ?? [])
+        {
+            var picker = item switch
+            {
+                MenuPicker p => p,
+                MenuSection section => FindPicker(section),
+                _ => null,
+            };
+            if (picker is not null)
+                return picker;
+        }
+
+        return null;
+    }
+
     void Repaint()
     {
         var style = SpineRowStyleOptions.Resolve(StyleOptions);
@@ -397,6 +622,11 @@ public class SpineRow : ContentView
         _check.Margin = new Thickness(style.Spacing - 4, 0, -4, 0);
         // The glyph's own margin, taken back so the chevron sits at the row's padding.
         _chevron.Margin = new Thickness(style.Spacing - 6, 0, -9, 0);
+        // The glyph is narrow in its square: close to the value, its strokes at the row's padding.
+        _menuGlyph.Margin = new Thickness(-6, 0, -12, 0);
+        _status.Margin = new Thickness(style.Spacing, 0, 0, 0);
+        if (_menuButton is not null)
+            _menuButton.Margin = new Thickness(-style.Padding.Left, -style.Padding.Top, -style.Padding.Right, -style.Padding.Bottom);
         _grid.Opacity = IsEnabled ? 1 : style.DisabledOpacity;
         ApplyHeight();
 
@@ -416,7 +646,7 @@ public class SpineRow : ContentView
             SvgImageSource.SetTintColor(_icon, style.IconColor!);
         }
 
-        _title.TextColor = style.TitleColor;
+        _title.TextColor = IsDestructive ? style.DestructiveColor : style.TitleColor;
         _title.FontSize = style.TitleFontSize;
         _title.FontFamily = style.FontFamily;
         _title.FontAttributes = style.TitleFontAttributes;
@@ -448,5 +678,15 @@ public class SpineRow : ContentView
         SvgImageSource.SetLineWidthScale(_chevron, style.GlyphLineWidthScale);
         SvgImageSource.SetTintColor(_check, style.CheckColor!);
         SvgImageSource.SetLineWidthScale(_check, style.GlyphLineWidthScale);
+        SvgImageSource.SetTintColor(_menuGlyph, style.ValueColor!);
+        SvgImageSource.SetLineWidthScale(_menuGlyph, style.GlyphLineWidthScale * 1.25);
+
+        _status.WidthRequest = _status.HeightRequest = style.StatusSize;
+        // Larger than the mark, which clips it: the glyph draws with a margin of its own.
+        _statusGlyph.WidthRequest = _statusGlyph.HeightRequest = style.StatusSize * 1.5;
+        _status.BackgroundColor = Status == SpineRowStatus.Ok ? style.StatusOkColor : style.StatusAttentionColor;
+        SvgImageSource.SetTintColor(_statusGlyph, style.StatusGlyphColor!);
+        // A heavier stroke than the chevron's: the glyph is small and white on a fill.
+        SvgImageSource.SetLineWidthScale(_statusGlyph, style.GlyphLineWidthScale * 1.75);
     }
 }

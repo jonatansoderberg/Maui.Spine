@@ -21,7 +21,7 @@ XAML namespaces: `Tap` and `Semantic` are in `Plugin.Maui.Spine.Extensions` (ass
 
 ## SpineRow
 
-`[icon] [title / detail] [value] [accessory] [check] [chevron]`; everything but the title is optional.
+`[icon] [title / detail] [value] [accessory] [status] [check] [chevron]`; everything but the title is optional.
 
 ```xml
 <!-- A navigation row: a command shows the chevron -->
@@ -56,7 +56,10 @@ XAML namespaces: `Tap` and `Semantic` are in `Plugin.Maui.Spine.Extensions` (ass
 | `ValuePlacement` | `Auto` (default) = under the title on Android (a preference's summary), at the end elsewhere; `Trailing`, `Below` |
 | `IsSelected` | `null` (default) = not a choice; `true` shows a check mark in the accent colour, `false` leaves its place empty |
 | `Accessory` | Any view at the end: a `Switch`, a button, a badge |
-| `ShowChevron` | `null` (default) = shown when the row has a `Command`, no `Accessory` and no `IsSelected`; never on Android |
+| `Menu` | A `MenuItems` the row opens on a tap with the platform's pop-up menu; the row shows its picker's choice as the value and ends in an up-and-down chevron |
+| `Status` | `None` (default), `Ok` (a white check on green) or `NeedsAttention` (a white "!" on orange), at the end of the row |
+| `IsDestructive` | The title in red, no chevron: a row that deletes or removes |
+| `ShowChevron` | `null` (default) = shown when the row has a `Command`, no `Accessory`, `IsSelected`, `Status` or `IsDestructive`; never on Android |
 | `Command`, `CommandParameter` | Run on a tap anywhere on the row (through `Tap.Command`) |
 | `StyleOptions` | `SpineRowStyleOptions`: fonts, sizes, padding, colours |
 
@@ -67,6 +70,41 @@ The chevron is the header bar's back glyph (`HeaderBarConstants.BackGlyph`) turn
 The defaults follow the platform, so the same markup reads as native on both: on Android the value moves under the title and there is no chevron, as in Android's own settings. `ValuePlacement="Trailing"` and `ShowChevron="True"` keep the iOS layout on Android.
 
 The row has no background and no separator of its own: group rows in a `SpineSection`, or in whatever card or list the app draws.
+
+### Status, menus and destructive rows
+
+What a settings page needs beyond a plain row, so an app doesn't draw its own marks and menu buttons. The convention for when to use which, and the colours that go with them, is in [Settings pages](settings-pages.md).
+
+```xml
+<!-- A pop-up menu: the picked row's title is the value -->
+<SpineRow Icon="theme.svg" IconBackground="#007AFF" Title="Appearance" Menu="{Binding AppearanceMenu}" />
+
+<!-- What works, and what needs the user -->
+<SpineRow Icon="key.svg" IconBackground="#FF2D55" Title="API key" Value="Saved"
+          Status="Ok" Command="{Binding ManageKeyCommand}" />
+<SpineRow Icon="key.svg" IconBackground="#FF2D55" Title="Add an API key" Value="Missing"
+          Status="NeedsAttention" ShowChevron="True" Command="{Binding AddKeyCommand}" />
+
+<!-- What cannot be undone -->
+<SpineRow Icon="delete.svg" IconBackground="#FF3B30" Title="Delete account" IsDestructive="True"
+          Command="{Binding DeleteAccountCommand}" />
+```
+
+```csharp
+public MenuItems AppearanceMenu { get; } =
+[
+    new MenuPicker(SetThemeCommand)
+    {
+        new MenuAction("System") { IsChecked = true, CommandParameter = "system" },
+        new MenuAction("Light") { CommandParameter = "light" },
+        new MenuAction("Dark") { CommandParameter = "dark" },
+    },
+];
+```
+
+- **`Menu`** lays a menu button (`MenuButton.Items`) over the whole row: `UIButton.Menu` on iOS and Mac Catalyst, a `PopupMenu` on Android, a `MenuFlyout` on Windows. Without a `Value` of its own the row shows the title of the first `MenuPicker`'s `Selected`, and follows it while the row is on screen, also when the titles change with the language. The menu is the row's action: give it no `Command`. The row ends in `chevron.up.chevron.down` in the value's colour; Android has none and puts the value under the title, as a list preference. A screen reader reads the row through the button: "Appearance, System", a pop-up button.
+- **`Status`** is read with the row: "API key, Saved, OK". The fills are `StatusOkColor` and `StatusAttentionColor` in `SpineRowStyleOptions` (the system green and orange), the size `StatusSize` (22 points, 24 dp on Android). A row with a status shows no chevron by default, so a row that works is managed with a tap; set `ShowChevron="True"` when the fix is a page of its own.
+- **`IsDestructive`** colours the title with `DestructiveColor` (the system red; the Material error colour on Android) and leaves out the chevron. Ask before the command does what it says.
 
 ## SpineEntryRow
 
@@ -118,7 +156,7 @@ A group of rows with an optional header and footer, drawn the way the platform's
 <SpinePage BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight},
                                              Dark={x:Static SpineSection.PageBackgroundDark}}">
     <ScrollView>
-        <VerticalStackLayout Padding="20,8" Spacing="24">
+        <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="28">
             <SpineSection Header="Connections" Footer="Wi-Fi turns on again tomorrow.">
                 <SpineRow Icon="wireless.svg" IconBackground="#007AFF" Title="Wi-Fi" Value="Home"
                           Command="{Binding WiFiCommand}" />
@@ -211,4 +249,4 @@ A merged layout is one element: its children leave the accessibility tree and th
 
 ## Sample
 
-`samples/MauiSpineSampleApp/Pages/Rows` shows two `SpineSection`s of settings rows (badge icons, detail, value, switches, chevrons, a disabled row, a marquee detail) on the grouped background, a pick-one list, key/value rows, an email and a password `SpineEntryRow`, a card with `Tap.Command` and a merged custom row. Its options switch the badges off, move the value, and turn the rows' `CanExecute` off. The sample's main list (`ContextItem`) is built on `Tap.Command` and `Semantic.Merge`.
+`samples/MauiSpineSampleApp/Pages/Rows` shows two `SpineSection`s of settings rows (badge icons, detail, value, switches, chevrons, a disabled row, a marquee detail) on the grouped background, menu rows, status marks and a destructive row, a pick-one list, key/value rows, an email and a password `SpineEntryRow`, a card with `Tap.Command` and a merged custom row. Its options switch the badges off, move the value, and turn the rows' `CanExecute` off. The sample's main list (`ContextItem`) is built on `Tap.Command` and `Semantic.Merge`.
