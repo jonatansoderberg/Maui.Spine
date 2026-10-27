@@ -296,6 +296,15 @@ A device function runs in the app: the device's own state, such as the time or t
 
 Calls the server ran itself reach the app with `InformationalOnly = true`, so the app shows them but never runs them again.
 
+**A round with both.** When the model asks for a server function and a device function in the same round, the whole round goes back to the app. The server first runs its own calls in that round, shows the app their results, and keeps them. With the app's answer the model gets the server's own result, never the app's copy of it.
+
+**The same answers on every path.** A function always answers the model, so it can tell the user what happened:
+- Arguments that are not a JSON object give `invalidArguments`, and the function never runs.
+- A refusal gives `refused` with the reason: the feature is off, or too many calls.
+- Sign-in gives `signInRequired`.
+- An exception gives `failed`.
+This holds in typed chat, in a call forwarded from a realtime session and in the GPT-Live relay. The relay runs each call in its own DI scope.
+
 **Both sides.** A function the server runs and declares for the device runs on the side the request's `prefer` names, else on the side the function prefers (`SpineAIFunction.Prefer`). The app sets it per chat with `ChatOptions.Prefer(name, side)`.
 
 ### Functions in a voice session
