@@ -23,7 +23,7 @@ public partial class BiometricsPageViewModel(INavigationService _navigation, IBi
     [ObservableProperty]
     public partial string Log { get; set; } = "Nothing yet";
 
-    public MenuItems AccountMenu => [new MenuAction("Delete account", "trashcan.svg", DeleteAccountCommand) { IsDestructive = true }];
+    public MenuItems AccountMenu => [new MenuAction("Delete account", "delete.svg", DeleteAccountCommand) { IsDestructive = true }];
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
