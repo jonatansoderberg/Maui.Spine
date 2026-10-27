@@ -131,6 +131,24 @@ partial void OnIsLiveChanged(bool value)
 }
 ```
 
+## A status beside the buttons
+
+`IsStatus = true` shows an action as a status instead of a button: a small `Svg` glyph in its `Tint` followed by `Text` in the secondary label colour, with no button shape and no glass. It suits a desk app's header, where there is room for a line such as "Sent 14:05" next to the buttons. A tap runs `Command` when there is one, and `Description` is the tooltip. Change `Text`, `Svg` and `Tint` as the state changes:
+
+```csharp
+_sent = new PageAction(null, OpenDeviceCommand) { IsStatus = true, Svg = "Check.svg" };
+
+void ShowSent(DateTimeOffset at, string? error)
+{
+    _sent.Svg = error is null ? "Check.svg" : "Warning.svg";
+    _sent.Tint = Color.FromArgb(error is null ? "#34C759" : "#FF3B30");
+    _sent.Text = error is null ? $"Sent {at:HH:mm}" : "Not sent";
+    _sent.Description = error;
+}
+```
+
+On a phone the header has no room for it; show the same line in the page instead.
+
 ## A busy action
 
 `IsBusy = true` shows that the work a button started is under way, such as saving: the button dims and does not respond to taps until `IsBusy` is set back. That is all a confirm, send or save button needs.

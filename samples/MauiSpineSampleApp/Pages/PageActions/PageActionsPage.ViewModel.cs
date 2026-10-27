@@ -26,6 +26,39 @@ public partial class PageActionsPageViewModel : SampleViewModel
             DarkTint = DarkOrange,
         };
         PageActions.Add(_star);
+
+        // A status rather than a button: a green check and secondary text, as a desk app shows "Sent 14:05".
+        _status = new PageAction(null, ToggleStatusCommand)
+        {
+            IsStatus = true,
+            Svg = "check.svg",
+            Tint = Color.FromArgb("#34C759"),
+            Text = $"Saved {DateTime.Now:HH:mm}",
+            Description = "Tap to toggle between saved and not saved",
+            IsVisible = false,
+        };
+        PageActions.Add(_status);
+    }
+
+    private readonly PageAction _status;
+
+    [ObservableProperty]
+    public partial string StatusLabel { get; set; } = "Show a status";
+
+    [RelayCommand]
+    private void ShowStatus()
+    {
+        _status.IsVisible = !_status.IsVisible;
+        StatusLabel = _status.IsVisible ? "Hide the status" : "Show a status";
+    }
+
+    [RelayCommand]
+    private void ToggleStatus()
+    {
+        var saved = _status.Svg != "check.svg";
+        _status.Svg = saved ? "check.svg" : "close.svg";
+        _status.Tint = Color.FromArgb(saved ? "#34C759" : "#FF3B30");
+        _status.Text = saved ? $"Saved {DateTime.Now:HH:mm}" : "Not saved";
     }
 
     [ObservableProperty]
