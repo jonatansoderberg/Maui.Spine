@@ -37,7 +37,8 @@ public static class SampleFunctions
         // The same user always gets the same bookings, spread over the coming days.
         var seed = user.Id.Aggregate(17, (hash, c) => unchecked(hash * 31 + c));
         var random = new Random(seed);
-        var today = DateTime.Today;
+        // The user's today, wherever the function runs.
+        var today = context.Now().Date;
         var bookings = new JsonArray();
 
         foreach (var day in Enumerable.Range(1, Math.Clamp(days, 1, 60)).Where(_ => random.Next(4) == 0).Take(5))
@@ -62,7 +63,8 @@ public static class SampleFunctions
         return json.RootElement.Clone();
     }
 
+    // The user's time either way: on the server in the time zone the app sent, not the server's.
     private static string ReadClock(SpineAIFunctionContext context) =>
         string.Create(CultureInfo.InvariantCulture,
-            $"{DateTime.Now:HH:mm} ({TimeZoneInfo.Local.Id}), read on {(context.RunsOn == SpineAIFunctionSide.Device ? "the user's phone" : "the server")}");
+            $"{context.Now():HH:mm} ({context.GetTimeZone().Id}), read on {(context.RunsOn == SpineAIFunctionSide.Device ? "the user's phone" : "the server")}");
 }

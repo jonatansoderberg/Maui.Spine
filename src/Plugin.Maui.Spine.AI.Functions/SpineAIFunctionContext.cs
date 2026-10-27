@@ -9,8 +9,8 @@ namespace Plugin.Maui.Spine.AI;
 /// Who a function call is for and where it runs. A function takes it as a parameter, which the model's schema leaves out.
 /// </summary>
 /// <remarks>
-/// On the server it is made for every request from the request's user. On the device the caller is the installation, or
-/// the signed-in user's id when Spine.Authentication shares it (<c>ISignedInSession</c>).
+/// On the server it is made for every request from the request's user, with the time zone and language the app sent. On
+/// the device the caller is the signed-in user when Spine.Authentication is used, and otherwise the installation.
 /// </remarks>
 public sealed class SpineAIFunctionContext
 {
@@ -37,8 +37,62 @@ public sealed class SpineAIFunctionContext
     /// <summary>The feature the conversation is with, such as <c>Assistant</c> or <c>Voice</c>.</summary>
     public string? Feature { get; init; }
 
-    /// <summary>The provider's conversation id, when there is one.</summary>
+    /// <summary>The conversation the call belongs to: a voice session's own id, or a chat's <c>ChatOptions.ConversationId</c>.</summary>
     public string? ConversationId { get; init; }
+
+    /// <summary>The model's id for this call, when the path knows it.</summary>
+    public string? CallId { get; init; }
+
+    /// <summary>
+    /// The user's time zone, an IANA id such as <c>Europe/Stockholm</c>: the device's own, and on the server the one the
+    /// app sent. <see langword="null"/> when the app sent none.
+    /// </summary>
+    public string? TimeZone { get; init; }
+
+    /// <summary>The user's language, a BCP-47 tag such as <c>sv-SE</c>, or <see langword="null"/> when the app sent none.</summary>
+    public string? Locale { get; init; }
+
+    /// <summary>On the device, the signed-in user as Spine.Authentication knows them; <see cref="GetUserAsync"/> returns it.</summary>
+    public SpineUser? SignedInUser { get; init; }
+
+    /// <summary>
+    /// The user's time zone: <see cref="TimeZone"/>, else the device's own on the device and UTC on the server, where the
+    /// server's zone says nothing about the user.
+    /// </summary>
+    public TimeZoneInfo GetTimeZone() =>
+        TimeZone is { Length: > 0 } id && TimeZoneInfo.TryFindSystemTimeZoneById(id, out var zone) ? zone
+        : RunsOn == SpineAIFunctionSide.Device ? TimeZoneInfo.Local : TimeZoneInfo.Utc;
+
+    /// <summary>Now, in the user's time zone. The services' <see cref="TimeProvider"/> when there is one.</summary>
+    public DateTimeOffset Now() =>
+        TimeZoneInfo.ConvertTime((Services.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow(), GetTimeZone());
+
+    /// <summary>
+    /// The context for the app's own functions: the signed-in user when Spine.Authentication is used (with their name
+    /// and email), else the push link's user id, else the installation; the device's time zone and language.
+    /// </summary>
+    internal static async Task<SpineAIFunctionContext> ForDeviceAsync(
+        IServiceProvider? services, Func<CancellationToken, Task<string?>> installationId, string? feature, string? conversationId,
+        string? callId, CancellationToken cancellationToken)
+    {
+        var signedIn = services?.GetService<ISpineSignedInUser>()?.User;
+        var userId = signedIn?.Id ?? (services?.GetService<ISignedInSession>()?.UserId is { Length: > 0 } linked ? linked : null);
+        var caller = userId is not null ? AICaller.SignedIn(userId)
+            : await installationId(cancellationToken) is { Length: > 0 } installation ? AICaller.Installation(installation)
+            : AICaller.Anonymous(null);
+
+        return new SpineAIFunctionContext(caller, SpineAIFunctionSide.Device)
+        {
+            Feature = feature,
+            ConversationId = conversationId,
+            CallId = callId,
+            TimeZone = SpineClientHeaders.DeviceTimeZone(),
+            Locale = SpineClientHeaders.DeviceLocale(),
+            SignedInUser = signedIn,
+            Services = services ?? EmptyServices.Instance,
+            CancellationToken = cancellationToken,
+        };
+    }
 
     /// <summary>
     /// The request's user on the server, with the claims of the app's access token (<c>sub</c>, <c>email</c>, <c>name</c>,
@@ -78,8 +132,8 @@ public sealed class SpineAIFunctionContext
     private SpineUser? FromClaims()
     {
         var id = Claim("sub") ?? Claim(ClaimTypes.NameIdentifier);
-        // The app knows its user by id only, unless Spine.Authentication's lookup is there.
-        if (id is null) return RunsOn == SpineAIFunctionSide.Device ? new SpineUser(Caller.Id, null, null, "") : null;
+        // On the device: the user Spine.Authentication signed in, else only their id.
+        if (id is null) return RunsOn != SpineAIFunctionSide.Device ? null : SignedInUser is { } known && known.Id == Caller.Id ? known : new SpineUser(Caller.Id, null, null, "");
         if (id != Caller.Id) return null;
 
         return new SpineUser(id,

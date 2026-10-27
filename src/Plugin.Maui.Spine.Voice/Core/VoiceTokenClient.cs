@@ -42,6 +42,9 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
 
     public Task<string?> InstallationIdAsync(CancellationToken cancellationToken) => installationId(cancellationToken);
 
+    /// <summary>The session's conversation, sent with every request so the server's functions see it too.</summary>
+    public string? ConversationId { get; set; }
+
     /// <summary>
     /// How long the token request keeps trying a server that does not answer yet. An app service stopped while idle
     /// (Azure's free plan) took 54 s to start; its first requests time out or cannot connect, which is not a refusal.
@@ -127,6 +130,8 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
             headers["Authorization"] = header;
         if (await installationId(cancellationToken) is { Length: > 0 } installation)
             headers[SpineInstallation.Header] = installation;
+        foreach (var (name, value) in SpineClientHeaders.ForDevice(ConversationId))
+            headers[name] = value;
         return headers;
     }
 

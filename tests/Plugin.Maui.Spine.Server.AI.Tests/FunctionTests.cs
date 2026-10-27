@@ -160,10 +160,12 @@ public sealed class FunctionTests : IAsyncLifetime
     private static JsonObject Text(string role, string text) =>
         new() { ["role"] = role, ["contents"] = new JsonArray(new JsonObject { ["$type"] = "text", ["text"] = text }) };
 
-    private Task<HttpResponseMessage> Post(string url, JsonNode body, string? user = "anna", bool stream = false)
+    private Task<HttpResponseMessage> Post(string url, JsonNode body, string? user = "anna", bool stream = false, IEnumerable<(string, string)>? headers = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json") };
         if (user is not null) request.Headers.Add(UserHeader, user);
+        foreach (var (name, value) in headers ?? [])
+            request.Headers.Add(name, value);
         if (stream) request.Headers.Accept.ParseAdd("text/event-stream");
         return _http.SendAsync(request);
     }
@@ -376,6 +378,45 @@ public sealed class FunctionTests : IAsyncLifetime
         Assert.Equal("anna@example.com", (string)result["email"]!);
         Assert.Equal(3, (int)result["days"]!);
         Assert.Equal("Voice", Assert.Single(_seen).Feature);
+    }
+
+    private static readonly (string, string)[] Stockholm =
+        [("Spine-Time-Zone", "Europe/Stockholm"), ("Spine-Locale", "sv-SE"), ("Spine-Conversation", "call-42")];
+
+    [Fact]
+    public async Task A_forwarded_call_knows_the_users_time_zone_language_conversation_and_call()
+    {
+        await Post("/ai/functions/Voice/get_my_bookings", new JsonObject { ["callId"] = "call_9", ["arguments"] = new JsonObject() }, headers: Stockholm);
+
+        var context = Assert.Single(_seen);
+        Assert.Equal("Europe/Stockholm", context.TimeZone);
+        Assert.Equal("sv-SE", context.Locale);
+        Assert.Equal("call-42", context.ConversationId);
+        Assert.Equal("call_9", context.CallId);
+        Assert.Equal("Europe/Stockholm", context.GetTimeZone().Id);
+    }
+
+    [Fact]
+    public async Task A_chats_server_function_knows_the_users_time_zone_and_conversation()
+    {
+        await Post("/ai/features/Assistant", new JsonObject { ["messages"] = new JsonArray(Text("user", "Vilka bokningar har jag?")) }, headers: Stockholm);
+
+        var context = Assert.Single(_seen);
+        Assert.Equal("Europe/Stockholm", context.TimeZone);
+        Assert.Equal("sv-SE", context.Locale);
+        Assert.Equal("call-42", context.ConversationId);
+    }
+
+    [Fact]
+    public async Task A_time_zone_or_language_the_server_does_not_know_is_left_out_and_the_server_answers_in_UTC()
+    {
+        await Post("/ai/functions/Voice/get_my_bookings", new JsonObject { ["arguments"] = new JsonObject() },
+            headers: [("Spine-Time-Zone", "Mars/Olympus"), ("Spine-Locale", "not a language at all, really")]);
+
+        var context = Assert.Single(_seen);
+        Assert.Null(context.TimeZone);
+        Assert.Null(context.Locale);
+        Assert.Equal(TimeZoneInfo.Utc, context.GetTimeZone());
     }
 
     [Fact]
