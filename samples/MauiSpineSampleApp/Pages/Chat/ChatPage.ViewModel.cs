@@ -233,6 +233,7 @@ public partial class ChatPageViewModel : SampleViewModel
         IsTalking = true;
         Status = "Connecting…";
         using var connecting = _connecting = new CancellationTokenSource();
+        _ = SayWakingAsync(connecting);
         try
         {
             await Session.ConnectAsync(_voiceFeature, Messages, connecting.Token);
@@ -266,6 +267,22 @@ public partial class ChatPageViewModel : SampleViewModel
         {
             _connecting = null;
         }
+    }
+
+    // The sample server in Azure sleeps when idle (the free plan) and takes up to a minute to start; Spine.Voice keeps
+    // asking meanwhile, and the line says why the call is slow to connect.
+    private async Task SayWakingAsync(CancellationTokenSource connecting)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(4), connecting.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        if (_connecting == connecting && !IsConnected)
+            Status = "Waking the server… after a pause the first call takes up to a minute.";
     }
 
     private async Task HangUpAsync()

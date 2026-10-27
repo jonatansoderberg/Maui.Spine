@@ -62,6 +62,10 @@ internal sealed class TokenHandler : HttpMessageHandler
     public TimeSpan? RetryAfter { get; set; }
     public HttpRequestMessage? Last { get; private set; }
 
+    /// <summary>Token requests that fail to connect first, as to a server that is still starting.</summary>
+    public int Unreachable { get; set; }
+    public int Requests { get; private set; }
+
     /// <summary>What <c>POST …/functions/{feature}/{name}</c> answers, and the bodies it was sent.</summary>
     public (HttpStatusCode Status, string Body) Function { get; set; } = (HttpStatusCode.OK, """{ "result": "from the server" }""");
     public ConcurrentQueue<(HttpRequestMessage Request, string Body)> FunctionCalls { get; } = new();
@@ -75,6 +79,8 @@ internal sealed class TokenHandler : HttpMessageHandler
         }
 
         Last = request;
+        if (++Requests <= Unreachable)
+            throw new HttpRequestException("Could not connect to the server.");
         var response = new HttpResponseMessage(Status) { Content = new StringContent(Body, Encoding.UTF8, "application/json") };
         if (RetryAfter is { } wait)
             response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(wait);
@@ -143,6 +149,34 @@ public sealed class SessionTests : IAsyncLifetime
         Assert.True(_session.IsConnected);
         Assert.Equal(TimeSpan.FromMinutes(3) - TimeSpan.FromSeconds(1), _session.TimeLeft);
         Assert.Equal(VoiceState.Listening, _session.UpdateFrame().State);
+    }
+
+    [Fact]
+    public async Task A_server_that_is_still_starting_is_asked_again_until_it_answers()
+    {
+        _tokens.Unreachable = 2;
+        var client = new VoiceTokenClient(_options, _ => Task.FromResult<string?>("phone-1")) { RetryDelay = TimeSpan.FromMilliseconds(10) };
+
+        var token = await client.RequestAsync("Voice", CancellationToken.None);
+
+        Assert.Equal("ek_test", token.Token);
+        Assert.Equal(3, _tokens.Requests);
+    }
+
+    [Fact]
+    public async Task A_server_that_never_starts_fails_with_its_error_once_the_wait_is_over()
+    {
+        _tokens.Unreachable = int.MaxValue;
+        var client = new VoiceTokenClient(_options, _ => Task.FromResult<string?>("phone-1"))
+        {
+            RetryDelay = TimeSpan.FromMilliseconds(10),
+            WakeTimeout = TimeSpan.FromMilliseconds(100),
+        };
+
+        var failed = await Assert.ThrowsAsync<HttpRequestException>(() => client.RequestAsync("Voice", CancellationToken.None));
+
+        Assert.Equal("Could not connect to the server.", failed.Message);
+        Assert.True(_tokens.Requests > 1);
     }
 
     [Fact]
