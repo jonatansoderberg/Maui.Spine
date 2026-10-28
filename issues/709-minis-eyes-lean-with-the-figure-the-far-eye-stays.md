@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/709
 **Branch:** issue/709-minis-eyes-lean-with-the-figure-the-far-eye-stays
-**Status:** In Progress
+**Status:** Completed (merged as [#710](https://github.com/jonatansoderberg/Maui.Spine/pull/710) on 2026-10-28)
 
 A follow-up to [docs/plans/spine-avatar-mini-v2.md](../docs/plans/spine-avatar-mini-v2.md) (done), from the owner's review on the iPhone.
 
