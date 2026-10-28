@@ -1,10 +1,10 @@
 # Spine Avatar Minis v2: shapes and colour as options
 
-**Status:** Proposal, waiting on the owner's answers to §6. Nothing built yet.
-**Last updated:** 2026-10-28 (plan written after the owner's review of Minis v1)
+**Status:** Decisions M-D1–M-D9 approved by the owner on 2026-10-28; M2.0 is next. Nothing built yet.
+**Last updated:** 2026-10-28 (the owner approved every recommendation and added hand-drawn outlines, M-D9)
 **Inputs:** the owner's review of v1 on 2026-10-28 (§2); Minis v1 (`912822b` on `claude/zealous-ramanujan-ipgj2p`, and `d5eacf18` on the local branch `minis-eyes-and-gestures`: eye reach, gestures for SkSL avatars); the format in [spine-avatar.md](../proposals/spine-avatar.md); the `spine-avatar` skill.
 **Related:** [spine-avatar.md](spine-avatar.md) (the avatar packages, phases B–C; this plan is phase M2 beside them), `samples/SpineAvatarLab/Tools/mini_avatars.py`, `mini_avatars.sksl`, `mini_eyereach.py`.
-**Goal:** One small Mini avatar whose shape and colour the app chooses: seven general shapes, any body colour, the nine v1 figures kept as named presets, upright bodies that turn as they look, a subtle 3D shading, calmer talking eyes and a livelier jump. The format gains a general way for an avatar to offer such choices (`options` and `presets`), not something only the Minis can use.
+**Goal:** One small Mini avatar whose shape and colour the app chooses: seven general shapes drawn as if by hand, any body colour, the nine v1 figures kept as named presets, upright bodies that turn as they look, a subtle 3D shading, calmer talking eyes and a livelier jump. The format gains a general way for an avatar to offer such choices (`options` and `presets`), not something only the Minis can use.
 
 ## How to continue from a new session
 
@@ -39,6 +39,7 @@ Gaps found while writing this plan:
 - **Talking eyes** should grow less and move more, expanding only a little.
 - **Jump:** exaggerate it: pull together and shoot itself off.
 - Keep them small.
+- **Added when approving the plan:** the shapes may deviate a little and be unique, as if drawn by hand, but neat: not a geometric circle or box. It makes them feel more alive. They may tilt lightly to the sides when they "turn the head" or look in different directions.
 
 ## 3. Design
 
@@ -56,7 +57,7 @@ Seven outlines, each with its own measured `reach` and foot (`mini_eyereach.py` 
 | `inverted-drop` | drop, wide at the top | teal (`oval`) | round |
 | `marshmallow` | marshmallow, a soft cylinder | blue (`tin`) | round |
 
-All seven live in one shader and are chosen by a uniform. SkSL has no dynamic indexing into functions, so `shape()` is a chain of `if` on a float (each outline is a handful of operations; the cost is one branch per pixel, uniform across the frame).
+Each outline is drawn as if by hand (§3.4, M-D9), so `mini_eyereach.py` must measure the irregular outline, not the ideal one. All seven live in one shader and are chosen by a uniform. SkSL has no dynamic indexing into functions, so `shape()` is a chain of `if` on a float (each outline is a handful of operations; the cost is one branch per pixel, uniform across the frame).
 
 ### 3.2 Colour
 
@@ -88,7 +89,8 @@ Two additive manifest sections, general for every format but bound only for `sks
 
 ### 3.4 Look and motion
 
-- **Upright.** The per-figure `TILT` goes. Tilt comes only from the turn: the body leans a little toward where it looks and shifts sideways with it. The highlight (below) slides the other way, so a look reads as the form turning, not the eyes sliding over a flat shape.
+- **Hand-drawn outlines.** No shape is a true circle, box or ellipse. Each outline gets a fixed, shape-specific deviation of its own: a sum of two or three low harmonics of the polar angle (orders 2–5) with fixed phases, amplitude about 1.5–3 % of the size, a side that is a little fuller than the other, and on the cube unequal corner radii and slightly bowed sides. The deviation is static (a drawing, not v1's animated wobble, which stays on top of it), smooth (no notches: the outline's curvature keeps its sign wherever the ideal shape's does) and symmetric enough that the figure still stands straight at rest. Two shapes never share a deviation, and the dark and light renders are the same drawing.
+- **Upright.** The per-figure `TILT` goes. Tilt comes only from the turn: the body leans lightly to the side it looks toward and shifts sideways with it, so turning the head or looking around tilts the whole figure a little. The highlight (below) slides the other way, so a look reads as the form turning, not the eyes sliding over a flat shape.
 - **Subtle 3D.** Computed from the outline's signed distance and the body colour: a vertical tone (lighter top), a soft highlight up and to the side of the turn, a slightly darker rim, a faint shade at the foot. Target: the body's luminance spread stays small (measure it; §4), the figure still reads as flat colour at 64 pt.
 - **Talking eyes.** Height stretch per syllable down from 0.55 to about 0.15–0.2; instead each syllable lifts the eyes a little and widens them a touch, alternating, so speech shows as movement. The v1 test that a syllable enlarges the eyes gets a lower threshold plus a test that the eyes move.
 - **Jump.** A deeper crouch with the foot on the ground, a stretch at takeoff (taller and thinner, like a spring let go), a higher and quicker flight, a landing that squashes past rest and settles back. Headroom: the figure at rest gets smaller (§6, M-D4) so the flight fits inside the frame without shrinking in the air.
@@ -104,6 +106,7 @@ Every step's tests pass, and for M2.3 onwards, per shape:
 - both eyes whole on the body at every look, normal and enlarged (the v1 test, run per shape);
 - every gesture inside the frame; the jump's crouch keeps the foot, the flight leaves the ground by more than v1's, the end is back at rest;
 - at rest the body's principal axis is vertical (no tilt), and a look to the side tilts it toward the look;
+- each outline deviates from its ideal shape by 1–3 % of the size at most, with no notches (curvature sign as the ideal shape's), and no two shapes deviate alike; the owner judges whether it reads as neatly hand-drawn;
 - the body's luminance spread under a threshold set from the first approved render (subtle means measurable);
 - talking: eyes grow less than v1 and move more (eye centre travel per syllable);
 - the lab: states, looks, gestures, `skia gpu` and `skia cpu`, light and dark, 64 pt and 320 pt, per shape and for a custom colour; the iPhone through `Tools/lab/phone.sh`;
@@ -113,17 +116,17 @@ Every step's tests pass, and for M2.3 onwards, per shape:
 
 | Step | What | Depends on | Issue | Status |
 | --- | --- | --- | --- | --- |
-| M2.0 | Land v1: PR for `912822b` + `d5eacf18` (eye reach, gestures for SkSL), so M2 builds on master | — | | Ready |
-| M2.1 | Format 1.1: `options` and `presets` in `avatar.schema.json`, the manifest records, the validator and the format doc; a runtime version and the `minRuntimeVersion` check | M2.0 | | Waiting (§6) |
+| M2.0 | Land v1: PR for `912822b` + `d5eacf18` (eye reach, gestures for SkSL) and this plan, so M2 builds on master | — | | Ready (needs the owner's go to push) |
+| M2.1 | Format 1.1: `options` and `presets` in `avatar.schema.json`, the manifest records, the validator and the format doc; a runtime version and the `minRuntimeVersion` check | M2.0 | | Waiting |
 | M2.2 | Runtime: option uniforms in both SkSL renderers, `AvatarView.SetOption`, `Preset`, bindable theme colour, the preset in `AvatarSource`; the lab's pickers (shape, preset, colour) and harness commands (`option shape cube`, `preset red`, `color body #hex`) | M2.1 | | Waiting |
-| M2.3 | Shader v2 and generator: one template with the seven shapes, upright with turn tilt, shading, calmer talking eyes, the new jump; `mini_eyereach.py` per shape; one `mini.spineavatar` with the nine presets | M2.2 | | Waiting |
+| M2.3 | Shader v2 and generator: one template with the seven hand-drawn shapes, upright with turn tilt, shading, calmer talking eyes, the new jump; `mini_eyereach.py` per shape; one `mini.spineavatar` with the nine presets | M2.2 | | Waiting |
 | M2.4 | Tool: `pack` and `validate` for options and presets, `render-sheet` per preset or shape | M2.1 | | Waiting |
 | M2.5 | Replace the nine v1 packages with `mini.spineavatar` in `samples/Avatars`, the lab's list and the tests (run per preset and shape) | M2.3, owner's review | | Waiting |
 | M2.6 | Docs: options, presets and colour in `docs/wiki/avatars.md` and the format doc, the skill's §3 and Mini notes | M2.5 | | Waiting |
 
-## 6. Decisions before work starts
+## 6. Decisions
 
-Recommendations first; the owner decides.
+All approved by the owner on 2026-10-28 as recommended (the recommended option is the decision).
 
 - **M-D1, one package or nine.** **Recommended:** one `mini.spineavatar` with options and presets (smaller, one source of truth, any colour). Alternative: keep nine packages generated from the shared template, each a preset baked in; no format change, but no shape or colour choice at runtime beyond the theme slot.
 - **M-D2, colour as a theme slot or an option.** **Recommended:** the existing `body` theme slot (already bound, has light and dark, `SetThemeColor` works today), with a bindable property and a derived dark tone. An option of type colour would duplicate theme slots.
@@ -133,6 +136,7 @@ Recommendations first; the owner decides.
 - **M-D6, purple and pink.** **Recommended:** both the `ball`, as the owner said; purple's flatter proportions go. Alternative: a `ball` with a proportion option (then reach and foot must be measured per proportion).
 - **M-D7, names.** Shape values as in §3.1 (`ball`, `cube`, `drop`, `bowl`, `bean`, `inverted-drop`, `marshmallow`) and package id `mini`; presets keep the colour names of v1.
 - **M-D8, options beyond SkSL.** **Recommended:** the format reserves `node:` and `material:` bindings, but only `uniform:` is built now.
+- **M-D9, hand-drawn outlines (the owner's addition).** Every shape deviates slightly and uniquely from its geometric ideal, neatly, as if drawn by hand (§3.4), and the figures tilt lightly with the look.
 
 ### 6.1 Decided during the work
 
