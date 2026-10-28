@@ -17,9 +17,11 @@ namespace Plugin.Maui.Spine.Server.AI;
 /// </summary>
 /// <remarks>
 /// The app speaks GPT-Live's events, with a few of Spine's own: its first message is <c>session.start</c> carrying only
-/// <c>input</c> (the conversation so far) and <c>tools</c> (the functions the app runs itself), a <c>session.update</c>
-/// carries only <c>tools</c>, and <c>spine.user_text</c> is something the user typed, which the relay gives the voice as
-/// the user's words. The relay sends the app <c>spine.function.output</c> for a server
+/// <c>input</c> (the conversation so far), <c>tools</c> (the functions the app runs itself) and <c>audio</c> (the rate it
+/// records and plays at, and whether it takes raw PCM16 in binary messages instead of base64 in JSON; the relay resamples
+/// to and from the provider's 24 kHz), a <c>session.update</c> carries only <c>tools</c>, and <c>spine.user_text</c> is
+/// something the user typed, which the relay gives the voice as the user's words. The relay sends the app
+/// <c>spine_audio</c> in <c>session.started</c> with the audio it applies, <c>spine.function.output</c> for a server
 /// function's result, and adds <c>spine_reason: "time_limit"</c> to <c>session.closed</c> when it ended the session.
 /// </remarks>
 internal sealed class AIRealtimeRelay
@@ -32,6 +34,8 @@ internal sealed class AIRealtimeRelay
     private const int MaxAppMessage = 256 * 1024;
     private const int MaxProviderMessage = 16 * 1024 * 1024;
     private const int Rate = 24_000;
+    private const int MinAppRate = 8_000;
+    private const int MaxAppRate = 48_000;
     // GPT-Live streams its answer at real time, silence included: zeros or a few steps of noise (measured 2026-10-20).
     // The app plays none of it, so the relay keeps it off the phone's connection.
     private const int SilencePeak = 32;
@@ -71,6 +75,10 @@ internal sealed class AIRealtimeRelay
     private string? _reason;
     private volatile bool _closing;
     private bool _endsOnIntent;
+    private int _appRate = Rate;
+    private bool _binary;
+    private PcmResampler? _resampleToProvider;
+    private PcmResampler? _resampleToApp;
 
     private volatile bool _timeLimit;
 
@@ -105,13 +113,19 @@ internal sealed class AIRealtimeRelay
             using var waiting = CancellationTokenSource.CreateLinkedTokenSource(run.Token);
             waiting.CancelAfter(StartTimeout);
             var first = await ReceiveAsync(_app, MaxAppMessage, waiting.Token);
-            if (first is null || Parse(first) is not { } start || Text(start, "type") != "session.start")
+            if (first is not { Binary: false } opening || Parse(opening.Text) is not { } start || Text(start, "type") != "session.start")
             {
                 await CloseAppAsync(WebSocketCloseStatus.PolicyViolation, "The first message must be session.start.");
                 return;
             }
 
             var session = start["session"] as JsonObject;
+            if (!Audio(session?["audio"] as JsonObject))
+            {
+                await CloseAppAsync(WebSocketCloseStatus.PolicyViolation, $"session.audio.rate must be {MinAppRate}–{MaxAppRate}.");
+                return;
+            }
+
             var tools = Tools(session?["tools"] as JsonArray);
             _endsOnIntent = EndsOnIntent(tools);
             var request = new AIRealtimeRequest(_feature.Name, _feature.Model, _feature.Options.SystemPrompt, _feature.Options.MaxOutputTokens, Options, _caller)
@@ -195,16 +209,24 @@ internal sealed class AIRealtimeRelay
 
     private async Task FromProviderAsync(WebSocket upstream, CancellationToken cancellationToken)
     {
-        while (await ReceiveAsync(upstream, MaxProviderMessage, cancellationToken) is { } message)
+        while (await ReceiveAsync(upstream, MaxProviderMessage, cancellationToken) is { } received)
         {
+            var message = received.Text;
             var type = TypeOf(message);
             switch (type)
             {
                 case "session.started":
                     _startedAt = _time.GetTimestamp();
-                    _sessionId = Parse(message)?["session"]?["id"]?.GetValue<string>();
+                    var started = Parse(message);
+                    _sessionId = started?["session"]?["id"]?.GetValue<string>();
                     _logger.LogInformation("AI feature '{Feature}': Live session {Session} for {Caller}, limit {Minutes} min.",
                         _feature.Name, _sessionId, _caller.Key, _ticket.Minutes);
+                    if (started is not null)
+                    {
+                        // The app sends no raw audio before it has seen that the relay takes it.
+                        started["spine_audio"] = new JsonObject { ["rate"] = _appRate, ["binary"] = _binary };
+                        message = started.ToJsonString();
+                    }
                     break;
 
                 case "session.usage.updated":
@@ -230,9 +252,18 @@ internal sealed class AIRealtimeRelay
                     Backend(Parse(message)!, cancellationToken);
                     break;
 
-                case "session.output_audio.delta" when IsSilence(message):
-                    continue;
-
+                case "session.output_audio.delta":
+                    if (Parse(message) is not { } output || Pcm(output["delta"]) is not { } pcm) break;
+                    if (IsSilence(pcm)) continue;
+                    if (_binary)
+                    {
+                        await SendAppAsync(_resampleToApp?.Resample(pcm) ?? pcm, WebSocketMessageType.Binary, cancellationToken);
+                        continue;
+                    }
+                    if (_resampleToApp is null) break;
+                    output["delta"] = Convert.ToBase64String(_resampleToApp.Resample(pcm));
+                    message = output.ToJsonString();
+                    break;
             }
 
             await SendAppAsync(message, cancellationToken);
@@ -241,14 +272,28 @@ internal sealed class AIRealtimeRelay
 
     private async Task FromAppAsync(CancellationToken cancellationToken)
     {
-        while (await ReceiveAsync(_app, MaxAppMessage, cancellationToken) is { } message)
+        while (await ReceiveAsync(_app, MaxAppMessage, cancellationToken) is { } received)
         {
+            if (received.Binary)
+            {
+                if (!_binary)
+                    _logger.LogDebug("AI feature '{Feature}': dropped a binary message from {Caller}'s Live session.", _feature.Name, _caller.Key);
+                else if (!_closing)
+                    await SendProviderAsync(new JsonObject
+                    {
+                        ["type"] = "session.input_audio.append",
+                        ["audio"] = Convert.ToBase64String(_resampleToProvider?.Resample(received.Bytes) ?? received.Bytes),
+                    }.ToJsonString(), cancellationToken);
+                continue;
+            }
+
+            var message = received.Text;
             var type = TypeOf(message);
             switch (type)
             {
                 case "session.input_audio.append":
                     if (!_closing)
-                        await SendProviderAsync(message, cancellationToken);
+                        await SendProviderAsync(_resampleToProvider is null ? message : Resampled(message, _resampleToProvider), cancellationToken);
                     break;
 
                 case "session.input_audio.mute" or "session.input_audio.unmute":
@@ -683,13 +728,16 @@ internal sealed class AIRealtimeRelay
             started && !_confirmed ? ", unconfirmed" : "", backend?.InputTokenCount ?? 0, backend?.OutputTokenCount ?? 0);
     }
 
-    private async Task SendAppAsync(string message, CancellationToken cancellationToken)
+    private Task SendAppAsync(string message, CancellationToken cancellationToken) =>
+        SendAppAsync(Encoding.UTF8.GetBytes(message), WebSocketMessageType.Text, cancellationToken);
+
+    private async Task SendAppAsync(byte[] message, WebSocketMessageType type, CancellationToken cancellationToken)
     {
         if (_app.State != WebSocketState.Open) return;
         await _toApp.WaitAsync(cancellationToken);
         try
         {
-            await _app.SendAsync(Encoding.UTF8.GetBytes(message), WebSocketMessageType.Text, endOfMessage: true, cancellationToken);
+            await _app.SendAsync(message, type, endOfMessage: true, cancellationToken);
         }
         finally
         {
@@ -724,8 +772,8 @@ internal sealed class AIRealtimeRelay
         }
     }
 
-    /// <summary>The next whole text message, or <see langword="null"/> when the other side closed.</summary>
-    private static async Task<string?> ReceiveAsync(WebSocket socket, int maxBytes, CancellationToken cancellationToken)
+    /// <summary>The next whole message, text or binary, or <see langword="null"/> when the other side closed.</summary>
+    private static async Task<Message?> ReceiveAsync(WebSocket socket, int maxBytes, CancellationToken cancellationToken)
     {
         var buffer = new byte[16 * 1024];
         using var message = new MemoryStream();
@@ -739,14 +787,54 @@ internal sealed class AIRealtimeRelay
             if (message.Length > maxBytes)
                 throw new WebSocketException(WebSocketError.Faulted, $"A message over {maxBytes} bytes.");
             if (result.EndOfMessage)
-                return Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length);
+                return new Message(result.MessageType == WebSocketMessageType.Binary, message.ToArray());
         }
     }
 
-    private static bool IsSilence(string message)
+    /// <summary>A message as it came: the bytes of a binary one, or the UTF-8 of a text one.</summary>
+    private readonly record struct Message(bool Binary, byte[] Bytes)
     {
-        if (Parse(message)?["delta"] is not JsonValue delta || !delta.TryGetValue<string>(out var base64)) return false;
-        var pcm = Convert.FromBase64String(base64);
+        public string Text => Encoding.UTF8.GetString(Bytes);
+    }
+
+    /// <summary>
+    /// The audio the app asked for in <c>session.start</c>: its own rate, which the relay resamples to and from the
+    /// provider's, and raw PCM16 in binary messages instead of base64 in JSON. False for a rate the relay does not do.
+    /// </summary>
+    private bool Audio(JsonObject? audio)
+    {
+        if (audio?["rate"] is JsonValue rate)
+        {
+            if (!rate.TryGetValue<int>(out var value) || value is < MinAppRate or > MaxAppRate) return false;
+            _appRate = value;
+        }
+        _binary = audio?["binary"] is JsonValue binary && binary.TryGetValue<bool>(out var raw) && raw;
+        if (_appRate != Rate)
+        {
+            _resampleToProvider = new PcmResampler(_appRate, Rate);
+            _resampleToApp = new PcmResampler(Rate, _appRate);
+        }
+        return true;
+    }
+
+    /// <summary>The append with its audio at the provider's rate, or as it came when it carries none.</summary>
+    private static string Resampled(string append, PcmResampler resampler)
+    {
+        if (Parse(append) is not { } json || Pcm(json["audio"]) is not { } pcm) return append;
+        json["audio"] = Convert.ToBase64String(resampler.Resample(pcm));
+        return json.ToJsonString();
+    }
+
+    /// <summary>The PCM16 a base64 property carries, or <see langword="null"/> for anything else.</summary>
+    private static byte[]? Pcm(JsonNode? node)
+    {
+        if (node is not JsonValue value || !value.TryGetValue<string>(out var base64)) return null;
+        var bytes = new byte[(base64.Length + 3) / 4 * 3];
+        return Convert.TryFromBase64String(base64, bytes, out var written) ? bytes[..written] : null;
+    }
+
+    private static bool IsSilence(ReadOnlySpan<byte> pcm)
+    {
         for (var i = 0; i + 1 < pcm.Length; i += 2)
         {
             var sample = (short)(pcm[i] | pcm[i + 1] << 8);
