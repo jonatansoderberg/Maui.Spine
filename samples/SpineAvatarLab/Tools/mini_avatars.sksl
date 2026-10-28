@@ -1,15 +1,14 @@
-// Mini: a flat, coloured body with two white eyes and no mouth, for the Spine Avatar Lab.
-// The template mini_avatars.py fills: the body's outline (`shape`) and the figure's constants, one shader
-// per figure. The body is drawn as if it were a turning solid: the eyes sit on its front and slide across
-// it as the gaze moves, narrowing toward the outline and hiding behind it, so a look is the whole figure
-// turning. The outline breathes and wobbles a little (more while thinking or talking) but keeps its shape.
-// Speaking shows in the eyes: each syllable stretches them taller, lifts them and pushes them into a
-// slight smile, and the body bounces with it. Both eyes always stay whole on the body: their turn eases
-// to a stop at REACH, the furthest the outer eye may go round this outline. Gestures (nod, shake, lean,
-// hop, wiggle, jump, dance) move the whole figure, since it has nothing else to move: a nod and a shake
-// turn the eyes down and up or side to side from a look ahead, a leap crouches, springs up, lands and
-// settles back. Uniforms follow
-// AvatarShaderContract; the colours come from the manifest's theme slots.
+// Mini v2: a coloured body with two white eyes and no mouth, for the Spine Avatar Lab. One shader for every
+// Mini: the option `shape` picks one of seven outlines, `eyes` round or tall eyes, and the theme slot `body`
+// the colour (mini_avatars.py fills the outlines and each shape's face; the presets are the figures).
+//
+// Each outline deviates a little from its geometric shape, as if drawn by hand: a fixed sum of low harmonics
+// of the angle and one side a little fuller, never animated (the wobble on top is). The body stands upright
+// at rest and leans lightly toward where it looks; a soft highlight slides the other way, so a look reads as
+// the whole form turning. The eyes sit on its front and slide across it with the look, easing to a stop at
+// the furthest both stay whole on the body (`reach`, measured per shape by mini_eyereach.py). Speaking shows
+// in the eyes, which lift and widen a little with each syllable; gestures move the whole figure. Uniforms
+// follow AvatarShaderContract; one colour serves both modes, lifted a little in dark.
 uniform float2 iResolution;
 uniform float flow;
 uniform float inLevel;
@@ -41,14 +40,27 @@ uniform float gestureHop;
 uniform float gestureWiggle;
 uniform float gestureJump;
 uniform float gestureDance;
+uniform float shape;
+uniform float eyeStyle;
 uniform float3 body;
 uniform float3 eye;
 
-{{CONSTS}}
+const float MAP_Y = 0.3;
+const float WOBBLE = 0.006;
+const float BODY_SCALE = 1.0;
+const float EYE_LEAN = 0.2;
 
 float roundBox(float2 q, float2 b, float r) {
     float2 d = abs(q) - b + r;
     return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r;
+}
+
+// A rounded box whose corners differ: r is top right, bottom right, top left, bottom left.
+float roundBox4(float2 q, float2 b, float4 r) {
+    float2 rr = q.x > 0.0 ? r.xy : r.zw;
+    float k = q.y > 0.0 ? rr.x : rr.y;
+    float2 d = abs(q) - b + k;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - k;
 }
 
 // An ellipse's signed distance, close enough near the outline for antialiasing.
@@ -62,8 +74,16 @@ float smax(float a, float b, float k) {
     return mix(b, a, h) + k * h * (1.0 - h);
 }
 
-float shape(float2 q) {
-{{SHAPE}}
+// The hand-drawn deviation: harmonics 2–5 of the angle with fixed phases, and one side a little fuller.
+float drawn(float2 q, float4 amp, float4 phase, float fuller) {
+    float a = atan(q.y, q.x);
+    return amp.x * sin(2.0 * a + phase.x) + amp.y * sin(3.0 * a + phase.y) + amp.z * sin(4.0 * a + phase.z)
+         + amp.w * sin(5.0 * a + phase.w) + fuller * q.x;
+}
+
+// The outline of shape s (the option's index), drawn by hand.
+float outline(float2 q, float s) {
+{{OUTLINES}}
 }
 
 // x unchanged up to 70 % of the limit, then easing to a stop at it, with no kink at the knee.
@@ -77,14 +97,18 @@ float softLimit(float x, float limit) {
     return sign(x) * (knee + r * (1.0 - exp(-(a - knee) / r)));
 }
 
-// One leap over progress t: the crouch before takeoff, the flight (0 to 1 to 0) and the landing's short
-// squash, which eases out so the figure is back at rest when t reaches 1.
-float3 leap(float t, float takeoff, float land) {
-    float crouch = smoothstep(0.0, takeoff, t) * (1.0 - smoothstep(takeoff, takeoff + 0.05, t));
+// One leap over progress t: the crouch before takeoff, the flight (0 to 1 to 0), the stretch of the launch
+// (at its longest as the figure leaves the ground) and the landing's settle, a squash that springs past rest
+// and dies out by t = 1.
+float4 leap(float t, float takeoff, float land) {
+    float crouch = smoothstep(0.0, takeoff, t) * (1.0 - smoothstep(takeoff, takeoff + 0.04, t));
     float air = clamp((t - takeoff) / (land - takeoff), 0.0, 1.0);
+    float inAir = step(takeoff, t) * (1.0 - step(land, t));
     float flight = 4.0 * air * (1.0 - air);
-    float squash = 0.5 * smoothstep(land - 0.03, land, t) * (1.0 - smoothstep(land, 1.0, t));
-    return float3(crouch, flight, squash);
+    float launch = inAir * (1.0 - air) * (1.0 - air);
+    float after = clamp((t - land) / (1.0 - land), 0.0, 1.0);
+    float settle = step(land, t) * exp(-3.5 * after) * cos(after * 10.0) * (1.0 - smoothstep(0.75, 1.0, after));
+    return float4(crouch, flight, launch, settle);
 }
 
 float2 rotate(float2 q, float a) {
@@ -94,18 +118,21 @@ float2 rotate(float2 q, float a) {
 }
 
 // One eye at lon and lat (radians round the body from its front), drawn at the face's height y; side is
-// -1 for the viewer's left eye. Returns its signed distance; hidden eyes come back far outside.
-float eyeDistance(float2 q, float lon, float lat, float y, float side, float scale, float tall, float lidTop, float slope, float smile, float closure) {
+// -1 for the viewer's left eye. Returns its signed distance; hidden eyes come back far outside. An eye away
+// from the front leans with the body's curve, its top toward the middle (up to EYE_LEAN), so tall eyes are
+// upright only when they look straight ahead.
+float eyeDistance(float2 q, float lon, float lat, float y, float side, float mapX, float2 size, float isRound,
+                  float scale, float tall, float lidTop, float slope, float smile, float closure) {
     float turn = clamp(lon, -1.57, 1.57);
     float facing = cos(turn);
-    float2 c = float2(MAP_X * sin(turn), y);
-    float w = EYE_W * scale * mix(0.22, 1.0, pow(facing, 0.7));
-    float h0 = EYE_H * scale * tall * mix(0.75, 1.0, cos(lat));
+    float2 c = float2(mapX * sin(turn), y);
+    float w = size.x * scale * mix(0.22, 1.0, pow(facing, 0.7));
+    float h0 = size.y * scale * tall * mix(0.75, 1.0, cos(lat));
     float h = max(h0 * (1.0 - closure), 0.018);
-    float2 e = q - c;
+    float2 e = rotate(q - c, -EYE_LEAN * sin(turn));
 
     float d;
-    if (EYE_DOT > 0.5) {
+    if (isRound > 0.5) {
         d = ellipse(e, float2(w, h));
     } else {
         d = roundBox(e, float2(w, h), min(w, h));
@@ -126,20 +153,39 @@ half4 main(float2 fragCoord) {
     float2 p = (fragCoord - 0.5 * iResolution) / (0.5 * size);
     p.y = -p.y;
 
+    // The face of this shape: where it looks at rest, where its eyes sit and how big they are, how far they
+    // may turn (round and tall eyes, at normal and 1.3x size) and how low its foot is.
+    float2 home = float2(0.0);
+    float sep = 0.4;
+    float mapX = 0.6;
+    float eyeY = 0.0;
+    float bodyY = 0.0;
+    float2 dotEye = float2(0.14);
+    float2 pillEye = float2(0.08, 0.145);
+    float2 reachRound = float2(0.9);
+    float2 reachTall = float2(0.9);
+    float foot = 0.72;
+    float phase = 0.0;
+{{FACES}}
+    float roundEyes = eyeStyle < 0.5 ? 1.0 : 0.0;
+    float2 eyeSize = roundEyes > 0.5 ? dotEye : pillEye;
+    float2 reach = roundEyes > 0.5 ? reachRound : reachTall;
+
     float talk = clamp(max(mouth, outLevel * stateSpeaking), 0.0, 1.0);
     float listen = stateListening * clamp(inLevel, 0.0, 1.0);
     float quiet = clamp(max(stateMuted, micMuted * 0.4), 0.0, 1.0);
     float startle = stateInterrupted;
     float g2 = clamp(exprSurprised + startle, 0.0, 1.0);
 
-    // The look: the figure's own resting direction, the scheduler's gaze (saccades, the look aside while
+    // The look: the shape's own resting direction, the scheduler's gaze (saccades, the look aside while
     // thinking) and a held look toward the pointer. Connecting scans side to side; thinking drifts up.
     // At rest each figure looks its own way; listening and speaking turn it toward the viewer, and while
-    // idle its look drifts slowly.
+    // idle its look drifts slowly. Talking moves the eyes a little from side to side.
     float facing = clamp(stateListening + stateSpeaking + stateInterrupted, 0.0, 1.0);
-    float2 dir = HOME * (0.8 - 0.55 * facing) + gaze * 3.2 + look * 1.8;
-    dir += (1.0 - facing) * float2(0.22 * sin(flow * 0.21 + PHASE), 0.1 * sin(flow * 0.17 + PHASE * 1.7));
-    dir.x += stateConnecting * 0.55 * sin(flow * 2.6);
+    float2 aim = gaze * 3.2 + look * 1.8;
+    float2 dir = home * (0.8 - 0.55 * facing) + aim;
+    dir += (1.0 - facing) * float2(0.22 * sin(flow * 0.21 + phase), 0.1 * sin(flow * 0.17 + phase * 1.7));
+    dir.x += stateConnecting * 0.55 * sin(flow * 2.6) + 0.06 * talk * sin(flow * 6.0);
     dir += stateThinking * float2(0.25 * sin(flow * 0.6), 0.35);
     dir.y += 0.3 * exprCurious - 0.35 * exprApologetic + 0.25 * exprThinking - 0.25 * quiet;
 
@@ -154,66 +200,73 @@ half4 main(float2 fragCoord) {
     float wiggle = sin(18.85 * gestureWiggle) * sin(3.1416 * gestureWiggle);
     float danceOn = sin(3.1416 * gestureDance);
     float beat = sin(18.85 * gestureDance);
-    float3 hop = leap(gestureHop, 0.25, 0.8);
-    float3 jump = leap(gestureJump, 0.32, 0.82);
+    float4 hop = leap(gestureHop, 0.25, 0.8);
+    float4 jump = leap(gestureJump, 0.3, 0.72);
     dir.x += 0.7 * shake + 0.35 * beat * danceOn;
     dir.y += -0.65 * nod + 0.3 * jump.y + 0.15 * hop.y;
     dir = mix(dir, dir * 0.3, lean);
     dir = clamp(dir, float2(-1.0, -0.7), float2(1.0, 0.6));
 
-    // Body motion: breathing, the scheduler's springs, a bounce per syllable, and the expressions' poses.
-    float breath = 0.012 * sin(flow * 1.3 + PHASE);
-    float stretch = breath + 0.045 * talk + 0.05 * g2 + 0.03 * exprConfident - 0.05 * exprApologetic
-                  - 0.03 * quiet + 0.03 * listen + spring.x
-                  - 0.08 * (hop.x + hop.z) + 0.05 * hop.y - 0.15 * (jump.x + jump.z) + 0.07 * jump.y
-                  + 0.05 * abs(beat) * danceOn;
-    // How much a crouch shortens the figure (its squash and its shrink below), sunk by as much at the foot.
-    float crouchHop = 1.0 - (1.0 - 0.08 * (hop.x + hop.z)) * (1.0 - 0.05 * (hop.x + hop.z));
-    float crouchJump = 1.0 - (1.0 - 0.15 * (jump.x + jump.z)) * (1.0 - 0.09 * (jump.x + jump.z));
-    float lift = 0.035 * talk + 0.02 * exprHappy * (0.5 + 0.5 * sin(flow * 5.0)) + spring.z * 0.6 - 0.03 * quiet
-               - 0.03 * nod + 0.07 * hop.y + 0.13 * jump.y - FOOT * BODY_SCALE * (crouchHop + crouchJump)
-               + 0.03 * abs(beat) * danceOn;
-    float tilt = TILT + spring.y + 0.12 * exprCurious - 0.05 * exprConfident + 0.04 * dir.x * 0.5
+    // Body motion: breathing, the scheduler's springs, a bounce per syllable, the expressions' poses, and
+    // the leaps. A leap's squash and stretch are measured from the foot, which stays on the ground until the
+    // figure takes off and as it lands.
+    float breath = 0.012 * sin(flow * 1.3 + phase);
+    float leapStretch = -0.1 * hop.x + 0.12 * hop.z - 0.08 * hop.w - 0.26 * jump.x + 0.2 * jump.z - 0.16 * jump.w;
+    // The launch narrows the figure as much as it stretches it, so the tall shapes stay in the frame.
+    float leapGrow = 1.0 - 0.04 * hop.y - 0.07 * jump.y - 0.04 * jump.x - 0.07 * jump.z;
+    float stretch = breath + 0.03 * talk + 0.05 * g2 + 0.03 * exprConfident - 0.05 * exprApologetic
+                  - 0.03 * quiet + 0.03 * listen + spring.x + leapStretch + 0.05 * abs(beat) * danceOn;
+    float lift = 0.025 * talk + 0.02 * exprHappy * (0.5 + 0.5 * sin(flow * 5.0)) + spring.z * 0.6 - 0.03 * quiet
+               - 0.03 * nod + 0.08 * hop.y + 0.17 * jump.y + 0.03 * abs(beat) * danceOn
+               - foot * BODY_SCALE * (1.0 - (1.0 + leapStretch) * leapGrow);
+    // Upright at rest; the figure leans lightly toward where it is looking, as if turning to it.
+    float tilt = spring.y + 0.12 * exprCurious - 0.05 * exprConfident - 0.08 * clamp(aim.x, -1.0, 1.0)
                + stateThinking * 0.05 * sin(flow * 0.9)
-               + 0.06 * shake + 0.16 * wiggle - 0.12 * beat * danceOn - 0.06 * lean * sign(HOME.x);
-    float2 q = p - float2(dir.x * 0.04 + 0.06 * beat * danceOn, BODY_Y + lift + dir.y * 0.02);
+               - 0.06 * shake + 0.16 * wiggle - 0.12 * beat * danceOn - 0.06 * lean * sign(home.x);
+    float2 q = p - float2(dir.x * 0.05 + 0.06 * beat * danceOn, bodyY + lift + dir.y * 0.02);
     q = rotate(q, -tilt);
-    q = float2(q.x * (1.0 + stretch * 0.7), q.y / (1.0 + stretch));
-    // A leap shrinks the figure a little, so the tall and the wide ones stay inside the frame; the crouch
-    // sinks (lift above) as far as it squashes, so the figure's foot stays on the ground.
-    float grow = BODY_SCALE * (1.0 + 0.04 * stateListening + 0.05 * listen + 0.07 * lean
-               - 0.06 * hop.y - 0.12 * jump.y - 0.05 * (hop.x + hop.z) - 0.09 * (jump.x + jump.z));
+    q = float2(q.x * (1.0 + stretch * 0.5), q.y / (1.0 + stretch));
+    float grow = BODY_SCALE * leapGrow * (1.0 + 0.04 * stateListening + 0.05 * listen + 0.07 * lean);
     q /= grow;
 
-    // The outline keeps its shape and breathes a little; thinking and talking stir it.
+    // The outline keeps its drawing and breathes a little; thinking and talking stir it.
     float a = atan(q.y, q.x);
     float stir = 1.0 + 1.5 * stateThinking + talk + 0.8 * stateConnecting + 2.5 * abs(wiggle);
-    float wobble = WOBBLE * stir * (sin(a * 3.0 + flow * 1.1 + PHASE) + 0.6 * sin(a * 5.0 - flow * 1.7 + PHASE * 2.0));
-    float db = shape(q) - wobble;
+    float wobble = WOBBLE * stir * (sin(a * 3.0 + flow * 1.1 + phase) + 0.6 * sin(a * 5.0 - flow * 1.7 + phase * 2.0));
+    float db = outline(q, shape) - wobble;
     float bodyCover = clamp(0.5 - db / px, 0.0, 1.0);
 
-    // The eyes. Size: wider when listening, surprised or interrupted; narrower when confident.
+    // The eyes. Size: wider when listening, surprised or interrupted, a little with each syllable; narrower
+    // when confident. Talking lifts them rather than stretching them.
     float scale = 1.0 + 0.12 * stateListening + 0.08 * listen + 0.22 * g2 - 0.06 * exprConfident
-                + 0.1 * lean + 0.12 * jump.y;
-    float tall = 1.0 + 0.55 * talk + 0.1 * g2;
+                + 0.1 * lean + 0.12 * jump.y + 0.04 * talk;
+    float tall = 1.0 + 0.12 * talk + 0.1 * g2 + 0.12 * jump.z;
     float lidTop = 0.3 * quiet + 0.22 * stateThinking + 0.18 * exprThinking + 0.32 * exprConfident
-                 + 0.12 * exprConcerned + 0.1 * exprApologetic + 0.25 * jump.x + 0.15 * hop.x;
+                 + 0.12 * exprConcerned + 0.1 * exprApologetic + 0.35 * jump.x + 0.2 * hop.x;
     float slope = 0.6 * (exprConcerned + exprApologetic) - 0.25 * exprConfident;
-    float smile = clamp(exprHappy + 0.25 * talk + 0.7 * danceOn, 0.0, 1.0);
-    float y = EYE_Y + 0.9 * MAP_Y * sin(dir.y) + 0.04 * talk;
-    float sep = SEP * (1.0 - 0.15 * exprConfident);
+    float smile = clamp(exprHappy + 0.2 * talk + 0.7 * danceOn, 0.0, 1.0);
+    float y = eyeY + 0.9 * MAP_Y * sin(dir.y) + 0.065 * talk;
+    sep *= 1.0 - 0.15 * exprConfident;
     float ql = 1.0 + 0.18 * exprCurious;
     float qr = 1.0 - 0.12 * exprCurious;
     float closure = clamp(blink, 0.0, 1.0);
-    float turn = softLimit(dir.x, mix(REACH.x, REACH.y, (scale - 1.0) / 0.3) - sep);
-    float dl = eyeDistance(q, turn - sep, dir.y, y, -1.0, scale * ql, tall, lidTop, slope, smile, closure);
-    float dr = eyeDistance(q, turn + sep, dir.y, y, 1.0, scale * qr, tall, lidTop, slope, smile, closure);
+    float turn = softLimit(dir.x, mix(reach.x, reach.y, (scale - 1.0) / 0.3) - sep);
+    float dl = eyeDistance(q, turn - sep, dir.y, y, -1.0, mapX, eyeSize, roundEyes, scale * ql, tall, lidTop, slope, smile, closure);
+    float dr = eyeDistance(q, turn + sep, dir.y, y, 1.0, mapX, eyeSize, roundEyes, scale * qr, tall, lidTop, slope, smile, closure);
     // Eyes are on the body: past its outline they are cut off.
     float de = max(min(dl, dr), db + 0.012);
     float eyeCover = clamp(0.5 - de / px, 0.0, 1.0);
 
-    // Flat colour, a touch lighter toward the top; drained toward grey while muted.
-    float3 c = body * (1.0 + 0.06 * clamp(q.y, -1.0, 1.0));
+    // The colour, lifted a little in dark mode, with a subtle roundness: lighter toward the top, a soft
+    // highlight up and to the side the figure turns from, a slightly darker rim and foot. Drained toward grey
+    // while muted.
+    float3 c = mix(body, float3(1.0), 0.1 * dark);
+    c *= 1.0 + 0.07 * clamp(q.y, -1.0, 1.0);
+    float2 light = q - float2(-0.26 - 0.2 * turn, 0.36);
+    float shine = smoothstep(0.55, 0.0, length(light * float2(1.0, 1.3)));
+    c = mix(c, float3(1.0), 0.16 * shine * shine);
+    c *= 1.0 - 0.07 * smoothstep(-0.14, 0.0, db);
+    c *= 1.0 - 0.06 * smoothstep(-0.25, -0.8, q.y);
     float grey = dot(c, float3(0.3, 0.55, 0.15));
     c = mix(c, float3(grey), 0.45 * quiet);
     float3 white = mix(eye, eye * 0.9, 0.3 * quiet);

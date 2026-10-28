@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/699
 **Branch:** issue/699-avatar-options-at-runtime-setoption-preset-and-the
-**Status:** In Progress (in review: [#700](https://github.com/jonatansoderberg/Maui.Spine/pull/700))
+**Status:** Completed (merged as [#700](https://github.com/jonatansoderberg/Maui.Spine/pull/700) on 2026-10-28)
 
 Step M2.2 of [docs/plans/spine-avatar-mini-v2.md](../docs/plans/spine-avatar-mini-v2.md), after format 1.1 (#697, PR #698).
 
