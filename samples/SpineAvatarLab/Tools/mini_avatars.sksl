@@ -6,7 +6,8 @@
 // of the angle and one side a little fuller, never animated (the wobble on top is). The body stands upright
 // at rest and leans lightly toward where it looks; a soft highlight slides the other way, so a look reads as
 // the whole form turning. The eyes sit on its front and slide across it with the look, easing to a stop at
-// the furthest both stay whole on the body (`reach`, measured per shape by mini_eyereach.py). Speaking shows
+// the furthest both stay whole on the body (`reach`, measured per shape by mini_eyereach.py). The eyes lean
+// with the body, never on their own, and the one turned away narrows only a little. Speaking shows
 // in the eyes, which lift and widen a little with each syllable; gestures move the whole figure. Uniforms
 // follow AvatarShaderContract; one colour serves both modes, lifted a little in dark.
 uniform float2 iResolution;
@@ -48,7 +49,8 @@ uniform float3 eye;
 const float MAP_Y = 0.3;
 const float WOBBLE = 0.006;
 const float BODY_SCALE = 1.0;
-const float EYE_LEAN = 0.2;
+// How narrow an eye gets as it turns away round the body, at the most: enough to read the curve, never a sliver.
+const float EYE_FAR = 0.65;
 
 float roundBox(float2 q, float2 b, float r) {
     float2 d = abs(q) - b + r;
@@ -118,17 +120,16 @@ float2 rotate(float2 q, float a) {
 }
 
 // One eye at lon and lat (radians round the body from its front), drawn at the face's height y; side is
-// -1 for the viewer's left eye. Returns its signed distance; hidden eyes come back far outside. lean turns the
-// eye; both eyes get the same, so they stay parallel.
+// -1 for the viewer's left eye. Returns its signed distance; hidden eyes come back far outside.
 float eyeDistance(float2 q, float lon, float lat, float y, float side, float mapX, float2 size, float isRound,
-                  float scale, float tall, float lidTop, float slope, float smile, float closure, float lean) {
+                  float scale, float tall, float lidTop, float slope, float smile, float closure) {
     float turn = clamp(lon, -1.57, 1.57);
     float facing = cos(turn);
     float2 c = float2(mapX * sin(turn), y);
-    float w = size.x * scale * mix(0.22, 1.0, pow(facing, 0.7));
+    float w = size.x * scale * mix(EYE_FAR, 1.0, pow(facing, 0.7));
     float h0 = size.y * scale * tall * mix(0.75, 1.0, cos(lat));
     float h = max(h0 * (1.0 - closure), 0.018);
-    float2 e = rotate(q - c, -lean);
+    float2 e = q - c;
 
     float d;
     if (isRound > 0.5) {
@@ -250,11 +251,8 @@ half4 main(float2 fragCoord) {
     float qr = 1.0 - 0.12 * exprCurious;
     float closure = clamp(blink, 0.0, 1.0);
     float turn = softLimit(dir.x, mix(reach.x, reach.y, (scale - 1.0) / 0.3) - sep);
-    // As the face turns from the front, both eyes lean alike with the body's curve, their tops toward its
-    // middle (up to EYE_LEAN), so tall eyes stand upright only when the face looks straight ahead.
-    float eyeLean = EYE_LEAN * sin(turn);
-    float dl = eyeDistance(q, turn - sep, dir.y, y, -1.0, mapX, eyeSize, roundEyes, scale * ql, tall, lidTop, slope, smile, closure, eyeLean);
-    float dr = eyeDistance(q, turn + sep, dir.y, y, 1.0, mapX, eyeSize, roundEyes, scale * qr, tall, lidTop, slope, smile, closure, eyeLean);
+    float dl = eyeDistance(q, turn - sep, dir.y, y, -1.0, mapX, eyeSize, roundEyes, scale * ql, tall, lidTop, slope, smile, closure);
+    float dr = eyeDistance(q, turn + sep, dir.y, y, 1.0, mapX, eyeSize, roundEyes, scale * qr, tall, lidTop, slope, smile, closure);
     // Eyes are on the body: past its outline they are cut off.
     float de = max(min(dl, dr), db + 0.012);
     float eyeCover = clamp(0.5 - de / px, 0.0, 1.0);

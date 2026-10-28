@@ -196,26 +196,36 @@ public class MiniTests
 
     [Theory]
     [MemberData(nameof(Shapes))]
-    public void TallEyesLeanTogetherWithTheTurn(string shape)
+    public void TallEyesLeanWithTheFigure(string shape)
     {
-        using var rest = Shape(shape, f => f.AddActivity("listening", 1), "tall");
+        using var rest = Shape(shape, Idle, "tall");
+        using var ahead = Shape(shape, f => f.AddActivity("listening", 1), "tall");
         using var right = Shape(shape, f => { f.AddActivity("listening", 1); f.LookX = 3f; }, "tall");
         using var left = Shape(shape, f => { f.AddActivity("listening", 1); f.LookX = -3f; }, "tall");
 
-        // Both eyes alike, so they stay parallel.
+        // Upright at rest, whichever way the face is turned; parallel, and leaning as the body does, when it looks.
+        Assert.All(Eyes(rest).Select(Axis), a => Assert.True(Math.Abs(a) < 2.5, $"an eye leans {a:0.0}° at rest"));
         foreach (var (name, bitmap) in new[] { ("right", right), ("left", left) })
         {
             var axes = Eyes(bitmap).Select(Axis).ToList();
             Assert.True(Math.Abs(axes[0] - axes[1]) < 2.5, $"turned {name}, the eyes lean {axes[0]:0.0}° and {axes[1]:0.0}°");
+            // A ball's own turn cannot be read from its outline.
+            if (shape != "ball")
+                Assert.True(Math.Abs(axes.Average() - Turn(ahead, bitmap)) < 2.5, $"turned {name}: eyes {axes.Average():0.0}°, body {Turn(ahead, bitmap):0.0}°");
         }
-        // On the body, after its own turn: turned right, the eyes' tops lean toward its middle (left), and the other way.
-        // A ball's own turn cannot be read from its outline.
-        if (shape == "ball")
-            return;
-        var onRight = Eyes(right).Average(Axis) - Turn(rest, right);
-        var onLeft = Eyes(left).Average(Axis) - Turn(rest, left);
-        Assert.True(onRight < -3, $"the eyes lean {onRight:0.0}° on the body turned right");
-        Assert.True(onLeft > 3, $"the eyes lean {onLeft:0.0}° on the body turned left");
+    }
+
+    [Theory]
+    [MemberData(nameof(Faces))]
+    public void TheEyeTurnedAwayStaysInProportion(string shape, string eyes)
+    {
+        foreach (var x in new[] { 3f, -3f })
+        {
+            using var turned = Shape(shape, f => { f.AddActivity("listening", 1); f.LookX = x; }, eyes);
+            var (left, right) = (Eyes(turned)[0].Count, Eyes(turned)[^1].Count);
+            var (far, near) = x > 0 ? (right, left) : (left, right);
+            Assert.True(far > near * 0.55, $"looking {(x > 0 ? "right" : "left")}, the far eye has {far} pixels, the near one {near}");
+        }
     }
 
     [Theory]
