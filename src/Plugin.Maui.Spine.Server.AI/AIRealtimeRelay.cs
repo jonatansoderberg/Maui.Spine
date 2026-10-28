@@ -19,7 +19,8 @@ namespace Plugin.Maui.Spine.Server.AI;
 /// The app speaks GPT-Live's events, with a few of Spine's own: its first message is <c>session.start</c> carrying only
 /// <c>input</c> (the conversation so far), <c>tools</c> (the functions the app runs itself) and <c>audio</c> (the rate it
 /// records and plays at, and whether it takes raw PCM16 in binary messages instead of base64 in JSON; the relay resamples
-/// to and from the provider's 24 kHz), a <c>session.update</c> carries only <c>tools</c>, and <c>spine.user_text</c> is
+/// to and from the provider's 24 kHz, and with <c>pauses</c> whether it wants a <c>spine.audio.pause</c> with the length of
+/// the silence the relay dropped before each audible delta), a <c>session.update</c> carries only <c>tools</c>, and <c>spine.user_text</c> is
 /// something the user typed, which the relay gives the voice as the user's words. The relay sends the app
 /// <c>spine_audio</c> in <c>session.started</c> with the audio it applies, <c>spine.function.output</c> for a server
 /// function's result, and adds <c>spine_reason: "time_limit"</c> to <c>session.closed</c> when it ended the session.
@@ -77,6 +78,9 @@ internal sealed class AIRealtimeRelay
     private bool _endsOnIntent;
     private int _appRate = Rate;
     private bool _binary;
+    private bool _pauses;
+    private double _droppedMs;
+    private readonly LiveAudioStats _audio;
     private PcmResampler? _resampleToProvider;
     private PcmResampler? _resampleToApp;
 
@@ -98,6 +102,7 @@ internal sealed class AIRealtimeRelay
         _meter = meter;
         _logger = logger;
         _time = meter.Time;
+        _audio = new LiveAudioStats(_time);
     }
 
     private AIRealtimeOptions Options => _feature.Options.Realtime ?? new AIRealtimeOptions();
@@ -224,7 +229,7 @@ internal sealed class AIRealtimeRelay
                     if (started is not null)
                     {
                         // The app sends no raw audio before it has seen that the relay takes it.
-                        started["spine_audio"] = new JsonObject { ["rate"] = _appRate, ["binary"] = _binary };
+                        started["spine_audio"] = new JsonObject { ["rate"] = _appRate, ["binary"] = _binary, ["pauses"] = _pauses };
                         message = started.ToJsonString();
                     }
                     break;
@@ -254,16 +259,31 @@ internal sealed class AIRealtimeRelay
 
                 case "session.output_audio.delta":
                     if (Parse(message) is not { } output || Pcm(output["delta"]) is not { } pcm) break;
-                    if (IsSilence(pcm)) continue;
-                    if (_binary)
+                    var ms = pcm.Length / 2.0 * 1000 / Rate;
+                    if (IsSilence(pcm))
                     {
-                        await SendAppAsync(_resampleToApp?.Resample(pcm) ?? pcm, WebSocketMessageType.Binary, cancellationToken);
+                        _droppedMs += ms;
+                        _audio.Silent(_time.GetTimestamp(), ms);
                         continue;
                     }
-                    if (_resampleToApp is null) break;
-                    output["delta"] = Convert.ToBase64String(_resampleToApp.Resample(pcm));
-                    message = output.ToJsonString();
-                    break;
+                    // The dropped silence was the voice's own pause: a player that keeps the stream's timing puts it back.
+                    if (_pauses && _droppedMs >= 1)
+                        await SendAppAsync(new JsonObject { ["type"] = "spine.audio.pause", ["ms"] = (int)Math.Round(_droppedMs) }.ToJsonString(), cancellationToken);
+                    _droppedMs = 0;
+                    var sending = _time.GetTimestamp();
+                    if (_binary)
+                        await SendAppAsync(_resampleToApp?.Resample(pcm) ?? pcm, WebSocketMessageType.Binary, cancellationToken);
+                    else
+                    {
+                        if (_resampleToApp is not null)
+                        {
+                            output["delta"] = Convert.ToBase64String(_resampleToApp.Resample(pcm));
+                            message = output.ToJsonString();
+                        }
+                        await SendAppAsync(message, cancellationToken);
+                    }
+                    _audio.Audible(sending, ms, _time.GetElapsedTime(sending));
+                    continue;
             }
 
             await SendAppAsync(message, cancellationToken);
@@ -722,6 +742,13 @@ internal sealed class AIRealtimeRelay
         if (backend is not null && Options.Backend?.Model is { } model)
             await _meter.SettleAsync(_feature, _caller, model, backend, 0, 0, duration);
 
+        _audio.End();
+        if (_audio.AudibleDeltas > 0)
+            _logger.LogInformation(
+                "AI feature '{Feature}': Live audio for {Caller}: {Audible:0.#} s audible in {Deltas} deltas, {Silent:0.#} s of silence dropped (longest {Pause:0} ms{Marked}); delivery had {Gaps} gaps over 300 ms (longest {Gap:0} ms), slowest stretch {Rate:0.00}x over {Span:0.#} s; longest send to the app {Send:0} ms.",
+                _feature.Name, _caller.Key, _audio.AudibleMs / 1000, _audio.AudibleDeltas, _audio.SilentMs / 1000, _audio.LongestSilenceMs,
+                _pauses ? ", marked for the app" : "", _audio.Gaps, _audio.LongestGapMs,
+                double.IsPositiveInfinity(_audio.SlowestRate) ? 1 : _audio.SlowestRate, _audio.SlowestStretchSeconds, _audio.LongestSendMs);
         _logger.LogInformation(
             "AI feature '{Feature}': Live session {Session} for {Caller} ended ({Reason}) after {Seconds:0.#} s{Unconfirmed}; backend {Input} in, {Output} out.",
             _feature.Name, _sessionId ?? "(not started)", _caller.Key, _timeLimit ? "time limit" : _reason ?? "app closed", seconds,
@@ -809,6 +836,7 @@ internal sealed class AIRealtimeRelay
             _appRate = value;
         }
         _binary = audio?["binary"] is JsonValue binary && binary.TryGetValue<bool>(out var raw) && raw;
+        _pauses = audio?["pauses"] is JsonValue pauses && pauses.TryGetValue<bool>(out var marked) && marked;
         if (_appRate != Rate)
         {
             _resampleToProvider = new PcmResampler(_appRate, Rate);

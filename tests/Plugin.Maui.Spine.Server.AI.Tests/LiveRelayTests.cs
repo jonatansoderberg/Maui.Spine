@@ -454,6 +454,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
         var (app, provider, started) = await StartAsync(new { type = "session.start", session = new { audio = new { rate = 16000, binary = true } } });
         Assert.Equal(16000, (int?)started["spine_audio"]!["rate"]);
         Assert.True((bool?)started["spine_audio"]!["binary"]);
+        Assert.False((bool?)started["spine_audio"]!["pauses"]);
 
         // 20 ms up: 320 samples at 16 kHz reach the provider as about 480 at 24 kHz, base64 in JSON as always.
         await app.SendBinaryAsync(Tone(16000, 320));
@@ -474,6 +475,31 @@ public sealed class LiveRelayTests : IAsyncLifetime
         Assert.InRange(down.Length / 2, 318, 321);
         Assert.InRange(Peak(down), 7000, 8000);
         Assert.Equal("Hej", (string?)(await app.NextAsync("session.output_transcript.delta"))["delta"]);
+    }
+
+    [Fact]
+    public async Task An_app_may_ask_for_the_pauses_the_relay_drops()
+    {
+        var (app, provider, started) = await StartAsync(new { type = "session.start", session = new { audio = new { rate = 16000, binary = true, pauses = true } } });
+        Assert.True((bool?)started["spine_audio"]!["pauses"]);
+
+        // The voice speaks, pauses for 40 ms of silence, which never reaches the app, and speaks again: the app hears how
+        // long the pause was right before the audio that follows it, so its playback can keep the stream's timing.
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        Assert.InRange((await app.NextBinaryAsync()).Length / 2, 318, 321);
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(new byte[960]) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(new byte[960]) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        Assert.Equal(40, (int?)(await app.NextAsync("spine.audio.pause"))["ms"]);
+        Assert.InRange((await app.NextBinaryAsync()).Length / 2, 318, 321);
+
+        // Silence at the start of an answer counts too, and a pause is reported once.
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(new byte[2400]) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        Assert.Equal(50, (int?)(await app.NextAsync("spine.audio.pause"))["ms"]);
+        await app.NextBinaryAsync();
+        await app.NextBinaryAsync();
     }
 
     [Fact]
