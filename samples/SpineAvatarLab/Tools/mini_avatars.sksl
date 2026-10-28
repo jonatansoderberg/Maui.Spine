@@ -118,18 +118,17 @@ float2 rotate(float2 q, float a) {
 }
 
 // One eye at lon and lat (radians round the body from its front), drawn at the face's height y; side is
-// -1 for the viewer's left eye. Returns its signed distance; hidden eyes come back far outside. An eye away
-// from the front leans with the body's curve, its top toward the middle (up to EYE_LEAN), so tall eyes are
-// upright only when they look straight ahead.
+// -1 for the viewer's left eye. Returns its signed distance; hidden eyes come back far outside. lean turns the
+// eye; both eyes get the same, so they stay parallel.
 float eyeDistance(float2 q, float lon, float lat, float y, float side, float mapX, float2 size, float isRound,
-                  float scale, float tall, float lidTop, float slope, float smile, float closure) {
+                  float scale, float tall, float lidTop, float slope, float smile, float closure, float lean) {
     float turn = clamp(lon, -1.57, 1.57);
     float facing = cos(turn);
     float2 c = float2(mapX * sin(turn), y);
     float w = size.x * scale * mix(0.22, 1.0, pow(facing, 0.7));
     float h0 = size.y * scale * tall * mix(0.75, 1.0, cos(lat));
     float h = max(h0 * (1.0 - closure), 0.018);
-    float2 e = rotate(q - c, -EYE_LEAN * sin(turn));
+    float2 e = rotate(q - c, -lean);
 
     float d;
     if (isRound > 0.5) {
@@ -213,7 +212,7 @@ half4 main(float2 fragCoord) {
     float breath = 0.012 * sin(flow * 1.3 + phase);
     float leapStretch = -0.1 * hop.x + 0.12 * hop.z - 0.08 * hop.w - 0.26 * jump.x + 0.2 * jump.z - 0.16 * jump.w;
     // The launch narrows the figure as much as it stretches it, so the tall shapes stay in the frame.
-    float leapGrow = 1.0 - 0.04 * hop.y - 0.07 * jump.y - 0.04 * jump.x - 0.07 * jump.z;
+    float leapGrow = 1.0 - 0.04 * hop.y - 0.05 * hop.z - 0.07 * jump.y - 0.04 * jump.x - 0.07 * jump.z;
     float stretch = breath + 0.03 * talk + 0.05 * g2 + 0.03 * exprConfident - 0.05 * exprApologetic
                   - 0.03 * quiet + 0.03 * listen + spring.x + leapStretch + 0.05 * abs(beat) * danceOn;
     float lift = 0.025 * talk + 0.02 * exprHappy * (0.5 + 0.5 * sin(flow * 5.0)) + spring.z * 0.6 - 0.03 * quiet
@@ -239,8 +238,8 @@ half4 main(float2 fragCoord) {
     // The eyes. Size: wider when listening, surprised or interrupted, a little with each syllable; narrower
     // when confident. Talking lifts them rather than stretching them.
     float scale = 1.0 + 0.12 * stateListening + 0.08 * listen + 0.22 * g2 - 0.06 * exprConfident
-                + 0.1 * lean + 0.12 * jump.y + 0.04 * talk;
-    float tall = 1.0 + 0.12 * talk + 0.1 * g2 + 0.12 * jump.z;
+                + 0.1 * lean + 0.12 * jump.y + 0.03 * talk;
+    float tall = 1.0 + 0.08 * talk + 0.1 * g2 + 0.12 * jump.z;
     float lidTop = 0.3 * quiet + 0.22 * stateThinking + 0.18 * exprThinking + 0.32 * exprConfident
                  + 0.12 * exprConcerned + 0.1 * exprApologetic + 0.35 * jump.x + 0.2 * hop.x;
     float slope = 0.6 * (exprConcerned + exprApologetic) - 0.25 * exprConfident;
@@ -251,8 +250,11 @@ half4 main(float2 fragCoord) {
     float qr = 1.0 - 0.12 * exprCurious;
     float closure = clamp(blink, 0.0, 1.0);
     float turn = softLimit(dir.x, mix(reach.x, reach.y, (scale - 1.0) / 0.3) - sep);
-    float dl = eyeDistance(q, turn - sep, dir.y, y, -1.0, mapX, eyeSize, roundEyes, scale * ql, tall, lidTop, slope, smile, closure);
-    float dr = eyeDistance(q, turn + sep, dir.y, y, 1.0, mapX, eyeSize, roundEyes, scale * qr, tall, lidTop, slope, smile, closure);
+    // As the face turns from the front, both eyes lean alike with the body's curve, their tops toward its
+    // middle (up to EYE_LEAN), so tall eyes stand upright only when the face looks straight ahead.
+    float eyeLean = EYE_LEAN * sin(turn);
+    float dl = eyeDistance(q, turn - sep, dir.y, y, -1.0, mapX, eyeSize, roundEyes, scale * ql, tall, lidTop, slope, smile, closure, eyeLean);
+    float dr = eyeDistance(q, turn + sep, dir.y, y, 1.0, mapX, eyeSize, roundEyes, scale * qr, tall, lidTop, slope, smile, closure, eyeLean);
     // Eyes are on the body: past its outline they are cut off.
     float de = max(min(dl, dr), db + 0.012);
     float eyeCover = clamp(0.5 - de / px, 0.0, 1.0);

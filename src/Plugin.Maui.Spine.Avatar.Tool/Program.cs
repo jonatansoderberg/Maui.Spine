@@ -25,11 +25,11 @@ catch (Exception e) when (e is IOException or UnauthorizedAccessException or Arg
     return 2;
 }
 
-internal sealed record Options(string? Output, string? Profile, string? PosterLight, string? PosterDark, int Size, bool Strip, string? AssetVersion = null, IReadOnlyDictionary<string, string>? Voices = null)
+internal sealed record Options(string? Output, string? Profile, string? PosterLight, string? PosterDark, int Size, bool Strip, string? AssetVersion = null, IReadOnlyDictionary<string, string>? Voices = null, string? Preset = null)
 {
     public static Options Parse(string[] args)
     {
-        string? output = null, profile = null, light = null, dark = null, assetVersion = null;
+        string? output = null, profile = null, light = null, dark = null, assetVersion = null, preset = null;
         var size = 512;
         var strip = false;
         var voices = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -44,6 +44,7 @@ internal sealed record Options(string? Output, string? Profile, string? PosterLi
                 case "--poster-dark": dark = Next(); break;
                 case "--size": size = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                 case "--strip": strip = true; break;
+                case "--preset": preset = Next(); break;
                 case "--asset-version":
                     assetVersion = Next();
                     if (!System.Text.RegularExpressions.Regex.IsMatch(assetVersion, @"^\d+\.\d+\.\d+$"))
@@ -58,7 +59,7 @@ internal sealed record Options(string? Output, string? Profile, string? PosterLi
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
         }
-        return new Options(output, profile, light, dark, size, strip, assetVersion, voices.Count > 0 ? voices : null);
+        return new Options(output, profile, light, dark, size, strip, assetVersion, voices.Count > 0 ? voices : null, preset);
     }
 }
 
@@ -81,8 +82,10 @@ internal static class Commands
                                                      assetVersion, which apps compare to update a downloaded copy;
                                                      --voice names the avatar's voice per provider
               strip <file> -o <out>                  source/ removed, the hash table rewritten
-              render-sheet <file> -o <dir> [--size 512]
-                                                     posters and the state and expression sheets as PNG
+              render-sheet <file> -o <dir> [--size 512] [--preset <name>]
+                                                     posters and the state and expression sheets as PNG, of a
+                                                     preset with --preset; with presets or options (format 1.1)
+                                                     also every preset and the options' combinations
               report <file>...                       one Markdown row per package
             """);
         return 2;
@@ -100,6 +103,10 @@ internal static class Commands
             Console.WriteLine($"  representation {r.Id}: {r.Renderer}/{r.Format} {r.Model} ({Size(package.GetFile(r.Model).Length)}), capabilities {string.Join(", ", AvatarCapabilities.Compute(package, r))}");
         foreach (var (label, path) in new[] { ("poster light", m.Posters.Light), ("poster dark", m.Posters.Dark) })
             Console.WriteLine($"  {label}: {path} {PosterSize(package, path)}");
+        foreach (var (name, option) in m.Options)
+            Console.WriteLine($"  option {name}: {string.Join(", ", option.Values.Select(v => v == option.Default ? v + " (default)" : v))} → {string.Join(", ", option.Bindings)}");
+        foreach (var (name, preset) in m.Presets)
+            Console.WriteLine($"  preset {name}: {preset.DisplayName}, {string.Join(", ", preset.Options.Select(o => $"{o.Key}={o.Value}").Concat(preset.Themes.Select(t => $"{t.Key} {t.Value.Light}/{t.Value.Dark}")))}");
         foreach (var path in package.FilePaths.Order(StringComparer.Ordinal))
             Console.WriteLine($"  {path,-40} {Size(package.GetFile(path).Length),10}");
         Console.WriteLine($"  validation: {report.Summary()}");
@@ -208,8 +215,12 @@ internal static class Commands
             return 1;
         }
 
+        var manifest = package.Manifest;
+        if (options.Preset is { } chosen && !manifest.Presets.ContainsKey(chosen))
+            throw new ArgumentException($"{manifest.Id} has no preset {chosen}; it has {(manifest.Presets.Count > 0 ? string.Join(", ", manifest.Presets.Keys) : "none")}.");
+
         Directory.CreateDirectory(output);
-        var id = package.Manifest.Id;
+        var id = options.Preset is { } named ? $"{manifest.Id}-{named}" : manifest.Id;
         using (painter)
         {
             void Save(string name, SKImage image)
@@ -218,9 +229,30 @@ internal static class Commands
                 Console.WriteLine(Path.Combine(output, name));
             }
 
+            var cell = Math.Max(128, options.Size / 2);
+            if (options.Preset is null && manifest.Presets.Count > 0)
+            {
+                var presets = manifest.Presets.Select(p => (p.Value.DisplayName, (string?)p.Key, (IReadOnlyDictionary<string, string>?)null)).ToList();
+                Save($"{id}-presets-light.png", painter.Figures(presets, Math.Min(presets.Count, 5), cell, dark: false));
+                Save($"{id}-presets-dark.png", painter.Figures(presets, Math.Min(presets.Count, 5), cell, dark: true));
+            }
+            if (options.Preset is null && manifest.Options.Count > 0)
+            {
+                // The first option across, the second down; any others at their defaults.
+                var (first, second) = (manifest.Options.First(), manifest.Options.Skip(1).FirstOrDefault());
+                var combinations = (second.Value?.Values ?? [null!]).SelectMany(down => first.Value.Values.Select(across =>
+                {
+                    var values = new Dictionary<string, string> { [first.Key] = across };
+                    if (down is not null)
+                        values[second.Key] = down;
+                    return (down is null ? across : $"{across}, {down}", (string?)null, (IReadOnlyDictionary<string, string>?)values);
+                })).ToList();
+                Save($"{id}-options.png", painter.Figures(combinations, first.Value.Values.Count, cell, dark: false));
+            }
+
+            painter.Choose(options.Preset);
             Save($"{id}-poster-light.png", painter.Draw(options.Size, dark: false));
             Save($"{id}-poster-dark.png", painter.Draw(options.Size, dark: true));
-            var cell = Math.Max(128, options.Size / 2);
             Save($"{id}-states.png", painter.Sheet([.. Enum.GetValues<AvatarState>().Select(s => (s.ToString(), s, AvatarExpression.Neutral))], cell, dark: false));
             Save($"{id}-expressions.png", painter.Sheet([.. Enum.GetValues<AvatarExpression>().Select(e => (e.ToString(), AvatarState.Idle, e))], cell, dark: false));
         }

@@ -29,8 +29,10 @@ EYES = ["round", "tall"]
 OUTLINES = {
     "ball": ("float d = length(q) - 0.72;",
              lambda x, y: m.length(x, y) - 0.72),
-    "cube": ("float d = roundBox4(q, float2(0.66, 0.62), float4(0.36, 0.29, 0.26, 0.33));",
-             lambda x, y: m.round_box4(x, y, 0.66, 0.62, (0.36, 0.29, 0.26, 0.33))),
+    # The cube's corners differ top from bottom and a little side from side, never diagonally: big corners at
+    # opposite ends of a diagonal read as a turned box.
+    "cube": ("float d = roundBox4(q, float2(0.66, 0.62), float4(0.34, 0.27, 0.31, 0.29));",
+             lambda x, y: m.round_box4(x, y, 0.66, 0.62, (0.34, 0.27, 0.31, 0.29))),
     "drop": ("float k = 1.0 - 0.18 * clamp(q.y / 0.78, -1.0, 1.0);\n        float d = ellipse(q, float2(0.6 * k, 0.78));",
              lambda x, y: m.ellipse(x, y, 0.6 * (1 - 0.18 * m.np.clip(y / 0.78, -1, 1)), 0.78)),
     "bowl": ("float d = smax(ellipse(q - float2(0.0, -0.5), float2(0.76, 1.06)), -0.42 - q.y, 0.12);",
@@ -45,17 +47,18 @@ OUTLINES = {
 
 # The hand-drawn deviation of each outline: amplitudes and phases of harmonics 2, 3, 4 and 5 of the angle, and
 # how much fuller one side is (positive: the right). Every shape its own, all small (about 2-3 % of the size),
-# static and smooth; the cube's fourth harmonic bows its sides, as its unequal corners do above. The second
-# harmonic's phase is always ±π/2, so it only widens or heightens the shape: at any other phase it turns the
-# outline into a leaning oval, and the figure looks tilted although it stands straight.
+# static and smooth; the cube's fourth harmonic bows its sides. Harmonics 2-4 are mirror-symmetric (2 and 4 at
+# phase ±π/2, 3 at 0 or π): at any other phase they turn the outline into a leaning oval or move its top to one
+# side, and the figure looks tilted although it stands straight. The irregularity is in the small fifth harmonic
+# and the fuller side.
 DRAWN = {
-    "ball": dict(amp=(0.008, 0.005, 0.0, 0.003), phase=(1.5708, 2.1, 0.0, 4.0), fuller=0.010),
-    "cube": dict(amp=(0.004, 0.004, 0.009, 0.002), phase=(-1.5708, 0.4, 0.0, 2.6), fuller=-0.008),
-    "drop": dict(amp=(0.007, 0.004, 0.0, 0.003), phase=(-1.5708, 1.0, 0.0, 5.1), fuller=0.008),
-    "bowl": dict(amp=(0.005, 0.005, 0.003, 0.0), phase=(1.5708, 3.0, 1.1, 0.0), fuller=-0.010),
-    "bean": dict(amp=(0.008, 0.004, 0.0, 0.003), phase=(-1.5708, 0.5, 0.0, 3.3), fuller=0.007),
-    "inverted-drop": dict(amp=(0.006, 0.005, 0.0, 0.003), phase=(1.5708, 1.7, 0.0, 0.9), fuller=-0.008),
-    "marshmallow": dict(amp=(0.004, 0.004, 0.006, 0.003), phase=(-1.5708, 2.8, 0.3, 1.6), fuller=0.009),
+    "ball": dict(amp=(0.008, 0.005, 0.0, 0.003), phase=(1.5708, 3.1416, 0.0, 4.0), fuller=0.008),
+    "cube": dict(amp=(0.004, 0.003, 0.009, 0.002), phase=(-1.5708, 0.0, 1.5708, 2.6), fuller=-0.006),
+    "drop": dict(amp=(0.007, 0.004, 0.0, 0.003), phase=(1.5708, 3.1416, 0.0, 5.1), fuller=0.006),
+    "bowl": dict(amp=(0.005, 0.004, 0.003, 0.002), phase=(1.5708, 0.0, -1.5708, 1.2), fuller=-0.006),
+    "bean": dict(amp=(0.008, 0.004, 0.0, 0.003), phase=(-1.5708, 3.1416, 0.0, 3.3), fuller=0.006),
+    "inverted-drop": dict(amp=(0.006, 0.005, 0.0, 0.003), phase=(1.5708, 0.0, 0.0, 0.9), fuller=-0.006),
+    "marshmallow": dict(amp=(0.004, 0.004, 0.006, 0.003), phase=(-1.5708, 3.1416, 1.5708, 1.6), fuller=0.007),
 }
 
 # Each shape's face, from the v1 figure it comes from: the resting look (lon, lat in radians; the shader uses

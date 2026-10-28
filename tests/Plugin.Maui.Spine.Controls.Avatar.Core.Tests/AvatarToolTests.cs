@@ -86,6 +86,49 @@ public sealed class AvatarToolTests : IDisposable
         Assert.Equal(File.ReadAllBytes(light), package!.GetFile(package.Manifest.Posters.Light).ToArray());
     }
 
+    [Fact]
+    public void Render_sheet_draws_every_preset_and_the_options_and_a_chosen_preset()
+    {
+        Assert.Equal(0, Commands.RenderSheet(Reference("mini"), new Options(_folder, null, null, null, 256, false)));
+        Assert.Equal(0, Commands.RenderSheet(Reference("mini"), new Options(_folder, null, null, null, 256, false, Preset: "teal")));
+
+        using (var presets = SKBitmap.Decode(Path.Combine(_folder, "mini-presets-light.png")))
+            Assert.Equal((5 * 128, 2 * (128 + 28)), (presets.Width, presets.Height));
+        using (var options = SKBitmap.Decode(Path.Combine(_folder, "mini-options.png")))
+            Assert.Equal((7 * 128, 2 * (128 + 28)), (options.Width, options.Height));
+        using var teal = SKBitmap.Decode(Path.Combine(_folder, "mini-teal-poster-light.png"));
+        using var brown = SKBitmap.Decode(Path.Combine(_folder, "mini-poster-light.png"));
+        // Mini Teal (#04AF9B) and the default Mini Brown (#9A6334): the body's average, without the white eyes.
+        static (double R, double G) Body(SKBitmap b)
+        {
+            var body = b.Pixels.Where(p => p.Alpha == 255 && !(p.Red > 225 && p.Green > 225 && p.Blue > 225)).ToList();
+            return (body.Average(p => p.Red), body.Average(p => p.Green));
+        }
+        Assert.True(Body(teal).G > Body(teal).R, $"teal's body is {Body(teal)}");
+        Assert.True(Body(brown).R > Body(brown).G, $"brown's body is {Body(brown)}");
+        Assert.True(File.Exists(Path.Combine(_folder, "mini-teal-states.png")));
+    }
+
+    [Fact]
+    public void Render_sheet_names_the_presets_when_asked_for_one_the_package_lacks()
+    {
+        var error = Assert.Throws<ArgumentException>(() => Commands.RenderSheet(Reference("mini"), new Options(_folder, null, null, null, 256, false, Preset: "gold")));
+
+        Assert.Contains("mini has no preset gold; it has brown, red, orange", error.Message);
+    }
+
+    [Fact]
+    public void Pack_keeps_the_options_and_presets()
+    {
+        var output = Path.Combine(_folder, "mini.spineavatar");
+
+        Assert.Equal(0, Commands.Pack(Reference("mini"), new Options(output, null, null, null, 192, Strip: true)));
+
+        var (package, _) = AvatarFiles.Read(output);
+        Assert.Equal(["shape", "eyes"], package!.Manifest.Options.Keys);
+        Assert.Equal(9, package.Manifest.Presets.Count);
+    }
+
     // A copy of a reference package with 1×1 posters and the hash table updated, as a generator's placeholders.
     private string Placeholders(string name)
     {

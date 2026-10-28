@@ -24,6 +24,29 @@ internal sealed class AvatarPainter : IDisposable
 
     public string Representation => $"{_representation.Id} ({_representation.Format})";
 
+    /// <summary>
+    /// Draws one of the package's figures from here on (format 1.1): a preset's option values and colours, with
+    /// <paramref name="options"/> over them; null and none draw the defaults. Only a shader binds options.
+    /// </summary>
+    public void Choose(string? preset, IReadOnlyDictionary<string, string>? options = null, bool dark = false)
+    {
+        var manifest = _package.Manifest;
+        _renderer.Options = AvatarChoices.Options(manifest, preset, options ?? new Dictionary<string, string>());
+        _renderer.ThemeColors = AvatarChoices.PresetColors(manifest, preset, dark).ToDictionary(p => p.Key, p => Rgba(p.Value), StringComparer.Ordinal);
+        _preset = preset;
+        _options = options;
+    }
+
+    private string? _preset;
+    private IReadOnlyDictionary<string, string>? _options;
+
+    // The format writes #RRGGBB or #RRGGBBAA; SKColor.Parse would read eight digits as #AARRGGBB.
+    private static SKColor Rgba(string hex)
+    {
+        var c = SKColor.Parse(hex[..7]);
+        return hex.Length == 9 ? c.WithAlpha(Convert.ToByte(hex[7..], 16)) : c;
+    }
+
     /// <summary>A painter for <paramref name="package"/>, or <see langword="null"/> with the reason when no Skia renderer takes it.</summary>
     public static AvatarPainter? Create(AvatarPackage package, out string? reason)
     {
@@ -67,9 +90,39 @@ internal sealed class AvatarPainter : IDisposable
 
         using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul));
         surface.Canvas.Clear(SKColors.Transparent);
+        // A preset's colours depend on the mode.
+        if (_preset is not null)
+            Choose(_preset, _options, dark);
         _renderer.Evaluate(frame);
         _renderer.Draw(surface.Canvas, new SKRect(0, 0, size, size), dark);
         surface.Canvas.Flush();
+        return surface.Snapshot();
+    }
+
+    /// <summary>
+    /// A grid of figures at rest, one cell per label: each a preset with options over it. Rows of
+    /// <paramref name="columns"/>; the painter keeps the last figure drawn.
+    /// </summary>
+    public SKImage Figures(IReadOnlyList<(string Label, string? Preset, IReadOnlyDictionary<string, string>? Options)> cells, int columns, int cell, bool dark)
+    {
+        const int caption = 28;
+        var rows = (cells.Count + columns - 1) / columns;
+        using var surface = SKSurface.Create(new SKImageInfo(Math.Min(columns, cells.Count) * cell, rows * (cell + caption)));
+        var canvas = surface.Canvas;
+        canvas.Clear(dark ? new SKColor(0x1C, 0x1C, 0x1E) : SKColors.White);
+        using var font = new SKFont(SKTypeface.Default, 14);
+        using var paint = new SKPaint { IsAntialias = true, Color = dark ? SKColors.White : SKColors.Black };
+
+        for (var i = 0; i < cells.Count; i++)
+        {
+            var (label, preset, options) = cells[i];
+            float x = i % columns * cell, y = i / columns * (cell + caption);
+            Choose(preset, options, dark);
+            using var image = Draw(cell, dark);
+            canvas.DrawImage(image, x, y);
+            canvas.DrawText(label, x + cell / 2f, y + cell + 20, SKTextAlign.Center, font, paint);
+        }
+        canvas.Flush();
         return surface.Snapshot();
     }
 
