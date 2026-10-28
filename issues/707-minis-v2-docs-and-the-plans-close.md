@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/707
 **Branch:** issue/707-minis-v2-docs-and-the-plans-close
-**Status:** In Progress
+**Status:** Completed (merged as [#708](https://github.com/jonatansoderberg/Maui.Spine/pull/708) on 2026-10-28)
 
 Step M2.6 of [docs/plans/spine-avatar-mini-v2.md](../docs/plans/spine-avatar-mini-v2.md), the last one.
 

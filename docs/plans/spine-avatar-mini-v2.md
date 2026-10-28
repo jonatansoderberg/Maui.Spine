@@ -1,6 +1,6 @@
 # Spine Avatar Minis v2: shapes and colour as options
 
-**Status:** Done. M2.0–M2.6 merged on 2026-10-28 (#696, #698, #700, #702, #704, #706 and the docs in #707's PR). Decisions M-D1–M-D9 approved 2026-10-28.
+**Status:** Done. M2.0–M2.6 merged on 2026-10-28 (#696, #698, #700, #702, #704, #706 #708). Decisions M-D1–M-D9 approved 2026-10-28.
 **Last updated:** 2026-10-28 (M2.6: docs; the plan is done)
 **Inputs:** the owner's review of v1 on 2026-10-28 (§2); Minis v1 (`912822b` on `claude/zealous-ramanujan-ipgj2p`, and `d5eacf18` on the local branch `minis-eyes-and-gestures`: eye reach, gestures for SkSL avatars); the format in [spine-avatar.md](../proposals/spine-avatar.md); the `spine-avatar` skill.
 **Related:** [spine-avatar.md](spine-avatar.md) (the avatar packages, phases B–C; this plan is phase M2 beside them), `samples/SpineAvatarLab/Tools/mini_avatars.py`, `mini_avatars.sksl`, `mini_eyereach.py`.
