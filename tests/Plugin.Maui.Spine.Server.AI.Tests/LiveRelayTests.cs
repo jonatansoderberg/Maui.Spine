@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.WebSockets;
@@ -15,10 +16,11 @@ using Xunit;
 
 namespace Plugin.Maui.Spine.Server.AI.Tests;
 
-/// <summary>One end of a WebSocket the test speaks for: JSON in and out, read with a timeout.</summary>
+/// <summary>One end of a WebSocket the test speaks for: JSON in and out, raw bytes for a binary message, read with a timeout.</summary>
 internal sealed class Peer(WebSocket socket)
 {
-    private readonly Channel<JsonObject?> _received = Channel.CreateUnbounded<JsonObject?>();
+    // A JsonObject for a text message, a byte[] for a binary one, null when the other side closed.
+    private readonly Channel<object?> _received = Channel.CreateUnbounded<object?>();
 
     public WebSocket Socket => socket;
 
@@ -41,7 +43,10 @@ internal sealed class Peer(WebSocket socket)
                     }
                     message.Write(buffer, 0, result.Count);
                 } while (!result.EndOfMessage);
-                _received.Writer.TryWrite(JsonNode.Parse(Encoding.UTF8.GetString(message.ToArray()))!.AsObject());
+                if (result.MessageType == WebSocketMessageType.Binary)
+                    _received.Writer.TryWrite(message.ToArray());
+                else
+                    _received.Writer.TryWrite(JsonNode.Parse(Encoding.UTF8.GetString(message.ToArray()))!.AsObject());
             }
         }
         catch (Exception)
@@ -53,12 +58,15 @@ internal sealed class Peer(WebSocket socket)
     public Task SendAsync(object message) =>
         socket.SendAsync(Encoding.UTF8.GetBytes(message is string text ? text : JsonSerializer.Serialize(message)), WebSocketMessageType.Text, true, CancellationToken.None);
 
+    public Task SendBinaryAsync(byte[] bytes) => socket.SendAsync(bytes, WebSocketMessageType.Binary, true, CancellationToken.None);
+
     /// <summary>The next message, or <see langword="null"/> when the other side closed.</summary>
-    public async Task<JsonObject?> NextAsync()
+    public async Task<JsonObject?> NextAsync() => await ReadAsync(TimeSpan.FromSeconds(5)) switch
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        return await _received.Reader.ReadAsync(timeout.Token);
-    }
+        JsonObject json => json,
+        byte[] bytes => throw new InvalidOperationException($"A binary message of {bytes.Length} bytes instead of JSON."),
+        _ => null,
+    };
 
     /// <summary>The next message of <paramref name="type"/>, skipping others.</summary>
     public async Task<JsonObject> NextAsync(string type)
@@ -70,18 +78,31 @@ internal sealed class Peer(WebSocket socket)
         throw new InvalidOperationException($"Closed before '{type}'.");
     }
 
-    /// <summary>Whether anything comes within a short while.</summary>
-    public async Task<JsonObject?> TryNextAsync(TimeSpan wait)
+    /// <summary>The next message, which must be binary.</summary>
+    public async Task<byte[]> NextBinaryAsync() => await ReadAsync(TimeSpan.FromSeconds(5)) switch
     {
-        using var timeout = new CancellationTokenSource(wait);
+        byte[] bytes => bytes,
+        JsonObject json => throw new InvalidOperationException($"'{json["type"]}' instead of a binary message."),
+        _ => throw new InvalidOperationException("Closed before a binary message."),
+    };
+
+    /// <summary>Whether anything comes within a short while.</summary>
+    public async Task<object?> TryNextAsync(TimeSpan wait)
+    {
         try
         {
-            return await _received.Reader.ReadAsync(timeout.Token);
+            return await ReadAsync(wait);
         }
         catch (OperationCanceledException)
         {
             return null;
         }
+    }
+
+    private async Task<object?> ReadAsync(TimeSpan wait)
+    {
+        using var timeout = new CancellationTokenSource(wait);
+        return await _received.Reader.ReadAsync(timeout.Token);
     }
 }
 
@@ -233,16 +254,15 @@ public sealed class LiveRelayTests : IAsyncLifetime
         return peer;
     }
 
-    /// <summary>The app connected and started, and the provider's side of the session.</summary>
-    private async Task<(Peer App, Peer Provider)> StartAsync(object? start = null)
+    /// <summary>The app connected and started, the provider's side of the session, and the session.started the app got.</summary>
+    private async Task<(Peer App, Peer Provider, JsonObject Started)> StartAsync(object? start = null)
     {
         var app = await ConnectAsync((string)(await TicketAsync())["url"]!);
         await app.SendAsync(start ?? new { type = "session.start", session = new { } });
         var provider = await _provider.NextConnectionAsync();
         await provider.NextAsync("session.start");
         await provider.SendAsync(new { type = "session.started", session = new { id = "live_1" } });
-        await app.NextAsync("session.started");
-        return (app, provider);
+        return (app, provider, await app.NextAsync("session.started"));
     }
 
     private async Task Until(Func<bool> condition, string what)
@@ -368,7 +388,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
     [Fact]
     public async Task Turning_goodbyes_on_or_off_mid_call_is_told_to_the_voice()
     {
-        var (app, provider) = await StartAsync();
+        var (app, provider, _) = await StartAsync();
         var hangUp = new { type = "function", name = "end_conversation", description = "Ends.", parameters = new { type = "object", properties = new { } } };
 
         await app.SendAsync(new { type = "session.update", session = new { tools = new object[] { hangUp } } });
@@ -390,7 +410,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
     [Fact]
     public async Task Audio_goes_both_ways_and_what_only_the_server_may_set_stays_behind()
     {
-        var (app, provider) = await StartAsync();
+        var (app, provider, _) = await StartAsync();
 
         await app.SendAsync(new { type = "session.input_audio.append", audio = "AAAA" });
         Assert.Equal("AAAA", (string?)(await provider.NextAsync("session.input_audio.append"))["audio"]);
@@ -415,6 +435,114 @@ public sealed class LiveRelayTests : IAsyncLifetime
         Assert.Equal("Hej", (string?)(await app.NextAsync("session.output_transcript.delta"))["delta"]);
     }
 
+    /// <summary>PCM16 of a 440 Hz tone, far above what the relay takes for silence.</summary>
+    private static byte[] Tone(int rate, int samples)
+    {
+        var pcm = new byte[samples * 2];
+        for (var i = 0; i < samples; i++)
+            BinaryPrimitives.WriteInt16LittleEndian(pcm.AsSpan(2 * i), (short)(8000 * Math.Sin(2 * Math.PI * 440 * i / rate)));
+        return pcm;
+    }
+
+    private static int Samples(JsonObject audio, string property) => Convert.FromBase64String((string)audio[property]!).Length / 2;
+
+    private static int Peak(byte[] pcm) => Enumerable.Range(0, pcm.Length / 2).Max(i => Math.Abs((int)BinaryPrimitives.ReadInt16LittleEndian(pcm.AsSpan(2 * i))));
+
+    [Fact]
+    public async Task An_app_may_take_its_audio_raw_at_its_own_rate()
+    {
+        var (app, provider, started) = await StartAsync(new { type = "session.start", session = new { audio = new { rate = 16000, binary = true } } });
+        Assert.Equal(16000, (int?)started["spine_audio"]!["rate"]);
+        Assert.True((bool?)started["spine_audio"]!["binary"]);
+        Assert.False((bool?)started["spine_audio"]!["pauses"]);
+
+        // 20 ms up: 320 samples at 16 kHz reach the provider as about 480 at 24 kHz, base64 in JSON as always.
+        await app.SendBinaryAsync(Tone(16000, 320));
+        var up = Convert.FromBase64String((string)(await provider.NextAsync("session.input_audio.append"))["audio"]!);
+        Assert.InRange(up.Length / 2, 478, 481);
+        Assert.InRange(Peak(up), 7000, 8000);
+
+        // A JSON append still works, resampled the same way.
+        await app.SendAsync(new { type = "session.input_audio.append", audio = Convert.ToBase64String(Tone(16000, 320)) });
+        Assert.InRange(Samples(await provider.NextAsync("session.input_audio.append"), "audio"), 478, 481);
+
+        // 20 ms down: 480 samples at 24 kHz reach the app as one binary message of about 320 at 16 kHz. Silence is still
+        // dropped, and everything else is still text.
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(new byte[960]) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        await provider.SendAsync(new { type = "session.output_transcript.delta", delta = "Hej", start_ms = 0, end_ms = 400 });
+        var down = await app.NextBinaryAsync();
+        Assert.InRange(down.Length / 2, 318, 321);
+        Assert.InRange(Peak(down), 7000, 8000);
+        Assert.Equal("Hej", (string?)(await app.NextAsync("session.output_transcript.delta"))["delta"]);
+    }
+
+    [Fact]
+    public async Task An_app_may_ask_for_the_pauses_the_relay_drops()
+    {
+        var (app, provider, started) = await StartAsync(new { type = "session.start", session = new { audio = new { rate = 16000, binary = true, pauses = true } } });
+        Assert.True((bool?)started["spine_audio"]!["pauses"]);
+
+        // The voice speaks, pauses for 40 ms of silence, which never reaches the app, and speaks again: the app hears how
+        // long the pause was right before the audio that follows it, so its playback can keep the stream's timing.
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        Assert.InRange((await app.NextBinaryAsync()).Length / 2, 318, 321);
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(new byte[960]) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(new byte[960]) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        Assert.Equal(40, (int?)(await app.NextAsync("spine.audio.pause"))["ms"]);
+        Assert.InRange((await app.NextBinaryAsync()).Length / 2, 318, 321);
+
+        // Silence at the start of an answer counts too, and a pause is reported once.
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(new byte[2400]) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        Assert.Equal(50, (int?)(await app.NextAsync("spine.audio.pause"))["ms"]);
+        await app.NextBinaryAsync();
+        await app.NextBinaryAsync();
+    }
+
+    [Fact]
+    public async Task An_app_may_keep_json_and_still_take_its_own_rate()
+    {
+        var (app, provider, started) = await StartAsync(new { type = "session.start", session = new { audio = new { rate = 16000 } } });
+        Assert.Equal(16000, (int?)started["spine_audio"]!["rate"]);
+        Assert.False((bool?)started["spine_audio"]!["binary"]);
+
+        await app.SendAsync(new { type = "session.input_audio.append", audio = Convert.ToBase64String(Tone(16000, 320)) });
+        Assert.InRange(Samples(await provider.NextAsync("session.input_audio.append"), "audio"), 478, 481);
+
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = Convert.ToBase64String(Tone(24000, 480)) });
+        Assert.InRange(Samples(await app.NextAsync("session.output_audio.delta"), "delta"), 318, 321);
+
+        // Binary from an app that did not ask for it goes nowhere.
+        await app.SendBinaryAsync(Tone(16000, 320));
+        Assert.Null(await provider.TryNextAsync(TimeSpan.FromMilliseconds(200)));
+    }
+
+    [Fact]
+    public async Task An_app_that_asks_for_nothing_gets_24_kHz_json_and_is_told_so()
+    {
+        var (_, _, started) = await StartAsync();
+
+        Assert.Equal(24000, (int?)started["spine_audio"]!["rate"]);
+        Assert.False((bool?)started["spine_audio"]!["binary"]);
+    }
+
+    [Theory]
+    [InlineData(4000)]
+    [InlineData(96000)]
+    [InlineData("16000")]
+    public async Task A_rate_the_relay_does_not_do_closes_the_session_before_it_starts(object rate)
+    {
+        var app = await ConnectAsync((string)(await TicketAsync())["url"]!);
+        await app.SendAsync(new { type = "session.start", session = new { audio = new { rate } } });
+
+        Assert.Null(await app.NextAsync());
+        Assert.Equal(WebSocketCloseStatus.PolicyViolation, app.Socket.CloseStatus);
+        Assert.Empty(_provider.Requests);
+    }
+
     private static object Envelope(string delegation, object inner) => new { type = "response.event", delegation_id = delegation, @event = inner };
 
     private static object Call(string callId, string name, string arguments = "{}") =>
@@ -426,7 +554,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
     [Fact]
     public async Task The_server_runs_its_own_functions_and_the_backend_goes_on_once()
     {
-        var (app, provider) = await StartAsync();
+        var (app, provider, _) = await StartAsync();
 
         await provider.SendAsync(Envelope("d1", new { type = "response.created", response = new { id = "resp_1" } }));
         await provider.SendAsync(Envelope("d1", Call("call_1", "get_my_bookings")));
@@ -447,7 +575,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
     [Fact]
     public async Task The_apps_result_is_passed_on_only_for_a_call_the_app_runs()
     {
-        var (app, provider) = await StartAsync(new
+        var (app, provider, _) = await StartAsync(new
         {
             type = "session.start",
             session = new { tools = new object[] { new { type = "function", name = "show_time", description = "Time." } } },
@@ -500,7 +628,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
     [Fact]
     public async Task The_session_is_settled_with_the_minutes_and_tokens_it_used()
     {
-        var (app, provider) = await StartAsync();
+        var (app, provider, _) = await StartAsync();
 
         await provider.SendAsync(Envelope("d1", Completed("resp_1", input: 1000, output: 500)));
         await provider.SendAsync(Envelope("d1", Completed("resp_1", input: 1000, output: 500)));
@@ -528,7 +656,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
     [Fact]
     public async Task The_server_ends_a_session_the_app_lets_run_past_its_limit()
     {
-        var (app, provider) = await StartAsync();
+        var (app, provider, _) = await StartAsync();
 
         _time.Advance(TimeSpan.FromMinutes(2));
         Assert.Null(await provider.TryNextAsync(TimeSpan.FromMilliseconds(200)));
@@ -544,7 +672,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
     [Fact]
     public async Task An_app_that_disconnects_has_its_session_closed_for_it()
     {
-        var (app, provider) = await StartAsync();
+        var (app, provider, _) = await StartAsync();
 
         await app.Socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None);
 
