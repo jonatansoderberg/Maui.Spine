@@ -1,7 +1,7 @@
 # Spine Avatar Minis v2: shapes and colour as options
 
-**Status:** Decisions M-D1–M-D9 approved by the owner on 2026-10-28; M2.0 is next. Nothing built yet.
-**Last updated:** 2026-10-28 (the owner approved every recommendation and added hand-drawn outlines, M-D9)
+**Status:** Decisions M-D1–M-D9 approved by the owner on 2026-10-28; M2.0 in review as #696. Nothing of M2.1 onwards built yet.
+**Last updated:** 2026-10-28 (M2.0 in review as #696; the owner approved every recommendation and added hand-drawn outlines, M-D9)
 **Inputs:** the owner's review of v1 on 2026-10-28 (§2); Minis v1 (`912822b` on `claude/zealous-ramanujan-ipgj2p`, and `d5eacf18` on the local branch `minis-eyes-and-gestures`: eye reach, gestures for SkSL avatars); the format in [spine-avatar.md](../proposals/spine-avatar.md); the `spine-avatar` skill.
 **Related:** [spine-avatar.md](spine-avatar.md) (the avatar packages, phases B–C; this plan is phase M2 beside them), `samples/SpineAvatarLab/Tools/mini_avatars.py`, `mini_avatars.sksl`, `mini_eyereach.py`.
 **Goal:** One small Mini avatar whose shape and colour the app chooses: seven general shapes drawn as if by hand, any body colour, the nine v1 figures kept as named presets, upright bodies that turn as they look, a subtle 3D shading, calmer talking eyes and a livelier jump. The format gains a general way for an avatar to offer such choices (`options` and `presets`), not something only the Minis can use.
@@ -116,7 +116,7 @@ Every step's tests pass, and for M2.3 onwards, per shape:
 
 | Step | What | Depends on | Issue | Status |
 | --- | --- | --- | --- | --- |
-| M2.0 | Land v1: PR for `912822b` + `d5eacf18` (eye reach, gestures for SkSL) and this plan, so M2 builds on master | — | | Ready (needs the owner's go to push) |
+| M2.0 | Land v1: PR for `912822b` + `d5eacf18` (eye reach, gestures for SkSL) and this plan, so M2 builds on master | — | — | In review ([#696](https://github.com/jonatansoderberg/Maui.Spine/pull/696)) |
 | M2.1 | Format 1.1: `options` and `presets` in `avatar.schema.json`, the manifest records, the validator and the format doc; a runtime version and the `minRuntimeVersion` check | M2.0 | | Waiting |
 | M2.2 | Runtime: option uniforms in both SkSL renderers, `AvatarView.SetOption`, `Preset`, bindable theme colour, the preset in `AvatarSource`; the lab's pickers (shape, preset, colour) and harness commands (`option shape cube`, `preset red`, `color body #hex`) | M2.1 | | Waiting |
 | M2.3 | Shader v2 and generator: one template with the seven hand-drawn shapes, upright with turn tilt, shading, calmer talking eyes, the new jump; `mini_eyereach.py` per shape; one `mini.spineavatar` with the nine presets | M2.2 | | Waiting |
