@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/701
 **Branch:** issue/701-minis-v2-one-package-seven-hand-drawn-shapes-uprig
-**Status:** In Progress
+**Status:** Completed (merged as [#702](https://github.com/jonatansoderberg/Maui.Spine/pull/702) on 2026-10-28)
 
 Step M2.3 of [docs/plans/spine-avatar-mini-v2.md](../docs/plans/spine-avatar-mini-v2.md). The decisions (M-D1–M-D9) are in the plan.
 

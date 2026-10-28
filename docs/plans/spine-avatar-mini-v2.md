@@ -1,6 +1,6 @@
 # Spine Avatar Minis v2: shapes and colour as options
 
-**Status:** M2.0–M2.2 done (#696, #698, #700, merged 2026-10-28); M2.3 in progress ([#701](https://github.com/jonatansoderberg/Maui.Spine/issues/701)). Decisions M-D1–M-D9 approved 2026-10-28.
+**Status:** M2.0–M2.2 done (#696, #698, #700, merged 2026-10-28); M2.3 in review ([#702](https://github.com/jonatansoderberg/Maui.Spine/pull/702) for #701). Decisions M-D1–M-D9 approved 2026-10-28.
 **Last updated:** 2026-10-28 (M2.3: mini.spineavatar with seven hand-drawn shapes and nine presets; M2.2 merged as #700)
 **Inputs:** the owner's review of v1 on 2026-10-28 (§2); Minis v1 (`912822b` on `claude/zealous-ramanujan-ipgj2p`, and `d5eacf18` on the local branch `minis-eyes-and-gestures`: eye reach, gestures for SkSL avatars); the format in [spine-avatar.md](../proposals/spine-avatar.md); the `spine-avatar` skill.
 **Related:** [spine-avatar.md](spine-avatar.md) (the avatar packages, phases B–C; this plan is phase M2 beside them), `samples/SpineAvatarLab/Tools/mini_avatars.py`, `mini_avatars.sksl`, `mini_eyereach.py`.
@@ -119,7 +119,7 @@ Every step's tests pass, and for M2.3 onwards, per shape:
 | M2.0 | Land v1: PR for `912822b` + `d5eacf18` (eye reach, gestures for SkSL) and this plan, so M2 builds on master | — | — | Done ([#696](https://github.com/jonatansoderberg/Maui.Spine/pull/696)) |
 | M2.1 | Format 1.1: `options` and `presets` in `avatar.schema.json`, the manifest records, the validator and the format doc; a runtime version and the `minRuntimeVersion` check | M2.0 | [#697](https://github.com/jonatansoderberg/Maui.Spine/issues/697) | Done ([#698](https://github.com/jonatansoderberg/Maui.Spine/pull/698)) |
 | M2.2 | Runtime: option uniforms in both SkSL renderers, `AvatarView.SetOption`, `Preset`, bindable theme colour, the preset in `AvatarSource`; the lab's pickers (shape, preset, colour) and harness commands (`option shape cube`, `preset red`, `color body #hex`) | M2.1 | [#699](https://github.com/jonatansoderberg/Maui.Spine/issues/699) | Done ([#700](https://github.com/jonatansoderberg/Maui.Spine/pull/700)) |
-| M2.3 | Shader v2 and generator: one template with the seven hand-drawn shapes, upright with turn tilt, shading, calmer talking eyes, the new jump; `mini_eyereach.py` per shape; one `mini.spineavatar` with the nine presets | M2.2 | [#701](https://github.com/jonatansoderberg/Maui.Spine/issues/701) | In progress |
+| M2.3 | Shader v2 and generator: one template with the seven hand-drawn shapes, upright with turn tilt, shading, calmer talking eyes, the new jump; `mini_eyereach.py` per shape; one `mini.spineavatar` with the nine presets | M2.2 | [#701](https://github.com/jonatansoderberg/Maui.Spine/issues/701) | Done ([#702](https://github.com/jonatansoderberg/Maui.Spine/pull/702)) |
 | M2.4 | Tool: `pack` and `validate` for options and presets, `render-sheet` per preset or shape | M2.1 | | Waiting |
 | M2.5 | Replace the nine v1 packages with `mini.spineavatar` in `samples/Avatars`, the lab's list and the tests (run per preset and shape) | M2.3, owner's review | | Waiting |
 | M2.6 | Docs: options, presets and colour in `docs/wiki/avatars.md` and the format doc, the skill's §3 and Mini notes | M2.5 | | Waiting |
