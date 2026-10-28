@@ -4,8 +4,12 @@
 // it as the gaze moves, narrowing toward the outline and hiding behind it, so a look is the whole figure
 // turning. The outline breathes and wobbles a little (more while thinking or talking) but keeps its shape.
 // Speaking shows in the eyes: each syllable stretches them taller, lifts them and pushes them into a
-// slight smile, and the body bounces with it. Uniforms follow AvatarShaderContract; the colours come
-// from the manifest's theme slots.
+// slight smile, and the body bounces with it. Both eyes always stay whole on the body: their turn eases
+// to a stop at REACH, the furthest the outer eye may go round this outline. Gestures (nod, shake, lean,
+// hop, wiggle, jump, dance) move the whole figure, since it has nothing else to move: a nod and a shake
+// turn the eyes down and up or side to side from a look ahead, a leap crouches, springs up, lands and
+// settles back. Uniforms follow
+// AvatarShaderContract; the colours come from the manifest's theme slots.
 uniform float2 iResolution;
 uniform float flow;
 uniform float inLevel;
@@ -30,6 +34,13 @@ uniform float2 gaze;
 uniform float2 look;
 uniform float3 spring;
 uniform float dark;
+uniform float gestureNod;
+uniform float gestureShake;
+uniform float gestureLean;
+uniform float gestureHop;
+uniform float gestureWiggle;
+uniform float gestureJump;
+uniform float gestureDance;
 uniform float3 body;
 uniform float3 eye;
 
@@ -53,6 +64,27 @@ float smax(float a, float b, float k) {
 
 float shape(float2 q) {
 {{SHAPE}}
+}
+
+// x unchanged up to 70 % of the limit, then easing to a stop at it, with no kink at the knee.
+float softLimit(float x, float limit) {
+    float knee = 0.7 * limit;
+    float a = abs(x);
+    if (a <= knee) {
+        return x;
+    }
+    float r = limit - knee;
+    return sign(x) * (knee + r * (1.0 - exp(-(a - knee) / r)));
+}
+
+// One leap over progress t: the crouch before takeoff, the flight (0 to 1 to 0) and the landing's short
+// squash, which eases out so the figure is back at rest when t reaches 1.
+float3 leap(float t, float takeoff, float land) {
+    float crouch = smoothstep(0.0, takeoff, t) * (1.0 - smoothstep(takeoff, takeoff + 0.05, t));
+    float air = clamp((t - takeoff) / (land - takeoff), 0.0, 1.0);
+    float flight = 4.0 * air * (1.0 - air);
+    float squash = 0.5 * smoothstep(land - 0.03, land, t) * (1.0 - smoothstep(land, 1.0, t));
+    return float3(crouch, flight, squash);
 }
 
 float2 rotate(float2 q, float a) {
@@ -110,42 +142,72 @@ half4 main(float2 fragCoord) {
     dir.x += stateConnecting * 0.55 * sin(flow * 2.6);
     dir += stateThinking * float2(0.25 * sin(flow * 0.6), 0.35);
     dir.y += 0.3 * exprCurious - 0.35 * exprApologetic + 0.25 * exprThinking - 0.25 * quiet;
+
+    // Gestures, each an envelope over its progress that is 0 at both ends.
+    // A nod and a shake first bring the look ahead, so the eyes have room to move both ways.
+    float nodOn = sin(3.1416 * gestureNod);
+    float shakeOn = sin(3.1416 * gestureShake);
+    float nod = sin(12.566 * gestureNod) * nodOn;
+    float shake = sin(12.566 * gestureShake) * shakeOn;
+    dir = mix(dir, float2(0.0), 0.85 * clamp(2.0 * max(nodOn, shakeOn), 0.0, 1.0));
+    float lean = smoothstep(0.0, 0.25, gestureLean) * (1.0 - smoothstep(0.7, 1.0, gestureLean));
+    float wiggle = sin(18.85 * gestureWiggle) * sin(3.1416 * gestureWiggle);
+    float danceOn = sin(3.1416 * gestureDance);
+    float beat = sin(18.85 * gestureDance);
+    float3 hop = leap(gestureHop, 0.25, 0.8);
+    float3 jump = leap(gestureJump, 0.32, 0.82);
+    dir.x += 0.7 * shake + 0.35 * beat * danceOn;
+    dir.y += -0.65 * nod + 0.3 * jump.y + 0.15 * hop.y;
+    dir = mix(dir, dir * 0.3, lean);
     dir = clamp(dir, float2(-1.0, -0.7), float2(1.0, 0.6));
 
     // Body motion: breathing, the scheduler's springs, a bounce per syllable, and the expressions' poses.
     float breath = 0.012 * sin(flow * 1.3 + PHASE);
     float stretch = breath + 0.045 * talk + 0.05 * g2 + 0.03 * exprConfident - 0.05 * exprApologetic
-                  - 0.03 * quiet + 0.03 * listen + spring.x;
-    float lift = 0.035 * talk + 0.02 * exprHappy * (0.5 + 0.5 * sin(flow * 5.0)) + spring.z * 0.6 - 0.03 * quiet;
+                  - 0.03 * quiet + 0.03 * listen + spring.x
+                  - 0.08 * (hop.x + hop.z) + 0.05 * hop.y - 0.15 * (jump.x + jump.z) + 0.07 * jump.y
+                  + 0.05 * abs(beat) * danceOn;
+    // How much a crouch shortens the figure (its squash and its shrink below), sunk by as much at the foot.
+    float crouchHop = 1.0 - (1.0 - 0.08 * (hop.x + hop.z)) * (1.0 - 0.05 * (hop.x + hop.z));
+    float crouchJump = 1.0 - (1.0 - 0.15 * (jump.x + jump.z)) * (1.0 - 0.09 * (jump.x + jump.z));
+    float lift = 0.035 * talk + 0.02 * exprHappy * (0.5 + 0.5 * sin(flow * 5.0)) + spring.z * 0.6 - 0.03 * quiet
+               - 0.03 * nod + 0.07 * hop.y + 0.13 * jump.y - FOOT * BODY_SCALE * (crouchHop + crouchJump)
+               + 0.03 * abs(beat) * danceOn;
     float tilt = TILT + spring.y + 0.12 * exprCurious - 0.05 * exprConfident + 0.04 * dir.x * 0.5
-               + stateThinking * 0.05 * sin(flow * 0.9);
-    float2 q = p - float2(dir.x * 0.04, BODY_Y + lift + dir.y * 0.02);
+               + stateThinking * 0.05 * sin(flow * 0.9)
+               + 0.06 * shake + 0.16 * wiggle - 0.12 * beat * danceOn - 0.06 * lean * sign(HOME.x);
+    float2 q = p - float2(dir.x * 0.04 + 0.06 * beat * danceOn, BODY_Y + lift + dir.y * 0.02);
     q = rotate(q, -tilt);
     q = float2(q.x * (1.0 + stretch * 0.7), q.y / (1.0 + stretch));
-    float grow = BODY_SCALE * (1.0 + 0.04 * stateListening + 0.05 * listen);
+    // A leap shrinks the figure a little, so the tall and the wide ones stay inside the frame; the crouch
+    // sinks (lift above) as far as it squashes, so the figure's foot stays on the ground.
+    float grow = BODY_SCALE * (1.0 + 0.04 * stateListening + 0.05 * listen + 0.07 * lean
+               - 0.06 * hop.y - 0.12 * jump.y - 0.05 * (hop.x + hop.z) - 0.09 * (jump.x + jump.z));
     q /= grow;
 
     // The outline keeps its shape and breathes a little; thinking and talking stir it.
     float a = atan(q.y, q.x);
-    float stir = 1.0 + 1.5 * stateThinking + talk + 0.8 * stateConnecting;
+    float stir = 1.0 + 1.5 * stateThinking + talk + 0.8 * stateConnecting + 2.5 * abs(wiggle);
     float wobble = WOBBLE * stir * (sin(a * 3.0 + flow * 1.1 + PHASE) + 0.6 * sin(a * 5.0 - flow * 1.7 + PHASE * 2.0));
     float db = shape(q) - wobble;
     float bodyCover = clamp(0.5 - db / px, 0.0, 1.0);
 
     // The eyes. Size: wider when listening, surprised or interrupted; narrower when confident.
-    float scale = 1.0 + 0.12 * stateListening + 0.08 * listen + 0.22 * g2 - 0.06 * exprConfident;
+    float scale = 1.0 + 0.12 * stateListening + 0.08 * listen + 0.22 * g2 - 0.06 * exprConfident
+                + 0.1 * lean + 0.12 * jump.y;
     float tall = 1.0 + 0.55 * talk + 0.1 * g2;
     float lidTop = 0.3 * quiet + 0.22 * stateThinking + 0.18 * exprThinking + 0.32 * exprConfident
-                 + 0.12 * exprConcerned + 0.1 * exprApologetic;
+                 + 0.12 * exprConcerned + 0.1 * exprApologetic + 0.25 * jump.x + 0.15 * hop.x;
     float slope = 0.6 * (exprConcerned + exprApologetic) - 0.25 * exprConfident;
-    float smile = clamp(exprHappy + 0.25 * talk, 0.0, 1.0);
+    float smile = clamp(exprHappy + 0.25 * talk + 0.7 * danceOn, 0.0, 1.0);
     float y = EYE_Y + 0.9 * MAP_Y * sin(dir.y) + 0.04 * talk;
     float sep = SEP * (1.0 - 0.15 * exprConfident);
     float ql = 1.0 + 0.18 * exprCurious;
     float qr = 1.0 - 0.12 * exprCurious;
     float closure = clamp(blink, 0.0, 1.0);
-    float dl = eyeDistance(q, dir.x - sep, dir.y, y, -1.0, scale * ql, tall, lidTop, slope, smile, closure);
-    float dr = eyeDistance(q, dir.x + sep, dir.y, y, 1.0, scale * qr, tall, lidTop, slope, smile, closure);
+    float turn = softLimit(dir.x, mix(REACH.x, REACH.y, (scale - 1.0) / 0.3) - sep);
+    float dl = eyeDistance(q, turn - sep, dir.y, y, -1.0, scale * ql, tall, lidTop, slope, smile, closure);
+    float dr = eyeDistance(q, turn + sep, dir.y, y, 1.0, scale * qr, tall, lidTop, slope, smile, closure);
     // Eyes are on the body: past its outline they are cut off.
     float de = max(min(dl, dr), db + 0.012);
     float eyeCover = clamp(0.5 - de / px, 0.0, 1.0);

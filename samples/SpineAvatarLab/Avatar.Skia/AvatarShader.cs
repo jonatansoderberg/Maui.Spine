@@ -78,6 +78,8 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     private readonly List<string> _names = [];
     private float[] _weights = [];
     private readonly Dictionary<string, float> _visemeOpenness = new(StringComparer.Ordinal);
+    // Gesture clip → its progress uniform, for the gestures the shader declares.
+    private readonly Dictionary<string, string> _gestureUniforms = new(StringComparer.Ordinal);
     private readonly float[] _bands = new float[AvatarShaderContract.BandCount];
     private readonly float[] _resolution = new float[2], _gaze = new float[2], _look = new float[2], _spring = new float[3], _accent = new float[4];
     private readonly Dictionary<string, float[]> _themeValues;
@@ -97,6 +99,9 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         foreach (var (expression, profile) in model.Manifest.Expressions)
             Uniform(profile.Pose, "expr" + Capitalize(expression));
         _weights = new float[_names.Count];
+        foreach (var gesture in AvatarShaderContract.GestureSeconds.Keys)
+            if (_declared.Contains(AvatarShaderContract.GestureUniform(gesture)))
+                _gestureUniforms[gesture] = AvatarShaderContract.GestureUniform(gesture);
         foreach (var (id, pose) in model.Manifest.Speech.Mapping)
             if (int.TryParse(id, System.Globalization.CultureInfo.InvariantCulture, out var i) && i is >= 0 and < 15)
                 _visemeOpenness[pose] = Openness[i];
@@ -159,6 +164,11 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         Set("gaze", _gaze);
         Set("look", _look);
         Set("spring", _spring);
+        foreach (var uniform in _gestureUniforms.Values)
+            Set(uniform, 0);
+        foreach (var clip in f.Clips)
+            if (clip.Layer == AvatarClipLayer.Gesture && _gestureUniforms.TryGetValue(clip.Clip, out var uniform))
+                Set(uniform, (float)Math.Clamp(clip.Time / AvatarShaderContract.GestureSeconds[clip.Clip], 0, 1));
 
         float W(string name) => _names.IndexOf(name) is >= 0 and var i ? _weights[i] : 0;
     }

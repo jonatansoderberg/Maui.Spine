@@ -98,6 +98,7 @@ public sealed class AvatarPackage
         {
             "spine2d" => GetScene(representation).Animations.ToDictionary(a => a.Key, a => a.Value.DurationSeconds, StringComparer.Ordinal),
             "glb" => GetGlb(representation).AnimationDurations,
+            "sksl" => AvatarShaderContract.GestureClips(System.Text.Encoding.UTF8.GetString(GetFile(representation.Model).Span)),
             _ => (IReadOnlyDictionary<string, double>)new Dictionary<string, double>(),
         });
 
