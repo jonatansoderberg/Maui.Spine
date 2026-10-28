@@ -1,7 +1,7 @@
 # Spine Avatar Minis v2: shapes and colour as options
 
-**Status:** Decisions M-D1–M-D9 approved by the owner on 2026-10-28; M2.0 in review as #696. Nothing of M2.1 onwards built yet.
-**Last updated:** 2026-10-28 (M2.0 in review as #696; the owner approved every recommendation and added hand-drawn outlines, M-D9)
+**Status:** M2.0 done (#696, merged 2026-10-28); M2.1 in progress ([#697](https://github.com/jonatansoderberg/Maui.Spine/issues/697)). Decisions M-D1–M-D9 approved 2026-10-28.
+**Last updated:** 2026-10-28 (M2.1: format 1.1 with options and presets, runtime version 1.1.0; M2.0 merged as #696)
 **Inputs:** the owner's review of v1 on 2026-10-28 (§2); Minis v1 (`912822b` on `claude/zealous-ramanujan-ipgj2p`, and `d5eacf18` on the local branch `minis-eyes-and-gestures`: eye reach, gestures for SkSL avatars); the format in [spine-avatar.md](../proposals/spine-avatar.md); the `spine-avatar` skill.
 **Related:** [spine-avatar.md](spine-avatar.md) (the avatar packages, phases B–C; this plan is phase M2 beside them), `samples/SpineAvatarLab/Tools/mini_avatars.py`, `mini_avatars.sksl`, `mini_eyereach.py`.
 **Goal:** One small Mini avatar whose shape and colour the app chooses: seven general shapes drawn as if by hand, any body colour, the nine v1 figures kept as named presets, upright bodies that turn as they look, a subtle 3D shading, calmer talking eyes and a livelier jump. The format gains a general way for an avatar to offer such choices (`options` and `presets`), not something only the Minis can use.
@@ -72,8 +72,8 @@ Two additive manifest sections, general for every format but bound only for `sks
 
 ```json
 "options": {
-  "shape": { "values": ["ball", "cube", "drop", "bowl", "bean", "inverted-drop", "marshmallow"], "default": "ball", "binding": "uniform:shape" },
-  "eyes":  { "values": ["round", "tall"], "default": "round", "binding": "uniform:eyeStyle" }
+  "shape": { "values": ["ball", "cube", "drop", "bowl", "bean", "inverted-drop", "marshmallow"], "default": "ball", "bindings": ["uniform:shape"] },
+  "eyes":  { "values": ["round", "tall"], "default": "round", "bindings": ["uniform:eyeStyle"] }
 },
 "presets": {
   "red":   { "displayName": "Mini Red",   "options": { "shape": "cube", "eyes": "tall" }, "themes": { "body": { "light": "#F1273A", "dark": "#FF4454" } } },
@@ -81,7 +81,7 @@ Two additive manifest sections, general for every format but bound only for `sks
 }
 ```
 
-- An option is a named choice of string values with a default. A `uniform:<name>` binding gets the value's index as a float; the shader declares it, and the contract accepts it because the manifest binds it (as theme slots work today). Other bindings (`node:` for spine2d visibility, `material:` for glb) are reserved, not built.
+- An option is a named choice of string values with a default. Its `bindings` are a list (§6.1); a `uniform:<name>` binding gets the value's index as a float; the shader declares it, and the contract accepts it because the manifest binds it (as theme slots work today). Other bindings (`node:` for spine2d visibility, `material:` for glb) are reserved, not built.
 - A preset is a name for a set of option values and theme colours, with a display name. The nine v1 figures become presets of one package.
 - Runtime API: `AvatarView.SetOption(name, value)`, a bindable `Preset`, and an `AvatarSource` that names a preset (`mini.spineavatar#red` or a `Preset` property; decided in M2.2). Changing an option or preset sets uniforms; it never reloads the package.
 - Validation: every binding's uniform is declared; values are unique; the default is one of them; a preset names only known options, values and slots. The `character` profile's requirements apply to the package, not to each preset.
@@ -116,8 +116,8 @@ Every step's tests pass, and for M2.3 onwards, per shape:
 
 | Step | What | Depends on | Issue | Status |
 | --- | --- | --- | --- | --- |
-| M2.0 | Land v1: PR for `912822b` + `d5eacf18` (eye reach, gestures for SkSL) and this plan, so M2 builds on master | — | — | In review ([#696](https://github.com/jonatansoderberg/Maui.Spine/pull/696)) |
-| M2.1 | Format 1.1: `options` and `presets` in `avatar.schema.json`, the manifest records, the validator and the format doc; a runtime version and the `minRuntimeVersion` check | M2.0 | | Waiting |
+| M2.0 | Land v1: PR for `912822b` + `d5eacf18` (eye reach, gestures for SkSL) and this plan, so M2 builds on master | — | — | Done ([#696](https://github.com/jonatansoderberg/Maui.Spine/pull/696)) |
+| M2.1 | Format 1.1: `options` and `presets` in `avatar.schema.json`, the manifest records, the validator and the format doc; a runtime version and the `minRuntimeVersion` check | M2.0 | [#697](https://github.com/jonatansoderberg/Maui.Spine/issues/697) | In progress |
 | M2.2 | Runtime: option uniforms in both SkSL renderers, `AvatarView.SetOption`, `Preset`, bindable theme colour, the preset in `AvatarSource`; the lab's pickers (shape, preset, colour) and harness commands (`option shape cube`, `preset red`, `color body #hex`) | M2.1 | | Waiting |
 | M2.3 | Shader v2 and generator: one template with the seven hand-drawn shapes, upright with turn tilt, shading, calmer talking eyes, the new jump; `mini_eyereach.py` per shape; one `mini.spineavatar` with the nine presets | M2.2 | | Waiting |
 | M2.4 | Tool: `pack` and `validate` for options and presets, `render-sheet` per preset or shape | M2.1 | | Waiting |
@@ -140,4 +140,4 @@ All approved by the owner on 2026-10-28 as recommended (the recommended option i
 
 ### 6.1 Decided during the work
 
-(none yet)
+- **M2.1 (#697):** an option's `bindings` is a list, as a theme slot's is (one choice may bind in several representations), not the single `binding` sketched in §3.3. A preset's colours name light and dark, like a theme slot. The runtime version is 1.1.0 from M2.1: a 1.1 package then loads and draws its default, and M2.2 lets an app choose; both land before the next tag. The Minis' `minRuntimeVersion` is 1.1.0, since their shaders declare gesture uniforms (#696).

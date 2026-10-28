@@ -193,6 +193,12 @@ public sealed class AvatarInput
 /// </summary>
 public sealed class AvatarRuntime
 {
+    /// <summary>
+    /// The avatar runtime's version, which a package's <c>minRuntimeVersion</c> is checked against when it loads:
+    /// 1.0.0 drew format 1.0; 1.1.0 adds options and presets (format 1.1) and a shader's gesture uniforms.
+    /// </summary>
+    public const string Version = "1.1.0";
+
     private AvatarDriver? _driver;
 
     /// <summary>What the driver, or the app with no driver, pushes into the avatar.</summary>

@@ -93,8 +93,9 @@ def package(fig, index, out_dir):
     avatar_id = "mini-" + fig["id"]
     model = f"models/{avatar_id}.sksl"
     manifest = {
+        # Runtime 1.1.0: the shader declares gesture uniforms (#696).
         "schemaVersion": "1.0", "id": avatar_id, "displayName": fig["name"], "assetVersion": "1.0.0",
-        "minRuntimeVersion": "1.0.0", "profile": "character",
+        "minRuntimeVersion": "1.1.0", "profile": "character",
         "representations": [{"id": "skia-shader", "renderer": "skia", "format": "sksl", "model": model}],
         "speech": {"canonicalProfile": "oculus15-v1", "expressionMouthScale": 1},
         "themes": {"slots": {

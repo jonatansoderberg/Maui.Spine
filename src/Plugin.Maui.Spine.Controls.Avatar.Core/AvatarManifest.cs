@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
-/// The <c>avatar.json</c> at the root of a <c>.spineavatar</c> archive, schema 1.0, with the defaults
+/// The <c>avatar.json</c> at the root of a <c>.spineavatar</c> archive, schema 1.0 or 1.1, with the defaults
 /// applied (<see cref="AvatarDefaults"/>): every state, expression and the reduced-motion pose are
 /// present whether the author wrote them or not.
 /// </summary>
@@ -12,6 +12,8 @@ namespace Plugin.Maui.Spine.Controls.Avatar;
 /// <see cref="Voices"/> names the voice the avatar speaks with, per provider: <c>openai</c> (OpenAI's and Azure OpenAI's
 /// realtime voices, such as <c>marin</c> or <c>cedar</c>), <c>azure</c> (Azure Speech, such as <c>sv-SE-SofieNeural</c>),
 /// or any other key an app reads. <c>VoiceAvatarDriver</c> asks the server for the <c>openai</c> one.
+/// <see cref="Options"/> and <see cref="Presets"/> (format 1.1) are the choices an app may make and the named figures
+/// one package carries; both are empty when the manifest has none.
 /// </remarks>
 public sealed record AvatarManifest(
     string SchemaVersion,
@@ -31,8 +33,38 @@ public sealed record AvatarManifest(
     string License,
     string Provenance,
     IReadOnlyList<AvatarFileEntry> Files,
+    IReadOnlyDictionary<string, AvatarOption> Options,
+    IReadOnlyDictionary<string, AvatarPreset> Presets,
     JsonElement? Extensions = null,
     IReadOnlyDictionary<string, string>? Voices = null);
+
+/// <summary>A choice the app may make, such as a shape (format 1.1).</summary>
+/// <param name="Values">The values, in order; a <c>uniform:</c> binding receives the value's index.</param>
+/// <param name="Default">The value shown until the app or a preset picks another.</param>
+/// <param name="Bindings"><c>uniform:&lt;name&gt;</c> (sksl, a <c>float</c>); <c>node:</c> and <c>material:</c> are reserved.</param>
+/// <param name="DisplayName">A name to show in a picker, if the author gave one.</param>
+public sealed record AvatarOption(IReadOnlyList<string> Values, string Default, IReadOnlyList<string> Bindings, string? DisplayName = null)
+{
+    /// <summary>The index of <paramref name="value"/>, or -1 when the option has no such value.</summary>
+    public int IndexOf(string value)
+    {
+        for (var i = 0; i < Values.Count; i++)
+        {
+            if (Values[i] == value)
+                return i;
+        }
+        return -1;
+    }
+}
+
+/// <summary>A named figure in a package (format 1.1): option values and theme colours.</summary>
+/// <param name="DisplayName">The figure's name, such as <c>Mini Red</c>.</param>
+/// <param name="Options">Option → value; an option left out has its default.</param>
+/// <param name="Themes">Theme slot → its colours in this figure; a slot left out keeps the manifest's.</param>
+public sealed record AvatarPreset(string DisplayName, IReadOnlyDictionary<string, string> Options, IReadOnlyDictionary<string, AvatarColors> Themes);
+
+/// <summary>A colour in light and dark mode, each <c>#RRGGBB</c> or <c>#RRGGBBAA</c>.</summary>
+public sealed record AvatarColors(string Light, string Dark);
 
 /// <summary>One way to draw the avatar: a renderer, a model in a format, and what its poses move.</summary>
 /// <param name="Id">Unique within the package.</param>

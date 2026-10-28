@@ -5,8 +5,8 @@ namespace Plugin.Maui.Spine.Controls.Avatar;
 /// <summary>
 /// The uniforms an <c>sksl</c> representation may declare; the runtime fills each one it finds every
 /// frame. A shader declares only what it uses. Theme slots add <c>float3</c> colours named by their
-/// <c>uniform:&lt;name&gt;</c> bindings. Anything else fails validation, so a shader written for a
-/// newer runtime is refused instead of drawn with zeros.
+/// <c>uniform:&lt;name&gt;</c> bindings, and options (format 1.1) a <c>float</c> each, the chosen value's index.
+/// Anything else fails validation, so a shader written for a newer runtime is refused instead of drawn with zeros.
 /// </summary>
 internal static partial class AvatarShaderContract
 {
@@ -70,6 +70,24 @@ internal static partial class AvatarShaderContract
     }
 
     public const string ThemeType = "float3";
+
+    /// <summary>The type of a uniform an option binds: the chosen value's index.</summary>
+    public const string OptionType = "float";
+
+    /// <summary>The uniforms the manifest's options bind (<c>uniform:&lt;name&gt;</c>), each with its option's name.</summary>
+    public static Dictionary<string, string> OptionUniforms(AvatarManifest manifest)
+    {
+        var uniforms = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (name, option) in manifest.Options)
+        {
+            foreach (var binding in option.Bindings)
+            {
+                if (binding.StartsWith("uniform:", StringComparison.Ordinal))
+                    uniforms[binding[8..]] = name;
+            }
+        }
+        return uniforms;
+    }
 
     /// <summary>The <c>uniform</c> declarations in a source: name, type and array length (0 for none).</summary>
     public static IEnumerable<(string Name, string Type)> Declarations(string source)

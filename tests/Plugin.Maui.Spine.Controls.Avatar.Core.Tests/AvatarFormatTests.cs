@@ -196,7 +196,7 @@ public class AvatarFormatTests
     [Fact]
     public void BothSchemasAreEmbedded()
     {
-        Assert.Equal("Spine Avatar manifest (avatar.json), format 1.0", AvatarSchemas.Manifest.GetProperty("title").GetString());
+        Assert.Equal("Spine Avatar manifest (avatar.json), format 1.1", AvatarSchemas.Manifest.GetProperty("title").GetString());
         Assert.Equal("Spine Avatar bindings, format 1.0", AvatarSchemas.Bindings.GetProperty("title").GetString());
     }
 

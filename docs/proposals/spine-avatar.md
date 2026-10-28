@@ -1,6 +1,6 @@
-# Spine Avatar: the authoring profile, format 1.0
+# Spine Avatar: the authoring profile, format 1.1
 
-**Status:** Frozen as format 1.0 in [#586](https://github.com/jonatansoderberg/Maui.Spine/issues/586) (step B0 of the [implementation plan](../plans/spine-avatar.md), decisions D7 and D9). The schemas are embedded in `Plugin.Maui.Spine.Controls.Avatar.Core` (`AvatarSchemas`), the defaults in `AvatarDefaults`, the conventions in the loader; this document says the same in words.
+**Status:** Frozen as format 1.0 in [#586](https://github.com/jonatansoderberg/Maui.Spine/issues/586) (step B0 of the [implementation plan](../plans/spine-avatar.md), decisions D7 and D9). Format 1.1 ([#697](https://github.com/jonatansoderberg/Maui.Spine/issues/697), step M2.1 of the [Minis v2 plan](../plans/spine-avatar-mini-v2.md)) adds options, presets and the runtime version check; every 1.0 package stays valid. The schemas are embedded in `Plugin.Maui.Spine.Controls.Avatar.Core` (`AvatarSchemas`), the defaults in `AvatarDefaults`, the conventions in the loader; this document says the same in words.
 **Audience:** someone writing a generator, an exporter or a package by hand, who needs nothing but this page to make a `.spineavatar` that validates.
 
 A Spine Avatar is content: a ZIP named `*.spineavatar` holding a manifest, one or more models, their bindings, posters, a licence and a provenance note. The runtime mixes states, expressions, visemes, blinks, gaze and springs into poses; the bindings say what each pose moves. The format has **defaults for everything a typical avatar shares**, so an author writes only what differs.
@@ -30,7 +30,7 @@ A manifest that writes every field explicitly, as the lab's packages from before
 
 ## 2. The manifest, `avatar.json`
 
-Required: `schemaVersion` (`"1.0"`), `id` (`^[a-z0-9][a-z0-9-]{1,63}$`), `displayName`, `assetVersion` and `minRuntimeVersion` (semantic versions), `profile` (`character`: a face that speaks and shows the eight expressions; `ambient`: an orb, waves, light; `humanoidAdvanced` is reserved), `representations` (1–8, best first), `posters` (`light`, `dark`), `license`, `provenance`, `files`. Everything else has the defaults of §1. The full schema: `avatar.schema.json` (`AvatarSchemas.ManifestResourceName`).
+Required: `schemaVersion` (`"1.0"`, or `"1.1"` for a manifest with options or presets), `id` (`^[a-z0-9][a-z0-9-]{1,63}$`), `displayName`, `assetVersion` and `minRuntimeVersion` (semantic versions), `profile` (`character`: a face that speaks and shows the eight expressions; `ambient`: an orb, waves, light; `humanoidAdvanced` is reserved), `representations` (1–8, best first), `posters` (`light`, `dark`), `license`, `provenance`, `files`. Everything else has the defaults of §1. The full schema: `avatar.schema.json` (`AvatarSchemas.ManifestResourceName`).
 
 A representation names its `renderer` and `format`, its `model` and, when it has one, its `bindings` file:
 
@@ -43,6 +43,23 @@ A representation names its `renderer` and `format`, its `model` and, when it has
 The view takes the first representation whose renderer the platform has, and shows the poster and the state as text when there is none. A new renderer id (a 3D route for Android, say) is an addition to the format, not a new version.
 
 `themes.slots` names colours the app may restyle: `{ "light": "#RRGGBB", "dark": "#RRGGBB", "bindings": [...] }`, where a binding is `material:<index>` (glb), `uniform:<name>` (sksl, a `float3` the shader declares) or `<node>.fill`, `<node>.fill.linear|radial|sweep.stops[<i>]`, `<node>.stroke` (spine2d).
+
+`minRuntimeVersion` is the oldest avatar runtime that draws the package (`AvatarRuntime.Version`). A runtime older than that refuses the package with both versions in the report, instead of failing on whatever it meets first. Use 1.0.0 for format 1.0 and 1.1.0 for options, presets or a shader's gesture uniforms.
+
+**Options and presets** (format 1.1) let one package carry several figures and let an app choose between them:
+
+```json
+"options": {
+  "shape": { "displayName": "Shape", "values": ["ball", "cube", "drop"], "default": "ball", "bindings": ["uniform:shape"] }
+},
+"presets": {
+  "red": { "displayName": "Mini Red", "options": { "shape": "cube" }, "themes": { "body": { "light": "#F1273A", "dark": "#FF4454" } } }
+}
+```
+
+An option is a named choice (`^[a-z][a-zA-Z0-9]{0,31}$`) of 2–64 values (`^[a-z0-9][a-z0-9-]{0,31}$`) with a default among them. Its `bindings` say what it drives. `uniform:<name>` is a `float` the shader declares, set to the chosen value's index: the default's index until the app picks another. `node:` and `material:` are reserved for spine2d and glb; they warn and are ignored.
+
+A preset is a named figure: a display name, option values (an option left out keeps its default) and theme colours (a slot left out keeps the manifest's). The validator checks that every preset names only declared options, their values and declared slots. It also checks that every `uniform:` binding is a declared `float` that neither the runtime nor a theme slot fills.
 
 `extensions` (manifest and bindings) holds keys `<namespace>.<name>` for tools and renderers outside the format. The schema is strict everywhere else: a key it does not know warns, so a 1.x file still loads, and nothing outside `extensions` is read.
 
@@ -174,6 +191,7 @@ The shader declares only the uniforms it reads, from this contract (`AvatarShade
 | `accent` | float4 | The app's accent, alpha 0 when it has none |
 | `gestureNod`, `gestureShake`, `gestureLean`, `gestureInterrupt`, `gestureHop`, `gestureWiggle`, `gestureThumbsUp`, `gestureJump`, `gestureDance` | float | A playing gesture's progress, 0 to 1, else 0. Declaring one gives the avatar that gesture, with the runtime's length for it (`AvatarShaderContract.GestureSeconds`) |
 | A theme slot's `uniform:<name>` | float3 | The slot's colour for the current theme |
+| An option's `uniform:<name>` | float | The chosen value's index (format 1.1) |
 
 **Voice Totem** (`spine2d` on `skia`, ambient). States override only their transition (180 ms) and gaze (`none`); it has no viseme poses (speech mode `none`) and follows the output level through its parameters:
 
