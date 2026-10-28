@@ -45,7 +45,29 @@ internal static partial class AvatarShaderContract
         ["dark"] = "float",
         // The app's accent colour, or the shader's own when the app has none (alpha 0).
         ["accent"] = "float4",
+        // A playing gesture's progress, 0 to 1, and 0 while it does not play. Declaring one gives the
+        // avatar that gesture; it runs for its length in GestureSeconds.
+        ["gestureNod"] = "float", ["gestureShake"] = "float", ["gestureLean"] = "float", ["gestureInterrupt"] = "float",
+        ["gestureHop"] = "float", ["gestureWiggle"] = "float", ["gestureThumbsUp"] = "float", ["gestureJump"] = "float",
+        ["gestureDance"] = "float",
     };
+
+    /// <summary>The length of each gesture a shader plays, in seconds.</summary>
+    public static readonly IReadOnlyDictionary<string, double> GestureSeconds = new Dictionary<string, double>(StringComparer.Ordinal)
+    {
+        ["nod"] = 0.9, ["shake"] = 1.0, ["lean"] = 1.6, ["interrupt"] = 0.5, ["hop"] = 0.7,
+        ["wiggle"] = 1.0, ["thumbsUp"] = 1.2, ["jump"] = 1.1, ["dance"] = 2.4,
+    };
+
+    /// <summary>The uniform that carries <paramref name="gesture"/>'s progress.</summary>
+    public static string GestureUniform(string gesture) => "gesture" + char.ToUpperInvariant(gesture[0]) + gesture[1..];
+
+    /// <summary>The gestures a shader declares a uniform for, with their lengths: its clips.</summary>
+    public static Dictionary<string, double> GestureClips(string source)
+    {
+        var declared = Declarations(source).Select(d => d.Name).ToHashSet(StringComparer.Ordinal);
+        return GestureSeconds.Where(g => declared.Contains(GestureUniform(g.Key))).ToDictionary(StringComparer.Ordinal);
+    }
 
     public const string ThemeType = "float3";
 

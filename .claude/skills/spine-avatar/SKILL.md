@@ -81,7 +81,7 @@ GLB bindings (`bindings/native3d.json`), besides `poses` (lists of morph writes 
 | `bloom: {intensity, threshold, radius}` | per-avatar glow (SceneKit threshold is luminance — blue needs high emission) |
 | `muteBadge`, `headNode`, `speechMouthMesh`, `expressionMouthTargets` | as named |
 
-SkSL: uniforms are listed in `Avatar.Core/AvatarShaderContract.cs` (time, `flow` phase, levels, `energy`, bands, mouth, `stateX`/`exprX` weights, gaze, look, springs, dark, accent, theme colours). Unknown uniforms fail validation. Animate with `flow`, not `iTime`, so speed changes stay smooth.
+SkSL: uniforms are listed in `Avatar.Core/AvatarShaderContract.cs` (time, `flow` phase, levels, `energy`, bands, mouth, `stateX`/`exprX` weights, gaze, look, springs, dark, accent, theme colours). Unknown uniforms fail validation. Animate with `flow`, not `iTime`, so speed changes stay smooth. Gestures: declare `gesture<Name>` (`gestureNod`, `gestureJump`, …) and the avatar has that gesture; the uniform runs 0→1 over the gesture's fixed length, so shape each motion with an envelope that is 0 at both ends. Keep both eyes on the body: the Minis ease the turn to a stop at a reach measured per outline (`Tools/mini_eyereach.py`).
 
 ## 4. The lab and its harness
 

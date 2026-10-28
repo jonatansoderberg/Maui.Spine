@@ -172,6 +172,7 @@ The shader declares only the uniforms it reads, from this contract (`AvatarShade
 | `spring` | float3 | Squash, tilt, lift |
 | `dark` | float | 1 in dark mode |
 | `accent` | float4 | The app's accent, alpha 0 when it has none |
+| `gestureNod`, `gestureShake`, `gestureLean`, `gestureInterrupt`, `gestureHop`, `gestureWiggle`, `gestureThumbsUp`, `gestureJump`, `gestureDance` | float | A playing gesture's progress, 0 to 1, else 0. Declaring one gives the avatar that gesture, with the runtime's length for it (`AvatarShaderContract.GestureSeconds`) |
 | A theme slot's `uniform:<name>` | float3 | The slot's colour for the current theme |
 
 **Voice Totem** (`spine2d` on `skia`, ambient). States override only their transition (180 ms) and gaze (`none`); it has no viseme poses (speech mode `none`) and follows the output level through its parameters:
