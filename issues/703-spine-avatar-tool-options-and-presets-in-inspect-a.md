@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/703
 **Branch:** issue/703-spine-avatar-tool-options-and-presets-in-inspect-a
-**Status:** In Progress
+**Status:** Completed (merged as [#704](https://github.com/jonatansoderberg/Maui.Spine/pull/704) on 2026-10-28)
 
 Step M2.4 of [docs/plans/spine-avatar-mini-v2.md](../docs/plans/spine-avatar-mini-v2.md).
 
