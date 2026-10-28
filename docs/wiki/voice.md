@@ -82,7 +82,7 @@ public partial class AssistantViewModel(IVoiceSession voice) : ViewModelBase   /
   - `AIFeatureOffException` when the feature is off or needs a signed-in user (`signInRequired`)
   - `AIRateLimitedException` with `RetryAfter`
   - `HttpRequestException` naming the URL for a wrong `SessionEndpoint`
-- **Providers.** The session speaks OpenAI's realtime events over a WebSocket, which covers Azure OpenAI too: the server's `protocol` is `openai` for both. A feature with `"Protocol": "Live"` answers `openai-live`, GPT-Live through the server's relay ([below](#gpt-live)). The server's feature decides; the app code is the same. Another protocol is refused before the microphone opens. Gemini Live and Azure Voice Live come when an app needs them.
+- **Providers.** The session speaks OpenAI's realtime events over a WebSocket, which covers Azure OpenAI too: the server's `protocol` is `openai` for both. A feature with `"Protocol": "Live"` answers `openai-live`, GPT-Live through the server's relay ([below](#gpt-live)); one with `"Relay": true` answers `openai-relay`, the same Realtime events through the server's relay ([server side](ai-server.md#the-realtime-api-through-the-relay)), which the session speaks exactly as `openai`. The server's feature decides; the app code is the same. Another protocol is refused before the microphone opens. Gemini Live and Azure Voice Live come when an app needs them.
 - **The installation id.** The token request sends it, the same `SecureStorage` key as push and the AI client. Per-installation rates then apply when the feature lets installations in.
 
 Seen on the owner's iPhone 16 Pro against `gpt-realtime` on 2026-10-15:

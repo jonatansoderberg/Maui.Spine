@@ -48,6 +48,26 @@ public sealed class LiveSessionTests : IAsyncLifetime
         _time.Advance(TimeSpan.FromSeconds(1));
     }
 
+    [Fact]
+    public async Task A_relayed_realtime_feature_is_reached_like_live_and_spoken_like_openai()
+    {
+        _tokens.Body = """
+            { "feature": "Voice", "protocol": "openai-relay", "model": "gpt-realtime-2.1-mini", "url": "realtime/Voice/relay?ticket=t2",
+              "token": "t2", "expiresAt": "2026-10-20T10:01:00+00:00", "maxMinutes": 2, "voice": "marin",
+              "tools": [ { "name": "show_time", "description": "The time.", "parameters": { "type": "object" }, "runsOn": [ "device" ], "prefer": "device" } ] }
+            """;
+        await ConnectAsync();
+
+        // The server's relay, with the app's own headers; the ticket travels in the url, so no bearer of the token.
+        Assert.Equal("wss://api.example.com/ai/realtime/Voice/relay?ticket=t2", _socket.Url?.ToString());
+        Assert.Equal("Bearer app-token", _socket.Headers["Authorization"]);
+        Assert.Equal("phone-1", _socket.Headers["Spine-Installation"]);
+        // The Realtime API's own events: the app's functions go in session.update, not in Live's session.start.
+        var update = Assert.Single(_socket.OfType("session.update"));
+        Assert.Equal("realtime", update.GetProperty("session").GetProperty("type").GetString());
+        Assert.Empty(_socket.OfType("session.start"));
+    }
+
     private async Task Until(Func<bool> condition, string what)
     {
         bool Met()

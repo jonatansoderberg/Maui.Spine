@@ -131,8 +131,8 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
 
     /// <summary>The headers that open the session's socket: the provider's token, or for the relay the app's own sign-in.</summary>
     public async Task<IReadOnlyDictionary<string, string>> SocketHeadersAsync(VoiceSessionToken token, CancellationToken cancellationToken) =>
-        token.Protocol == "openai-live"
-            ? await AppHeadersAsync(cancellationToken)
+        token.Protocol is "openai-live" or "openai-relay"
+            ? await AppHeadersAsync(cancellationToken) // the server's relay: the ticket is in the url, the app's own headers go with it
             : new Dictionary<string, string> { ["Authorization"] = $"Bearer {token.Token}" };
 
     private async Task<Dictionary<string, string>> AppHeadersAsync(CancellationToken cancellationToken)

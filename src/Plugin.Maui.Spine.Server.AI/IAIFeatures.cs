@@ -190,8 +190,10 @@ internal sealed class AIFeatures(
         try
         {
             var made = session.Protocol == AIRealtimeProtocol.Live
-                ? LiveTicket(found, caller, session, limit)
-                : await provider.CreateSessionAsync(request, cancellationToken);
+                ? RelayTicket(found, caller, session, limit, AIRealtimeProviders.LiveProtocol)
+                : session.Relay
+                    ? RelayTicket(found, caller, session, limit, AIRealtimeProviders.RelayProtocol)
+                    : await provider.CreateSessionAsync(request, cancellationToken);
             await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, null, minutes: (decimal)limit);
             return made with { Voice = session.Voice, MaxMinutes = limit };
         }
@@ -202,13 +204,13 @@ internal sealed class AIFeatures(
         }
     }
 
-    /// <summary>A ticket for the server's relay, which opens the provider's Live socket when the app connects with it.</summary>
-    private AIRealtimeSession LiveTicket(AIFeature found, AICaller caller, AIRealtimeOptions session, double limit)
+    /// <summary>A ticket for the server's relay, which opens the provider's socket (Live, or the Realtime API) when the app connects with it.</summary>
+    private AIRealtimeSession RelayTicket(AIFeature found, AICaller caller, AIRealtimeOptions session, double limit, string protocol)
     {
         var lifetime = TimeSpan.FromSeconds(Math.Clamp(session.TokenSeconds, 10, 7200));
         var ticket = services.GetRequiredService<AIRealtimeTickets>().Issue(found.Name, caller, limit, session.Voice, lifetime);
         var url = $"realtime/{Uri.EscapeDataString(found.Name)}/relay?ticket={Uri.EscapeDataString(ticket)}";
-        return new AIRealtimeSession(AIRealtimeProviders.LiveProtocol, url, ticket, meter.Time.GetUtcNow() + lifetime);
+        return new AIRealtimeSession(protocol, url, ticket, meter.Time.GetUtcNow() + lifetime);
     }
 
     public async Task<AISpeech?> SpeechAsync(string feature, string text, AICaller caller, CancellationToken cancellationToken = default)

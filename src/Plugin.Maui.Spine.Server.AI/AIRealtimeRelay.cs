@@ -562,50 +562,7 @@ internal sealed class AIRealtimeRelay
     /// </summary>
     private JsonArray Tools(JsonArray? appTools)
     {
-        var list = new JsonArray();
-        var appRuns = new HashSet<string>(StringComparer.Ordinal);
-
-        // The app's own tools only as far as the feature lists them and the server declared them for the device: the
-        // feature's catalogue decides in every session kind. The session's hang-up is the app's own. What the app offered
-        // beyond the catalogue is named in the log and in session.started, since a model left without the functions
-        // it was told about behaves oddly (a backend with only end_conversation hung up on every question, 2026-10-28).
-        var listed = _features.FunctionsOf(_feature).Where(t => t.OnDevice).Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
-        var unlisted = new List<string>();
-        foreach (var tool in appTools?.OfType<JsonObject>() ?? [])
-        {
-            if (Text(tool, "name") is not { Length: > 0 } name) continue;
-            if (!(listed.Contains(name) || name == EndConversation))
-            {
-                unlisted.Add(name);
-                continue;
-            }
-            if (!appRuns.Add(name)) continue;
-            list.Add(new JsonObject
-            {
-                ["type"] = "function",
-                ["name"] = name,
-                ["description"] = Text(tool, "description") ?? "",
-                ["parameters"] = tool["parameters"] is JsonObject parameters ? parameters.DeepClone() : EmptySchema(),
-            });
-        }
-
-        var serverRuns = new Dictionary<string, SpineAIFunction>(StringComparer.Ordinal);
-        foreach (var tool in _features.FunctionsOf(_feature).Where(t => t.OnServer && !appRuns.Contains(t.Name)))
-        {
-            if (_options.Functions.ServerFunction(tool.Name) is not { } declared) continue;
-            serverRuns[tool.Name] = declared;
-            list.Add(new JsonObject
-            {
-                ["type"] = "function",
-                ["name"] = tool.Name,
-                ["description"] = tool.Description,
-                ["parameters"] = JsonNode.Parse(tool.Parameters.GetRawText()),
-            });
-        }
-
-        foreach (var hosted in Options.Backend?.HostedTools ?? [])
-            list.Add(new JsonObject { ["type"] = hosted });
-
+        var list = AIRelayTools.Build(_features, _feature, _options, appTools, Options.Backend?.HostedTools ?? [], out var serverRuns, out var unlisted);
         lock (_lock)
         {
             _serverRuns.Clear();
@@ -618,11 +575,10 @@ internal sealed class AIRealtimeRelay
             _logger.LogWarning(
                 "AI feature '{Feature}': {Caller}'s Live session offered functions the feature does not list, so the model will not see them: {Names}. List them in the feature's Functions and declare them with AddDevice.",
                 _feature.Name, _caller.Key, string.Join(", ", unlisted));
-
         return list;
     }
 
-    private static JsonObject EmptySchema() => new() { ["type"] = "object", ["properties"] = new JsonObject() };
+    internal static JsonObject EmptySchema() => new() { ["type"] = "object", ["properties"] = new JsonObject() };
 
     /// <summary>The app's conversation so far, as GPT-Live's history: the text of user and assistant turns only.</summary>
     private static JsonArray History(JsonArray? input)
@@ -821,7 +777,7 @@ internal sealed class AIRealtimeRelay
     }
 
     /// <summary>The next whole message, text or binary, or <see langword="null"/> when the other side closed.</summary>
-    private static async Task<Message?> ReceiveAsync(WebSocket socket, int maxBytes, CancellationToken cancellationToken)
+    internal static async Task<Message?> ReceiveAsync(WebSocket socket, int maxBytes, CancellationToken cancellationToken)
     {
         var buffer = new byte[16 * 1024];
         using var message = new MemoryStream();
@@ -840,7 +796,7 @@ internal sealed class AIRealtimeRelay
     }
 
     /// <summary>A message as it came: the bytes of a binary one, or the UTF-8 of a text one.</summary>
-    private readonly record struct Message(bool Binary, byte[] Bytes)
+    internal readonly record struct Message(bool Binary, byte[] Bytes)
     {
         public string Text => Encoding.UTF8.GetString(Bytes);
     }
@@ -875,7 +831,7 @@ internal sealed class AIRealtimeRelay
     }
 
     /// <summary>The PCM16 a base64 property carries, or <see langword="null"/> for anything else.</summary>
-    private static byte[]? Pcm(JsonNode? node)
+    internal static byte[]? Pcm(JsonNode? node)
     {
         if (node is not JsonValue value || !value.TryGetValue<string>(out var base64)) return null;
         var bytes = new byte[(base64.Length + 3) / 4 * 3];
@@ -893,7 +849,7 @@ internal sealed class AIRealtimeRelay
     }
 
     /// <summary>The event's type, read without parsing the audio it may carry.</summary>
-    private static string? TypeOf(string message)
+    internal static string? TypeOf(string message)
     {
         var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes(message));
         try
@@ -912,7 +868,7 @@ internal sealed class AIRealtimeRelay
         return null;
     }
 
-    private static JsonObject? Parse(string message)
+    internal static JsonObject? Parse(string message)
     {
         try
         {
@@ -924,10 +880,10 @@ internal sealed class AIRealtimeRelay
         }
     }
 
-    private static string? Text(JsonObject node, string name) =>
+    internal static string? Text(JsonObject node, string name) =>
         node[name] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
 
-    private static long Number(JsonNode? node) => node is JsonValue value && value.TryGetValue<long>(out var number) ? number : 0;
+    internal static long Number(JsonNode? node) => node is JsonValue value && value.TryGetValue<long>(out var number) ? number : 0;
 
     private sealed class Delegation
     {

@@ -176,6 +176,15 @@ public sealed class AIRealtimeOptions
     public AIRealtimeProtocol Protocol { get; set; } = AIRealtimeProtocol.Realtime;
 
     /// <summary>
+    /// With <see cref="AIRealtimeProtocol.Realtime"/>: the app connects to the server's relay instead of the provider.
+    /// The server opens the provider's Realtime socket with its own key, writes the session, passes on what the app may
+    /// send, converts the audio to the app's rate (raw in binary messages when it asks), runs the feature's server
+    /// functions, sees every response's usage and ends the session at <see cref="MaxMinutes"/>. The app gets no token
+    /// (<c>protocol: "openai-relay"</c>). Off by default: the app connects to the provider with a short-lived token.
+    /// </summary>
+    public bool Relay { get; set; }
+
+    /// <summary>
     /// For a reasoning realtime model (<c>gpt-realtime-2.1</c>, <c>gpt-realtime-2.1-mini</c>): <c>minimal</c>, <c>low</c>,
     /// <c>medium</c> or <c>high</c>. Unset, the model's default. Not used by Live, whose backend has its own.
     /// </summary>
