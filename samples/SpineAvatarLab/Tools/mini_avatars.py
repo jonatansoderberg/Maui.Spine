@@ -1,87 +1,138 @@
-"""Generates the Minis: nine small sksl avatars, flat coloured bodies with two white eyes and no mouth.
+"""Generates the Minis: one sksl avatar, mini.spineavatar, whose options pick one of seven hand-drawn shapes
+(ball, cube, drop, bowl, bean, inverted-drop, marshmallow) and round or tall eyes, and whose presets are the
+nine figures of v1 (brown, red, orange, amber, green, teal, blue, purple, pink). The body colour is the theme
+slot `body`, so an app can give any colour (AvatarView.BodyColor).
 
 Usage: python mini_avatars.py <out-dir>
-Writes mini-<colour>.spineavatar for every figure into <out-dir>, with placeholder posters. Pack each one
-for shipping (the posters are then rendered from the shader):
-    spine-avatar pack <out-dir>/mini-red.spineavatar -o samples/Avatars/mini-red.spineavatar --strip
+Writes <out-dir>/mini.spineavatar with placeholder posters. Pack it for shipping (the posters are then
+rendered from the shader, with the default options):
+    spine-avatar pack <out-dir>/mini.spineavatar -o samples/Avatars/mini.spineavatar --strip --size 256
 
-The shader is mini_avatars.sksl beside this script; each figure fills its outline and constants. The
-figures are drawn after a concept row of nine coloured blobs (round, rounded square, egg, dome, pill,
-oval, tin, plump, round) whose eyes sit off-centre, as if each blob were turned to one side.
+The shader is mini_avatars.sksl beside this script; the outlines and faces below fill it. Each face's eye
+reach and foot are measured here from the Python outline (mini_eyereach.py), so they follow any change.
+Needs numpy.
 """
 import hashlib, io, json, os, struct, sys, zipfile, zlib
 
 here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, here)
+import mini_eyereach as m
+
 template = open(os.path.join(here, "mini_avatars.sksl"), encoding="utf-8").read()
 
-# Outlines in body space: x right, y up, the drawing spans -1..1 and the body stays inside about 0.8 of it
-# so squash, stretch and bounce never reach the edge.
-SHAPES = {
-    "round": "    return length(q) - 0.72;",
-    "squircle": "    return roundBox(q, float2(0.66, 0.62), 0.32);",
-    "egg": "    float k = 1.0 - 0.18 * clamp(q.y / 0.78, -1.0, 1.0);\n    return ellipse(q, float2(0.6 * k, 0.78));",
-    "dome": "    float d = ellipse(q - float2(0.0, -0.5), float2(0.76, 1.06));\n    return smax(d, -0.42 - q.y, 0.12);",
-    "pill": "    return roundBox(q, float2(0.8, 0.5), 0.42);",
-    "oval": "    float k = 1.0 + 0.1 * clamp(q.y / 0.78, -1.0, 1.0);\n    return ellipse(q, float2(0.6 * k, 0.78));",
-    "tin": "    float t = clamp(q.x / 0.68, -1.0, 1.0);\n    float2 r = float2(q.x * (1.0 + 0.06 * q.y), q.y - (q.y > 0.0 ? 0.1 : 0.04) * (1.0 - t * t));\n    return roundBox(r, float2(0.66, 0.6), 0.14);",
-    "plump": "    float k = 1.0 - 0.06 * clamp(q.y / 0.68, -1.0, 1.0);\n    return ellipse(q, float2(0.76 * k, 0.68));",
+# The option values, in order: the shader receives the index.
+SHAPES = ["ball", "cube", "drop", "bowl", "bean", "inverted-drop", "marshmallow"]
+EYES = ["round", "tall"]
+
+# Each outline in body space (x right, y up; the drawing spans -1..1 and the body stays inside about 0.8 of it,
+# so squash, stretch and the jump stay in the frame): the SkSL lines that compute `d`, and the same in Python.
+OUTLINES = {
+    "ball": ("float d = length(q) - 0.72;",
+             lambda x, y: m.length(x, y) - 0.72),
+    "cube": ("float d = roundBox4(q, float2(0.66, 0.62), float4(0.36, 0.29, 0.26, 0.33));",
+             lambda x, y: m.round_box4(x, y, 0.66, 0.62, (0.36, 0.29, 0.26, 0.33))),
+    "drop": ("float k = 1.0 - 0.18 * clamp(q.y / 0.78, -1.0, 1.0);\n        float d = ellipse(q, float2(0.6 * k, 0.78));",
+             lambda x, y: m.ellipse(x, y, 0.6 * (1 - 0.18 * m.np.clip(y / 0.78, -1, 1)), 0.78)),
+    "bowl": ("float d = smax(ellipse(q - float2(0.0, -0.5), float2(0.76, 1.06)), -0.42 - q.y, 0.12);",
+             lambda x, y: m.smax(m.ellipse(x, y + 0.5, 0.76, 1.06), -0.42 - y, 0.12)),
+    "bean": ("float d = roundBox(q, float2(0.8, 0.5), 0.42);",
+             lambda x, y: m.round_box(x, y, 0.8, 0.5, 0.42)),
+    "inverted-drop": ("float k = 1.0 + 0.16 * clamp(q.y / 0.78, -1.0, 1.0);\n        float d = ellipse(q, float2(0.58 * k, 0.78));",
+                      lambda x, y: m.ellipse(x, y, 0.58 * (1 + 0.16 * m.np.clip(y / 0.78, -1, 1)), 0.78)),
+    "marshmallow": ("float t = clamp(q.x / 0.68, -1.0, 1.0);\n        float d = roundBox(float2(q.x * (1.0 + 0.06 * q.y), q.y - (q.y > 0.0 ? 0.1 : 0.04) * (1.0 - t * t)), float2(0.66, 0.6), 0.14);",
+                    lambda x, y: (lambda t: m.round_box(x * (1 + 0.06 * y), y - m.np.where(y > 0, 0.1, 0.04) * (1 - t * t), 0.66, 0.6, 0.14))(m.np.clip(x / 0.68, -1, 1))),
 }
 
-# Each outline's lowest point below its centre (mini_eyereach.py prints it): a crouch sinks the figure by
-# as much as it shortens it there, so the foot stays on the ground.
-FEET = {"round": 0.72, "squircle": 0.619, "egg": 0.78, "dome": 0.42, "pill": 0.499, "oval": 0.78, "tin": 0.585, "plump": 0.68}
+# The hand-drawn deviation of each outline: amplitudes and phases of harmonics 2, 3, 4 and 5 of the angle, and
+# how much fuller one side is (positive: the right). Every shape its own, all small (about 2-3 % of the size),
+# static and smooth; the cube's fourth harmonic bows its sides, as its unequal corners do above. The second
+# harmonic's phase is always ±π/2, so it only widens or heightens the shape: at any other phase it turns the
+# outline into a leaning oval, and the figure looks tilted although it stands straight.
+DRAWN = {
+    "ball": dict(amp=(0.008, 0.005, 0.0, 0.003), phase=(1.5708, 2.1, 0.0, 4.0), fuller=0.010),
+    "cube": dict(amp=(0.004, 0.004, 0.009, 0.002), phase=(-1.5708, 0.4, 0.0, 2.6), fuller=-0.008),
+    "drop": dict(amp=(0.007, 0.004, 0.0, 0.003), phase=(-1.5708, 1.0, 0.0, 5.1), fuller=0.008),
+    "bowl": dict(amp=(0.005, 0.005, 0.003, 0.0), phase=(1.5708, 3.0, 1.1, 0.0), fuller=-0.010),
+    "bean": dict(amp=(0.008, 0.004, 0.0, 0.003), phase=(-1.5708, 0.5, 0.0, 3.3), fuller=0.007),
+    "inverted-drop": dict(amp=(0.006, 0.005, 0.0, 0.003), phase=(1.5708, 1.7, 0.0, 0.9), fuller=-0.008),
+    "marshmallow": dict(amp=(0.004, 0.004, 0.006, 0.003), phase=(-1.5708, 2.8, 0.3, 1.6), fuller=0.009),
+}
 
-# body: light and dark colour; shape; tilt (radians, positive turns counter-clockwise); home: the resting
-# look (lon, lat in radians; the shader uses half of it); eyes: dot (round) or pill (tall capsule), half
-# width and height; sep: half the angle between the eyes; mapX: how far round the body the eyes travel;
-# eyeY: the face's height; bodyY: the body's centre; reach: the furthest the outer eye may turn round the
-# body (radians) with both eyes whole inside the outline, at normal and at 1.3x eye size, measured by
-# mini_eyereach.py (run it again after changing a shape, the eyes or the face).
-FIGURES = [
-    dict(id="brown", name="Mini Brown", light="#9A6334", dark="#B07644", shape="round", tilt=0.0,
-         home=(-0.75, -0.25), eyes="dot", w=0.16, h=0.135, sep=0.42, mapX=0.64, eyeY=0.0, bodyY=0.0, reach=(0.94, 0.80)),
-    dict(id="red", name="Mini Red", light="#F1273A", dark="#FF4454", shape="squircle", tilt=-0.14,
-         home=(0.6, -0.35), eyes="pill", w=0.08, h=0.15, sep=0.3, mapX=0.62, eyeY=0.0, bodyY=0.0, reach=(1.11, 1.04)),
-    dict(id="orange", name="Mini Orange", light="#F8640A", dark="#FF7A2A", shape="egg", tilt=-0.22,
-         home=(0.35, 0.2), eyes="pill", w=0.085, h=0.16, sep=0.34, mapX=0.56, eyeY=0.04, bodyY=0.0, reach=(0.73, 0.60)),
-    dict(id="amber", name="Mini Amber", light="#F1920B", dark="#FFA62E", shape="dome", tilt=-0.06,
-         home=(0.6, -0.35), eyes="pill", w=0.075, h=0.14, sep=0.32, mapX=0.62, eyeY=-0.02, bodyY=-0.02, reach=(0.64, 0.48)),
-    dict(id="green", name="Mini Green", light="#0AC16D", dark="#2AD884", shape="pill", tilt=-0.04,
-         home=(-0.8, -0.05), eyes="dot", w=0.14, h=0.14, sep=0.34, mapX=0.76, eyeY=0.0, bodyY=0.0, reach=(0.91, 0.73)),
-    dict(id="teal", name="Mini Teal", light="#04AF9B", dark="#20C9B3", shape="oval", tilt=0.12,
-         home=(-0.65, -0.3), eyes="dot", w=0.13, h=0.13, sep=0.4, mapX=0.56, eyeY=-0.04, bodyY=0.0, reach=(0.77, 0.67)),
-    dict(id="blue", name="Mini Blue", light="#1C7FF5", dark="#4196FF", shape="tin", tilt=-0.06,
-         home=(-0.75, -0.2), eyes="dot", w=0.13, h=0.13, sep=0.38, mapX=0.66, eyeY=-0.04, bodyY=0.0, reach=(0.86, 0.78)),
-    dict(id="purple", name="Mini Purple", light="#8955F2", dark="#9D70FF", shape="plump", tilt=0.0,
-         home=(0.85, -0.6), eyes="pill", w=0.08, h=0.14, sep=0.32, mapX=0.72, eyeY=-0.04, bodyY=0.0, reach=(0.94, 0.82)),
-    dict(id="pink", name="Mini Pink", light="#F73096", dark="#FF4FA8", shape="round", tilt=0.0,
-         home=(-0.7, -0.05), eyes="dot", w=0.14, h=0.14, sep=0.42, mapX=0.64, eyeY=0.0, bodyY=0.0, reach=(0.98, 0.83)),
+# Each shape's face, from the v1 figure it comes from: the resting look (lon, lat in radians; the shader uses
+# 0.8 of it), half the angle between the eyes, how far round the body the eyes travel, the face's height, the
+# body's centre, and the eyes' half width and height, round and tall.
+FACES = {
+    "ball": dict(home=(-0.75, -0.25), sep=0.42, mapX=0.64, eyeY=0.0, bodyY=0.0, round=(0.15, 0.135), tall=(0.08, 0.145)),
+    "cube": dict(home=(0.6, -0.35), sep=0.30, mapX=0.62, eyeY=0.0, bodyY=0.0, round=(0.13, 0.125), tall=(0.08, 0.15)),
+    "drop": dict(home=(0.35, 0.2), sep=0.34, mapX=0.56, eyeY=0.04, bodyY=0.0, round=(0.13, 0.13), tall=(0.085, 0.16)),
+    "bowl": dict(home=(0.6, -0.35), sep=0.32, mapX=0.62, eyeY=0.0, bodyY=-0.02, round=(0.12, 0.115), tall=(0.072, 0.128)),
+    "bean": dict(home=(-0.8, -0.05), sep=0.34, mapX=0.76, eyeY=0.0, bodyY=0.0, round=(0.14, 0.14), tall=(0.08, 0.145)),
+    "inverted-drop": dict(home=(-0.65, -0.3), sep=0.40, mapX=0.56, eyeY=-0.04, bodyY=0.0, round=(0.13, 0.13), tall=(0.075, 0.14)),
+    "marshmallow": dict(home=(-0.75, -0.2), sep=0.38, mapX=0.66, eyeY=-0.04, bodyY=0.0, round=(0.13, 0.13), tall=(0.08, 0.145)),
+}
+
+# The nine figures of v1. One colour serves both modes; the shader lifts it a little in dark.
+PRESETS = [
+    dict(id="brown", name="Mini Brown", color="#9A6334", shape="ball", eyes="round"),
+    dict(id="red", name="Mini Red", color="#F1273A", shape="cube", eyes="tall"),
+    dict(id="orange", name="Mini Orange", color="#F8640A", shape="drop", eyes="tall"),
+    dict(id="amber", name="Mini Amber", color="#F1920B", shape="bowl", eyes="tall"),
+    dict(id="green", name="Mini Green", color="#0AC16D", shape="bean", eyes="round"),
+    dict(id="teal", name="Mini Teal", color="#04AF9B", shape="inverted-drop", eyes="round"),
+    dict(id="blue", name="Mini Blue", color="#1C7FF5", shape="marshmallow", eyes="round"),
+    dict(id="purple", name="Mini Purple", color="#8955F2", shape="ball", eyes="tall"),
+    dict(id="pink", name="Mini Pink", color="#F73096", shape="ball", eyes="round"),
 ]
+
+
+def sdf(name):
+    """The outline as drawn: the geometric shape minus its hand-drawn deviation, as outline() in the shader."""
+    geometric, d = OUTLINES[name][1], DRAWN[name]
+    return lambda x, y: geometric(x, y) - m.drawn(x, y, d)
+
+
+def measure():
+    """Per shape: eye reach (normal, 1.3x) for round and tall eyes, foot and the drawn deviation."""
+    rows, data = [], {}
+    for name in SHAPES:
+        f, face = sdf(name), FACES[name]
+        r = {eyes: (m.reach(f, face, face[eyes], 1.0), m.reach(f, face, face[eyes], 1.3)) for eyes in EYES}
+        # The shader eases the look to reach - sep; with no room past the eyes' own spread the eyes could not turn.
+        for eyes, (normal, enlarged) in r.items():
+            if min(normal, enlarged) < face["sep"] + 0.1:
+                raise SystemExit(f"{name} with {eyes} eyes: reach {normal}/{enlarged} leaves no room past sep {face['sep']}; make the eyes smaller or move them")
+        data[name] = dict(reach=r, foot=m.foot(f), deviation=m.deviation(DRAWN[name]))
+        rows.append(f"{name:14} round {r['round']}  tall {r['tall']}  foot {data[name]['foot']:.3f}  drawn ±{data[name]['deviation']:.3f}")
+    measure.data = data
+    return rows
 
 
 def f(x):
     return f"{x:.4f}"
 
 
-def shader(fig, index):
-    consts = "\n".join([
-        f"const float EYE_DOT = {f(1.0 if fig['eyes'] == 'dot' else 0.0)};",
-        f"const float EYE_W = {f(fig['w'])};",
-        f"const float EYE_H = {f(fig['h'])};",
-        f"const float SEP = {f(fig['sep'])};",
-        f"const float MAP_X = {f(fig['mapX'])};",
-        f"const float MAP_Y = 0.3;",
-        f"const float EYE_Y = {f(fig['eyeY'])};",
-        f"const float BODY_Y = {f(fig['bodyY'])};",
-        f"const float TILT = {f(fig['tilt'])};",
-        f"const float2 HOME = float2({f(fig['home'][0])}, {f(fig['home'][1])});",
-        f"const float2 REACH = float2({f(fig['reach'][0])}, {f(fig['reach'][1])});",
-        f"const float WOBBLE = 0.006;",
-        f"const float BODY_SCALE = 1.1;",
-        f"const float FOOT = {f(FEET[fig['shape']])};",
-        f"const float PHASE = {f(index * 1.37)};",
-    ])
-    return template.replace("{{CONSTS}}", consts).replace("{{SHAPE}}", SHAPES[fig["shape"]]).encode()
+def v(xs):
+    return ", ".join(f(x) for x in xs)
+
+
+def shader():
+    measure()
+    data = measure.data
+    outlines, faces = [], []
+    for i, name in enumerate(SHAPES):
+        d = DRAWN[name]
+        cond = f"s < {i + 0.5:.1f}" if i < len(SHAPES) - 1 else None
+        body = (f"        {OUTLINES[name][0]}\n"
+                f"        return d - drawn(q, float4({v(d['amp'])}), float4({v(d['phase'])}), {f(d['fuller'])});")
+        outlines.append(f"    // {name}\n" + (f"    if ({cond}) {{\n{body}\n    }}" if cond else "    {\n" + body + "\n    }"))
+        face, r = FACES[name], data[name]["reach"]
+        assign = (f"        home = float2({v(face['home'])}); sep = {f(face['sep'])}; mapX = {f(face['mapX'])};\n"
+                  f"        eyeY = {f(face['eyeY'])}; bodyY = {f(face['bodyY'])}; foot = {f(data[name]['foot'])}; phase = {f(i * 1.37)};\n"
+                  f"        dotEye = float2({v(face['round'])}); pillEye = float2({v(face['tall'])});\n"
+                  f"        reachRound = float2({v(r['round'])}); reachTall = float2({v(r['tall'])});")
+        faces.append(("    if" if i == 0 else "    } else if") + f" (shape < {i + 0.5:.1f}) {{  // {name}\n{assign}" if cond
+                     else f"    }} else {{  // {name}\n{assign}\n    }}")
+    return template.replace("{{OUTLINES}}", "\n".join(outlines)).replace("{{FACES}}", "\n".join(faces)).encode()
 
 
 def png_1x1():
@@ -89,30 +140,37 @@ def png_1x1():
     return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(b'\x00\x00\x00\x00\x00')) + chunk(b'IEND', b'')
 
 
-def package(fig, index, out_dir):
-    avatar_id = "mini-" + fig["id"]
-    model = f"models/{avatar_id}.sksl"
+def package(out_dir):
+    model = "models/mini.sksl"
+    default = PRESETS[0]
     manifest = {
-        # Runtime 1.1.0: the shader declares gesture uniforms (#696).
-        "schemaVersion": "1.0", "id": avatar_id, "displayName": fig["name"], "assetVersion": "1.0.0",
+        # Format 1.1 for options and presets; runtime 1.1.0 for them and for the gesture uniforms.
+        "schemaVersion": "1.1", "id": "mini", "displayName": "Mini", "assetVersion": "2.0.0",
         "minRuntimeVersion": "1.1.0", "profile": "character",
         "representations": [{"id": "skia-shader", "renderer": "skia", "format": "sksl", "model": model}],
         "speech": {"canonicalProfile": "oculus15-v1", "expressionMouthScale": 1},
         "themes": {"slots": {
-            "body": {"light": fig["light"], "dark": fig["dark"], "bindings": ["uniform:body"]},
+            "body": {"light": default["color"], "dark": default["color"], "bindings": ["uniform:body"]},
             "eye": {"light": "#FFFFFF", "dark": "#F4F5F7", "bindings": ["uniform:eye"]},
         }},
+        "options": {
+            "shape": {"displayName": "Shape", "values": SHAPES, "default": default["shape"], "bindings": ["uniform:shape"]},
+            "eyes": {"displayName": "Eyes", "values": EYES, "default": default["eyes"], "bindings": ["uniform:eyeStyle"]},
+        },
+        "presets": {p["id"]: {"displayName": p["name"], "options": {"shape": p["shape"], "eyes": p["eyes"]},
+                              "themes": {"body": {"light": p["color"], "dark": p["color"]}}} for p in PRESETS},
         "posters": {"light": "previews/poster-light.png", "dark": "previews/poster-dark.png"},
         "license": "LICENSE.txt", "provenance": "provenance.json",
     }
     files = {
-        model: shader(fig, index),
+        model: shader(),
         "previews/poster-light.png": png_1x1(),
         "previews/poster-dark.png": png_1x1(),
         "LICENSE.txt": b"Written for Maui.Spine. Same licence as the Maui.Spine repository.\n",
         "provenance.json": json.dumps({"model": "SkSL shader generated by samples/SpineAvatarLab/Tools/mini_avatars.py from mini_avatars.sksl",
-                                       "concept": "the owner's row of nine coloured blobs with white eyes (2026-10-27)"}, indent=1).encode(),
+                                       "concept": "the owner's row of nine coloured blobs with white eyes (2026-10-27), and the owner's review of v1 (2026-10-28)"}, indent=1).encode(),
         "source/mini_avatars.py": open(__file__, 'rb').read(),
+        "source/mini_eyereach.py": open(os.path.join(here, "mini_eyereach.py"), 'rb').read(),
         "source/mini_avatars.sksl": template.encode(),
     }
     manifest["files"] = [{"path": p, "sha256": hashlib.sha256(b).hexdigest(), "bytes": len(b)} for p, b in sorted(files.items())]
@@ -121,7 +179,7 @@ def package(fig, index, out_dir):
         z.writestr("avatar.json", json.dumps(manifest, indent=1))
         for p, b in sorted(files.items()):
             z.writestr(p, b)
-    path = os.path.join(out_dir, avatar_id + ".spineavatar")
+    path = os.path.join(out_dir, "mini.spineavatar")
     open(path, 'wb').write(out.getvalue())
     print(path, len(out.getvalue()), "bytes")
 
@@ -129,5 +187,6 @@ def package(fig, index, out_dir):
 if __name__ == "__main__":
     out_dir = sys.argv[1]
     os.makedirs(out_dir, exist_ok=True)
-    for i, fig in enumerate(FIGURES):
-        package(fig, i, out_dir)
+    for row in measure():
+        print(row)
+    package(out_dir)

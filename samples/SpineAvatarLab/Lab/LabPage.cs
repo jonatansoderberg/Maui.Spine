@@ -16,6 +16,7 @@ public sealed class LabPage : ContentPage
     [
         ("kairo", "Kairo"), ("nova", "Nova"), ("aurora-flow", "Aurora Flow"), ("plush-mochi", "Mochi"), ("plush-sprig", "Sprig"), ("plush-bean", "Bean"), ("plush-puff", "Puff"), ("plush-home", "Home"), ("pip", "Pip"), ("mpfb", "MPFB Human"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
         ("voice-totem", "Voice Totem"), ("aurora", "Aurora"), ("dotling", "Dotling"),
+        ("mini", "Mini"),
         ("mini-brown", "Mini Brown"), ("mini-red", "Mini Red"), ("mini-orange", "Mini Orange"), ("mini-amber", "Mini Amber"), ("mini-green", "Mini Green"),
         ("mini-teal", "Mini Teal"), ("mini-blue", "Mini Blue"), ("mini-purple", "Mini Purple"), ("mini-pink", "Mini Pink"),
     ];
