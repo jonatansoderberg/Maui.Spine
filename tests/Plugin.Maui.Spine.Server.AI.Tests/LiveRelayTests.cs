@@ -386,6 +386,36 @@ public sealed class LiveRelayTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_function_the_feature_does_not_list_is_dropped_and_the_app_is_told()
+    {
+        var app = await ConnectAsync((string)(await TicketAsync())["url"]!);
+        await app.SendAsync(new
+        {
+            type = "session.start",
+            session = new
+            {
+                tools = new object[]
+                {
+                    new { type = "function", name = "show_time", description = "The phone's time.", parameters = new { type = "object", properties = new { } } },
+                    new { type = "function", name = "set_volume", description = "Not in the catalogue.", parameters = new { type = "object", properties = new { } } },
+                    new { type = "function", name = "end_conversation", description = "Hangs up.", parameters = new { type = "object", properties = new { } } },
+                },
+            },
+        });
+        var provider = await _provider.NextConnectionAsync();
+        var start = await provider.NextAsync("session.start");
+        var names = start["session"]!["delegation"]!["responses"]!["tools"]!.AsArray().Select(t => (string?)t!["name"]).ToList();
+        Assert.Contains("show_time", names);
+        Assert.Contains("end_conversation", names);
+        Assert.DoesNotContain("set_volume", names);
+        Assert.DoesNotContain("set_volume", (string?)start["session"]!["instructions"]);
+
+        await provider.SendAsync(new { type = "session.started", session = new { id = "live_1" } });
+        var started = await app.NextAsync("session.started");
+        Assert.Equal("set_volume", (string?)started["spine_tools"]!["dropped"]![0]);
+    }
+
+    [Fact]
     public async Task Turning_goodbyes_on_or_off_mid_call_is_told_to_the_voice()
     {
         var (app, provider, _) = await StartAsync();

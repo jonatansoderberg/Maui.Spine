@@ -64,6 +64,7 @@ internal sealed class AIRealtimeRelay
     private readonly Lock _lock = new();
 
     private readonly Dictionary<string, SpineAIFunction> _serverRuns = new(StringComparer.Ordinal);
+    private readonly List<string> _unlisted = new();
     private readonly Dictionary<string, Delegation> _delegations = new(StringComparer.Ordinal);
     private readonly HashSet<string> _countedResponses = new(StringComparer.Ordinal);
     private readonly UsageDetails _backend = new();
@@ -230,6 +231,11 @@ internal sealed class AIRealtimeRelay
                     {
                         // The app sends no raw audio before it has seen that the relay takes it.
                         started["spine_audio"] = new JsonObject { ["rate"] = _appRate, ["binary"] = _binary, ["pauses"] = _pauses };
+                        string[] unlisted;
+                        lock (_lock)
+                            unlisted = [.. _unlisted];
+                        if (unlisted.Length > 0)
+                            started["spine_tools"] = new JsonObject { ["dropped"] = new JsonArray([.. unlisted.Select(n => (JsonNode)n)]) };
                         message = started.ToJsonString();
                     }
                     break;
@@ -560,11 +566,20 @@ internal sealed class AIRealtimeRelay
         var appRuns = new HashSet<string>(StringComparer.Ordinal);
 
         // The app's own tools only as far as the feature lists them and the server declared them for the device: the
-        // feature's catalogue decides in every session kind. The session's hang-up is the app's own.
+        // feature's catalogue decides in every session kind. The session's hang-up is the app's own. What the app offered
+        // beyond the catalogue is named in the log and in session.started, since a model left without the functions
+        // it was told about behaves oddly (a backend with only end_conversation hung up on every question, 2026-10-28).
         var listed = _features.FunctionsOf(_feature).Where(t => t.OnDevice).Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
+        var unlisted = new List<string>();
         foreach (var tool in appTools?.OfType<JsonObject>() ?? [])
         {
-            if (Text(tool, "name") is not { Length: > 0 } name || !(listed.Contains(name) || name == EndConversation) || !appRuns.Add(name)) continue;
+            if (Text(tool, "name") is not { Length: > 0 } name) continue;
+            if (!(listed.Contains(name) || name == EndConversation))
+            {
+                unlisted.Add(name);
+                continue;
+            }
+            if (!appRuns.Add(name)) continue;
             list.Add(new JsonObject
             {
                 ["type"] = "function",
@@ -596,7 +611,13 @@ internal sealed class AIRealtimeRelay
             _serverRuns.Clear();
             foreach (var (name, function) in serverRuns)
                 _serverRuns[name] = function;
+            _unlisted.Clear();
+            _unlisted.AddRange(unlisted);
         }
+        if (unlisted.Count > 0)
+            _logger.LogWarning(
+                "AI feature '{Feature}': {Caller}'s Live session offered functions the feature does not list, so the model will not see them: {Names}. List them in the feature's Functions and declare them with AddDevice.",
+                _feature.Name, _caller.Key, string.Join(", ", unlisted));
 
         return list;
     }
