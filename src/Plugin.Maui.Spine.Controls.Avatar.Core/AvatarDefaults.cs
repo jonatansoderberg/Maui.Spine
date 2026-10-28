@@ -24,7 +24,16 @@ internal sealed record AvatarManifestDocument(
     AvatarThemes? Themes = null,
     AvatarReducedMotionDocument? ReducedMotion = null,
     JsonElement? Extensions = null,
-    IReadOnlyDictionary<string, string>? Voices = null);
+    IReadOnlyDictionary<string, string>? Voices = null,
+    IReadOnlyDictionary<string, AvatarOptionDocument>? Options = null,
+    IReadOnlyDictionary<string, AvatarPresetDocument>? Presets = null);
+
+internal sealed record AvatarOptionDocument(IReadOnlyList<string> Values, string Default, IReadOnlyList<string> Bindings, string? DisplayName = null);
+
+internal sealed record AvatarPresetDocument(
+    string DisplayName,
+    IReadOnlyDictionary<string, string>? Options = null,
+    IReadOnlyDictionary<string, AvatarColors>? Themes = null);
 
 internal sealed record AvatarRepresentationDocument(
     string Id,
@@ -165,7 +174,17 @@ public static class AvatarDefaults
                 reduced?.RetainSpeech ?? true,
                 reduced?.TransitionMs ?? ReducedMotionTransitionMs,
                 Declared: reduced?.Pose is not null),
-            d.Posters, d.License, d.Provenance, d.Files, d.Extensions,
+            d.Posters, d.License, d.Provenance, d.Files,
+            (d.Options ?? new Dictionary<string, AvatarOptionDocument>()).ToDictionary(
+                o => o.Key, o => new AvatarOption(o.Value.Values, o.Value.Default, o.Value.Bindings, o.Value.DisplayName), StringComparer.Ordinal),
+            (d.Presets ?? new Dictionary<string, AvatarPresetDocument>()).ToDictionary(
+                p => p.Key,
+                p => new AvatarPreset(
+                    p.Value.DisplayName,
+                    p.Value.Options ?? new Dictionary<string, string>(),
+                    p.Value.Themes ?? new Dictionary<string, AvatarColors>()),
+                StringComparer.Ordinal),
+            d.Extensions,
             d.Voices ?? new Dictionary<string, string>());
     }
 

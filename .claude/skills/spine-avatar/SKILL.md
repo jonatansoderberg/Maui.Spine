@@ -66,7 +66,7 @@ Procedural faces from parameters end up looking like Nintendo Miis (the owner sa
 
 ## 3. The package contract (what the bindings can say)
 
-Manifest: `profile` (`character` needs all 7 states and 8 expressions, `ambient` does not), `representations[]` (`renderer` skia|native3d, `format` spine2d|sksl|glb, `capabilities`, owners for idle/blink/gaze), `states` (pose, transition, input/outputReactive, gaze mode), `expressions`, `speech` (canonical 15 visemes, `oculus15-v1`), `motions` (idle variants, gestures, blink interval), `themes.slots` (bindings `material:<i>` for GLB, `uniform:<name>` for SkSL, node paint paths for spine2d), posters.
+Manifest: `profile` (`character` needs all 7 states and 8 expressions, `ambient` does not), `representations[]` (`renderer` skia|native3d, `format` spine2d|sksl|glb, `capabilities`, owners for idle/blink/gaze), `states` (pose, transition, input/outputReactive, gaze mode), `expressions`, `speech` (canonical 15 visemes, `oculus15-v1`), `motions` (idle variants, gestures, blink interval), `themes.slots` (bindings `material:<i>` for GLB, `uniform:<name>` for SkSL, node paint paths for spine2d), posters. Format 1.1 adds `options` (named choices with values, a default and `bindings`; `uniform:<name>` is a `float` the shader declares, set to the value's index) and `presets` (named figures: option values and theme colours), so one package can carry several figures. `minRuntimeVersion` is checked against `AvatarRuntime.Version`: 1.1.0 for options, presets or gesture uniforms.
 
 GLB bindings (`bindings/native3d.json`), besides `poses` (lists of morph writes `{node, mesh, primitives, targetIndex, value}` or transform writes `{node, property, value}`) and `animations`:
 

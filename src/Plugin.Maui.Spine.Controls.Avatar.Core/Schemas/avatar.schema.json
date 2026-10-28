@@ -1,17 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jonatansoderberg/Maui.Spine/schemas/spineavatar/1.0/avatar.schema.json",
-  "title": "Spine Avatar manifest (avatar.json), format 1.0",
+  "$id": "https://github.com/jonatansoderberg/Maui.Spine/schemas/spineavatar/1.1/avatar.schema.json",
+  "title": "Spine Avatar manifest (avatar.json), format 1.1",
   "description": "The manifest at the root of a .spineavatar archive. Everything not required has a default; write only what differs from it. The authoring profile is docs/proposals/spine-avatar.md.",
   "type": "object",
   "required": ["schemaVersion", "id", "displayName", "assetVersion", "minRuntimeVersion", "profile", "representations", "posters", "license", "provenance", "files"],
   "additionalProperties": false,
   "properties": {
-    "schemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+$", "description": "1.0. A newer 1.x loads with a warning; its newer fields are ignored." },
+    "schemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+$", "description": "1.0, or 1.1 for options and presets. A newer 1.x loads with a warning; its newer fields are ignored." },
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$" },
     "displayName": { "type": "string", "minLength": 1, "maxLength": 64 },
     "assetVersion": { "$ref": "#/$defs/version" },
-    "minRuntimeVersion": { "$ref": "#/$defs/version" },
+    "minRuntimeVersion": { "$ref": "#/$defs/version", "description": "The oldest avatar runtime that draws the package; a runtime older than this refuses it. 1.0.0 for format 1.0; 1.1.0 for options, presets and gesture uniforms in a shader." },
     "profile": {
       "enum": ["ambient", "character", "humanoidAdvanced"],
       "description": "character: a face that speaks and shows the eight expressions; ambient: an orb, waves or light."
@@ -95,6 +95,45 @@
         }
       }
     },
+    "options": {
+      "type": "object",
+      "description": "Format 1.1. Choices the app may make, such as a shape: each a list of values, a default and what the choice drives. Absent: none.",
+      "propertyNames": { "pattern": "^[a-z][a-zA-Z0-9]{0,31}$" },
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["values", "default", "bindings"],
+        "properties": {
+          "displayName": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "values": { "type": "array", "minItems": 2, "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/choice" } },
+          "default": { "$ref": "#/$defs/choice", "description": "One of the values." },
+          "bindings": {
+            "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^(uniform|node|material):.+$" },
+            "description": "uniform:<name> (sksl, a float the shader declares, set to the value's index). node: and material: are reserved and ignored by this runtime."
+          }
+        }
+      }
+    },
+    "presets": {
+      "type": "object",
+      "description": "Format 1.1. Named figures in one package: option values and theme colours. Absent: none.",
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9-]{0,31}$" },
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["displayName"],
+        "properties": {
+          "displayName": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "options": {
+            "type": "object", "description": "Option name → one of its values. An option the preset leaves out has its default.",
+            "additionalProperties": { "$ref": "#/$defs/choice" }
+          },
+          "themes": {
+            "type": "object", "description": "Theme slot → its colours in this preset.",
+            "additionalProperties": {
+              "type": "object", "additionalProperties": false, "required": ["light", "dark"],
+              "properties": { "light": { "$ref": "#/$defs/color" }, "dark": { "$ref": "#/$defs/color" } }
+            }
+          }
+        }
+      }
+    },
     "reducedMotion": {
       "type": "object", "additionalProperties": false,
       "properties": {
@@ -141,6 +180,7 @@
     "name": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,64}$" },
     "path": { "type": "string", "pattern": "^[^/\\\\:][^\\\\:]*$", "maxLength": 256 },
     "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" },
+    "choice": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$" },
     "range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0 } },
     "owner": { "enum": ["scheduler", "model", "none"], "default": "scheduler" },
     "representation": {

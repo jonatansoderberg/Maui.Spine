@@ -12,6 +12,8 @@ namespace Plugin.Maui.Spine.Controls.Avatar;
 internal static partial class AvatarValidator
 {
     private static readonly string[] KnownProfiles = ["ambient", "character", "humanoidAdvanced"];
+    private static readonly string[] SchemaVersions = ["1.0", "1.1"];
+    private static readonly string[] OptionBindingKinds = ["uniform:", "node:", "material:"];
     private static readonly string[] SpeechModes = ["none", "audioReactive", "canonicalVisemes"];
     private static readonly string[] Spine2dParameters = Spine2dVocabulary.Parameters;
     private static readonly string[] SupportedRequiredFeatures = Spine2dVocabulary.Features;
@@ -35,6 +37,26 @@ internal static partial class AvatarValidator
     [GeneratedRegex("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")]
     private static partial Regex ColorPattern();
 
+    [GeneratedRegex(@"^(?<major>\d{1,9})\.(?<minor>\d{1,9})\.(?<patch>\d{1,9})(?<pre>-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$")]
+    private static partial Regex VersionPattern();
+
+    /// <summary>
+    /// Orders two semantic versions by major, minor and patch; a pre-release sorts below its release and build
+    /// metadata is ignored. Null when either is not a version.
+    /// </summary>
+    internal static int? CompareVersions(string a, string b)
+    {
+        if (VersionPattern().Match(a) is not { Success: true } x || VersionPattern().Match(b) is not { Success: true } y)
+            return null;
+        foreach (var part in new[] { "major", "minor", "patch" })
+        {
+            var order = int.Parse(x.Groups[part].Value, CultureInfo.InvariantCulture).CompareTo(int.Parse(y.Groups[part].Value, CultureInfo.InvariantCulture));
+            if (order != 0)
+                return order;
+        }
+        return (x.Groups["pre"].Success, y.Groups["pre"].Success) switch { (true, false) => -1, (false, true) => 1, _ => 0 };
+    }
+
     public static void Validate(AvatarPackage package, AvatarValidationReport report)
     {
         ValidateManifest(package, report);
@@ -50,8 +72,17 @@ internal static partial class AvatarValidator
 
         if (!m.SchemaVersion.StartsWith("1.", StringComparison.Ordinal))
             report.Fail(area, "schemaVersion", $"major version of '{m.SchemaVersion}' is not 1");
-        else if (m.SchemaVersion != "1.0")
-            report.Warn(area, "schemaVersion", $"{m.SchemaVersion}: fields newer than 1.0 are ignored");
+        else if (!SchemaVersions.Contains(m.SchemaVersion))
+            report.Warn(area, "schemaVersion", $"{m.SchemaVersion}: fields newer than {SchemaVersions[^1]} are ignored");
+        else if (m.SchemaVersion == "1.0" && (m.Options.Count > 0 || m.Presets.Count > 0))
+            report.Warn(area, "schemaVersion", "options and presets are format 1.1, but schemaVersion says 1.0");
+
+        // A package newer than the runtime would otherwise fail on whatever it uses first (an unknown uniform, say),
+        // which does not tell the app to update.
+        if (CompareVersions(m.MinRuntimeVersion, AvatarRuntime.Version) is not { } order)
+            report.Fail(area, "minRuntimeVersion", $"'{m.MinRuntimeVersion}' is not a version major.minor.patch");
+        else if (order > 0)
+            report.Fail(area, "minRuntimeVersion", $"needs avatar runtime {m.MinRuntimeVersion}; this one is {AvatarRuntime.Version}: update Plugin.Maui.Spine.Controls.Avatar");
 
         if (!IdPattern().IsMatch(m.Id))
             report.Fail(area, "id", $"'{m.Id}' does not match ^[a-z0-9][a-z0-9-]{{1,63}}$");
@@ -100,6 +131,8 @@ internal static partial class AvatarValidator
                 report.Fail(area, "themes", $"slot '{name}' has a colour that is not #RRGGBB or #RRGGBBAA");
         }
 
+        ValidateOptions(m, report);
+
         foreach (var (label, path) in new[] { ("posters.light", m.Posters.Light), ("posters.dark", m.Posters.Dark), ("license", m.License), ("provenance", m.Provenance) })
         {
             if (!package.TryGetFile(path, out _))
@@ -107,7 +140,48 @@ internal static partial class AvatarValidator
         }
 
         if (report.Failures.Count() == failures)
-            report.Pass(area, "manifest", $"{m.DisplayName} {m.AssetVersion}, {m.Profile}, {m.Representations.Count} representation(s)");
+        {
+            var choices = m.Options.Count + m.Presets.Count > 0 ? $", {m.Options.Count} option(s), {m.Presets.Count} preset(s)" : "";
+            report.Pass(area, "manifest", $"{m.DisplayName} {m.AssetVersion}, {m.Profile}, {m.Representations.Count} representation(s){choices}");
+        }
+    }
+
+    // What the schema cannot say: a default among the values, a preset's references, a binding's kind.
+    private static void ValidateOptions(AvatarManifest m, AvatarValidationReport report)
+    {
+        const string area = "manifest";
+        foreach (var (name, option) in m.Options)
+        {
+            if (option.IndexOf(option.Default) < 0)
+                report.Fail(area, "options", $"option '{name}' defaults to '{option.Default}', which is not one of its values");
+            foreach (var binding in option.Bindings)
+            {
+                if (!OptionBindingKinds.Any(kind => binding.StartsWith(kind, StringComparison.Ordinal) && binding.Length > kind.Length))
+                    report.Fail(area, "options", $"option '{name}' binds '{binding}', which is not uniform:<name>, node:<name> or material:<name>");
+                else if (!binding.StartsWith("uniform:", StringComparison.Ordinal))
+                    report.Warn(area, "options", $"option '{name}' binds '{binding}': node: and material: bindings are reserved, and this runtime ignores them");
+            }
+            if (option.Bindings.Any(b => b.StartsWith("uniform:", StringComparison.Ordinal)) && m.Representations.All(r => r.Format != "sksl"))
+                report.Warn(area, "options", $"option '{name}' binds a uniform, but no representation is a shader");
+        }
+
+        foreach (var (name, preset) in m.Presets)
+        {
+            foreach (var (option, value) in preset.Options)
+            {
+                if (!m.Options.TryGetValue(option, out var known))
+                    report.Fail(area, "presets", $"preset '{name}' sets option '{option}', which the manifest does not declare");
+                else if (known.IndexOf(value) < 0)
+                    report.Fail(area, "presets", $"preset '{name}' sets {option} to '{value}', which is not one of {string.Join(", ", known.Values)}");
+            }
+            foreach (var (slot, colors) in preset.Themes)
+            {
+                if (!m.Themes.Slots.ContainsKey(slot))
+                    report.Fail(area, "presets", $"preset '{name}' colours theme slot '{slot}', which the manifest does not declare");
+                else if (!ColorPattern().IsMatch(colors.Light) || !ColorPattern().IsMatch(colors.Dark))
+                    report.Fail(area, "presets", $"preset '{name}' gives slot '{slot}' a colour that is not #RRGGBB or #RRGGBBAA");
+            }
+        }
     }
 
     private static void ValidateRepresentation(AvatarPackage package, AvatarRepresentation r, AvatarValidationReport report)
@@ -513,12 +587,14 @@ internal static partial class AvatarValidator
         var declared = AvatarShaderContract.Declarations(source).ToList();
         var themes = package.Manifest.Themes.Slots.Values.SelectMany(s => s.Bindings)
             .Where(b => b.StartsWith("uniform:", StringComparison.Ordinal)).Select(b => b[8..]).ToHashSet(StringComparer.Ordinal);
+        var options = AvatarShaderContract.OptionUniforms(package.Manifest);
         var failures = report.Failures.Count();
         foreach (var (name, type) in declared)
         {
-            var expected = AvatarShaderContract.Uniforms.GetValueOrDefault(name) ?? (themes.Contains(name) ? AvatarShaderContract.ThemeType : null);
+            var expected = AvatarShaderContract.Uniforms.GetValueOrDefault(name)
+                ?? (themes.Contains(name) ? AvatarShaderContract.ThemeType : options.ContainsKey(name) ? AvatarShaderContract.OptionType : null);
             if (expected is null)
-                report.Fail(area, "shader", $"{r.Model}: uniform '{name}' is neither in the runtime's contract nor bound by a theme slot");
+                report.Fail(area, "shader", $"{r.Model}: uniform '{name}' is neither in the runtime's contract nor bound by a theme slot or an option");
             else if (expected != type)
                 report.Fail(area, "shader", $"{r.Model}: uniform '{name}' is {type}; the runtime provides {expected}");
         }
@@ -529,6 +605,13 @@ internal static partial class AvatarValidator
                 if (!binding.StartsWith("uniform:", StringComparison.Ordinal) || declared.All(d => d.Name != binding[8..]))
                     report.Fail(area, "themes", $"slot '{slotName}' binds '{binding}', which is not uniform:<name> of a declared uniform");
             }
+        }
+        foreach (var (uniform, option) in options)
+        {
+            if (declared.All(d => d.Name != uniform))
+                report.Fail(area, "options", $"option '{option}' binds 'uniform:{uniform}', which the shader does not declare");
+            else if (AvatarShaderContract.Uniforms.ContainsKey(uniform) || themes.Contains(uniform))
+                report.Fail(area, "options", $"option '{option}' binds 'uniform:{uniform}', which the runtime or a theme slot already fills");
         }
         if (!source.Contains("main(", StringComparison.Ordinal))
             report.Fail(area, "shader", $"{r.Model}: no main function");

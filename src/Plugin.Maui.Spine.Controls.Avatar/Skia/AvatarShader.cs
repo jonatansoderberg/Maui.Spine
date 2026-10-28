@@ -53,7 +53,8 @@ internal sealed class AvatarShaderModel : ISkiaAvatarModel
                 slotNames[binding[8..]] = name;
             }
 
-        var unknown = effect.Uniforms.Where(u => !AvatarShaderContract.Uniforms.ContainsKey(u) && !themes.ContainsKey(u)).ToList();
+        var options = AvatarShaderContract.OptionUniforms(package.Manifest);
+        var unknown = effect.Uniforms.Where(u => !AvatarShaderContract.Uniforms.ContainsKey(u) && !themes.ContainsKey(u) && !options.ContainsKey(u)).ToList();
         if (unknown.Count > 0 || effect.Children.Any())
         {
             throw new AvatarFormatException(representation.Model, unknown.Count > 0
@@ -133,6 +134,12 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         foreach (var gesture in AvatarShaderContract.GestureSeconds.Keys)
             if (_declared.Contains(AvatarShaderContract.GestureUniform(gesture)))
                 _gestureUniforms[gesture] = AvatarShaderContract.GestureUniform(gesture);
+        // An option's uniform holds its value's index from here on; it starts at the default.
+        foreach (var (uniform, name) in AvatarShaderContract.OptionUniforms(model.Manifest))
+        {
+            var option = model.Manifest.Options[name];
+            Set(uniform, option.IndexOf(option.Default));
+        }
         foreach (var (id, pose) in model.Manifest.Speech.Mapping)
             if (int.TryParse(id, System.Globalization.CultureInfo.InvariantCulture, out var i) && i is >= 0 and < 15)
                 _visemeOpenness[pose] = Openness[i];
