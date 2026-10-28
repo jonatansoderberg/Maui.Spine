@@ -30,32 +30,27 @@ def drawn(x, y, d):
 
 # The shader cuts eyes 0.012 inside the outline, and the outline wobbles by up to about 0.035 while thinking.
 MARGIN = 0.05
-EYE_LEAN = 0.2
+EYE_FAR = 0.65
 ANGLES = np.linspace(0, 2 * math.pi, 96)
 
 
-def eye_outline(face, size, lon, lat, talk, scale, centre):
-    """The eye's bounding ellipse as eyeDistance() places and sizes it (it bounds the tall eyes too); centre is the
-    face's turn, which sets both eyes' lean."""
+def eye_outline(face, size, lon, lat, talk, scale):
+    """The eye's bounding ellipse as eyeDistance() places and sizes it (it bounds the tall eyes too)."""
     turn = max(-1.57, min(1.57, lon))
     scale *= 1 + 0.03 * talk
     cx = face["mapX"] * math.sin(turn)
     cy = face["eyeY"] + 0.9 * 0.3 * math.sin(lat) + 0.065 * talk
-    w = size[0] * scale * (0.22 + 0.78 * math.cos(turn) ** 0.7)
+    w = size[0] * scale * (EYE_FAR + (1 - EYE_FAR) * math.cos(turn) ** 0.7)
     h = size[1] * scale * (1 + 0.08 * talk) * (0.75 + 0.25 * math.cos(lat))
-    # Both eyes lean alike with the face's turn, as the shader's eyeLean.
-    lean = EYE_LEAN * math.sin(centre)
-    ex, ey = w * np.cos(ANGLES), h * np.sin(ANGLES)
-    return cx + ex * math.cos(lean) - ey * math.sin(lean), cy + ex * math.sin(lean) + ey * math.cos(lean)
+    return cx + w * np.cos(ANGLES), cy + h * np.sin(ANGLES)
 
 
 def fits(sdf, face, size, reach, scale):
     for talk in (0, 1):
         # Speaking faces the viewer, so a talking eye is checked over a narrower range of looks up and down.
         for lat in np.linspace(-0.35, 0.35, 5) if talk else np.linspace(-0.7, 0.6, 9):
-            for lon, centre in ((reach, reach - face["sep"]), (reach - 2 * face["sep"], reach - face["sep"]),
-                                (-reach, face["sep"] - reach), (-reach + 2 * face["sep"], face["sep"] - reach)):
-                x, y = eye_outline(face, size, lon, lat, talk, scale, centre)
+            for lon in (reach, reach - 2 * face["sep"], -reach, -reach + 2 * face["sep"]):
+                x, y = eye_outline(face, size, lon, lat, talk, scale)
                 if sdf(x, y).max() > -MARGIN:
                     return False
     return True
