@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/697
 **Branch:** issue/697-avatar-format-11-options-presets-and-a-runtime-ver
-**Status:** In Progress (implemented; PR next)
+**Status:** In Progress (in review: [#698](https://github.com/jonatansoderberg/Maui.Spine/pull/698))
 
 Step M2.1 of [docs/plans/spine-avatar-mini-v2.md](../docs/plans/spine-avatar-mini-v2.md) (decisions M-D1–M-D9 approved 2026-10-28).
 
