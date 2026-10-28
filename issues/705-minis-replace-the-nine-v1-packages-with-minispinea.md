@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/705
 **Branch:** issue/705-minis-replace-the-nine-v1-packages-with-minispinea
-**Status:** In Progress
+**Status:** Completed (merged as [#706](https://github.com/jonatansoderberg/Maui.Spine/pull/706) on 2026-10-28)
 
 Step M2.5 of [docs/plans/spine-avatar-mini-v2.md](../docs/plans/spine-avatar-mini-v2.md).
 
