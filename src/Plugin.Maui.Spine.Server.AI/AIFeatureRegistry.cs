@@ -162,6 +162,8 @@ internal sealed class AIFeatureRegistry
                         if (string.IsNullOrWhiteSpace(live.Backend?.Model))
                             return Off(AIOffReason.NotConfigured, "Protocol is Live and Realtime:Backend:Model names no backend model.");
                     }
+                    if (options.Realtime is { Protocol: AIRealtimeProtocol.Realtime, Relay: true } && realtime is not IAIRealtimeRelayProvider)
+                        return Off(AIOffReason.NotConfigured, $"Realtime:Relay is on, and realtime provider '{provider}' cannot relay the Realtime API.");
                     return new(name, options, null, null, null, null, realtime, price);
 
                 case AIFeatureKind.Speech when _options.SpeechProviders.TryGetValue(provider, out var factory):

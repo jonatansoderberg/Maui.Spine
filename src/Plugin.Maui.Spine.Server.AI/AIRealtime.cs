@@ -69,6 +69,28 @@ public interface IAIRealtimeProvider
 }
 
 /// <summary>
+/// A realtime provider whose Realtime API socket the server opens with its own key for a feature with
+/// <c>Realtime:Relay</c>: the app talks to the server's relay in the Realtime API's own events, gets no token, and the
+/// server sees every response's usage.
+/// </summary>
+public interface IAIRealtimeRelayProvider
+{
+    /// <summary>Opens the provider's Realtime WebSocket for the feature's model with the server's key.</summary>
+    /// <param name="request">The feature's session, and the caller it is for.</param>
+    /// <param name="cancellationToken">Cancels connecting.</param>
+    /// <returns>The open socket.</returns>
+    Task<WebSocket> ConnectRealtimeAsync(AIRealtimeRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The session the relay writes with <c>session.update</c>: the feature's instructions, voice, audio, turn detection,
+    /// transcription and reasoning. Without tools: the relay adds the session's own.
+    /// </summary>
+    /// <param name="request">The feature's session.</param>
+    /// <returns>The <c>session</c> object.</returns>
+    JsonObject SessionOf(AIRealtimeRequest request);
+}
+
+/// <summary>
 /// A realtime provider that also speaks GPT-Live, which gives apps no credential: the server's relay opens the
 /// provider's WebSocket with the key and the app talks to the relay.
 /// </summary>
@@ -89,6 +111,9 @@ public static class AIRealtimeProviders
 
     /// <summary>GPT-Live's events, which the app speaks with the server's relay.</summary>
     public const string LiveProtocol = "openai-live";
+
+    /// <summary>OpenAI's Realtime events, which the app speaks with the server's relay (<c>Realtime:Relay</c>).</summary>
+    public const string RelayProtocol = "openai-relay";
 
     private static readonly HttpClient Shared = new(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) });
 
@@ -131,11 +156,42 @@ public static class AIRealtimeProviders
         provider["ApiKey"] is { Length: > 0 } key ? key : throw new InvalidOperationException("the provider has no ApiKey.");
 }
 
-internal sealed class OpenAIRealtimeProvider(HttpClient http, Uri root, string key, bool azure) : IAIRealtimeProvider, IAILiveProvider
+internal sealed class OpenAIRealtimeProvider(HttpClient http, Uri root, string key, bool azure) : IAIRealtimeProvider, IAILiveProvider, IAIRealtimeRelayProvider
 {
     private const int Rate = 24_000;
 
     internal Uri LiveUri => SocketUri("live/sessions", null);
+
+    public async Task<WebSocket> ConnectRealtimeAsync(AIRealtimeRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var socket = new ClientWebSocket();
+        if (azure) socket.Options.SetRequestHeader("api-key", key);
+        else socket.Options.SetRequestHeader("Authorization", $"Bearer {key}");
+        socket.Options.SetRequestHeader("OpenAI-Safety-Identifier", SafetyIdentifier(request.Caller));
+
+        try
+        {
+            await socket.ConnectAsync(new Uri(SocketOf(request.Model)), cancellationToken);
+            return socket;
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    public JsonObject SessionOf(AIRealtimeRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var session = (JsonObject)Body(request)["session"]!;
+        session.Remove("model");
+        session.Remove("tools");
+        session.Remove("tool_choice");
+        return session;
+    }
 
     public async Task<WebSocket> ConnectLiveAsync(AIRealtimeRequest request, CancellationToken cancellationToken = default)
     {

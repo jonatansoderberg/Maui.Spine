@@ -145,7 +145,7 @@ Spine-Installation: 3f2c…
 
 ## Realtime voice sessions
 
-A feature with `"Kind": "Realtime"` sets up a live voice session that the app connects to itself. The server asks the provider for a short-lived token with its own key and the feature's session, and the app opens the provider's WebSocket with that token. The provider's key never reaches the app. GPT-Live, which has no such token, goes through a relay on the server instead: see [GPT-Live through the relay](#gpt-live-through-the-relay). The client half is `Plugin.Maui.Spine.Voice` ([Voice](voice.md)); the design is in [the voice proposal](../proposals/spine-voice.md), §6.
+A feature with `"Kind": "Realtime"` sets up a live voice session that the app connects to itself. The server asks the provider for a short-lived token with its own key and the feature's session, and the app opens the provider's WebSocket with that token. The provider's key never reaches the app. GPT-Live, which has no such token, goes through a relay on the server instead: see [GPT-Live through the relay](#gpt-live-through-the-relay); a Realtime feature can go through one too, with `"Relay": true` ([below](#the-realtime-api-through-the-relay)). The client half is `Plugin.Maui.Spine.Voice` ([Voice](voice.md)); the design is in [the voice proposal](../proposals/spine-voice.md), §6.
 
 ```csharp
 builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
@@ -325,6 +325,27 @@ Calls the server ran itself reach the app with `InformationalOnly = true`, so th
 This holds in typed chat, in a call forwarded from a realtime session and in the GPT-Live relay. The relay runs each call in its own DI scope.
 
 **Both sides.** A function the server runs and declares for the device runs on the side the request's `prefer` names, else on the side the function prefers (`SpineAIFunction.Prefer`). The app sets it per chat with `ChatOptions.Prefer(name, side)`.
+
+### The Realtime API through the relay
+
+A `Kind: Realtime` feature with `"Relay": true` under `Realtime` keeps the app off the provider: the token request answers `"protocol": "openai-relay"` with a relative `url` (`realtime/{feature}/relay?ticket=…`, like Live's), the app connects to the server with its own sign-in, and the server opens the provider's Realtime WebSocket with its key. Both sides speak the Realtime API's own events, so a client that speaks `openai` directly speaks `openai-relay` unchanged; `Plugin.Maui.Spine.Voice` does. What the relay adds:
+
+- **The session is the feature's.** The relay writes `session.update` from the configuration (instructions, voice, audio, turn detection, transcription, reasoning) and the app's `session.update` carries only its functions, as far as the feature's `Functions` lists them (`end_conversation` always; the rest is named in the log and dropped). `conversation.item.create` passes only the user's and assistant's own messages and function results, `response.create` passes without its `response` object, and `input_audio_buffer.*`, `conversation.item.truncate` / `delete` / `retrieve` and `response.cancel` pass as they are.
+- **Server functions run on the server.** A `response.function_call_arguments.done` for one of the feature's server functions never reaches the app: the relay runs it with the caller's context, answers the model (`conversation.item.create` + `response.create`) and tells the app with `spine.function.output`. The app's own functions arrive as usual and the app answers them.
+- **Audio at the app's rate, raw when it asks.** `{ "type": "spine.audio", "audio": { "rate": 16000, "binary": true } }` before any audio; the relay answers with the same event carrying what it applies, `session.created` carries it as `spine_audio`, and from then on the app's binary messages are `input_audio_buffer.append` at the provider's 24 kHz and every `response.output_audio.delta` comes as one binary message at the app's rate. Silence stays in the audio (the Realtime API delivers an answer faster than real time, with its pauses inside), so there are no pause markers.
+- **Usage is what the model reports.** Every `response.done` is counted: text tokens as input/output, cached tokens as cached, and audio tokens apart as `audio_input_tokens` / `audio_output_tokens` under the price's `Additional` (they cost ten and more times the text price); at the end the reservation (`MaxMinutes × PerMinute`) is taken off and the tokens are recorded, so the budget sees the real cost and a session that only listened costs nothing. `PerMinute` is then only the reservation while the session runs.
+- **The limit holds.** The relay ends the session at `MaxMinutes` (plus 5 s) and closes the app's socket with "The session reached its time limit."; `session.close` from the app ends it early.
+
+```json
+"Assistant": { "Kind": "Realtime", "Provider": "openai", "Model": "gpt-realtime-2.1-mini", "Expose": true,
+               "Functions": [ "get_my_bookings", "show_time" ],
+               "Realtime": { "Relay": true, "Voice": "marin", "TurnDetection": "server_vad", "TranscriptionModel": "gpt-4o-transcribe",
+                             "Reasoning": "low", "MaxMinutes": 60, "TokenSeconds": 60 } }
+```
+
+and under `Prices`, `"gpt-realtime-2.1-mini": { "PerMinute": 0.03, "InputPerMillion": 0.6, "CachedInputPerMillion": 0.3, "OutputPerMillion": 2.4, "Additional": { "audio_input_tokens": 10, "audio_output_tokens": 20 } }`.
+
+A device such as the AI:Dash Desk Display (ESP32) then has one TLS connection to its own server, 32 KB/s of 16 kHz PCM each way instead of 64 KB/s of base64 at 24 kHz, no resampling, and exact metering; and since an open Realtime session that sends no audio costs no tokens, it keeps one parked between conversations and the wake word only opens the microphone.
 
 ### Functions in a voice session
 

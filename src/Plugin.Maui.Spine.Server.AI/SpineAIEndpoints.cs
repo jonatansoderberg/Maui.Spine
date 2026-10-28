@@ -292,7 +292,7 @@ public static class SpineAIEndpoints
         }
 
         if (!registry.Current.Features.TryGetValue(feature, out var found) || !found.Options.Expose || found.Options.Kind != AIFeatureKind.Realtime
-            || found.Options.Realtime?.Protocol != AIRealtimeProtocol.Live)
+            || found.Options.Realtime is not { } realtime || !(realtime.Protocol == AIRealtimeProtocol.Live || (realtime.Protocol == AIRealtimeProtocol.Realtime && realtime.Relay)))
         {
             await new AIFeatureOffException(feature, AIOffReason.NotConfigured).ToResult().ExecuteAsync(context);
             return;
@@ -321,7 +321,8 @@ public static class SpineAIEndpoints
             return;
         }
 
-        if (!features.TryGetOn(found.Name, out _) || found.Realtime is not IAILiveProvider provider)
+        var live = realtime.Protocol == AIRealtimeProtocol.Live;
+        if (!features.TryGetOn(found.Name, out _) || (live ? found.Realtime is not IAILiveProvider : found.Realtime is not IAIRealtimeRelayProvider))
         {
             await new AIFeatureOffException(found.Name, features.OffReason(found.Name)).ToResult().ExecuteAsync(context);
             return;
@@ -341,10 +342,12 @@ public static class SpineAIEndpoints
 
         using var held = lease;
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
-        var relay = new AIRealtimeRelay(
-            context, socket, found, caller, ticket, provider, features, services.GetRequiredService<SpineAIOptions>(), gate,
-            services.GetRequiredService<AIUsageMeter>(), logger);
-        await relay.RunAsync(cancellationToken);
+        var options = services.GetRequiredService<SpineAIOptions>();
+        var meter = services.GetRequiredService<AIUsageMeter>();
+        if (live)
+            await new AIRealtimeRelay(context, socket, found, caller, ticket, (IAILiveProvider)found.Realtime!, features, options, gate, meter, logger).RunAsync(cancellationToken);
+        else
+            await new AIRealtimeApiRelay(context, socket, found, caller, ticket, (IAIRealtimeRelayProvider)found.Realtime!, features, options, gate, meter, logger).RunAsync(cancellationToken);
     }
 
     /// <summary>

@@ -107,7 +107,7 @@ internal sealed class Peer(WebSocket socket)
 }
 
 /// <summary>A Live provider whose socket the test holds the other end of.</summary>
-internal sealed class FakeLiveProvider : IAIRealtimeProvider, IAILiveProvider
+internal sealed class FakeLiveProvider : IAIRealtimeProvider, IAILiveProvider, IAIRealtimeRelayProvider
 {
     private readonly Channel<Peer> _connections = Channel.CreateUnbounded<Peer>();
 
@@ -127,6 +127,15 @@ internal sealed class FakeLiveProvider : IAIRealtimeProvider, IAILiveProvider
         peer.Start();
         _connections.Writer.TryWrite(peer);
         return Task.FromResult(WebSocket.CreateFromStream(client, isServer: false, subProtocol: null, keepAliveInterval: TimeSpan.Zero));
+    }
+
+    public Task<WebSocket> ConnectRealtimeAsync(AIRealtimeRequest request, CancellationToken cancellationToken = default) => ConnectLiveAsync(request, cancellationToken);
+
+    public JsonObject SessionOf(AIRealtimeRequest request)
+    {
+        var session = new JsonObject { ["type"] = "realtime", ["audio"] = new JsonObject { ["output"] = new JsonObject { ["voice"] = request.Options.Voice } } };
+        if (request.Instructions is { } instructions) session["instructions"] = instructions;
+        return session;
     }
 
     public async Task<Peer> NextConnectionAsync()

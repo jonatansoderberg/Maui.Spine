@@ -90,6 +90,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
     // GPT-Live through the relay.
     private const string LiveProtocol = "openai-live";
+    // OpenAI's Realtime events through the server's relay (Realtime:Relay): the same session as 'openai', reached like Live.
+    private const string RelayProtocol = "openai-relay";
     // A pause longer than this between two pieces of one speaker's words starts a new message.
     private const double LiveTurnGapMs = 1500;
     // No answer audio for this long ends its item, so it plays out and the next audio starts a new one.
@@ -229,9 +231,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             var token = await _tokens.RequestAsync(feature, cancellationToken, Voice, MaxMinutes);
             _token = token;
             SpokenVoice = token.Voice;
-            if (token.Protocol is not ("openai" or LiveProtocol))
+            if (token.Protocol is not ("openai" or LiveProtocol or RelayProtocol))
                 throw new NotSupportedException(
-                    $"The voice feature '{feature}' speaks '{token.Protocol}', which Spine.Voice cannot speak yet; only 'openai' (OpenAI and Azure OpenAI) and '{LiveProtocol}' (GPT-Live).");
+                    $"The voice feature '{feature}' speaks '{token.Protocol}', which Spine.Voice cannot speak yet; only 'openai' (OpenAI and Azure OpenAI, directly or through the server's relay as '{RelayProtocol}') and '{LiveProtocol}' (GPT-Live).");
             _live = token.Protocol == LiveProtocol;
 
             var socket = _socketFactory();
