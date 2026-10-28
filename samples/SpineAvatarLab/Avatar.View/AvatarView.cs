@@ -142,6 +142,77 @@ public sealed class AvatarView : ContentView
         set => SetValue(AccentColorProperty, value);
     }
 
+    /// <summary>One of the avatar's named figures (format 1.1); changing it clears the values set with <see cref="SetOption"/>.</summary>
+    public string? Preset
+    {
+        get => _preset;
+        set
+        {
+            _preset = value;
+            _chosen = s_noOptions;
+            _choicesStale = true;
+        }
+    }
+
+    /// <summary>Sets an option over the preset's value and the default; null gives it back.</summary>
+    /// <exception cref="ArgumentException">The loaded avatar has no such option or value.</exception>
+    public void SetOption(string name, string? value)
+    {
+        if (Package is { } package && AvatarChoices.CheckOption(package.Manifest, name, value) is { } problem)
+            throw new ArgumentException(problem, nameof(value));
+        var chosen = new Dictionary<string, string>(_chosen, StringComparer.Ordinal);
+        if (value is null)
+            chosen.Remove(name);
+        else
+            chosen[name] = value;
+        _chosen = chosen;
+        _choicesStale = true;
+    }
+
+    /// <summary>The value an option shows, or null when the loaded avatar has no such option.</summary>
+    public string? GetOption(string name) =>
+        Package?.Manifest is { } manifest && manifest.Options.ContainsKey(name) ? AvatarChoices.Options(manifest, _preset, _chosen)[name] : null;
+
+    /// <summary>Colours a theme slot over the preset's and the avatar's own colours; null gives it back.</summary>
+    public void SetThemeColor(string slot, Color? color)
+    {
+        var colors = new Dictionary<string, Color>(_themeColors, StringComparer.Ordinal);
+        if (color is null)
+            colors.Remove(slot);
+        else
+            colors[slot] = color;
+        _themeColors = colors;
+        _choicesStale = true;
+    }
+
+    private static readonly Dictionary<string, string> s_noOptions = new(StringComparer.Ordinal);
+    private string? _preset;
+    private IReadOnlyDictionary<string, string> _chosen = s_noOptions;
+    private IReadOnlyDictionary<string, Color> _themeColors = new Dictionary<string, Color>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, string> _shownOptions = s_noOptions;
+    private IReadOnlyDictionary<string, Color> _shownColors = new Dictionary<string, Color>(StringComparer.Ordinal);
+    private bool _choicesStale = true;
+    private bool? _choicesDark;
+
+    // The options and colours shown, for the current mode, since a preset names both a light and a dark colour.
+    private void UpdateChoices(bool dark)
+    {
+        if (!_choicesStale && _choicesDark == dark)
+            return;
+        _choicesStale = false;
+        _choicesDark = dark;
+        var colors = new Dictionary<string, Color>(StringComparer.Ordinal);
+        if (Package?.Manifest is { } manifest)
+        {
+            foreach (var (slot, hex) in AvatarChoices.PresetColors(manifest, _preset, dark))
+                colors[slot] = Color.FromRgba(hex);
+            _shownOptions = AvatarChoices.Options(manifest, _preset, _chosen);
+        }
+        foreach (var (slot, color) in _themeColors)
+            colors[slot] = color;
+        _shownColors = colors;
+    }
+
     public string? AccessibilityText
     {
         get => (string?)GetValue(AccessibilityTextProperty);
@@ -370,6 +441,7 @@ public sealed class AvatarView : ContentView
 
         Package = package;
         Representation = representation;
+        _choicesStale = true;
         if (MirrorOf is null)
         {
             Scheduler = new AvatarScheduler(package, representation, seed: _seed);
@@ -538,12 +610,19 @@ public sealed class AvatarView : ContentView
             SetValue(StateProperty, Scheduler.State);
         var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
         LastFrame = frame;
+        UpdateChoices(dark);
         if (IsShown())
+        {
+            _surface.SetChoices(_shownOptions, _shownColors);
             _surface.Render(frame, dark, AccentColor);
+        }
         foreach (var mirror in _mirrors)
         {
             if (mirror._surface is not null && mirror.IsShown())
+            {
+                mirror._surface.SetChoices(_shownOptions, _shownColors);
                 mirror._surface.Render(frame, dark, mirror.AccentColor ?? AccentColor);
+            }
         }
         FrameRendered?.Invoke(this, frame);
     }

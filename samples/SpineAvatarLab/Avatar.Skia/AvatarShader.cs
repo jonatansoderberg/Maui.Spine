@@ -24,6 +24,9 @@ public sealed class AvatarShaderModel : ISkiaAvatarModel
     /// <summary>Uniform name → the theme slot that colours it.</summary>
     internal Dictionary<string, AvatarThemeSlot> Themes { get; }
 
+    /// <summary>Uniform name → the name of the theme slot that colours it.</summary>
+    internal Dictionary<string, string> SlotNames { get; } = new(StringComparer.Ordinal);
+
     public ISkiaAvatarRenderer CreateRenderer() => new AvatarShaderRenderer(this);
 
     public static AvatarShaderModel Compile(AvatarPackage package, AvatarRepresentation representation)
@@ -33,9 +36,13 @@ public sealed class AvatarShaderModel : ISkiaAvatarModel
             ?? throw new AvatarFormatException(representation.Model, $"the shader does not compile: {errors}");
 
         var themes = new Dictionary<string, AvatarThemeSlot>(StringComparer.Ordinal);
-        foreach (var slot in package.Manifest.Themes.Slots.Values)
+        var slotNames = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (name, slot) in package.Manifest.Themes.Slots)
             foreach (var binding in slot.Bindings.Where(b => b.StartsWith("uniform:", StringComparison.Ordinal)))
+            {
                 themes[binding[8..]] = slot;
+                slotNames[binding[8..]] = name;
+            }
 
         var options = AvatarShaderContract.OptionUniforms(package.Manifest);
         var unknown = effect.Uniforms.Where(u => !AvatarShaderContract.Uniforms.ContainsKey(u) && !themes.ContainsKey(u) && !options.ContainsKey(u)).ToList();
@@ -46,7 +53,10 @@ public sealed class AvatarShaderModel : ISkiaAvatarModel
                 ? $"uniforms {string.Join(", ", unknown)} are not in the runtime's contract"
                 : "child shaders are not supported");
         }
-        return new AvatarShaderModel(effect, package.Manifest, themes);
+        var model = new AvatarShaderModel(effect, package.Manifest, themes);
+        foreach (var (uniform, name) in slotNames)
+            model.SlotNames[uniform] = name;
+        return model;
     }
 }
 
@@ -81,6 +91,10 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     private readonly Dictionary<string, float> _visemeOpenness = new(StringComparer.Ordinal);
     // Gesture clip → its progress uniform, for the gestures the shader declares.
     private readonly Dictionary<string, string> _gestureUniforms = new(StringComparer.Ordinal);
+    // Option uniform → its option; each holds the shown value's index, written when the options change.
+    private readonly Dictionary<string, string> _optionUniforms;
+    private IReadOnlyDictionary<string, string>? _optionsApplied;
+    private IReadOnlyDictionary<string, SKColor>? _themeColors;
     private readonly float[] _bands = new float[AvatarShaderContract.BandCount];
     private readonly float[] _resolution = new float[2], _gaze = new float[2], _look = new float[2], _spring = new float[3], _accent = new float[4];
     private readonly Dictionary<string, float[]> _themeValues;
@@ -103,12 +117,8 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         foreach (var gesture in AvatarShaderContract.GestureSeconds.Keys)
             if (_declared.Contains(AvatarShaderContract.GestureUniform(gesture)))
                 _gestureUniforms[gesture] = AvatarShaderContract.GestureUniform(gesture);
-        // An option's uniform holds its value's index from here on; it starts at the default.
-        foreach (var (uniform, name) in AvatarShaderContract.OptionUniforms(model.Manifest))
-        {
-            var option = model.Manifest.Options[name];
-            Set(uniform, option.IndexOf(option.Default));
-        }
+        _optionUniforms = AvatarShaderContract.OptionUniforms(model.Manifest);
+        ApplyOptions();
         foreach (var (id, pose) in model.Manifest.Speech.Mapping)
             if (int.TryParse(id, System.Globalization.CultureInfo.InvariantCulture, out var i) && i is >= 0 and < 15)
                 _visemeOpenness[pose] = Openness[i];
@@ -122,8 +132,34 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
 
     private static string Capitalize(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
+    public IReadOnlyDictionary<string, SKColor>? ThemeColors
+    {
+        get => _themeColors;
+        set
+        {
+            _themeColors = value;
+            _themeDark = null;
+        }
+    }
+
+    public IReadOnlyDictionary<string, string>? Options { get; set; }
+
+    // On the drawing thread, like the theme colours, so no uniform changes while a frame draws.
+    private void ApplyOptions()
+    {
+        _optionsApplied = Options;
+        foreach (var (uniform, name) in _optionUniforms)
+        {
+            var option = _model.Manifest.Options[name];
+            var index = Options?.GetValueOrDefault(name) is { } value ? option.IndexOf(value) : -1;
+            Set(uniform, index >= 0 ? index : option.IndexOf(option.Default));
+        }
+    }
+
     public void Evaluate(AvatarRenderFrame f)
     {
+        if (!ReferenceEquals(Options, _optionsApplied))
+            ApplyOptions();
         Array.Clear(_weights);
         foreach (var p in f.Activity)
             if (_poseUniforms.TryGetValue(p.Pose, out var i)) _weights[i] += p.Weight;
@@ -221,7 +257,9 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         {
             foreach (var (uniform, slot) in _model.Themes)
             {
-                var c = SKColor.Parse(dark ? slot.Dark : slot.Light);
+                var c = _themeColors is not null && _model.SlotNames.TryGetValue(uniform, out var name) && _themeColors.TryGetValue(name, out var own)
+                    ? own
+                    : SKColor.Parse(dark ? slot.Dark : slot.Light);
                 var values = _themeValues[uniform];
                 values[0] = c.Red / 255f; values[1] = c.Green / 255f; values[2] = c.Blue / 255f;
                 Set(uniform, values);

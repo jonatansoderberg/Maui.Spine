@@ -100,6 +100,9 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     private readonly Dictionary<string, float> _visemeOpenness = new(StringComparer.Ordinal);
     // Gesture clip → its progress uniform, for the gestures the shader declares.
     private readonly Dictionary<string, string> _gestureUniforms = new(StringComparer.Ordinal);
+    // Option uniform → its option; each holds the shown value's index, written when the options change.
+    private readonly Dictionary<string, string> _optionUniforms;
+    private IReadOnlyDictionary<string, string>? _optionsApplied;
     private readonly float[] _bands = new float[AvatarShaderContract.BandCount];
     private readonly float[] _resolution = new float[2], _gaze = new float[2], _look = new float[2], _spring = new float[3], _accent = new float[4];
     private readonly Dictionary<string, float[]> _themeValues;
@@ -134,12 +137,8 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         foreach (var gesture in AvatarShaderContract.GestureSeconds.Keys)
             if (_declared.Contains(AvatarShaderContract.GestureUniform(gesture)))
                 _gestureUniforms[gesture] = AvatarShaderContract.GestureUniform(gesture);
-        // An option's uniform holds its value's index from here on; it starts at the default.
-        foreach (var (uniform, name) in AvatarShaderContract.OptionUniforms(model.Manifest))
-        {
-            var option = model.Manifest.Options[name];
-            Set(uniform, option.IndexOf(option.Default));
-        }
+        _optionUniforms = AvatarShaderContract.OptionUniforms(model.Manifest);
+        ApplyOptions();
         foreach (var (id, pose) in model.Manifest.Speech.Mapping)
             if (int.TryParse(id, System.Globalization.CultureInfo.InvariantCulture, out var i) && i is >= 0 and < 15)
                 _visemeOpenness[pose] = Openness[i];
@@ -153,8 +152,24 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
 
     private static string Capitalize(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
+    public IReadOnlyDictionary<string, string>? Options { get; set; }
+
+    // On the drawing thread, like the theme colours, so no uniform changes while a frame draws.
+    private void ApplyOptions()
+    {
+        _optionsApplied = Options;
+        foreach (var (uniform, name) in _optionUniforms)
+        {
+            var option = _model.Manifest.Options[name];
+            var index = Options?.GetValueOrDefault(name) is { } value ? option.IndexOf(value) : -1;
+            Set(uniform, index >= 0 ? index : option.IndexOf(option.Default));
+        }
+    }
+
     public void Evaluate(AvatarRenderFrame f)
     {
+        if (!ReferenceEquals(Options, _optionsApplied))
+            ApplyOptions();
         Array.Clear(_weights);
         foreach (var p in f.Activity)
             if (_poseUniforms.TryGetValue(p.Pose, out var i)) _weights[i] += p.Weight;

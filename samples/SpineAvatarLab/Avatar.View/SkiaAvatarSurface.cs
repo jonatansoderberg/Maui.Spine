@@ -24,6 +24,8 @@ internal sealed class SkiaAvatarSurface : IAvatarSurface
     private bool _dark;
     private SKColor? _accent;
     private bool _hasFrame;
+    private IReadOnlyDictionary<string, string>? _options;
+    private IReadOnlyDictionary<string, Color>? _colors;
 
     public SkiaAvatarSurface(ISkiaAvatarModel model, bool gpu)
     {
@@ -62,6 +64,20 @@ internal sealed class SkiaAvatarSurface : IAvatarSurface
     public string RendererName { get; }
 
     public AvatarFrameStats Stats { get; } = new();
+
+    public void SetChoices(IReadOnlyDictionary<string, string> options, IReadOnlyDictionary<string, Color> colors)
+    {
+        if (!ReferenceEquals(_options, options))
+        {
+            _options = options;
+            _renderer.Options = options;
+        }
+        if (!ReferenceEquals(_colors, colors))
+        {
+            _colors = colors;
+            _renderer.ThemeColors = colors.Count == 0 ? null : colors.ToDictionary(p => p.Key, p => p.Value.ToSKColor(), StringComparer.Ordinal);
+        }
+    }
 
     public void Render(AvatarRenderFrame frame, bool dark, Color? accent)
     {
