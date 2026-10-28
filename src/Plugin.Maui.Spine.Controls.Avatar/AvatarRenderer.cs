@@ -45,6 +45,12 @@ public abstract class AvatarSurface : IDisposable
     /// </summary>
     public IReadOnlyDictionary<string, Color> ThemeColors { get; internal set; } = new Dictionary<string, Color>();
 
+    /// <summary>
+    /// Every option's shown value by name (format 1.1; <see cref="AvatarView.Preset"/>, <see cref="AvatarView.SetOption"/>),
+    /// replaced as a whole when one changes. A renderer that binds options reads it when it draws; one that cannot, ignores it.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Options { get; internal set; } = new Dictionary<string, string>();
+
     internal AvatarFrameStats Stats { get; } = new();
 
     /// <summary>Releases the renderer's resources.</summary>

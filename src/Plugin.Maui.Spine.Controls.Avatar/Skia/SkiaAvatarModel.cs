@@ -17,6 +17,9 @@ internal interface ISkiaAvatarRenderer : IDisposable
 
     /// <summary>Theme slot colours by name over the package's own; replaced as a whole when they change.</summary>
     IReadOnlyDictionary<string, SKColor>? ThemeColors { get; set; }
+
+    /// <summary>Option values by name over their defaults; replaced as a whole when one changes. Only a shader binds options.</summary>
+    IReadOnlyDictionary<string, string>? Options { get => null; set { } }
 }
 
 internal static class SkiaAvatarModel

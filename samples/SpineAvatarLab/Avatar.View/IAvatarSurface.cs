@@ -25,6 +25,9 @@ internal interface IAvatarSurface : IDisposable
 
     /// <summary>Turns the avatar's head (its head node) by yaw and pitch in radians, for inspection.</summary>
     void SetHeadTurn(float yaw, float pitch) { }
+
+    /// <summary>Option values and theme colours over the package's own (format 1.1), each replaced as a whole when it changes.</summary>
+    void SetChoices(IReadOnlyDictionary<string, string> options, IReadOnlyDictionary<string, Color> colors) { }
 }
 
 /// <summary>Frame timing a lab reads: how long rendering takes and what it allocates.</summary>

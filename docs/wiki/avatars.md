@@ -37,9 +37,29 @@ avatar.Interrupt();
 | `MotionMode` | `System` follows Reduce Motion: a still pose, four frames a second, a slow mouth. `Reduced` and `Full` override it |
 | `MaxFramesPerSecond` | 15, 30 (default) or 60 |
 | `AccentColor` | The colour of the avatar's `accent` slot; unset, the app's accent |
+| `BodyColor` | The avatar's main colour, its `body` slot by convention (the Minis); unset, the preset's or the avatar's own |
 | `SetThemeColor(slot, color)` | A colour for any other theme slot, in light and dark (spine2d and sksl); null gives the slot back. The built-in bars and ring draw the answer in `output` and the microphone in `accent` |
+| `Preset` | One of the avatar's named figures (format 1.1): its option values and colours. Changing it clears `SetOption` values |
+| `SetOption(name, value)`, `GetOption(name)` | An option, such as a shape, over the preset's value and the default; null gives it back. Changes what is drawn without loading again |
 | `AccessibilityText` | What a screen reader says; unset, the avatar's name and state |
 | `LoadState`, `LoadError`, `Package`, `RendererName`, `LipSyncQuality`, `Gestures` | What is shown and how |
+
+### Figures, options and colours
+
+A package can carry several figures (format 1.1). Its `options` are choices such as a shape, and its `presets` name figures: a set of option values and colours. One package then serves as many figures as it has presets, each in its own view:
+
+```xml
+<AvatarView Source="mini.spineavatar" Preset="red" />
+<AvatarView Source="mini.spineavatar" Preset="brown" BodyColor="{StaticResource Brand}" />
+```
+
+```csharp
+avatar.SetOption("shape", "drop");   // over the preset; throws, listing the values, when the avatar has no such option or value
+avatar.GetOption("shape");           // "drop"
+avatar.SetOption("shape", null);     // back to the preset's value or the default
+```
+
+The app's colours (`BodyColor`, `AccentColor`, `SetThemeColor`) win over the preset's, which win over the avatar's own. A preset names a light and a dark colour; a colour the app gives serves both. A preset or option value set before the avatar has loaded is checked when it loads: one the avatar does not have is logged and left out. The format is in the [authoring profile](../proposals/spine-avatar.md#2-the-manifest-avatarjson).
 
 The view runs no timer while it is detached, hidden (itself or an ancestor), scrolled out of sight or the app is in the background. A screen reader hears one element; muting and an interruption are announced, other state changes are not.
 

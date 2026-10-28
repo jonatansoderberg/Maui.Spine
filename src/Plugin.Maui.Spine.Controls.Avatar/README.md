@@ -5,6 +5,7 @@
 - **Renderers**: Skia for vector scenes and SkSL shaders on every platform (Metal on iOS and Mac Catalyst), SceneKit for glTF characters on iOS and Mac Catalyst, Skia on the CPU for glTF characters on Android and Windows (no textures; alpha-masked models show their poster). Where the platform has no renderer for any of an avatar's representations, the view shows its poster and its state.
 - **Packages**: `.spineavatar` files are checked, packed with rendered posters and stripped of their generator's source by the `spine-avatar` tool (`Plugin.Maui.Spine.Avatar.Tool`).
 - **Driving**: the view's own `State`, `IsMuted` and `Expression`, or a driver: `TextAvatarDriver` mouths text with no audio, `SpeechAvatarDriver` reads text aloud, `VoiceAvatarDriver` follows a realtime voice conversation (Spine.Voice): the state, the sound in and out, the mouth.
+- **Figures**: a package with options and presets (format 1.1) shows any of its figures: `Preset="red"`, `SetOption("shape", "drop")`, and `BodyColor` for the main colour, over the preset's.
 - **Built in**: `bars` and `ring` (`Source="bars"`), a voice's sound in and out: the answer's 24 bands one way, the microphone's the other.
 - **Well-behaved**: no timer while detached, hidden, scrolled away or in the background; Reduce Motion gives a still pose; the app's accent and theme; one screen-reader element.
 

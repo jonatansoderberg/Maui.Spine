@@ -59,7 +59,7 @@ The view takes the first representation whose renderer the platform has, and sho
 
 An option is a named choice (`^[a-z][a-zA-Z0-9]{0,31}$`) of 2–64 values (`^[a-z0-9][a-z0-9-]{0,31}$`) with a default among them. Its `bindings` say what it drives. `uniform:<name>` is a `float` the shader declares, set to the chosen value's index: the default's index until the app picks another. `node:` and `material:` are reserved for spine2d and glb; they warn and are ignored.
 
-A preset is a named figure: a display name, option values (an option left out keeps its default) and theme colours (a slot left out keeps the manifest's). The validator checks that every preset names only declared options, their values and declared slots. It also checks that every `uniform:` binding is a declared `float` that neither the runtime nor a theme slot fills.
+A preset is a named figure: a display name, option values (an option left out keeps its default) and theme colours (a slot left out keeps the manifest's). An app shows one with `AvatarView.Preset`, sets an option over it with `AvatarView.SetOption` and its main colour with `BodyColor` (the `body` slot); the app's colours win over the preset's. The validator checks that every preset names only declared options, their values and declared slots. It also checks that every `uniform:` binding is a declared `float` that neither the runtime nor a theme slot fills.
 
 `extensions` (manifest and bindings) holds keys `<namespace>.<name>` for tools and renderers outside the format. The schema is strict everywhere else: a key it does not know warns, so a 1.x file still loads, and nothing outside `extensions` is read.
 

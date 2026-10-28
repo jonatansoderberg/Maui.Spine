@@ -35,6 +35,10 @@ public sealed class LabPage : ContentPage
     private readonly ChipGroup _frameRates = new();
     private readonly ChipGroup _sizes = new();
     private readonly ChipGroup _renderers = new();
+    private readonly ChipGroup _presets = new();
+    private readonly Dictionary<string, ChipGroup> _options = new(StringComparer.Ordinal);
+    private readonly VerticalStackLayout _optionRows = new() { Spacing = 8 };
+    private readonly Entry _bodyColor = new() { Placeholder = "#RRGGBB", WidthRequest = 110 };
     private readonly Picker _expression = LabUi.Picker(AvatarVocabulary.Expressions, 1);
     private readonly Slider _intensity = LabUi.Slider(0, 1, 0.65);
     private readonly Slider _duration = LabUi.Slider(0.25, 12, 2.5);
@@ -156,6 +160,12 @@ public sealed class LabPage : ContentPage
                     LabUi.Row(LabUi.Chip("Show for duration", ShowExpression), LabUi.Chip("Set as base", SetBaseExpression))),
 
                 LabUi.Card("Gestures", _gestures.View),
+
+                LabUi.Card("Figure (format 1.1)",
+                    LabUi.Labeled("Preset", _presets.View),
+                    _optionRows,
+                    LabUi.Row(LabUi.Text(new Label { Text = "Body colour", VerticalOptions = LayoutOptions.Center, Margin = new Thickness(0, 0, 8, 0) }), _bodyColor,
+                        LabUi.Chip("Apply", () => SetBodyColor(_bodyColor.Text)), LabUi.Chip("Clear", () => SetBodyColor(null)))),
 
                 LabUi.Card("Manual levels and visemes",
                     LabUi.Labeled("Input", _input),
@@ -405,9 +415,19 @@ public sealed class LabPage : ContentPage
             case "reset-peaks":
                 _avatar.Stats?.ResetPeaks();
                 return null;
+            case "preset":
+                SetPreset(arg == "off" ? null : arg);
+                return Choices();
+            case "option":
+                _avatar.SetOption(arg, parts[2] == "off" ? null : parts[2]);
+                SelectOptions();
+                return Choices();
+            case "color":
+                _avatar.SetThemeColor(arg, parts[2] == "off" ? null : Color.FromRgba(parts[2]));
+                return null;
             case "dump":
                 UpdateDiagnostics();
-                return $"\n{_status.Text}\n{_diagnostics.Text}\n{_timeline.Text}";
+                return $"\n{_status.Text}\n{_diagnostics.Text}\n{Choices()}\n{_timeline.Text}";
             case "measure":
                 return "\n" + MeasuredResult.Create(_avatar, _sourceName);
             case "report":
@@ -571,12 +591,54 @@ public sealed class LabPage : ContentPage
         _gestures.Clear();
         foreach (var gesture in _avatar.Scheduler!.Gestures)
             _gestures.Add(gesture, gesture, () => _ = PlayGesture(gesture));
+        ShowChoices(manifest);
 
         var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
         _poster.Source = package.TryGetFile(dark ? manifest.Posters.Dark : manifest.Posters.Light, out var poster)
             ? ImageSource.FromStream(() => new MemoryStream(poster.ToArray()))
             : null;
         ApplySeed();
+    }
+
+    // The loaded avatar's presets and options as chips; an avatar without them shows only the colour field.
+    private void ShowChoices(AvatarManifest manifest)
+    {
+        _presets.Clear();
+        _presets.Add("none", "None", () => SetPreset(null));
+        foreach (var (name, preset) in manifest.Presets)
+            _presets.Add(name, preset.DisplayName, () => SetPreset(name));
+        _presets.Select(_avatar.Preset is { } shown && manifest.Presets.ContainsKey(shown) ? shown : "none");
+
+        _options.Clear();
+        _optionRows.Clear();
+        foreach (var (name, option) in manifest.Options)
+        {
+            var chips = new ChipGroup();
+            foreach (var value in option.Values)
+                chips.Add(value, value, () => _avatar.SetOption(name, value));
+            _options[name] = chips;
+            _optionRows.Add(LabUi.Labeled(option.DisplayName ?? name, chips.View));
+        }
+        SelectOptions();
+    }
+
+    private void SelectOptions()
+    {
+        foreach (var (name, chips) in _options)
+            chips.Select(_avatar.GetOption(name));
+    }
+
+    private void SetPreset(string? name)
+    {
+        _avatar.Preset = name;
+        _presets.Select(name ?? "none");
+        SelectOptions();
+    }
+
+    private void SetBodyColor(string? hex)
+    {
+        _bodyColor.Text = hex;
+        _avatar.SetThemeColor("body", string.IsNullOrWhiteSpace(hex) ? null : Color.FromRgba(hex.Trim()));
     }
 
     private async Task PlayGesture(string name)
@@ -744,6 +806,11 @@ public sealed class LabPage : ContentPage
             await DisplayAlertAsync("Export", e.Message, "OK");
         }
     }
+
+    private string Choices() =>
+        _avatar.Package?.Manifest is { } m && m.Options.Count + m.Presets.Count > 0
+            ? $"preset {_avatar.Preset ?? "none"}  options {string.Join(" ", m.Options.Keys.Select(k => $"{k}={_avatar.GetOption(k)}"))}"
+            : "no options or presets";
 
     private void UpdateDiagnostics()
     {

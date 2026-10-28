@@ -78,6 +78,16 @@ public sealed class AvatarView : ContentView
         nameof(AccentColor), typeof(Color), typeof(AvatarView),
         propertyChanged: static (b, _, _) => ((AvatarView)b).OnThemeChanged());
 
+    /// <summary>The bindable property for <see cref="Preset"/>.</summary>
+    public static readonly BindableProperty PresetProperty = BindableProperty.Create(
+        nameof(Preset), typeof(string), typeof(AvatarView),
+        propertyChanged: static (b, _, _) => ((AvatarView)b).OnPresetChanged());
+
+    /// <summary>The bindable property for <see cref="BodyColor"/>.</summary>
+    public static readonly BindableProperty BodyColorProperty = BindableProperty.Create(
+        nameof(BodyColor), typeof(Color), typeof(AvatarView),
+        propertyChanged: static (b, _, color) => ((AvatarView)b).SetThemeColor(BodySlot, (Color?)color));
+
     /// <summary>The bindable property for <see cref="AccessibilityText"/>.</summary>
     public static readonly BindableProperty AccessibilityTextProperty = BindableProperty.Create(
         nameof(AccessibilityText), typeof(string), typeof(AvatarView),
@@ -184,8 +194,9 @@ public sealed class AvatarView : ContentView
 
     /// <summary>
     /// Colours the avatar's theme slot <paramref name="slot"/> (such as <c>output</c>, the answer's side of the built-in bars
-    /// and ring) with <paramref name="color"/> in light and dark mode; null gives the slot back its own colours. Drawn by
-    /// spine2d and sksl avatars; <see cref="AccentColor"/> is the same for the <c>accent</c> slot (the microphone's side).
+    /// and ring) with <paramref name="color"/> in light and dark mode; null gives the slot back its preset's or its own colours.
+    /// Drawn by spine2d and sksl avatars; <see cref="AccentColor"/> is the same for the <c>accent</c> slot (the microphone's
+    /// side) and <see cref="BodyColor"/> for the <c>body</c> slot. The app's colours win over the <see cref="Preset"/>'s.
     /// </summary>
     public void SetThemeColor(string slot, Color? color)
     {
@@ -196,9 +207,53 @@ public sealed class AvatarView : ContentView
         else
             colors[slot] = color;
         _themeColors = colors;
-        if (_surface is not null)
-            _surface.ThemeColors = colors;
+        ChoicesChanged();
     }
+
+    /// <summary>
+    /// The avatar's main colour, its <c>body</c> theme slot by convention (as the Minis have), over the <see cref="Preset"/>'s
+    /// and the avatar's own; null leaves them. The same as <see cref="SetThemeColor"/> with <c>body</c>.
+    /// </summary>
+    public Color? BodyColor
+    {
+        get => (Color?)GetValue(BodyColorProperty);
+        set => SetValue(BodyColorProperty, value);
+    }
+
+    /// <summary>
+    /// One of the avatar's named figures (format 1.1, <c>AvatarManifest.Presets</c>): its option values and theme colours.
+    /// Changing it clears the values set with <see cref="SetOption"/>, so the figure shows as authored. A name the avatar
+    /// does not have is logged when it loads and shows the avatar without a preset.
+    /// </summary>
+    public string? Preset
+    {
+        get => (string?)GetValue(PresetProperty);
+        set => SetValue(PresetProperty, value);
+    }
+
+    /// <summary>
+    /// Sets an option (format 1.1, <c>AvatarManifest.Options</c>), such as a shape, over the <see cref="Preset"/>'s value and
+    /// the default; null gives it back to them. It changes what the avatar draws without loading it again.
+    /// </summary>
+    /// <exception cref="ArgumentException">The loaded avatar has no such option or value; the message lists what it has.
+    /// Before an avatar loads, the value is kept and checked at load, where one it does not have is logged and dropped.</exception>
+    public void SetOption(string name, string? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (Package is { } package && AvatarChoices.CheckOption(package.Manifest, name, value) is { } problem)
+            throw new ArgumentException(problem, value is null ? nameof(name) : nameof(value));
+        var chosen = new Dictionary<string, string>(_chosen, StringComparer.Ordinal);
+        if (value is null)
+            chosen.Remove(name);
+        else
+            chosen[name] = value;
+        _chosen = chosen;
+        ChoicesChanged();
+    }
+
+    /// <summary>The value an option shows: the one set with <see cref="SetOption"/>, else the preset's, else its default; null when the loaded avatar has no such option.</summary>
+    public string? GetOption(string name) =>
+        Package?.Manifest is { } manifest && manifest.Options.ContainsKey(name) ? AvatarChoices.Options(manifest, _preset, _chosen)[name] : null;
 
     /// <summary>What a screen reader says for the avatar. Unset, its name and state.</summary>
     public string? AccessibilityText
@@ -381,12 +436,12 @@ public sealed class AvatarView : ContentView
     {
         var old = _surface;
         _surface = surface;
-        surface.ThemeColors = _themeColors;
         Content = surface.View;
         old?.Dispose();
 
         Package = package;
         Representation = representation;
+        CheckChoices(package.Manifest);
         // A poster has no representation to schedule; the input keeps the state for the next avatar.
         if (representation is not null)
             _runtime.Load(new AvatarScheduler(package, representation));
@@ -471,6 +526,59 @@ public sealed class AvatarView : ContentView
     {
         _themeAccentRead = false;
         Tick(TimeSpan.Zero);
+    }
+
+    private void OnPresetChanged()
+    {
+        _chosen = s_noOptions;
+        if (Package is { } package)
+            CheckChoices(package.Manifest);
+        ChoicesChanged();
+    }
+
+    // Values set before the avatar loaded, or kept from the one before, that this avatar does not have are logged and dropped.
+    private void CheckChoices(AvatarManifest manifest)
+    {
+        _preset = Preset;
+        if (_preset is not null && AvatarChoices.CheckPreset(manifest, _preset) is { } presetProblem)
+        {
+            Logger()?.LogWarning("AvatarView: {Problem}; showing it without a preset.", presetProblem);
+            _preset = null;
+        }
+
+        var problems = _chosen.Select(p => AvatarChoices.CheckOption(manifest, p.Key, p.Value)).OfType<string>().ToList();
+        if (problems.Count > 0)
+        {
+            foreach (var problem in problems)
+                Logger()?.LogWarning("AvatarView: {Problem}; the value is dropped.", problem);
+            _chosen = _chosen.Where(p => AvatarChoices.CheckOption(manifest, p.Key, p.Value) is null).ToDictionary(StringComparer.Ordinal);
+        }
+        _choicesStale = true;
+    }
+
+    private void ChoicesChanged()
+    {
+        _choicesStale = true;
+        Tick(TimeSpan.Zero);
+    }
+
+    // The surface's option values and theme colours, for the current mode, since a preset names both a light and a dark colour.
+    private void ApplyChoices(bool dark)
+    {
+        _choicesStale = false;
+        _choicesDark = dark;
+        var manifest = Package?.Manifest;
+        var colors = new Dictionary<string, Color>(StringComparer.Ordinal);
+        if (manifest is not null)
+        {
+            // The format writes #RRGGBBAA, which FromRgba reads; FromArgb would take the alpha first.
+            foreach (var (slot, hex) in AvatarChoices.PresetColors(manifest, _preset, dark))
+                colors[slot] = Color.FromRgba(hex);
+        }
+        foreach (var (slot, color) in _themeColors)
+            colors[slot] = color;
+        _surface!.ThemeColors = colors;
+        _surface.Options = manifest is null ? s_noOptions : AvatarChoices.Options(manifest, _preset, _chosen);
     }
 
     private string DisplayName => Package?.Manifest.DisplayName ?? Source?.Name ?? "Avatar";
@@ -602,13 +710,23 @@ public sealed class AvatarView : ContentView
             _themeAccent = SpineTheme.GetAccent(theme);
             _themeAccentRead = true;
         }
-        _surface.Render(frame ?? s_empty, theme == AppTheme.Dark, AccentColor ?? _themeAccent);
+        var dark = theme == AppTheme.Dark;
+        if (_choicesStale || _choicesDark != dark)
+            ApplyChoices(dark);
+        _surface.Render(frame ?? s_empty, dark, AccentColor ?? _themeAccent);
     }
 
     private static readonly AvatarRenderFrame s_empty = new();
+    private static readonly Dictionary<string, string> s_noOptions = new(StringComparer.Ordinal);
+    private const string BodySlot = "body";
 
     // Replaced, never changed in place: a surface may be drawing with the one it was given.
     private IReadOnlyDictionary<string, Color> _themeColors = new Dictionary<string, Color>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, string> _chosen = s_noOptions;
+    // The preset shown: Preset, unless the loaded avatar has no such preset.
+    private string? _preset;
+    private bool _choicesStale = true;
+    private bool? _choicesDark;
 
     /// <summary>
     /// Whether the view is on screen. A hidden ancestor (an unselected tab, a collapsed panel) or a scroll view that moved

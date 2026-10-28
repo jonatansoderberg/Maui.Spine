@@ -155,6 +155,71 @@ public class AvatarOptionsTests
         Assert.True(package is not null, string.Join("; ", report.Failures.Select(f => f.Detail)));
     }
 
+    private static readonly Dictionary<string, string> NoOptions = new(StringComparer.Ordinal);
+
+    private static AvatarManifest Manifest() => Read(WithOptions()).Package!.Manifest;
+
+    [Fact]
+    public void ChoicesMergeTheDefaultThePresetAndTheApp()
+    {
+        var m = Manifest();
+
+        Assert.Equal("drop", AvatarChoices.Options(m, null, NoOptions)["shape"]);
+        Assert.Equal("cube", AvatarChoices.Options(m, "red", NoOptions)["shape"]);
+        Assert.Equal("ball", AvatarChoices.Options(m, "red", new Dictionary<string, string> { ["shape"] = "ball" })["shape"]);
+        Assert.Equal("drop", AvatarChoices.Options(m, "plain", NoOptions)["shape"]);
+        Assert.Equal("drop", AvatarChoices.Options(m, "blue", NoOptions)["shape"]);
+    }
+
+    [Fact]
+    public void APresetColoursEachMode()
+    {
+        var m = Manifest();
+
+        Assert.Equal("#F1273A", AvatarChoices.PresetColors(m, "red", dark: false)["body"]);
+        Assert.Equal("#FF4454", AvatarChoices.PresetColors(m, "red", dark: true)["body"]);
+        Assert.Empty(AvatarChoices.PresetColors(m, null, dark: false));
+        Assert.Empty(AvatarChoices.PresetColors(m, "plain", dark: false));
+        Assert.Empty(AvatarChoices.PresetColors(m, "blue", dark: false));
+    }
+
+    [Fact]
+    public void ChoicesNameWhatIsWrong()
+    {
+        var m = Manifest();
+
+        Assert.Null(AvatarChoices.CheckOption(m, "shape", "cube"));
+        Assert.Null(AvatarChoices.CheckOption(m, "shape", null));
+        Assert.Contains("has no option 'size'; it has shape", AvatarChoices.CheckOption(m, "size", "big"));
+        Assert.Contains("has no value 'cone'; it has ball, cube, drop, bowl", AvatarChoices.CheckOption(m, "shape", "cone"));
+        Assert.Null(AvatarChoices.CheckPreset(m, "red"));
+        Assert.Contains("has no preset 'blue'; it has red, plain", AvatarChoices.CheckPreset(m, "blue"));
+    }
+
+    [Fact]
+    public void TheShaderFollowsTheOptionsBetweenFrames()
+    {
+        var package = Read(WithOptions()).Package!;
+        using var renderer = SkiaAvatarModel.Compile(package, package.Manifest.Representations[0]).CreateRenderer();
+
+        byte Red()
+        {
+            renderer.Evaluate(new AvatarRenderFrame { ElapsedSeconds = 1 });
+            using var bitmap = new SKBitmap(20, 20);
+            using var canvas = new SKCanvas(bitmap);
+            renderer.Draw(canvas, new SKRect(0, 0, 20, 20), dark: false);
+            return bitmap.GetPixel(10, 10).Red;
+        }
+
+        Assert.InRange(Red(), 165, 175);
+        renderer.Options = new Dictionary<string, string> { ["shape"] = "ball" };
+        Assert.InRange(Red(), 0, 5);
+        renderer.Options = new Dictionary<string, string> { ["shape"] = "bowl" };
+        Assert.InRange(Red(), 250, 255);
+        renderer.Options = null;
+        Assert.InRange(Red(), 165, 175);
+    }
+
     [Fact]
     public void SlimmingKeepsOptionsAndPresets()
     {

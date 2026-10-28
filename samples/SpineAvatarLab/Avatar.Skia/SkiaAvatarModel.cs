@@ -15,6 +15,12 @@ public interface ISkiaAvatarRenderer : IDisposable
     void Evaluate(AvatarRenderFrame frame);
 
     void Draw(SKCanvas canvas, SKRect bounds, bool dark, SKColor? accent = null);
+
+    /// <summary>Theme slot colours by name over the package's own; replaced as a whole when they change. Only a shader reads them here.</summary>
+    IReadOnlyDictionary<string, SKColor>? ThemeColors { get => null; set { } }
+
+    /// <summary>Option values by name over their defaults; replaced as a whole when one changes. Only a shader binds options.</summary>
+    IReadOnlyDictionary<string, string>? Options { get => null; set { } }
 }
 
 public static class SkiaAvatarModel

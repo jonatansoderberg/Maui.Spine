@@ -93,7 +93,7 @@ dotnet build -f net10.0-maccatalyst && Tools/lab/start.sh
 echo "load nova" >> /tmp/spine-avatar-lab/cmds        # results in /tmp/spine-avatar-lab/out (strip NULs)
 ```
 
-Useful commands: `load <id>`, `state <idle|connecting|listening|thinking|speaking|interrupted|muted>`, `muted on|off`, `expr <name> <intensity> <seconds>`, `viseme <0-14>|off`, `blink <0-1>|off`, `level in|out <0-1>`, `fixture play` (speech with visemes), `gesture <name>`, `theme light|dark`, `renderer native|web`, `skia gpu|cpu`, `size <pt>`, `follow off` (the real mouse steers gaze otherwise), `lookat x y` (after `size`), `shotview <name>`, `shotlive <name>`, `shot <name>` (whole window), `dump`, `reset-peaks`, `bench`.
+Useful commands: `load <id>`, `state <idle|connecting|listening|thinking|speaking|interrupted|muted>`, `muted on|off`, `expr <name> <intensity> <seconds>`, `viseme <0-14>|off`, `blink <0-1>|off`, `level in|out <0-1>`, `fixture play` (speech with visemes), `gesture <name>`, `theme light|dark`, `renderer native|web`, `skia gpu|cpu`, `size <pt>`, `follow off` (the real mouse steers gaze otherwise), `lookat x y` (after `size`), `shotview <name>`, `shotlive <name>`, `shot <name>` (whole window), `dump`, `reset-peaks`, `bench`; for a format 1.1 package `preset <name>|off`, `option <name> <value>|off` and `color <slot> <#hex>|off` (`dump` lists the preset and the options shown).
 
 Scripts:
 - `Tools/lab/states.sh <id> <concept.png> <out.png>` — all 7 states, light and dark, under the concept's cells (pass the cell x/y ranges for the sheet's layout).
