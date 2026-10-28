@@ -141,7 +141,7 @@ spine-avatar pack nova.spineavatar -o shipped/nova.spineavatar --strip
 | `validate <file> [--profile shipping]` | The format's checks; `shipping` also fails a poster under 128 px (a placeholder) and anything under `source/`, and warns over 2 MB (download it rather than bundle it). Exit code 1 on a failure |
 | `pack <file> -o <out> [--strip] [--asset-version 1.2.0]` | The manifest and bindings rewritten with the defaults, capabilities left to be computed, posters rendered at 512 px (`--size`), `source/` dropped with `--strip`, `assetVersion` set for a new release, the hash table rewritten, the result validated |
 | `strip <file> -o <out>` | Only `source/` removed and the hash table rewritten |
-| `render-sheet <file> -o <dir>` | The posters and a sheet of the states and one of the expressions, as PNG, for review |
+| `render-sheet <file> -o <dir> [--preset <name>]` | The posters and a sheet of the states and one of the expressions, as PNG, for review; of a preset with `--preset`. A package with presets also gets every preset (light and dark), one with options a grid of their combinations |
 | `report <file>...` | One Markdown row per package: size, representations, posters, `source/`, validation, shipping |
 
 Posters are drawn with the package's own Skia renderers on any OS: vector scenes, shaders and glTF models without alpha-masked materials. A model only SceneKit draws (alpha-masked hair or lashes, such as Kairo) keeps its posters unless `--poster-light` and `--poster-dark` give it pictures captured on Apple, with a transparent background.
