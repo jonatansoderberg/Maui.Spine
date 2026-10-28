@@ -11,24 +11,24 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 [Collection(Measurements.Name)]
 public class AvatarOptionsTests
 {
-    private const string Model = "models/mini-red.sksl";
+    private const string Model = "models/aurora-flow.sksl";
 
-    // mini-red as a format 1.1 package: an option `shape`, bound to the uniform `figure`, whose index the shader
+    // aurora-flow as a format 1.1 package: an option `shape`, bound to the uniform `figure`, whose index the shader
     // paints into the red channel (index / 3), and two presets.
     private static MemoryStream WithOptions(Action<JsonObject>? edit = null)
     {
         string source;
-        using (var zip = new ZipArchive(new MemoryStream(AvatarArchiveTests.Reference("mini-red")), ZipArchiveMode.Read))
+        using (var zip = new ZipArchive(new MemoryStream(AvatarArchiveTests.Reference("aurora-flow")), ZipArchiveMode.Read))
         using (var read = new StreamReader(zip.GetEntry(Model)!.Open()))
             source = read.ReadToEnd();
         var shader = source
             .Replace("uniform float dark;", "uniform float dark;\nuniform float figure;")
-            .Replace("return half4(half3(c * alpha), half(alpha));", "return half4(half(figure / 3.0), 0.0, 0.0, 1.0);");
+            .Replace("return half4(half3(min(color, float3(alpha))), half(alpha));", "return half4(half(figure / 3.0), 0.0, 0.0, 1.0);");
         Assert.NotEqual(source, shader);
         Assert.Contains("figure / 3.0", shader);
         var bytes = Encoding.UTF8.GetBytes(shader);
 
-        return AvatarArchiveTests.RewriteManifest("mini-red", m =>
+        return AvatarArchiveTests.RewriteManifest("aurora-flow", m =>
         {
             var file = m["files"]!.AsArray().First(f => f!["path"]!.GetValue<string>() == Model)!;
             file["sha256"] = Convert.ToHexStringLower(SHA256.HashData(bytes));
@@ -37,7 +37,7 @@ public class AvatarOptionsTests
             m["options"] = JsonNode.Parse("""{ "shape": { "displayName": "Shape", "values": ["ball", "cube", "drop", "bowl"], "default": "drop", "bindings": ["uniform:figure"] } }""");
             m["presets"] = JsonNode.Parse("""
                 {
-                  "red": { "displayName": "Mini Red", "options": { "shape": "cube" }, "themes": { "body": { "light": "#F1273A", "dark": "#FF4454" } } },
+                  "red": { "displayName": "Mini Red", "options": { "shape": "cube" }, "themes": { "cyan": { "light": "#F1273A", "dark": "#FF4454" } } },
                   "plain": { "displayName": "Plain" }
                 }
                 """);
@@ -63,7 +63,7 @@ public class AvatarOptionsTests
         Assert.Equal(2, shape.IndexOf(shape.Default));
         Assert.Equal(-1, shape.IndexOf("cone"));
         Assert.Equal("cube", package.Manifest.Presets["red"].Options["shape"]);
-        Assert.Equal(new AvatarColors("#F1273A", "#FF4454"), package.Manifest.Presets["red"].Themes["body"]);
+        Assert.Equal(new AvatarColors("#F1273A", "#FF4454"), package.Manifest.Presets["red"].Themes["cyan"]);
         Assert.Empty(package.Manifest.Presets["plain"].Options);
         Assert.Empty(package.Manifest.Presets["plain"].Themes);
 
@@ -78,7 +78,7 @@ public class AvatarOptionsTests
     [Fact]
     public void AManifestWithoutOptionsHasNone()
     {
-        var package = AvatarArchiveTests.Load("mini-red");
+        var package = AvatarArchiveTests.Load("aurora-flow");
 
         Assert.Empty(package.Manifest.Options);
         Assert.Empty(package.Manifest.Presets);
@@ -91,7 +91,7 @@ public class AvatarOptionsTests
         ["preset sets a value the option lacks"] = m => m["presets"]!["red"]!["options"]!["shape"] = "cone",
         ["preset colours an unknown slot"] = m => m["presets"]!["red"]!["themes"]!["hat"] = JsonNode.Parse("""{ "light": "#000000", "dark": "#000000" }"""),
         ["binding to an undeclared uniform"] = m => m["options"]!["shape"]!["bindings"] = new JsonArray("uniform:figure", "uniform:form"),
-        ["binding to a uniform the runtime fills"] = m => m["options"]!["shape"]!["bindings"] = new JsonArray("uniform:figure", "uniform:blink"),
+        ["binding to a uniform the runtime fills"] = m => m["options"]!["shape"]!["bindings"] = new JsonArray("uniform:figure", "uniform:dark"),
         ["binding of an unknown kind"] = m => m["options"]!["shape"]!["bindings"] = new JsonArray("uniform:figure", "paint:body"),
         ["runtime too old"] = m => m["minRuntimeVersion"] = "9.0.0",
         ["runtime version not a version"] = m => m["minRuntimeVersion"] = "1.1",
@@ -104,7 +104,7 @@ public class AvatarOptionsTests
         { "preset sets a value the option lacks", "sets shape to 'cone'" },
         { "preset colours an unknown slot", "colours theme slot 'hat'" },
         { "binding to an undeclared uniform", "binds 'uniform:form', which the shader does not declare" },
-        { "binding to a uniform the runtime fills", "binds 'uniform:blink', which the runtime or a theme slot already fills" },
+        { "binding to a uniform the runtime fills", "binds 'uniform:dark', which the runtime or a theme slot already fills" },
         { "binding of an unknown kind", "binds 'paint:body'" },
         { "runtime too old", $"needs avatar runtime 9.0.0; this one is {AvatarRuntime.Version}" },
         { "runtime version not a version", "'1.1' is not a version" },
@@ -176,8 +176,8 @@ public class AvatarOptionsTests
     {
         var m = Manifest();
 
-        Assert.Equal("#F1273A", AvatarChoices.PresetColors(m, "red", dark: false)["body"]);
-        Assert.Equal("#FF4454", AvatarChoices.PresetColors(m, "red", dark: true)["body"]);
+        Assert.Equal("#F1273A", AvatarChoices.PresetColors(m, "red", dark: false)["cyan"]);
+        Assert.Equal("#FF4454", AvatarChoices.PresetColors(m, "red", dark: true)["cyan"]);
         Assert.Empty(AvatarChoices.PresetColors(m, null, dark: false));
         Assert.Empty(AvatarChoices.PresetColors(m, "plain", dark: false));
         Assert.Empty(AvatarChoices.PresetColors(m, "blue", dark: false));
