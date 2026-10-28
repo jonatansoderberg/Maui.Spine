@@ -196,17 +196,26 @@ public class MiniTests
 
     [Theory]
     [MemberData(nameof(Shapes))]
-    public void TallEyesLeanWithTheBodysCurve(string shape)
+    public void TallEyesLeanTogetherWithTheTurn(string shape)
     {
         using var rest = Shape(shape, f => f.AddActivity("listening", 1), "tall");
         using var right = Shape(shape, f => { f.AddActivity("listening", 1); f.LookX = 3f; }, "tall");
         using var left = Shape(shape, f => { f.AddActivity("listening", 1); f.LookX = -3f; }, "tall");
 
-        // On the body, after its own turn: turned right, the outer (right) eye leans its top toward the middle; turned left, the left one.
-        var outerRight = Axis(Eyes(right)[^1]) - Turn(rest, right);
-        var outerLeft = Axis(Eyes(left)[0]) - Turn(rest, left);
-        Assert.True(outerRight < -4, $"the right eye leans {outerRight:0.0}° on the body turned right");
-        Assert.True(outerLeft > 4, $"the left eye leans {outerLeft:0.0}° on the body turned left");
+        // Both eyes alike, so they stay parallel.
+        foreach (var (name, bitmap) in new[] { ("right", right), ("left", left) })
+        {
+            var axes = Eyes(bitmap).Select(Axis).ToList();
+            Assert.True(Math.Abs(axes[0] - axes[1]) < 2.5, $"turned {name}, the eyes lean {axes[0]:0.0}° and {axes[1]:0.0}°");
+        }
+        // On the body, after its own turn: turned right, the eyes' tops lean toward its middle (left), and the other way.
+        // A ball's own turn cannot be read from its outline.
+        if (shape == "ball")
+            return;
+        var onRight = Eyes(right).Average(Axis) - Turn(rest, right);
+        var onLeft = Eyes(left).Average(Axis) - Turn(rest, left);
+        Assert.True(onRight < -3, $"the eyes lean {onRight:0.0}° on the body turned right");
+        Assert.True(onLeft > 3, $"the eyes lean {onLeft:0.0}° on the body turned left");
     }
 
     [Theory]
