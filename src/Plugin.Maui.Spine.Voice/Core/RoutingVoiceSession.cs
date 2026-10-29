@@ -90,6 +90,10 @@ internal sealed class RoutingVoiceSession : IVoiceSession, IVoiceAudioOwner
     }
 
     public Task EndAsync() => _active.EndAsync();
+
+    public Task WarmAsync(string feature, CancellationToken cancellationToken = default) => Choose(feature).WarmAsync(feature, cancellationToken);
+
+    public bool IsWarm => _active.IsWarm;
     public void Interrupt() => _active.Interrupt();
     public void BeginTurn() => _active.BeginTurn();
     public void EndTurn() => _active.EndTurn();

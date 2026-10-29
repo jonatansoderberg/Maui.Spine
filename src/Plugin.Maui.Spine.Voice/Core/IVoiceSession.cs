@@ -98,6 +98,21 @@ public interface IVoiceSession : IAsyncDisposable
     /// <summary>Ends the conversation: closes the connection and the microphone.</summary>
     Task EndAsync();
 
+    /// <summary>
+    /// Opens the session's link to the provider now, without the microphone, so that the next <see cref="ConnectAsync(string, CancellationToken)"/>
+    /// for the same feature starts at once: no token request, no handshake. An open Realtime session that sends no audio
+    /// costs no tokens; the server's budget holds the reservation until the link closes. Nothing happens while a
+    /// conversation is on or the feature is already warm; a GPT-Live feature, which bills by the second, throws
+    /// <see cref="InvalidOperationException"/>. The link ends with <see cref="IAsyncDisposable.DisposeAsync"/>, when the
+    /// provider closes it, or when a connect asks for another feature.
+    /// </summary>
+    /// <param name="feature">The realtime feature's name.</param>
+    /// <param name="cancellationToken">Cancels the warm-up.</param>
+    Task WarmAsync(string feature, CancellationToken cancellationToken = default);
+
+    /// <summary>A link is open and silent, from <see cref="WarmAsync"/> or a conversation ended with <see cref="SpineVoiceOptions.KeepWarm"/>.</summary>
+    bool IsWarm { get; }
+
     /// <summary>Cuts the answer off, as a tap on a Stop button; the model is told how much was heard.</summary>
     void Interrupt();
 
