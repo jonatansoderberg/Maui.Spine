@@ -186,7 +186,9 @@ internal sealed class OpenAIRealtimeProvider(HttpClient http, Uri root, string k
     public JsonObject SessionOf(AIRealtimeRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var session = (JsonObject)Body(request)["session"]!;
+        var body = Body(request);
+        var session = (JsonObject)body["session"]!;
+        body.Remove("session"); // detached: the relay puts it into a session.update of its own
         session.Remove("model");
         session.Remove("tools");
         session.Remove("tool_choice");
