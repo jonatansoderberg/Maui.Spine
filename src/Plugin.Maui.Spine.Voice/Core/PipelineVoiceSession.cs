@@ -229,6 +229,11 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
     public Task EndAsync() => EndCoreAsync(VoiceSessionEnd.User, null);
 
+    // A pipeline has no link to keep: each turn is its own request.
+    public Task WarmAsync(string feature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public bool IsWarm => false;
+
     public void Interrupt()
     {
         if (_connected)

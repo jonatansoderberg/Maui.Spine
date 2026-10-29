@@ -208,8 +208,8 @@ internal sealed class AIFeatures(
         }
     }
 
-    // How long after its limit a direct session may still report its usage.
-    private static readonly TimeSpan UsageReportGrace = TimeSpan.FromHours(1);
+    // How long after its limit a direct session may still report its usage: a link kept warm reports when it finally closes.
+    private static readonly TimeSpan UsageReportGrace = TimeSpan.FromHours(24);
 
     /// <summary>A ticket for the server's relay, which opens the provider's socket (Live, or the Realtime API) when the app connects with it.</summary>
     private AIRealtimeSession RelayTicket(AIFeature found, AICaller caller, AIRealtimeOptions session, double limit, string protocol)

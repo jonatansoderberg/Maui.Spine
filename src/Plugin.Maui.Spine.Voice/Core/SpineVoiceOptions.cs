@@ -22,6 +22,14 @@ public sealed class SpineVoiceOptions
     public HttpMessageHandler? HttpHandler { get; set; }
 
     /// <summary>
+    /// When a conversation ends (the user, a goodbye, the limit), keep the provider's link open and silent, so the next
+    /// <see cref="IVoiceSession.ConnectAsync(string, CancellationToken)"/> for the same feature starts at once. Realtime
+    /// only: an open session that sends no audio costs no tokens; a GPT-Live session is always closed. The model then
+    /// remembers the earlier conversations until the provider or the server ends the link. Off by default.
+    /// </summary>
+    public bool KeepWarm { get; set; }
+
+    /// <summary>
     /// The functions the app runs itself, which the model may call: the time, opening a page. The same set as
     /// <c>SpineAIOptions.Functions</c>. A session declares them with the server's functions from the token, and runs a
     /// function both sides have where its order says (<see cref="IVoiceSession.Prefer"/>).

@@ -104,6 +104,10 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     // How long a farewell is waited for when the voice may already have said it: its answer to a result comes within this.
     private static readonly TimeSpan LiveMaybeSaid = TimeSpan.FromSeconds(3);
     private volatile bool _live;
+    // A parked link (SpineVoiceOptions.KeepWarm, WarmAsync): the provider's socket stays open and silent between conversations,
+    // so the next one starts at once. An open Realtime session that sends no audio costs no tokens; Live bills by the second.
+    private volatile bool _warm;
+    private string? _warmFeature;
     // What the provider reported the session used (response.done), for the server to settle a direct session's reservation.
     private VoiceSessionUsage _usage = VoiceSessionUsage.None;
     private long _connectedAt;
@@ -231,39 +235,24 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         Evaluate();
         try
         {
-            var token = await _tokens.RequestAsync(feature, cancellationToken, Voice, MaxMinutes);
-            _token = token;
-            SpokenVoice = token.Voice;
-            if (token.Protocol is not ("openai" or LiveProtocol or RelayProtocol))
-                throw new NotSupportedException(
-                    $"The voice feature '{feature}' speaks '{token.Protocol}', which Spine.Voice cannot speak yet; only 'openai' (OpenAI and Azure OpenAI, directly or through the server's relay as '{RelayProtocol}') and '{LiveProtocol}' (GPT-Live).");
-            _live = token.Protocol == LiveProtocol;
-
-            var socket = _socketFactory();
-            _socket = socket;
-            await socket.ConnectAsync(token.Url, await _tokens.SocketHeadersAsync(token, cancellationToken), cancellationToken);
+            // A link parked for this feature goes on; one parked for another is closed first.
+            var reuse = _warm && _warmFeature == feature && _socket is not null && _run is { IsCancellationRequested: false };
+            if (_warm && !reuse)
+                await CloseLinkAsync();
+            if (!reuse)
+                await OpenLinkAsync(feature, history, forWarm: false, cancellationToken);
+            var token = _token!;
 
             await _audio.StartAsync(new VoiceAudioOptions { InputRate = Rate, OutputRate = Rate, Duplex = _audio.Duplex }, cancellationToken);
             _audio.InputAvailable += OnMicrophone;
-
-            _run = new CancellationTokenSource();
-            _outbox = Channel.CreateUnbounded<object>(new UnboundedChannelOptions { SingleReader = true });
             _farewell.Cancel();
-            if (_live)
+            if (reuse)
             {
-                // The relay writes the session; the app gives it the conversation so far and the functions it runs itself.
-                Send(new JsonObject
-                {
-                    ["type"] = "session.start",
-                    ["session"] = new JsonObject { ["input"] = LiveHistory(history), ["tools"] = LiveTools() },
-                });
-            }
-            else
-            {
+                _warm = false;
+                // Nothing was sent while parked, but the provider's buffer starts clean; a conversation given now joins the one the model remembers.
+                Send(new JsonObject { ["type"] = "input_audio_buffer.clear" });
                 foreach (var item in history)
                     Send(item);
-                if (_options.Functions.Count > 0 || token.Tools.Count > 0 || EndsOnGoodbye)
-                    Send(ToolsUpdate());
             }
 
             if (token.MaxMinutes is { } minutes and > 0)
@@ -276,13 +265,10 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
             // Connected before the loops start: a provider that hangs up at once then ends a connected session, with
             // Ended raised, rather than leaving one that looks connected and hears nothing.
-            lock (_gate)
-                _usage = VoiceSessionUsage.None;
-            _connectedAt = _time.GetTimestamp();
             _connected = true;
-            _ = SendLoopAsync(socket, _outbox.Reader, _run.Token);
-            _ = ReceiveLoopAsync(socket, _run.Token);
-            _logger.LogInformation("Spine.Voice: connected to '{Feature}' over {Protocol}.", token.Feature, token.Protocol);
+            if (!reuse)
+                StartLoops();
+            _logger.LogInformation("Spine.Voice: connected to '{Feature}' over {Protocol}{Reused}.", token.Feature, token.Protocol, reuse ? " (the warm link)" : "");
         }
         catch
         {
@@ -294,6 +280,95 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             _connecting = false;
             Evaluate();
         }
+    }
+
+    public async Task WarmAsync(string feature, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(feature);
+        if (_connected || _connecting) return;
+        if (_warm && _warmFeature == feature && _socket is not null && _run is { IsCancellationRequested: false }) return;
+
+        _connecting = true;
+        try
+        {
+            if (_warm)
+                await CloseLinkAsync();
+            await OpenLinkAsync(feature, [], forWarm: true, cancellationToken);
+            _warm = true;
+            _warmFeature = feature;
+            StartLoops();
+            _logger.LogInformation("Spine.Voice: '{Feature}' is warm over {Protocol}.", feature, _token!.Protocol);
+        }
+        catch
+        {
+            await TearDownAsync();
+            throw;
+        }
+        finally
+        {
+            _connecting = false;
+            Evaluate();
+        }
+    }
+
+    public bool IsWarm => _warm;
+
+    /// <summary>
+    /// The link a conversation and a parked session share: the token, the provider's socket, the outbox and, for the
+    /// provider's protocol, the conversation so far and the functions the app runs. The loops start separately.
+    /// </summary>
+    private async Task OpenLinkAsync(string feature, List<JsonObject> history, bool forWarm, CancellationToken cancellationToken)
+    {
+        var token = await _tokens.RequestAsync(feature, cancellationToken, Voice, MaxMinutes);
+        if (token.Protocol is not ("openai" or LiveProtocol or RelayProtocol))
+            throw new NotSupportedException(
+                $"The voice feature '{feature}' speaks '{token.Protocol}', which Spine.Voice cannot speak yet; only 'openai' (OpenAI and Azure OpenAI, directly or through the server's relay as '{RelayProtocol}') and '{LiveProtocol}' (GPT-Live).");
+        if (forWarm && token.Protocol == LiveProtocol)
+            throw new InvalidOperationException($"The voice feature '{feature}' is GPT-Live, which bills by the second: it cannot be kept warm.");
+        _token = token;
+        SpokenVoice = token.Voice;
+        _live = token.Protocol == LiveProtocol;
+
+        var socket = _socketFactory();
+        _socket = socket;
+        await socket.ConnectAsync(token.Url, await _tokens.SocketHeadersAsync(token, cancellationToken), cancellationToken);
+
+        _run = new CancellationTokenSource();
+        _outbox = Channel.CreateUnbounded<object>(new UnboundedChannelOptions { SingleReader = true });
+        lock (_gate)
+            _usage = VoiceSessionUsage.None;
+        _connectedAt = _time.GetTimestamp();
+        if (_live)
+        {
+            // The relay writes the session; the app gives it the conversation so far and the functions it runs itself.
+            Send(new JsonObject
+            {
+                ["type"] = "session.start",
+                ["session"] = new JsonObject { ["input"] = LiveHistory(history), ["tools"] = LiveTools() },
+            });
+        }
+        else
+        {
+            foreach (var item in history)
+                Send(item);
+            if (_options.Functions.Count > 0 || token.Tools.Count > 0 || EndsOnGoodbye)
+                Send(ToolsUpdate());
+        }
+    }
+
+    private void StartLoops()
+    {
+        if (_socket is not { } socket || _outbox is not { } outbox || _run is not { } run) return;
+        _ = SendLoopAsync(socket, outbox.Reader, run.Token);
+        _ = ReceiveLoopAsync(socket, run.Token);
+    }
+
+    /// <summary>Closes a parked link: the socket, its loops and the usage report.</summary>
+    private async Task CloseLinkAsync()
+    {
+        _warm = false;
+        _warmFeature = null;
+        await TearDownAsync();
     }
 
     public Task EndAsync() => EndCoreAsync(VoiceSessionEnd.User, null);
@@ -368,6 +443,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     public async ValueTask DisposeAsync()
     {
         await EndCoreAsync(VoiceSessionEnd.User, null);
+        if (_warm)
+            await CloseLinkAsync();
         _mic.Dispose();
     }
 
@@ -435,7 +512,10 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         }
         catch (Exception e)
         {
-            await EndCoreAsync(VoiceSessionEnd.Failed, e);
+            if (_connected)
+                await EndCoreAsync(VoiceSessionEnd.Failed, e);
+            else
+                await LinkLostAsync(e);
         }
     }
 
@@ -458,14 +538,20 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             }
 
             _logger.LogInformation("Spine.Voice: the provider closed the connection ({Reason}).", socket.CloseReason ?? "no reason");
-            await EndCoreAsync(VoiceSessionEnd.Provider, null);
+            if (_connected)
+                await EndCoreAsync(VoiceSessionEnd.Provider, null);
+            else
+                await LinkLostAsync(null);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
         catch (Exception e)
         {
-            await EndCoreAsync(VoiceSessionEnd.Failed, e);
+            if (_connected)
+                await EndCoreAsync(VoiceSessionEnd.Failed, e);
+            else
+                await LinkLostAsync(e);
         }
     }
 
@@ -869,8 +955,13 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         if (error is not null)
             _logger.LogError(error, "Spine.Voice: the session failed.");
 
-        ReportUsage();
-        await TearDownAsync();
+        // The conversation ends; the link stays when the app keeps it warm and nothing is wrong with it.
+        var park = _options.KeepWarm && wasConnected && !_live && reason is not (VoiceSessionEnd.Failed or VoiceSessionEnd.Provider)
+            && _token is not null && _socket is not null && _run is { IsCancellationRequested: false };
+        if (park)
+            await ParkAsync();
+        else
+            await TearDownAsync();
         Evaluate();
         // A turn still being transcribed will never get its words now.
         _dispatch(() =>
@@ -894,7 +985,10 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     {
         VoiceSessionUsage usage;
         lock (_gate)
+        {
             usage = _usage;
+            _usage = VoiceSessionUsage.None;
+        }
         if (_token is not { UsageTicket: { Length: > 0 } } token || usage.Responses == 0) return;
         var seconds = _connectedAt == 0 ? 0 : _time.GetElapsedTime(_connectedAt).TotalSeconds;
         _ = Task.Run(async () =>
@@ -920,8 +1014,41 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         return value.TryGetInt64(out var count) ? count : 0;
     }
 
+    /// <summary>The conversation's part of the session goes; the socket and its loops stay open and silent for the next one.</summary>
+    private async Task ParkAsync()
+    {
+        _audio.InputAvailable -= OnMicrophone;
+        _ticker?.Dispose();
+        _ticker = null;
+        _limit?.Dispose();
+        _limit = null;
+        Interlocked.Exchange(ref _endsAt, 0);
+        await _audio.StopAsync();
+        _responseActive = false;
+        _answerAudio = false;
+        lock (_micGate)
+            _mic.SetLength(0);
+        _warm = true;
+        _warmFeature = _token!.Feature;
+        _logger.LogInformation("Spine.Voice: '{Feature}' stays warm.", _warmFeature);
+    }
+
+    /// <summary>A parked link the provider closed or that failed: gone quietly, the next connect opens a new one.</summary>
+    private async Task LinkLostAsync(Exception? error)
+    {
+        if (!_warm) return;
+        if (error is not null)
+            _logger.LogWarning(error, "Spine.Voice: the warm link to '{Feature}' failed.", _warmFeature);
+        else
+            _logger.LogInformation("Spine.Voice: the provider closed the warm link to '{Feature}'.", _warmFeature);
+        await CloseLinkAsync();
+    }
+
     private async Task TearDownAsync()
     {
+        ReportUsage();
+        _warm = false;
+        _warmFeature = null;
         _audio.InputAvailable -= OnMicrophone;
         _ticker?.Dispose();
         _ticker = null;
