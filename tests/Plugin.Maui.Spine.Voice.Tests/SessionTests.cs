@@ -70,8 +70,16 @@ internal sealed class TokenHandler : HttpMessageHandler
     public (HttpStatusCode Status, string Body) Function { get; set; } = (HttpStatusCode.OK, """{ "result": "from the server" }""");
     public ConcurrentQueue<(HttpRequestMessage Request, string Body)> FunctionCalls { get; } = new();
 
+    /// <summary>The bodies <c>POST …/realtime/{feature}/usage</c> was sent.</summary>
+    public ConcurrentQueue<(HttpRequestMessage Request, string Body)> UsageReports { get; } = new();
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (request.RequestUri!.AbsolutePath.EndsWith("/usage", StringComparison.Ordinal))
+        {
+            UsageReports.Enqueue((request, await request.Content!.ReadAsStringAsync(cancellationToken)));
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{ "settled": true }""", Encoding.UTF8, "application/json") };
+        }
         if (request.RequestUri!.AbsolutePath.Contains("/functions/", StringComparison.Ordinal))
         {
             FunctionCalls.Enqueue((request, await request.Content!.ReadAsStringAsync(cancellationToken)));

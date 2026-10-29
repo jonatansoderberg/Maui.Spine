@@ -195,7 +195,11 @@ internal sealed class AIFeatures(
                     ? RelayTicket(found, caller, session, limit, AIRealtimeProviders.RelayProtocol)
                     : await provider.CreateSessionAsync(request, cancellationToken);
             await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, null, minutes: (decimal)limit);
-            return made with { Voice = session.Voice, MaxMinutes = limit };
+            // A session the app runs with the provider directly can report its usage afterwards; the ticket says what was reserved.
+            var usageTicket = made.Protocol == AIRealtimeProviders.OpenAIProtocol
+                ? services.GetRequiredService<AIRealtimeTickets>().Issue(found.Name, caller, limit, session.Voice, TimeSpan.FromMinutes(limit) + UsageReportGrace)
+                : null;
+            return made with { Voice = session.Voice, MaxMinutes = limit, UsageTicket = usageTicket };
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -203,6 +207,9 @@ internal sealed class AIFeatures(
             throw;
         }
     }
+
+    // How long after its limit a direct session may still report its usage.
+    private static readonly TimeSpan UsageReportGrace = TimeSpan.FromHours(1);
 
     /// <summary>A ticket for the server's relay, which opens the provider's socket (Live, or the Realtime API) when the app connects with it.</summary>
     private AIRealtimeSession RelayTicket(AIFeature found, AICaller caller, AIRealtimeOptions session, double limit, string protocol)

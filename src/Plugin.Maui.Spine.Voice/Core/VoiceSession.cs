@@ -104,6 +104,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     // How long a farewell is waited for when the voice may already have said it: its answer to a result comes within this.
     private static readonly TimeSpan LiveMaybeSaid = TimeSpan.FromSeconds(3);
     private volatile bool _live;
+    // What the provider reported the session used (response.done), for the server to settle a direct session's reservation.
+    private VoiceSessionUsage _usage = VoiceSessionUsage.None;
+    private long _connectedAt;
     private readonly object _liveGate = new();
     private int _liveCount;
     private string? _liveItem;
@@ -273,6 +276,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
             // Connected before the loops start: a provider that hangs up at once then ends a connected session, with
             // Ended raised, rather than leaving one that looks connected and hears nothing.
+            lock (_gate)
+                _usage = VoiceSessionUsage.None;
+            _connectedAt = _time.GetTimestamp();
             _connected = true;
             _ = SendLoopAsync(socket, _outbox.Reader, _run.Token);
             _ = ReceiveLoopAsync(socket, _run.Token);
@@ -541,6 +547,12 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             case "response.done":
                 _responseActive = false;
                 _farewell.AnswerDone();
+                if (e.TryGetProperty("response", out var done) && done.TryGetProperty("usage", out var usage))
+                {
+                    lock (_gate)
+                        _usage = _usage.Add(Count(usage, "input_tokens"), Count(usage, "input_token_details", "cached_tokens"), Count(usage, "output_tokens"),
+                            Count(usage, "input_token_details", "audio_tokens"), Count(usage, "output_token_details", "audio_tokens"));
+                }
                 break;
 
             case "error":
@@ -857,6 +869,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         if (error is not null)
             _logger.LogError(error, "Spine.Voice: the session failed.");
 
+        ReportUsage();
         await TearDownAsync();
         Evaluate();
         // A turn still being transcribed will never get its words now.
@@ -874,6 +887,37 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         });
         if (wasConnected || error is not null)
             _dispatch(() => Ended?.Invoke(reason, error));
+    }
+
+    /// <summary>The session's usage goes to the server when the token asked for it (a direct session): the server settles the reservation with it.</summary>
+    private void ReportUsage()
+    {
+        VoiceSessionUsage usage;
+        lock (_gate)
+            usage = _usage;
+        if (_token is not { UsageTicket: { Length: > 0 } } token || usage.Responses == 0) return;
+        var seconds = _connectedAt == 0 ? 0 : _time.GetElapsedTime(_connectedAt).TotalSeconds;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                if (!await _tokens.ReportUsageAsync(token, usage, seconds, timeout.Token))
+                    _logger.LogWarning("Spine.Voice: the server did not take the session's usage report for '{Feature}'.", token.Feature);
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Spine.Voice: the session's usage report for '{Feature}' failed.", token.Feature);
+            }
+        });
+    }
+
+    private static long Count(JsonElement usage, string name, string? inner = null)
+    {
+        if (!usage.TryGetProperty(name, out var value)) return 0;
+        if (inner is not null)
+            return value.ValueKind == JsonValueKind.Object && value.TryGetProperty(inner, out var nested) && nested.TryGetInt64(out var n) ? n : 0;
+        return value.TryGetInt64(out var count) ? count : 0;
     }
 
     private async Task TearDownAsync()

@@ -52,6 +52,13 @@ public sealed record AIRealtimeSession(string Protocol, string Url, string Token
 
     /// <summary>The longest the session may run, in minutes.</summary>
     public double? MaxMinutes { get; init; }
+
+    /// <summary>
+    /// For a session the app runs with the provider directly: the single-use ticket the app sends back with the usage
+    /// the provider reported (<c>POST realtime/{feature}/usage</c>), so the reservation is settled with the real tokens.
+    /// <see langword="null"/> through a relay, which sees the usage itself.
+    /// </summary>
+    public string? UsageTicket { get; init; }
 }
 
 /// <summary>Sets up realtime sessions with one provider. Register one with <see cref="SpineAIOptions.Realtime"/>.</summary>
