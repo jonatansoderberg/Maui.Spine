@@ -97,11 +97,12 @@ public partial class ChatPageViewModel : SampleViewModel
             .. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
             {
                 "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other.",
+                _ when a.Preset is not null => "A figure of the Mini package: its eyes follow the conversation, and they move as it speaks.",
                 _ => "A character or ambient avatar following the conversation: its state, the levels and the mouth.",
             }, () => Avatar = a)),
             new Choice("None", "No avatar above the chat.", () => Avatar = null),
         ]);
-        avatars.Select(0);
+        avatars.Select(VoiceAvatars.All.ToList().FindIndex(a => a.Name == DefaultAvatar));
 
         _options = [
             model,
@@ -168,7 +169,9 @@ public partial class ChatPageViewModel : SampleViewModel
     /// <summary>The avatar above the chat, idle until a call starts; null shows none.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsAvatar))]
-    public partial AvatarChoice? Avatar { get; set; } = VoiceAvatars.All[0];
+    public partial AvatarChoice? Avatar { get; set; } = VoiceAvatars.All.First(a => a.Name == DefaultAvatar);
+
+    private const string DefaultAvatar = "Mini Blue";
 
     public bool ShowsAvatar => Avatar is not null;
 

@@ -90,6 +90,7 @@ public partial class AvatarsPageViewModel : SampleViewModel
         new("plush-puff", "Puff", "A plush creature that squashes as it talks and blushes when it is happy.", "Character", Gltf, AvatarSource.FromMauiAsset("Avatars/plush-puff.spineavatar")),
         new("voice-totem", "Voice Totem", "A ring and three packets that follow the voice: a vector scene, crisp at any size.", "Ambient", "Vector · Skia", AvatarSource.FromMauiAsset("Avatars/voice-totem.spineavatar")),
         new("aurora-flow", "Aurora Flow", "Light that flows: one SkSL shader fed the levels, the mouth and the state.", "Ambient", "Shader · Skia", AvatarSource.FromMauiAsset("Avatars/aurora-flow.spineavatar")),
+        new("mini", "Mini", "Nine small figures in one package of 33 KB: seven hand-drawn shapes, round or tall eyes and a colour of your own. One SkSL shader; pick a figure on its page.", "Character", "Shader · Skia", AvatarSource.FromMauiAsset("Avatars/mini.spineavatar")),
         new("bars", "Bars", "Built into Spine: the answer's 24 bands up from a line and the microphone's down, one part per band, the microphone in the app's accent.", "Built in", "Vector · Skia", AvatarSource.BuiltIn("bars")),
         new("ring", "Ring", "Built into Spine: the answer's bands outward and the microphone's inward round an empty middle, for round a button or a picture.", "Built in", "Vector · Skia", AvatarSource.BuiltIn("ring")),
     ];

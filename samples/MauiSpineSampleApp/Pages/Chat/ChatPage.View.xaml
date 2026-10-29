@@ -13,7 +13,7 @@
         <!-- The avatar, and during a call Mute and Stop (cut the answer off) beside it. The avatar spans both columns so it
              stays centred on the page; it needs a width of its own, having none. -->
         <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="{x:Static HeaderBarConstants.PagePadding}">
-            <AvatarView Grid.ColumnSpan="2" IsVisible="{Binding ShowsAvatar}" Source="{Binding Avatar.Source}" Driver="{Binding Driver}"
+            <AvatarView Grid.ColumnSpan="2" IsVisible="{Binding ShowsAvatar}" Source="{Binding Avatar.Source}" Preset="{Binding Avatar.Preset}" Driver="{Binding Driver}"
                         WidthRequest="160" HeightRequest="140" HorizontalOptions="Center" />
             <VerticalStackLayout Grid.Column="1" IsVisible="{Binding IsTalking}" Spacing="8" VerticalOptions="Center">
                 <Button Text="{Binding MuteText}" Command="{Binding ToggleMuteCommand}"

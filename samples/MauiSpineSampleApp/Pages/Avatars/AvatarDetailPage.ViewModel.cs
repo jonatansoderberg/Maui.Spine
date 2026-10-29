@@ -5,6 +5,34 @@ using Plugin.Maui.Spine.Voice;
 
 namespace MauiSpineSampleApp.Pages.Avatars;
 
+/// <summary>A figure of a package with presets (format 1.1), drawn small and live; a tap shows it in the big avatar.</summary>
+public sealed record FigureChoice(string Preset, string Name, AvatarSource Source);
+
+/// <summary>A colour for the avatar's main colour, <see cref="AvatarView.BodyColor"/>.</summary>
+public sealed record SwatchChoice(string Name, Color Color);
+
+/// <summary>One of a package's options (format 1.1), such as its shape, with the value the avatar shows.</summary>
+public sealed partial class OptionChoice(string name, string title, IReadOnlyList<string> values, Action<OptionChoice> chosen) : ObservableObject
+{
+    public string Name { get; } = name;
+
+    public string Title { get; } = title;
+
+    public IReadOnlyList<string> Values { get; } = values;
+
+    [ObservableProperty]
+    public partial string? Selected { get; set; }
+
+    // Set while the picker follows the avatar (a new figure), so following is not taken for a choice.
+    internal bool Following { get; set; }
+
+    partial void OnSelectedChanged(string? value)
+    {
+        if (!Following)
+            chosen(this);
+    }
+}
+
 public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavigationParameter<AvatarEntry>
 {
     private static readonly int[] Sizes = [64, 128, 320];
@@ -167,7 +195,88 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
         return _audio.StopAsync();
     }
 
-    internal void Attach(AvatarView view) => _view = view;
+    internal void Attach(AvatarView view)
+    {
+        if (_view == view)
+            return;
+        _view = view;
+        view.AvatarLoaded += (_, _) => ShowChoices();
+    }
+
+    /// <summary>The package's figures, for one with presets (format 1.1); empty for any other.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasChoices))]
+    public partial IReadOnlyList<FigureChoice> Figures { get; set; } = [];
+
+    /// <summary>The package's options, such as its shape and eyes.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasChoices))]
+    public partial IReadOnlyList<OptionChoice> Options { get; set; } = [];
+
+    public bool HasChoices => Figures.Count > 0 || Options.Count > 0;
+
+    /// <summary>The figure the big avatar shows.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FigureName))]
+    public partial string? Preset { get; set; }
+
+    public string FigureName => Preset is { } preset && Figures.FirstOrDefault(f => f.Preset == preset) is { } figure ? figure.Name : "";
+
+    /// <summary>A colour over the figure's own, or null for its own.</summary>
+    [ObservableProperty]
+    public partial Color? BodyColor { get; set; }
+
+    public IReadOnlyList<SwatchChoice> Swatches { get; } =
+    [
+        new("Blue", Color.FromArgb("#0A84FF")), new("Teal", Color.FromArgb("#40C8E0")), new("Green", Color.FromArgb("#30D158")),
+        new("Yellow", Color.FromArgb("#FFD60A")), new("Orange", Color.FromArgb("#FF9F0A")), new("Pink", Color.FromArgb("#FF375F")),
+        new("Purple", Color.FromArgb("#BF5AF2")), new("Graphite", Color.FromArgb("#636366")),
+    ];
+
+    // A package with presets or options gets its figures and pickers once it has loaded; any other, none.
+    private void ShowChoices()
+    {
+        var manifest = _view?.Package?.Manifest;
+        if (manifest is null || Entry is not { } entry)
+            return;
+        Figures = [.. manifest.Presets.Select(p => new FigureChoice(p.Key, p.Value.DisplayName, entry.Source))];
+        Options = [.. manifest.Options.Select(o => new OptionChoice(o.Key, o.Value.DisplayName ?? o.Key, o.Value.Values, Choose))];
+        Preset ??= manifest.Presets.Keys.FirstOrDefault();
+        FollowOptions();
+        OnPropertyChanged(nameof(FigureName));
+    }
+
+    // The pickers show what the avatar shows: a new figure brings its own values.
+    private void FollowOptions()
+    {
+        foreach (var option in Options)
+        {
+            option.Following = true;
+            option.Selected = _view?.GetOption(option.Name);
+            option.Following = false;
+        }
+    }
+
+    private void Choose(OptionChoice option)
+    {
+        if (option.Selected is { } value)
+            _view?.SetOption(option.Name, value);
+    }
+
+    // The view takes the new preset through its binding after this runs, so the pickers follow on the next turn (a
+    // dispatch always waits for it; BeginInvokeOnMainThread runs at once on the main thread).
+    partial void OnPresetChanged(string? value) => Application.Current?.Dispatcher.Dispatch(FollowOptions);
+
+    // A figure shows in its own colour: one chosen with a swatch would otherwise stay over every figure.
+    [RelayCommand]
+    private void ChooseFigure(FigureChoice figure)
+    {
+        BodyColor = null;
+        Preset = figure.Preset;
+    }
+
+    [RelayCommand]
+    private void ChooseSwatch(SwatchChoice? swatch) => BodyColor = swatch?.Color;
 
     partial void OnDriverIndexChanged(int value)
     {

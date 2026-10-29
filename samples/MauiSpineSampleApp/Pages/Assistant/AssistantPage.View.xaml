@@ -15,7 +15,7 @@
                     <Segment Title="Type" />
                 </SegmentedControl>
                 <Entry Text="{Binding Server}" Placeholder="http://192.168.1.10:5100/ai" Keyboard="Url" IsVisible="{Binding IsVoice}" />
-                <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="240" />
+                <AvatarView Source="{Binding Avatar.Source}" Preset="{Binding Avatar.Preset}" Driver="{Binding Driver}" HeightRequest="240" />
                 <VerticalStackLayout Spacing="12" IsVisible="{Binding IsText}">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                         <Entry Text="{Binding Draft}" Placeholder="Ask something" ReturnCommand="{Binding SendCommand, Source={x:Reference TextChat}, x:DataType=ChatView}" ReturnCommandParameter="{Binding Draft}" />

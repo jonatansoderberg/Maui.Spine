@@ -8,7 +8,7 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar">
 
         <Example Title="Bundled, built in and hosted"
-                 Summary="Bars and Ring are built into Spine (Source=&quot;bars&quot;) and show a voice's sound in and out; four more ship as MauiAssets; the rest are hosted by the sample server. A hosted avatar shows the server's poster, version and size until it is downloaded; then the app keeps it in its data folder, opens it from there, and offers an update when the server lists a later version (each download checked against the server's SHA-256). Every card shows its package's own poster, light or dark with the theme, so the list draws nothing per frame; the avatar comes alive on its page. Tap one to drive it.">
+                 Summary="Bars and Ring are built into Spine (Source=&quot;bars&quot;) and show a voice's sound in and out; five more ship as MauiAssets, Mini with nine figures in one package; the rest are hosted by the sample server. A hosted avatar shows the server's poster, version and size until it is downloaded; then the app keeps it in its data folder, opens it from there, and offers an update when the server lists a later version (each download checked against the server's SHA-256). Every card shows its package's own poster, light or dark with the theme, so the list draws nothing per frame; the avatar comes alive on its page. Tap one to drive it.">
             <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Items}">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="AvatarItem">
