@@ -65,7 +65,12 @@ public sealed class RealtimeTests : IAsyncLifetime
         ("Ai:Features:Assistant:Provider", "fake"),
         ("Ai:Features:Assistant:Model", TestHost.Model),
         ("Ai:Features:Assistant:Expose", "true"),
-        ("Ai:Prices:voice:realtime-1:PerMinute", "0.3")));
+        ("Ai:Prices:voice:realtime-1:PerMinute", "0.3"),
+        ("Ai:Prices:voice:realtime-1:InputPerMillion", "0.6"),
+        ("Ai:Prices:voice:realtime-1:CachedInputPerMillion", "0.3"),
+        ("Ai:Prices:voice:realtime-1:OutputPerMillion", "2.4"),
+        ("Ai:Prices:voice:realtime-1:Additional:audio_input_tokens", "10"),
+        ("Ai:Prices:voice:realtime-1:Additional:audio_output_tokens", "20")));
 
     public async Task InitializeAsync()
     {
@@ -244,6 +249,47 @@ public sealed class RealtimeTests : IAsyncLifetime
         Assert.Equal(0m, record.Cost);
         Assert.NotNull(record.Error);
     }
+
+    private async Task<HttpResponseMessage> ReportAsync(string user, object body)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/ai/realtime/Talk/usage")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add(UserHeader, user);
+        return await _http.SendAsync(request);
+    }
+
+    [Fact]
+    public async Task A_direct_session_reports_its_usage_once_and_the_reservation_is_settled_with_it()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/ai/realtime/Talk");
+        request.Headers.Add(UserHeader, "anna");
+        var token = JsonNode.Parse(await (await _http.SendAsync(request)).Content.ReadAsStringAsync())!.AsObject();
+        var ticket = (string?)token["usageTicket"];
+        Assert.False(string.IsNullOrEmpty(ticket));
+        Assert.Equal(1.5m, _store.Records.Single().Cost);
+
+        var usage = new { inputTokens = 1000, cachedInputTokens = 500, outputTokens = 300, audioInputTokens = 200, audioOutputTokens = 200 };
+        Assert.Equal(HttpStatusCode.Forbidden, (await ReportAsync("bertil", new { ticket, usage, seconds = 90 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await ReportAsync("anna", new { ticket, seconds = 90 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await ReportAsync("anna", new { ticket = "not-a-ticket", usage, seconds = 90 })).StatusCode);
+
+        var settled = await ReportAsync("anna", new { ticket, usage, seconds = 90 });
+        Assert.Equal(HttpStatusCode.OK, settled.StatusCode);
+        var record = Assert.Single(_store.Records, r => r.Adjustment);
+        Assert.Equal(800, record.InputTokens);
+        Assert.Equal(500, record.CachedInputTokens);
+        Assert.Equal(100, record.OutputTokens);
+        // 5 min × 0.3 off; 300 plain + 500 cached input, 100 output, 200 audio in and out at the prices above.
+        Assert.Equal(-1.5m + (300 * 0.6m + 500 * 0.3m + 100 * 2.4m + 200 * 10m + 200 * 20m) / 1_000_000m, record.Cost);
+        Assert.Equal(TimeSpan.FromSeconds(90), record.Duration);
+
+        // The ticket is spent.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await ReportAsync("anna", new { ticket, usage, seconds = 90 })).StatusCode);
+        Assert.Single(_store.Records, r => r.Adjustment);
+    }
+
 }
 
 public sealed class OpenAIRealtimeProviderTests

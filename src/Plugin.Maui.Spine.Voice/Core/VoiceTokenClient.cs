@@ -23,6 +23,12 @@ public sealed record VoiceSessionToken(string Feature, string Protocol, Uri Url,
     /// <summary>How many rounds of function calls one turn of the user may take; the feature's <c>MaxToolRounds</c>.</summary>
     public int MaxToolRounds { get; init; } = 4;
 
+    /// <summary>
+    /// For a session run with the provider directly: the single-use ticket the session sends back with what the provider
+    /// reported it used, so the server settles its reservation with the real tokens. <see langword="null"/> through a relay.
+    /// </summary>
+    public string? UsageTicket { get; init; }
+
     /// <summary>The longest result of a function that reaches the model; the feature's <c>MaxToolResultCharacters</c>.</summary>
     public int MaxResultCharacters { get; init; } = SpineAIFunction.DefaultMaxResultCharacters;
 }
@@ -83,6 +89,7 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
             return new VoiceSessionToken(Text(json, "feature") ?? feature, protocol, socket, token, expires, minutes, Text(json, "voice"))
             {
                 Tools = Tools(json),
+                UsageTicket = Text(json, "usageTicket"),
                 MaxToolRounds = root.TryGetProperty("maxToolRounds", out var rounds) && rounds.TryGetInt32(out var r) && r > 0 ? r : 4,
                 MaxResultCharacters = root.TryGetProperty("maxResultCharacters", out var cap) && cap.TryGetInt32(out var c) && c > 0 ? c : SpineAIFunction.DefaultMaxResultCharacters,
             };
@@ -130,6 +137,36 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
     }
 
     /// <summary>The headers that open the session's socket: the provider's token, or for the relay the app's own sign-in.</summary>
+    /// <summary>
+    /// Tells the server what a direct session used, as the provider reported it, with the token's usage ticket: the
+    /// server settles the session's reservation with the real tokens. False when the server did not take it.
+    /// </summary>
+    public async Task<bool> ReportUsageAsync(VoiceSessionToken token, VoiceSessionUsage usage, double seconds, CancellationToken cancellationToken)
+    {
+        if (token.UsageTicket is not { Length: > 0 } ticket || options.SessionEndpoint is not { } endpoint) return false;
+        var url = new Uri($"{endpoint.ToString().TrimEnd('/')}/realtime/{Uri.EscapeDataString(token.Feature)}/usage");
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new
+            {
+                ticket,
+                usage = new
+                {
+                    inputTokens = usage.InputTokens,
+                    cachedInputTokens = usage.CachedInputTokens,
+                    outputTokens = usage.OutputTokens,
+                    audioInputTokens = usage.AudioInputTokens,
+                    audioOutputTokens = usage.AudioOutputTokens,
+                },
+                seconds,
+            }), System.Text.Encoding.UTF8, "application/json"),
+        };
+        foreach (var (name, value) in await AppHeadersAsync(cancellationToken))
+            request.Headers.TryAddWithoutValidation(name, value);
+        using var response = await _http.Value.SendAsync(request, cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<IReadOnlyDictionary<string, string>> SocketHeadersAsync(VoiceSessionToken token, CancellationToken cancellationToken) =>
         token.Protocol is "openai-live" or "openai-relay"
             ? await AppHeadersAsync(cancellationToken) // the server's relay: the ticket is in the url, the app's own headers go with it

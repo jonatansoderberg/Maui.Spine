@@ -217,6 +217,7 @@ public static class SpineAIEndpoints
             expiresAt = session.ExpiresAt,
             maxMinutes = session.MaxMinutes,
             voice = session.Voice,
+            usageTicket = session.UsageTicket,
             tools = ToolsOf(features, found),
             maxToolRounds = MaxToolRoundsOf(found),
             maxResultCharacters = MaxResultOf(found),
@@ -260,6 +261,70 @@ public static class SpineAIEndpoints
     private static int MaxToolRoundsOf(AIFeature found) => Math.Max(1, found.Options.MaxToolRounds ?? FeatureFunctionsChatClient.DefaultMaxToolRounds);
 
     private static int MaxResultOf(AIFeature found) => found.Options.MaxToolResultCharacters ?? SpineAIFunction.DefaultMaxResultCharacters;
+
+    /// <summary>
+    /// <c>POST {prefix}/realtime/{feature}/usage</c>: what a session the app ran with the provider directly used, as the
+    /// provider reported it in <c>response.done</c>, with the <c>usageTicket</c> from <see cref="RealtimeSessionAsync"/>.
+    /// The server never sees such a session, so until this arrives the budget holds the reservation; with it the
+    /// reservation is settled with the real tokens at the model's prices (audio tokens apart, as <c>audio_input_tokens</c>
+    /// and <c>audio_output_tokens</c> under the price's <c>Additional</c>). The ticket is single-use and the caller's own.
+    /// </summary>
+    /// <param name="request">The incoming request; its body is <c>{ ticket, usage: { inputTokens, cachedInputTokens, outputTokens, audioInputTokens, audioOutputTokens }, seconds }</c>.</param>
+    /// <param name="feature">The feature's name, from the route.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>200 <c>{ settled: true }</c>; 400 for a body the server cannot read; 401 for a ticket that is missing, expired or used; 403 for another caller's ticket.</returns>
+    public static async Task<IResult> RealtimeUsageAsync(HttpRequest request, string feature, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(feature);
+
+        var services = request.HttpContext.RequestServices;
+        var features = services.GetRequiredService<AIFeatures>();
+        var registry = services.GetRequiredService<AIFeatureRegistry>();
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Plugin.Maui.Spine.Server.AI");
+
+        if (!registry.Current.Features.TryGetValue(feature, out var found) || !found.Options.Expose || found.Options.Kind != AIFeatureKind.Realtime)
+            return new AIFeatureOffException(feature, AIOffReason.NotConfigured).ToResult();
+
+        AIRealtimeUsageBody? body;
+        try
+        {
+            body = await request.ReadFromJsonAsync<AIRealtimeUsageBody>(Json, cancellationToken);
+        }
+        catch (JsonException)
+        {
+            body = null;
+        }
+        if (body?.Usage is not { } reported || !reported.IsSane || body.Seconds is < 0 or > 86_400)
+            return Results.BadRequest("The body is { ticket, usage: { inputTokens, cachedInputTokens, outputTokens, audioInputTokens, audioOutputTokens }, seconds }.");
+
+        var tickets = services.GetRequiredService<AIRealtimeTickets>();
+        var ticket = tickets.Read(body.Ticket);
+        if (ticket is null || ticket.Feature != found.Name)
+            return Results.Text("The usage ticket is missing, expired, or for another feature.", statusCode: 401);
+
+        var caller = await features.IdentifyAsync(request);
+        if (caller.Key != ticket.Caller)
+        {
+            logger.LogWarning("AI feature '{Feature}': a usage report for {Ticket} came from {Caller}.", found.Name, ticket.Caller, caller.Key);
+            return Results.Text("The usage ticket was issued to another caller.", statusCode: 403);
+        }
+        if (!tickets.TryUse(ticket))
+            return Results.Text("The usage ticket was used already.", statusCode: 401);
+
+        var usage = new UsageDetails
+        {
+            InputTokenCount = Math.Max(0, reported.InputTokens - reported.AudioInputTokens),
+            CachedInputTokenCount = reported.CachedInputTokens,
+            OutputTokenCount = Math.Max(0, reported.OutputTokens - reported.AudioOutputTokens),
+            AdditionalCounts = new() { ["audio_input_tokens"] = reported.AudioInputTokens, ["audio_output_tokens"] = reported.AudioOutputTokens },
+        };
+        await services.GetRequiredService<AIUsageMeter>().SettleAsync(found, caller, found.Model, usage, 0, (decimal)ticket.Minutes, TimeSpan.FromSeconds(body.Seconds));
+        logger.LogInformation(
+            "AI feature '{Feature}': {Caller} reported a direct realtime session of {Seconds:0.#} s: {Input} in ({Cached} cached, {AudioIn} audio), {Output} out ({AudioOut} audio); the reservation of {Minutes} min is settled.",
+            found.Name, caller.Key, body.Seconds, reported.InputTokens, reported.CachedInputTokens, reported.AudioInputTokens, reported.OutputTokens, reported.AudioOutputTokens, ticket.Minutes);
+        return Results.Json(new { settled = true }, Json);
+    }
 
     /// <summary>
     /// The WebSocket a GPT-Live session talks through: the app connects with the ticket <see cref="RealtimeSessionAsync"/>
@@ -810,6 +875,7 @@ public static class SpineAIEndpointRouteBuilderExtensions
         var root = prefix.TrimEnd('/');
         endpoints.MapPost($"{root}/realtime/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.RealtimeSessionAsync(request, name, ct));
         endpoints.Map($"{root}/realtime/{{name}}/relay", (HttpContext context, string name) => SpineAIEndpoints.RealtimeRelayAsync(context, name, context.RequestAborted));
+        endpoints.MapPost($"{root}/realtime/{{name}}/usage", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.RealtimeUsageAsync(request, name, ct));
 
         return endpoints;
     }
