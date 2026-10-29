@@ -270,6 +270,24 @@ public sealed class OpenAIRealtimeProviderTests
         new("Talk", "gpt-realtime", "Svara kort.", 400, options, AICaller.SignedIn("anna"));
 
     [Fact]
+    public void The_relays_session_is_the_token_requests_session_detached_and_without_model_or_tools()
+    {
+        var provider = (IAIRealtimeRelayProvider)AIRealtimeProviders.OpenAI(Section(("ApiKey", "sk-test")), new HttpClient(new Recorder(HttpStatusCode.OK, Answer)));
+
+        var session = provider.SessionOf(Request(new AIRealtimeOptions { Voice = "marin", TurnDetection = "server_vad" }));
+
+        Assert.Null(session.Parent);
+        Assert.Equal("realtime", (string?)session["type"]);
+        Assert.Equal("Svara kort.", (string?)session["instructions"]);
+        Assert.Equal("marin", (string?)session["audio"]!["output"]!["voice"]);
+        Assert.Null(session["model"]);
+        Assert.Null(session["tools"]);
+        // The relay puts it into a session.update of its own: a node with a parent would throw here.
+        var update = new JsonObject { ["type"] = "session.update", ["session"] = session };
+        Assert.Equal("session.update", (string?)update["type"]);
+    }
+
+    [Fact]
     public async Task OpenAI_gets_the_key_as_bearer_and_the_whole_session()
     {
         var recorder = new Recorder(HttpStatusCode.OK, Answer);
