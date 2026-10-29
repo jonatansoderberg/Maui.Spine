@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/722
 **Branch:** issue/722-showcase-the-minis-and-their-figures
-**Status:** In Progress
+**Status:** Completed (merged as [#723](https://github.com/jonatansoderberg/Maui.Spine/pull/723) on 2026-10-29)
 
 The owner asked for the Mini presets in the Showcase, and for Mini Blue as the chat's avatar by default (2026-10-29). This follows the Minis v2 plan, which is done ([docs/plans/spine-avatar-mini-v2.md](../docs/plans/spine-avatar-mini-v2.md)).
 
