@@ -18,6 +18,8 @@
                             Expression="{Binding Expression}"
                             MotionMode="{Binding MotionMode}"
                             MaxFramesPerSecond="{Binding FrameRate}"
+                            Preset="{Binding Preset}"
+                            BodyColor="{Binding BodyColor}"
                             HeightRequest="{Binding Size}"
                             WidthRequest="{Binding Size}"
                             HorizontalOptions="Center" />
@@ -32,6 +34,51 @@
                         </FormattedString>
                     </Label.FormattedText>
                 </Label>
+                <!-- A package with figures (format 1.1): one package, many figures, chosen without loading again. -->
+                <VerticalStackLayout Spacing="10" IsVisible="{Binding HasChoices}">
+                    <Label Text="{Binding FigureName}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                    <FlexLayout Wrap="Wrap" JustifyContent="Center" BindableLayout.ItemsSource="{Binding Figures}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="FigureChoice">
+                                <VerticalStackLayout Margin="4,0,4,8" WidthRequest="64" Spacing="2"
+                                                     Tap.Command="{PageCommand ChooseFigure}" Tap.CommandParameter="{Binding .}"
+                                                     SemanticProperties.Description="{Binding Name}">
+                                    <AvatarView Source="{Binding Source}" Preset="{Binding Preset}" HeightRequest="56" WidthRequest="56"
+                                                MaxFramesPerSecond="15" InputTransparent="True" HorizontalOptions="Center" />
+                                    <Label Text="{Binding Name}" FontSize="11" Opacity="0.75" HorizontalTextAlignment="Center" LineBreakMode="TailTruncation" />
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                    <VerticalStackLayout Spacing="6" BindableLayout.ItemsSource="{Binding Options}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="OptionChoice">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="{Binding Title}" VerticalOptions="Center" />
+                                    <Picker Grid.Column="1" ItemsSource="{Binding Values}" SelectedItem="{Binding Selected}" MinimumWidthRequest="140" />
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Swatches}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="SwatchChoice">
+                                    <Border WidthRequest="30" HeightRequest="30" Margin="0,0,8,8" StrokeThickness="0" BackgroundColor="{Binding Color}"
+                                            Tap.Command="{PageCommand ChooseSwatch}" Tap.CommandParameter="{Binding .}"
+                                            SemanticProperties.Description="{Binding Name}">
+                                        <Border.StrokeShape>
+                                            <RoundRectangle CornerRadius="15" />
+                                        </Border.StrokeShape>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+                        <Button Grid.Column="1" Text="Own colour" Command="{Binding ChooseSwatchCommand}" VerticalOptions="Start" />
+                    </Grid>
+                    <Label Text="One package of 33 KB holds these figures: a figure picks a shape, eyes and colour; Shape and Eyes change one choice over it, and a colour replaces the figure's own. Nothing loads again." FontSize="13" Opacity="0.7" />
+                </VerticalStackLayout>
+
                 <SegmentedControl SelectedIndex="{Binding DriverIndex}">
                     <Segment Title="Manual" />
                     <Segment Title="Text" />
@@ -115,6 +162,10 @@
             </VerticalStackLayout>
             <Example.Code>
                 &lt;AvatarView Source="{Binding Avatar}" Driver="{Binding Driver}" State="{Binding State}" /&gt;
+
+                // A package with figures (format 1.1), such as Mini:
+                &lt;AvatarView Source="mini.spineavatar" Preset="blue" BodyColor="{StaticResource Brand}" /&gt;
+                avatar.SetOption("shape", "drop");          // over the figure; null gives it back
 
                 avatar.SetExpression(new(AvatarExpression.Happy, 0.9f, TimeSpan.FromSeconds(3)));
                 await avatar.PlayGestureAsync("nod");
