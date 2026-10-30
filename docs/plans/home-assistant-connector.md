@@ -1,7 +1,7 @@
 # Plan: HA:Dispatcher – a Home Assistant connector
 
 **Started:** 2026-10-30
-**Last updated:** 2026-10-30 (named HA:Dispatcher, Q12; the TV launcher is TV:Dash. Earlier the same day the owner answered Q1, Q2, Q5 and Q6: HA runs on an HA Green, Azure with a Web App is fine, the domain is cosmomedia.se at Loopia, the TV launcher is a Spine app on Chromecast with Google TV; D2, D10 and D12 decided, D7 adapted, D13 added, S5 and S7 ready)
+**Last updated:** 2026-10-30 (S1 in progress in the private `ha-dispatcher` repository, so far local only: the HA client, the state cache and an Aspire chain with a demo HA, tested against a real HA as the non-admin user; the 24 h run on the Pi remains. Before that: named HA:Dispatcher, Q12; the TV launcher is TV:Dash. Earlier the same day the owner answered Q1, Q2, Q5 and Q6: HA runs on an HA Green, Azure with a Web App is fine, the domain is cosmomedia.se at Loopia, the TV launcher is a Spine app on Chromecast with Google TV; D2, D10 and D12 decided, D7 adapted, D13 added, S5 and S7 ready)
 
 A .NET 10 service at home, **HA:Dispatcher** (called *the connector* below), is the only thing that talks to Home Assistant (HA), which runs on an HA Green. The connector runs on a Raspberry Pi 5 of its own first and on a NAS later. It owns the entity model, name resolution and the safety policy, serves a local `/v1` API with a live hub, and dials out to Azure over a single outbound connection. Through Azure, a Spine app, an ESP32-S3 voice display, TV:Dash (the owner's TV launcher, a Spine app on Chromecast with Google TV) and the Spine AI server reach the same `/v1` contract from anywhere. The app picks the local or the cloud path by itself and switches without the user noticing. Dashboards are built from HA entities and loaded by every client. The Spine AI server gets smart-home functions (list, search, read state, lights, blinds, climate, scenes, scripts) for text chat, realtime voice, the ESP display and the TV.
 
@@ -144,7 +144,7 @@ Thick arrows are long-lived single sockets; dotted ones are optional.
 | D8 | Authentication | Spine's JWT on both paths, validated offline with JWKS persisted on disk (~30 days last-known-good); a device-bound local credential from pairing; device keys for ESP and TV; HA token only in the connector | Separate local keys per client; HA tokens in clients | – | Proposal |
 | D9 | Dashboards | Own versioned schema; the connector is the truth (`rev`, ETag), the gateway keeps a readable mirror, clients cache; the default dashboard is generated from areas, floors and labels | Cloud as truth; render HA Lovelace directly | Several homes, or editing must work while the home is offline (→ cloud as truth) | Proposal |
 | D10 | Packaging | One multi-arch OCI image on GHCR, run with Docker Compose on Raspberry Pi OS Trixie (64-bit, NVMe boot) and later with the same compose file on the NAS. No HA app wrapper: HA runs on the HA Green, and a connector on hardware of its own keeps working while HA updates or restarts | Run it as an HA app on the HA Green; systemd | The Pi goes away before the NAS arrives (→ an HA app on the Green) | Decided (Q1) |
-| D11 | Events into HA | `call_service` on scripts and automations with a non-admin HA user (`fire_event` and `subscribe_trigger` need admin) | Admin user; a companion integration | A need for custom events that scripts cannot cover | Proposal |
+| D11 | Events into HA | `call_service` on scripts and automations with a non-admin HA user (`fire_event` and `subscribe_trigger` need admin; S1 saw HA 2026.10.4 refuse `fire_event` with `unauthorized` and run scripts and scenes) | Admin user; a companion integration | A need for custom events that scripts cannot cover | Proposal |
 | D12 | TV technology | TV:Dash, the owner's TV launcher, a Spine (.NET MAUI) Android app already in progress on Chromecast with Google TV. It takes the same `HADispatcher.Client` as the phone app; the D-pad focus and leanback gaps it meets become Spine issues | Kotlin + Compose for TV (the research's pick, because MAUI has no TV focus support) | – | Decided (Q6) |
 | D13 | Connector ↔ HA | The connector reaches the HA Green over the LAN (`ws://<ha-green>:8123/api/websocket`) with a dedicated non-admin user whose long-lived token is `local_only`; both boxes get DHCP reservations, so neither depends on `.local` resolving | HTTPS on HA (only if it is turned on for other reasons); an admin token | HA gets TLS anyway, or the connector moves off the LAN segment | Proposal |
 
@@ -154,7 +154,7 @@ Thick arrows are long-lived single sockets; dotted ones are optional.
 
 | # | Spike | Question | Done when | Status |
 |---|---|---|---|---|
-| S1 | HA client | Does an own client handle `subscribe_entities`, registries with aliases, `call_service` with `return_response` and HA restarts, running on the Pi 5 against the HA Green? | 24 h against the HA Green and a demo container, incl. an HA update/restart, with no lost state; CPU and RAM on the Pi measured | Ready |
+| S1 | HA client | Does an own client handle `subscribe_entities`, registries with aliases, `call_service` with `return_response` and HA restarts, running on the Pi 5 against the HA Green? | 24 h against the HA Green and a demo container, incl. an HA update/restart, with no lost state; CPU and RAM on the Pi measured | In progress: client, cache, session and host built; against a demo HA 2026.10.4 the cache equalled `get_states` after 600 actions in 0.8 s and after an HA restart; 80–98 MB working set on x64; the Pi run against the HA Green remains |
 | S2 | Link latency | What does a tool call gateway → connector → HA cost? | p50/p95 for `get_state` and `call_service` from Sweden Central measured against 150 ms / 300 ms | Waiting (S1) |
 | S3 | HA tool on the ESP display | Does an HA tool work as a server function without a firmware change? | `scene_activate` and `home_get_state` listed in the desk agent feature on a gateway copy of the display's backend; function-to-speech time measured | Waiting (S2) |
 | S4 | Swedish name resolution | Own tools vs HA's Assist MCP vs `conversation/process`; full vs mini realtime model | 50–100 household utterances with accuracy and latency per variant | Waiting (S1) |
@@ -162,7 +162,7 @@ Thick arrows are long-lived single sockets; dotted ones are optional.
 | S6 | Routing | Can the client switch path mid-session without duplicate commands? | Wi-Fi → cellular with a command in flight and a live stream, no duplicates or gaps in `seq` | Waiting (S1) |
 | S7 | TV microphone | On Chromecast with Google TV: does the launcher (a foreground Spine app) get audio from the remote's microphone, can it be the HOME app, and how much memory does it use? | Tested in the launcher on the owner's Chromecast; the voice path chosen (remote microphone, or the phone app as microphone) | Ready |
 
-The dev loop runs on the Mac with an Aspire AppHost: the connector, an HA container (`ghcr.io/home-assistant/home-assistant:stable`) with the `demo` integration, the gateway and Azurite. The same AppHost generates the Pi's compose file (`AddDockerComposeEnvironment`).
+The dev loop runs on the Mac with an Aspire AppHost (`HADispatcher.AppHost`, there since S1): an HA container with the `demo` integration from a seeded, onboarded config, and the connector against it, with a chain test through Aspire.Hosting.Testing. The gateway and Azurite join as their phases start. The image is `homeassistant/home-assistant` from Docker Hub, the same as the ghcr.io one, whose blob host locked-down networks may block. The same AppHost generates the Pi's compose file (`AddDockerComposeEnvironment`).
 
 ---
 
@@ -220,7 +220,7 @@ To be filed as Maui.Spine issues when the phase that needs them starts.
 | Q9 | Which realtime provider and region (Azure OpenAI Sweden Central, OpenAI, Gemini Live)? | Cost, data residency, latency | Open |
 | Q10 | Should the ESP display's backend move into the gateway, or get the Home Link itself? | Phase 3 | Open |
 | Q11 | Should HA scenes appear in Control Center / Quick Settings? | Spine gap: configurable controls | Open |
-| Q12 | What are the connector and its repository called, and is it private? | Where phase 1 starts | Named HA:Dispatcher (2026-10-30); repository name and visibility open (`ha-dispatcher`?) |
+| Q12 | What are the connector and its repository called, and is it private? | Where phase 1 starts | HA:Dispatcher in `ha-dispatcher`, private (2026-10-30); so far a local repository, not yet on GitHub |
 | Q13 | Where does TV:Dash's code live, so its Spine gaps can be read? | Phase 5, Spine gaps | Open |
 
 ---
