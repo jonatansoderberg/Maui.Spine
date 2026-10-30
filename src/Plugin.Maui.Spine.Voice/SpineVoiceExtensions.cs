@@ -62,6 +62,8 @@ public static class SpineVoiceExtensions
         var time = services.GetService<TimeProvider>();
 #if IOS || MACCATALYST
         return new AppleVoiceAudio(logger, time);
+#elif ANDROID
+        return new AndroidVoiceAudio(logger, time);
 #else
         return new UnsupportedVoiceAudio(logger, time);
 #endif
@@ -81,7 +83,7 @@ public static class SpineVoiceExtensions
         return created;
     }
 
-    /// <summary>Android (#562) and Windows (#563) until their engines come: it says so when started.</summary>
+    /// <summary>Windows (#563) until its engine comes: it says so when started.</summary>
     private sealed class UnsupportedVoiceAudio(ILogger? logger, TimeProvider? time) : VoiceAudioEngine(logger, time)
     {
         public override bool IsSupported => false;
