@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/562
 **Branch:** issue/562-android-voice-engine
-**Status:** In Progress
+**Status:** Completed (the engine; the microphone foreground service is a follow-up)
 
 ## Plan
 
