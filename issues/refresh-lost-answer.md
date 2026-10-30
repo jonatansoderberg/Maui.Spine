@@ -1,6 +1,6 @@
 # Sign-in: a refresh answer lost in the background signed the phone out
 
-**GitHub:** (not filed yet; found in Glukos on 2026-10-29)
+**GitHub:** no issue; found in Glukos on 2026-10-29. PR: https://github.com/jonatansoderberg/Maui.Spine/pull/724
 **Branch:** fix/refresh-lost-answer
 **Status:** In Progress
 
