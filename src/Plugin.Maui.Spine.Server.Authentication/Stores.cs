@@ -154,8 +154,18 @@ public interface IUserResolver
 /// <param name="UserId">The user.</param>
 /// <param name="Provider">How the user signed in.</param>
 /// <param name="ExpiresAt">When it stops working.</param>
-/// <param name="UsedAt">When it was traded in; a second use revokes the family.</param>
-public sealed record SpineRefreshToken(string Hash, string FamilyId, string UserId, string Provider, DateTimeOffset ExpiresAt, DateTimeOffset? UsedAt = null);
+/// <param name="UsedAt">When it was traded in; a second use revokes the family, unless the answer was lost (<see cref="IssuedFrom"/>).</param>
+public sealed record SpineRefreshToken(string Hash, string FamilyId, string UserId, string Provider, DateTimeOffset ExpiresAt, DateTimeOffset? UsedAt = null)
+{
+    /// <summary>The hash of the token this one was issued for; <see langword="null"/> for a sign-in's first token.</summary>
+    public string? IssuedFrom { get; init; }
+
+    /// <summary>
+    /// When it was retired unused: its predecessor was presented again after this one's answer was lost, and a new pair
+    /// took its place. Presenting it after that counts as reuse.
+    /// </summary>
+    public DateTimeOffset? SupersededAt { get; init; }
+}
 
 /// <summary>Where refresh tokens and one-time values (nonces, emailed codes) live. Keys arrive hashed.</summary>
 public interface ISpineAuthStore
@@ -174,6 +184,20 @@ public interface ISpineAuthStore
 
     /// <summary>Marks a refresh token used. Only one caller wins; the others get <see langword="false"/>.</summary>
     Task<bool> TryUseRefreshAsync(string hash, DateTimeOffset now, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The newest refresh token of one sign-in, used or not. The built-in stores implement it; a store of the app's own
+    /// that answers <see langword="null"/> makes every second presentation of a token past the grace a reuse.
+    /// </summary>
+    Task<SpineRefreshToken?> FindLatestRefreshAsync(string userId, string familyId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<SpineRefreshToken?>(null);
+
+    /// <summary>
+    /// Retires an unused refresh token whose answer was lost (<see cref="SpineRefreshToken.SupersededAt"/>). A store that
+    /// implements <see cref="FindLatestRefreshAsync"/> implements this too.
+    /// </summary>
+    Task SupersedeRefreshAsync(string hash, DateTimeOffset now, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This ISpineAuthStore cannot retire a refresh token.");
 
     /// <summary>Whether a family was revoked.</summary>
     Task<bool> IsFamilyRevokedAsync(string userId, string familyId, CancellationToken cancellationToken = default);
@@ -337,6 +361,7 @@ public sealed class InMemorySpineAuthStore : ISpineAuthStore
     private readonly ConcurrentDictionary<string, (string Value, DateTimeOffset ExpiresAt)> _oneTime = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, SpineRefreshToken> _refresh = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<(string User, string Family), bool> _families = new();
+    private readonly ConcurrentDictionary<(string User, string Family), string> _latest = new();
 
     /// <summary>The refresh tokens kept, for tests.</summary>
     public IReadOnlyCollection<SpineRefreshToken> RefreshTokens => _refresh.Values.ToList();
@@ -357,6 +382,7 @@ public sealed class InMemorySpineAuthStore : ISpineAuthStore
     {
         _refresh[token.Hash] = token;
         _families.TryAdd((token.UserId, token.FamilyId), false);
+        _latest[(token.UserId, token.FamilyId)] = token.Hash;
         return Task.CompletedTask;
     }
 
@@ -374,6 +400,18 @@ public sealed class InMemorySpineAuthStore : ISpineAuthStore
         }
 
         return Task.FromResult(false);
+    }
+
+    /// <inheritdoc />
+    public Task<SpineRefreshToken?> FindLatestRefreshAsync(string userId, string familyId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_latest.TryGetValue((userId, familyId), out var hash) && _refresh.TryGetValue(hash, out var token) ? token : null);
+
+    /// <inheritdoc />
+    public Task SupersedeRefreshAsync(string hash, DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        while (_refresh.TryGetValue(hash, out var token) && token.SupersededAt is null)
+            if (_refresh.TryUpdate(hash, token with { SupersededAt = now }, token)) break;
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -401,6 +439,7 @@ public sealed class InMemorySpineAuthStore : ISpineAuthStore
     public Task ForgetUserAsync(string userId, CancellationToken cancellationToken = default)
     {
         foreach (var key in _families.Keys.Where(k => k.User == userId)) _families.TryRemove(key, out _);
+        foreach (var key in _latest.Keys.Where(k => k.User == userId)) _latest.TryRemove(key, out _);
         foreach (var (hash, token) in _refresh) if (token.UserId == userId) _refresh.TryRemove(hash, out _);
         return Task.CompletedTask;
     }
@@ -414,7 +453,11 @@ public sealed class InMemorySpineAuthStore : ISpineAuthStore
 
         var live = _refresh.Values.Select(t => (t.UserId, t.FamilyId)).ToHashSet();
         foreach (var (key, revoked) in _families)
-            if ((revoked || !live.Contains(key)) && _families.TryRemove(key, out _)) removed++;
+        {
+            if (!revoked && live.Contains(key) || !_families.TryRemove(key, out _)) continue;
+            _latest.TryRemove(key, out _);
+            removed++;
+        }
 
         return Task.FromResult(removed);
     }

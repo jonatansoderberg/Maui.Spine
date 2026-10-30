@@ -335,8 +335,8 @@ if (await auth.GetPictureAsync() is { } picture)
 
 - **The refresh token and the user** are kept in `SecureStorage` (the Keychain on Apple, the Keystore on Android), under `StorageKey`. The access token is kept in memory only.
 - **Refresh.** An access token with less than a minute left is refreshed before it is handed out, one refresh at a time; callers that arrive meanwhile wait for the same one. This matters because the server treats a refresh token presented twice as stolen and signs that sign-in out everywhere.
-- **A refusal signs out.** A refresh the server refuses (revoked, reused, expired) signs the user out and raises `SignedOut`. Offline or a server error keeps the session, and the call goes without a token.
-- **The HTTP handler.** `AddSpineAuthentication()` on an `HttpClient` builder adds `Authorization: Bearer …` to every request. On a 401 it refreshes and sends the request once more. A request made while nobody is signed in goes without a token.
+- **A refusal signs out.** A refresh the server refuses (revoked, reused, expired) signs the user out and raises `SignedOut`. Offline or a server error keeps the session; `GetAccessTokenAsync` answers null then, and a request through the handler fails with `HttpRequestException`, as any request without network, rather than go without a token and be answered 401 as if nobody were signed in.
+- **The HTTP handler.** `AddSpineAuthentication()` on an `HttpClient` builder adds `Authorization: Bearer …` to every request. On a 401 it refreshes and sends the request once more. A request made while nobody is signed in goes without a token; one made while the token cannot be refreshed throws `HttpRequestException`.
 
 ## Push
 

@@ -323,28 +323,33 @@ public sealed class AzureTableSpineAuthStore(string connectionString, string pre
         ArgumentNullException.ThrowIfNull(token);
         await EnsureAsync(cancellationToken);
 
-        await _refresh.AddEntityAsync(new TableEntity(TableKey.Encode(token.Hash), Row)
+        var row = new TableEntity(TableKey.Encode(token.Hash), Row)
         {
             ["FamilyId"] = token.FamilyId,
             ["UserId"] = token.UserId,
             ["Provider"] = token.Provider,
             ["ExpiresAt"] = token.ExpiresAt,
-        }, cancellationToken);
+        };
+        if (token.IssuedFrom is { } issuedFrom) row["IssuedFrom"] = issuedFrom;
+        await _refresh.AddEntityAsync(row, cancellationToken);
 
-        // A family lives as long as its newest token, so PruneAsync can tell when it is spent.
+        // A family lives as long as its newest token, so PruneAsync can tell when it is spent, and knows that token, so a
+        // lost answer can be told from reuse without a scan.
         try
         {
             await _families.AddEntityAsync(new TableEntity(TableKey.Encode(token.UserId), token.FamilyId)
             {
                 ["Revoked"] = false,
                 ["ExpiresAt"] = token.ExpiresAt,
+                ["Latest"] = token.Hash,
             }, cancellationToken);
         }
         catch (RequestFailedException e) when (e.Status == 409)
         {
-            // Only ExpiresAt is merged, so a revocation in between stands; a family pruned in between comes back without
-            // Revoked, which reads as revoked.
-            await _families.UpsertEntityAsync(new TableEntity(TableKey.Encode(token.UserId), token.FamilyId) { ["ExpiresAt"] = token.ExpiresAt },
+            // Only ExpiresAt and Latest are merged, so a revocation in between stands; a family pruned in between comes
+            // back without Revoked, which reads as revoked.
+            await _families.UpsertEntityAsync(
+                new TableEntity(TableKey.Encode(token.UserId), token.FamilyId) { ["ExpiresAt"] = token.ExpiresAt, ["Latest"] = token.Hash },
                 TableUpdateMode.Merge, cancellationToken);
         }
     }
@@ -359,7 +364,11 @@ public sealed class AzureTableSpineAuthStore(string connectionString, string pre
 
         var row = found.Value!;
         return new SpineRefreshToken(hash, row.GetString("FamilyId"), row.GetString("UserId"), row.GetString("Provider"),
-            row.GetDateTimeOffset("ExpiresAt") ?? default, row.GetDateTimeOffset("UsedAt"));
+            row.GetDateTimeOffset("ExpiresAt") ?? default, row.GetDateTimeOffset("UsedAt"))
+        {
+            IssuedFrom = row.GetString("IssuedFrom"),
+            SupersededAt = row.GetDateTimeOffset("SupersededAt"),
+        };
     }
 
     /// <inheritdoc />
@@ -381,6 +390,30 @@ public sealed class AzureTableSpineAuthStore(string connectionString, string pre
         catch (RequestFailedException e) when (e.Status is 404 or 412)
         {
             return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<SpineRefreshToken?> FindLatestRefreshAsync(string userId, string familyId, CancellationToken cancellationToken = default)
+    {
+        await EnsureAsync(cancellationToken);
+
+        // A family written before families had Latest answers null until its next token, and reuse is judged as before.
+        var family = await _families.GetEntityIfExistsAsync<TableEntity>(TableKey.Encode(userId), familyId, select: ["Latest"], cancellationToken: cancellationToken);
+        return family.HasValue && family.Value!.GetString("Latest") is { } latest ? await FindRefreshAsync(latest, cancellationToken) : null;
+    }
+
+    /// <inheritdoc />
+    public async Task SupersedeRefreshAsync(string hash, DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        await EnsureAsync(cancellationToken);
+
+        try
+        {
+            await _refresh.UpdateEntityAsync(new TableEntity(TableKey.Encode(hash), Row) { ["SupersededAt"] = now }, ETag.All, TableUpdateMode.Merge, cancellationToken);
+        }
+        catch (RequestFailedException e) when (e.Status == 404)
+        {
         }
     }
 

@@ -6,13 +6,20 @@ namespace Plugin.Maui.Spine.Authentication;
 
 /// <summary>
 /// Adds the signed-in user's access token to every request, and on a 401 refreshes it and sends the request once more.
-/// A request goes without a token when nobody is signed in.
+/// A request goes without a token when nobody is signed in; one made while the token cannot be refreshed fails as offline.
 /// </summary>
 internal sealed class SpineAuthHandler(SpineAuthSession session) : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var token = await session.GetAccessTokenAsync(cancellationToken);
+
+        // Signed in, but no token to send: the refresh did not get through (offline, or the server down for a moment).
+        // Sent bare, the request would be answered 401 and read as a sign-in needed; what happened is a network error, so
+        // that is what the caller gets, and the session stays for when the server is back.
+        if (token is null && session.User is not null)
+            throw new HttpRequestException("The access token could not be refreshed: the server could not be reached.");
+
         if (token is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         // A body that can only be read once could not be sent again after a 401.
