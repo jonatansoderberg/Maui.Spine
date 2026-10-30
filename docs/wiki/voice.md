@@ -16,10 +16,10 @@ The provider's key never reaches the app. A conversation with any chat model, su
 |---|---|---|
 | iOS | One `AVAudioEngine` with voice processing | Measured on an iPhone 16 Pro (below) |
 | Mac Catalyst | The same engine | Runs; the measurement was limited by the room |
-| Android | `VOICE_COMMUNICATION` and `AcousticEchoCanceler` | Coming in #562 |
+| Android | `AudioRecord` with the voice-communication source and an `AudioTrack` on its session, `AcousticEchoCanceler` and `NoiseSuppressor` where the device has them | Runs in the emulator (#562); a phone's numbers are still to come |
 | Windows | Communications audio category | Coming in #563 |
 
-On Android and Windows the engine says so when started: `VoiceAudioException` with `VoiceAudioProblem.Unavailable`.
+On Windows the engine says so when started: `VoiceAudioException` with `VoiceAudioProblem.Unavailable`. On Android the app declares `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` in its manifest (without the first the engine fails with `NotConfigured`; without the second the system refuses the communication mode silently, so the device's own echo canceller stays off) and the engine asks for the microphone itself; it runs while the app is visible, the microphone foreground service for the background being a follow-up.
 
 ## A voice session
 
@@ -171,7 +171,7 @@ await voice.ConnectAsync("Claude", chat.Messages);   // a pipeline's name instea
 - **Hanging up on goodbye.** With `EndsOnGoodbye`, each answer offers the chat Spine's built-in `end_conversation` (`SpineAIFunctions.EndConversation`) as the app's own function (`ChatOptions.Tools`), and the call ends with `VoiceSessionEnd.Goodbye` once the farewell has played and 0.7 s of quiet has passed, as with Realtime. The microphone is not listened to meanwhile. A Spine.AI server feature offers it to its model whenever the app does, with no declaration and no `Functions` entry. Turning `EndsOnGoodbye` off during the farewell cancels it, and the call goes on.
 - **Time limit:** `MaxMinutes`, the app's own; no server reserves a pipeline's minutes. The call ends with `VoiceSessionEnd.TimeLimit`.
 - **Timings** are logged at Debug under `Plugin.Maui.Spine.Voice`: the turn, the words, the chat's first words and functions, each sentence's first audio and a cut-off. A chat that answers no text is a warning (a reasoning model can spend its whole output limit thinking; turn reasoning off or raise `MaxOutputTokens`).
-- **Not yet:** the device's parts on Android and Windows (#562, #563).
+- **Not yet:** the device's parts on Windows (#563), and the Android recognizer and renderer of a pipeline.
 
 ## A conversation
 

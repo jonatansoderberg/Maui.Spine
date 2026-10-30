@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-27 (step 4.8, one set of functions for every AI session, done: six PRs, the last a live test of every session kind; 4.7 voice pipelines done as #641)
+**Last updated:** 2026-10-30 (step 4.1b, the Android audio engine, in review as #562: the engine runs in the Google TV emulator; the microphone foreground service is left for a follow-up)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -53,7 +53,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.AI` | New | #512, #543 | [ai §7](../proposals/spine-ai.md) | #512 done (#536); #543 done (#545) |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
-| `Plugin.Maui.Spine.Voice` | New | #515, #562, #563, #516, #518 | [voice](../proposals/spine-voice.md) | #515 done (#566); #516 in review; #562, #563 and #567 wait |
+| `Plugin.Maui.Spine.Voice` | New | #515, #562, #563, #516, #518 | [voice](../proposals/spine-voice.md) | #515 done (#566); #516 in review; #562 in review (engine, no foreground service yet); #563 and #567 wait |
 | `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 done (#558); #557 done (#561); #521 added the provider hook (#565); #564 generalizes the mode without a server |
 | `Plugin.Maui.Spine.Authentication.Google` | New | #521 | [authentication](../proposals/spine-authentication.md) | Done (#565) |
 | `Plugin.Maui.Spine.Authentication.Microsoft` | New | #564 | [authentication](../proposals/spine-authentication.md) | Done (#570) |
@@ -140,7 +140,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 4.1a | Audio engine: the shared core (queue with flush, resampler, meter, `VoiceFrame`) and the Apple engine, with the Showcase's Voice lab | #515 | 0.2 | Done | #566 | Split by the owner on 2026-10-15. Measured on the owner's iPhone: echo cancellation removes the echo to digital silence on the loudspeaker in a quiet room, and lets the user's voice through (Decisions). |
-| 4.1b | Audio engine on Android: `VOICE_COMMUNICATION`, `AcousticEchoCanceler`, the microphone foreground service | #562 | 4.1a | Waiting | | Measure with the Voice lab on the owner's Android phone. |
+| 4.1b | Audio engine on Android: `VOICE_COMMUNICATION`, `AcousticEchoCanceler`, the microphone foreground service | #562 | 4.1a | In review | | The engine without the foreground service (2026-10-30, issues/562); the service and a phone's Voice lab numbers follow. |
 | 4.1c | Audio engine on Windows: the communications category | #563 | 4.1a | Waiting | | |
 | 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Done | #551 | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
 | 4.3a | `IVoiceSession` and the OpenAI adapter: token, socket, barge-in, transcript, client tools, push-to-talk, the time limit; the Showcase's Voice chat page | #516 | 4.1a, 4.2 | Done | #568 | OpenAI and Azure OpenAI only in v1 (Q28), over its own WebSocket (Decisions). Seen on the owner's iPhone: a spoken conversation, a tool, barge-in four times. |

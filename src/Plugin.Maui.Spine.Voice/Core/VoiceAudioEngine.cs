@@ -181,6 +181,7 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
         var position = _queue?.Flush();
         // The audio thread drops what it has already resampled, at its next render.
         _flushOutput = true;
+        OnFlushed();
         return position;
     }
 
@@ -231,6 +232,11 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
 
     /// <summary>Closes the platform's devices.</summary>
     protected abstract Task StopPlatformAsync();
+
+    /// <summary>The answer was cut off: a platform whose player buffers ahead of <see cref="RenderOutput"/> drops that too.</summary>
+    protected virtual void OnFlushed()
+    {
+    }
 
     /// <summary>The microphone's samples, -1..1 at the device's rate, after the platform's echo cancellation.</summary>
     protected void OnCaptured(ReadOnlySpan<float> samples, int deviceRate)
