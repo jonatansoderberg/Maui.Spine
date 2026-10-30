@@ -28,6 +28,7 @@ Multi-issue efforts have a living plan under `docs/plans/`. When an issue belong
 - `docs/plans/ai-and-security.md` — AI, voice, sign-in, biometrics and highlight (roadmap #505, issues #506–#522).
 - `docs/plans/desktop-dashboard.md` — moving a Mac dashboard app's window, layout, chart and widget code into Spine (backdrop, margins, window sizes, masonry, charts, widget rings).
 - `docs/plans/spine-avatar.md` — avatars: the lab (#524, #542), then the Core, Avatar, Speech and Avatar.Voice packages, drivers, the Showcase pages and the spikes (phases B0–C; issues created per step).
+- `docs/plans/home-assistant-connector.md` — Spine Home: a .NET connector to Home Assistant on a Pi 5 / NAS, an Azure gateway, local/cloud routing in the app, dashboards, AI functions for chat, voice, the ESP display and a TV app (spikes S1–S7, phases 1–6; started 2026-10-30).
 - `docs/plans/spine-avatar-mini-v2.md` — Minis v2 (done 2026-10-28): seven hand-drawn shapes and any colour in one `mini.spineavatar`, through the format's `options` and `presets` (phase M2).
 
 ## GitHub Issue Workflow
