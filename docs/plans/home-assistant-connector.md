@@ -1,11 +1,11 @@
-# Plan: HA:Connector – a Home Assistant connector
+# Plan: HA:Dispatcher – a Home Assistant connector
 
 **Started:** 2026-10-30
-**Last updated:** 2026-10-30 (named HA:Connector, Q12; the TV launcher is TV:Dash. Earlier the same day the owner answered Q1, Q2, Q5 and Q6: HA runs on an HA Green, Azure with a Web App is fine, the domain is cosmomedia.se at Loopia, the TV launcher is a Spine app on Chromecast with Google TV; D2, D10 and D12 decided, D7 adapted, D13 added, S5 and S7 ready)
+**Last updated:** 2026-10-30 (named HA:Dispatcher, Q12; the TV launcher is TV:Dash. Earlier the same day the owner answered Q1, Q2, Q5 and Q6: HA runs on an HA Green, Azure with a Web App is fine, the domain is cosmomedia.se at Loopia, the TV launcher is a Spine app on Chromecast with Google TV; D2, D10 and D12 decided, D7 adapted, D13 added, S5 and S7 ready)
 
-A .NET 10 service at home, the **connector**, is the only thing that talks to Home Assistant (HA), which runs on an HA Green. The connector runs on a Raspberry Pi 5 of its own first and on a NAS later. It owns the entity model, name resolution and the safety policy, serves a local `/v1` API with a live hub, and dials out to Azure over a single outbound connection. Through Azure, a Spine app, an ESP32-S3 voice display, TV:Dash (the owner's TV launcher, a Spine app on Chromecast with Google TV) and the Spine AI server reach the same `/v1` contract from anywhere. The app picks the local or the cloud path by itself and switches without the user noticing. Dashboards are built from HA entities and loaded by every client. The Spine AI server gets smart-home functions (list, search, read state, lights, blinds, climate, scenes, scripts) for text chat, realtime voice, the ESP display and the TV.
+A .NET 10 service at home, **HA:Dispatcher** (called *the connector* below), is the only thing that talks to Home Assistant (HA), which runs on an HA Green. The connector runs on a Raspberry Pi 5 of its own first and on a NAS later. It owns the entity model, name resolution and the safety policy, serves a local `/v1` API with a live hub, and dials out to Azure over a single outbound connection. Through Azure, a Spine app, an ESP32-S3 voice display, TV:Dash (the owner's TV launcher, a Spine app on Chromecast with Google TV) and the Spine AI server reach the same `/v1` contract from anywhere. The app picks the local or the cloud path by itself and switches without the user noticing. Dashboards are built from HA entities and loaded by every client. The Spine AI server gets smart-home functions (list, search, read state, lights, blinds, climate, scenes, scripts) for text chat, realtime voice, the ESP display and the TV.
 
-Name: **HA:Connector** (`HAConnector` in code), in the owner's family of AI:Dash and TV:Dash. HA:Bridge was dropped because `ha-bridge` is an established Hue-emulation project published as Docker images and NAS apps; the only HA-Connector found is a small deprecated SmartThings integration. The HA-specific code lives in its own repository; what any Spine app could use becomes Maui.Spine issues (see [Spine gaps](#spine-gaps)). The full research behind this plan (HA's APIs, the Azure link, routing, Pi/NAS operation, AI tools and dashboards, and an inventory of the owner's private repositories) is kept outside this public repository.
+Name: **HA:Dispatcher**, in the owner's family of AI:Dash and TV:Dash; no project or image of that name was found. In code the namespace is `HADispatcher`, and no type is called `Dispatcher` or `IDispatcher`: those are MAUI's UI-thread dispatcher, used throughout Spine and the apps. In HA, "dispatcher" is also the core's internal signal helper (`helpers.dispatcher`), so the docs say *the connector* for the role. HA:Bridge was dropped because `ha-bridge` is an established Hue-emulation project published as Docker images and NAS apps. The HA-specific code lives in its own repository; what any Spine app could use becomes Maui.Spine issues (see [Spine gaps](#spine-gaps)). The full research behind this plan (HA's APIs, the Azure link, routing, Pi/NAS operation, AI tools and dashboards, and an inventory of the owner's private repositories) is kept outside this public repository.
 
 Status values: **Proposal** (written, not reviewed), **Waiting** (on another step or an answer), **Ready**, **In progress**, **In review** (PR open), **Done**, **Parked**, **Dropped**.
 
@@ -15,7 +15,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 
 1. Read this file. Check [Questions for the owner](#questions-for-the-owner): a step whose decision depends on an unanswered question is **Waiting**.
 2. Spikes come before phases. Pick the first spike or step whose status is **Ready**.
-3. Spine gaps are worked as Maui.Spine issues with `/spine-issue <id>`; connector and gateway work happens in the HA:Connector repository, the TV work in TV:Dash's repository.
+3. Spine gaps are worked as Maui.Spine issues with `/spine-issue <id>`; connector and gateway work happens in the HA:Dispatcher repository, the TV work in TV:Dash's repository.
 4. In the same PR that moves a step: set its status and PR here, add any decision to [Decisions](#decisions), and update **Last updated**.
 5. Add what you could not verify to the [Verification backlog](#verification-backlog), and remove what you did verify.
 
@@ -39,7 +39,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 flowchart LR
   subgraph HOME["Home LAN"]
     HA["Home Assistant OS<br/>on HA Green"]
-    subgraph CON["HA:Connector (Pi 5, later NAS)"]
+    subgraph CON["HA:Dispatcher (Pi 5, later NAS)"]
       HAC["HA client<br/>WebSocket + REST"]
       CORE["Home Core<br/>state cache, registries,<br/>name resolution, policy, audit"]
       LAPI["Local API<br/>/v1 REST + HomeHub"]
@@ -53,10 +53,10 @@ flowchart LR
   end
 
   subgraph AZ["Azure (Sweden Central)"]
-    subgraph GW["HA:Connector Gateway (ASP.NET Core Web App, always on)"]
+    subgraph GW["HA:Dispatcher Gateway (ASP.NET Core Web App, always on)"]
       HUB["Link hub + HomeHub"]
       RELAY["/v1 relay<br/>projection, presence"]
-      AIS["Server.AI<br/>features, realtime relay,<br/>HAConnector.AI functions"]
+      AIS["Server.AI<br/>features, realtime relay,<br/>HADispatcher.AI functions"]
       AUTH["Server.Authentication<br/>JWT, JWKS, pairing"]
       PUSH["Server: push"]
     end
@@ -100,15 +100,15 @@ Thick arrows are long-lived single sockets; dotted ones are optional.
 
 | Subsystem | Responsibility | Technology | Runs on | Reuses |
 |---|---|---|---|---|
-| HA client (`HAConnector.HomeAssistant`) | One multiplexed WebSocket to HA: auth, `supported_features` with coalescing, `subscribe_entities`, registries (incl. aliases via `get_entries`), `call_service` with `return_response`, history, statistics; REST for camera stills and health | `ClientWebSocket`, System.Text.Json source generators, Microsoft.Extensions.Resilience | Connector | Nothing ready-made; NetDaemon's source as reference |
+| HA client (`HADispatcher.HomeAssistant`) | One multiplexed WebSocket to HA: auth, `supported_features` with coalescing, `subscribe_entities`, registries (incl. aliases via `get_entries`), `call_service` with `return_response`, history, statistics; REST for camera stills and health | `ClientWebSocket`, System.Text.Json source generators, Microsoft.Extensions.Resilience | Connector | Nothing ready-made; NetDaemon's source as reference |
 | Home Core | State cache with `seq` and a ring buffer, registries and name resolution (name, alias, area, floor), exposure per caller class, protected entities, idempotent commands, audit | .NET 10, Microsoft.Data.Sqlite (WAL) | Connector | HA's intent design as the model |
 | Local API | `/v1` REST, `HomeHub`, signed `GET /v1/hello`, local token exchange, `/health/live` and `/health/ready`, mDNS `_spine-connector._tcp` | ASP.NET Core Minimal API, SignalR (untyped hub, JSON), Kestrel with a Let's Encrypt certificate | Connector | – |
 | Home Link | The one outbound connection: commands with results, state deltas, snapshots, heartbeat, the union of cloud subscriptions | SignalR client → gateway hub, behind `IHomeLink` | Both | – |
-| HA:Connector Gateway | Relays `/v1` unchanged, HomeHub for clients away, last-known-state projection and presence, pairing, DNS-01 for the connector, backup SAS | ASP.NET Core `net10.0`, Table Storage, Key Vault, Azure DNS (`home.cosmomedia.se`, delegated from Loopia) | Azure Web App on App Service B1 Linux (Always On, WebSockets on) | Spine server hosting as in the Showcase |
-| AI | Features (home chat, home voice, desk agent, TV agent), budgets per caller, realtime relay, the smart-home functions | `Plugin.Maui.Spine.Server.AI`, `HAConnector.AI` with server-side `SpineAIFunction`s over `IHomeApi` | Gateway; optionally the connector | Server.AI unchanged |
+| HA:Dispatcher Gateway | Relays `/v1` unchanged, HomeHub for clients away, last-known-state projection and presence, pairing, DNS-01 for the connector, backup SAS | ASP.NET Core `net10.0`, Table Storage, Key Vault, Azure DNS (`home.cosmomedia.se`, delegated from Loopia) | Azure Web App on App Service B1 Linux (Always On, WebSockets on) | Spine server hosting as in the Showcase |
+| AI | Features (home chat, home voice, desk agent, TV agent), budgets per caller, realtime relay, the smart-home functions | `Plugin.Maui.Spine.Server.AI`, `HADispatcher.AI` with server-side `SpineAIFunction`s over `IHomeApi` | Gateway; optionally the connector | Server.AI unchanged |
 | Identity and pairing | User sign-in, JWT/JWKS, device keys for the ESP display and the TV, connector enrolment with a one-time code | `Plugin.Maui.Spine.Server.Authentication`, private-key JWT for the connector | Gateway | Server.Authentication |
 | Dashboards | Versioned schema, generator from areas/floors/labels/domains, storage with `rev` and ETag, cloud mirror | JSON in SQLite, C# generator | Connector (truth), gateway (mirror) | – |
-| Client SDK (`HAConnector.Client`) | `IHomeApi`, `IHomeEvents`, `IHomeRouter`, a routing `DelegatingHandler`, token choice | HttpClient, SignalR client, MAUI `Connectivity` | Phone/tablet/Mac app and TV:Dash | Spine's authentication handler; candidate for a Spine package |
+| Client SDK (`HADispatcher.Client`) | `IHomeApi`, `IHomeEvents`, `IHomeRouter`, a routing `DelegatingHandler`, token choice | HttpClient, SignalR client, MAUI `Connectivity` | Phone/tablet/Mac app and TV:Dash | Spine's authentication handler; candidate for a Spine package |
 | Spine app | Dashboards, controls, chat, voice, widgets and controls, push, settings | .NET MAUI with Spine packages | iOS, Android, Mac Catalyst | MasonryLayout, Reorder, Charts, ChatView, Voice, Widgets, PushNotifications, Rows |
 | ESP32-S3 display | Wake word, echo cancellation, standing realtime session; later home context cards | ESP-IDF, ESP-SR | Desk | Existing desk-display firmware, unchanged in phase 3 |
 | TV:Dash (TV launcher) | Scene rows, state, a voice button | The owner's Spine (.NET MAUI) Android app, in progress | Chromecast with Google TV | Client SDK, Spine packages |
@@ -136,7 +136,7 @@ Thick arrows are long-lived single sockets; dotted ones are optional.
 |---|---|---|---|---|---|
 | D1 | Home ↔ cloud transport | One outbound WSS to a self-hosted ASP.NET Core SignalR hub in the gateway: client results (`InvokeAsync<T>`) for commands, streamed deltas for state, behind `IHomeLink` | Web PubSub with Functions; Relay Hybrid Connections; Event Grid MQTT; Tailscale/Cloudflare Tunnel; IoT Hub | Many homes must be carried (→ Web PubSub) | Proposal; its precondition holds since Q2 allows a Web App |
 | D2 | Cloud compute | An Azure Web App (App Service B1 Linux, Always On, WebSockets on) for everything with sockets or tight latency; Functions Flex for background work | Container Apps with min one replica; everything in Functions + Web PubSub | – (Functions caps HTTP at 230 s and cannot host Spine's realtime relay) | Decided (Q2) |
-| D3 | Where the AI relay and tools run | Server.AI in the gateway; tools as server `SpineAIFunction`s in `HAConnector.AI` calling `IHomeApi`, with all logic in the connector | Server.AI in the connector; both | S2 shows p95 > 300 ms per tool call, or voice must survive an Azure outage (→ also host Server.AI in the connector) | Proposal |
+| D3 | Where the AI relay and tools run | Server.AI in the gateway; tools as server `SpineAIFunction`s in `HADispatcher.AI` calling `IHomeApi`, with all logic in the connector | Server.AI in the connector; both | S2 shows p95 > 300 ms per tool call, or voice must survive an Azure outage (→ also host Server.AI in the connector) | Proposal |
 | D4 | MCP or in-process functions | In-process `SpineAIFunction`s for Spine's own sessions; an MCP facade over the same command API in phase 6 | MCP as the inner protocol; proxy HA's `/api/mcp` | Other agents (Claude, HA's MCP client) need the tools | Proposal |
 | D5 | HA client | Own thin client over `ClientWebSocket` with source-generated JSON | NetDaemon.Client (marked internal, no `subscribe_entities`); stale HADotNet/HassClient | – | Proposal |
 | D6 | Routing | `IHomeRouter`: authenticated hello probe, local at 0 ms and cloud at 250 ms, sticky with hysteresis, idempotency keys, make-before-break with `seq` | SSID matching; always cloud; VPN | – | Proposal |
@@ -145,7 +145,7 @@ Thick arrows are long-lived single sockets; dotted ones are optional.
 | D9 | Dashboards | Own versioned schema; the connector is the truth (`rev`, ETag), the gateway keeps a readable mirror, clients cache; the default dashboard is generated from areas, floors and labels | Cloud as truth; render HA Lovelace directly | Several homes, or editing must work while the home is offline (→ cloud as truth) | Proposal |
 | D10 | Packaging | One multi-arch OCI image on GHCR, run with Docker Compose on Raspberry Pi OS Trixie (64-bit, NVMe boot) and later with the same compose file on the NAS. No HA app wrapper: HA runs on the HA Green, and a connector on hardware of its own keeps working while HA updates or restarts | Run it as an HA app on the HA Green; systemd | The Pi goes away before the NAS arrives (→ an HA app on the Green) | Decided (Q1) |
 | D11 | Events into HA | `call_service` on scripts and automations with a non-admin HA user (`fire_event` and `subscribe_trigger` need admin) | Admin user; a companion integration | A need for custom events that scripts cannot cover | Proposal |
-| D12 | TV technology | TV:Dash, the owner's TV launcher, a Spine (.NET MAUI) Android app already in progress on Chromecast with Google TV. It takes the same `HAConnector.Client` as the phone app; the D-pad focus and leanback gaps it meets become Spine issues | Kotlin + Compose for TV (the research's pick, because MAUI has no TV focus support) | – | Decided (Q6) |
+| D12 | TV technology | TV:Dash, the owner's TV launcher, a Spine (.NET MAUI) Android app already in progress on Chromecast with Google TV. It takes the same `HADispatcher.Client` as the phone app; the D-pad focus and leanback gaps it meets become Spine issues | Kotlin + Compose for TV (the research's pick, because MAUI has no TV focus support) | – | Decided (Q6) |
 | D13 | Connector ↔ HA | The connector reaches the HA Green over the LAN (`ws://<ha-green>:8123/api/websocket`) with a dedicated non-admin user whose long-lived token is `local_only`; both boxes get DHCP reservations, so neither depends on `.local` resolving | HTTPS on HA (only if it is turned on for other reasons); an admin token | HA gets TLS anyway, or the connector moves off the LAN segment | Proposal |
 
 ---
@@ -170,11 +170,11 @@ The dev loop runs on the Mac with an Aspire AppHost: the connector, an HA contai
 
 | # | Phase | Content | Done when | Status |
 |---|---|---|---|---|
-| 1 | At home on the Pi 5 | `HAConnector.Contracts` (DTOs, envelopes, OpenAPI, JSON contexts), HA client, Home Core, local API with a Let's Encrypt certificate, SQLite in `/data`, OCI image with Docker Compose on the Pi, non-admin HA user on the HA Green; in the app a generated dashboard, controls and a settings page | The family controls the home from the app on the home Wi-Fi | Waiting (S1, S5) |
+| 1 | At home on the Pi 5 | `HADispatcher.Contracts` (DTOs, envelopes, OpenAPI, JSON contexts), HA client, Home Core, local API with a Let's Encrypt certificate, SQLite in `/data`, OCI image with Docker Compose on the Pi, non-admin HA user on the HA Green; in the app a generated dashboard, controls and a settings page | The family controls the home from the app on the home Wi-Fi | Waiting (S1, S5) |
 | 2 | Away | Gateway with sign-in, pairing, Home Link, `/v1` relay, HomeHub, projection and presence; the router in the client SDK; HA alerts to push via `IPushSender` | The same app works away with no settings, and an offline home shows "last seen" | Waiting (1, S2, S6) |
-| 3 | AI | `HAConnector.AI` in features for text chat (ChatView), app voice, the desk agent and the TV agent; protected entities with confirmation; budgets per caller | The ESP display and the app control the home by Swedish voice and text | Waiting (2, S3, S4) |
+| 3 | AI | `HADispatcher.AI` in features for text chat (ChatView), app voice, the desk agent and the TV agent; protected entities with confirmation; budgets per caller | The ESP display and the app control the home by Swedish voice and text | Waiting (2, S3, S4) |
 | 4 | Dashboards and surfaces | Editor with MasonryLayout and Reorder, cloud mirror, widgets and controls through generic slots, Live Activities, a line chart | A dashboard the user builds shows on every device | Waiting (2) |
-| 5 | TV | HA:Connector in TV:Dash: `HAConnector.Client`, scene rows, state and a voice button | Scenes and a voice chat from the sofa | Waiting (1, S7); scenes can start after phase 1 since the TV is at home |
+| 5 | TV | HA:Dispatcher in TV:Dash: `HADispatcher.Client`, scene rows, state and a voice button | Scenes and a voice chat from the sofa | Waiting (1, S7); scenes can start after phase 1 since the TV is at home |
 | 6 | NAS and hardening | Move to the NAS with the same image and a restored `/data`, backup to Blob via SAS, Native AOT, signed commands, MCP facade, optional local relay, optional companion integration | Runs without the Pi, and external agents reach the same tools | Waiting (1–3) |
 
 ### The AI tool set (phase 3)
@@ -220,7 +220,7 @@ To be filed as Maui.Spine issues when the phase that needs them starts.
 | Q9 | Which realtime provider and region (Azure OpenAI Sweden Central, OpenAI, Gemini Live)? | Cost, data residency, latency | Open |
 | Q10 | Should the ESP display's backend move into the gateway, or get the Home Link itself? | Phase 3 | Open |
 | Q11 | Should HA scenes appear in Control Center / Quick Settings? | Spine gap: configurable controls | Open |
-| Q12 | What are the connector and its repository called, and is it private? | Where phase 1 starts | Named HA:Connector (2026-10-30); repository name and visibility open (`ha-connector`, like `aidash-connect`?) |
+| Q12 | What are the connector and its repository called, and is it private? | Where phase 1 starts | Named HA:Dispatcher (2026-10-30); repository name and visibility open (`ha-dispatcher`?) |
 | Q13 | Where does TV:Dash's code live, so its Spine gaps can be read? | Phase 5, Spine gaps | Open |
 
 ---
