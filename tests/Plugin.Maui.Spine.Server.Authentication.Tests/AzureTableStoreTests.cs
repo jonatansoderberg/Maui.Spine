@@ -61,6 +61,26 @@ public sealed class AzureTableStoreTests : IAsyncLifetime
     private static SpineAuthUser User(string id, string? email) => new() { Id = id, Email = email, CreatedAt = Now };
 
     [AzuriteFact]
+    public async Task A_family_knows_its_newest_token_and_a_retired_one_stays_retired()
+    {
+        await _store.AddRefreshAsync(new SpineRefreshToken("h1", "f1", "u1", "apple", Now.AddDays(60)));
+        Assert.True(await _store.TryUseRefreshAsync("h1", Now));
+        await _store.AddRefreshAsync(new SpineRefreshToken("h2", "f1", "u1", "apple", Now.AddDays(60).AddMinutes(1)) { IssuedFrom = "h1" });
+
+        var latest = await _store.FindLatestRefreshAsync("u1", "f1");
+        Assert.Equal("h2", latest!.Hash);
+        Assert.Equal("h1", latest.IssuedFrom);
+        Assert.Null(latest.SupersededAt);
+        Assert.Null((await _store.FindRefreshAsync("h1"))!.IssuedFrom);
+
+        await _store.SupersedeRefreshAsync("h2", Now.AddHours(3));
+        Assert.Equal(Now.AddHours(3), (await _store.FindRefreshAsync("h2"))!.SupersededAt);
+        Assert.Null(await _store.FindLatestRefreshAsync("u1", "no-such-family"));
+        await _store.SupersedeRefreshAsync("no-such-token", Now);
+        Assert.Null(await _store.FindRefreshAsync("no-such-token"));
+    }
+
+    [AzuriteFact]
     public async Task An_email_belongs_to_one_user_whatever_its_case()
     {
         Assert.True(await _users.CreateAsync(User("u1", "Anna@Example.com")));

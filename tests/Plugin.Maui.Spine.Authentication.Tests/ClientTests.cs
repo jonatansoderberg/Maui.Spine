@@ -241,6 +241,22 @@ public sealed class ClientTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Signed_in_but_unable_to_refresh_the_handler_fails_the_request_as_offline()
+    {
+        await SignedUpAsync();
+        var client = new SpineAuthClient(new HttpClient(new Outage(_counter), disposeHandler: false) { BaseAddress = new Uri("http://localhost/") }, new Uri("http://localhost/auth/"));
+        var copy = new SpineAuthSession(client, _storage, _clientTime, NullLogger.Instance);
+        using var http = new HttpClient(new SpineAuthHandler(copy) { InnerHandler = _server.GetTestServer().CreateHandler() }) { BaseAddress = new Uri("http://localhost/") };
+
+        // A restarted app: the user is known, the access token must be fetched, and the server is out of reach.
+        await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync("/me"));
+
+        // The session is kept for when the server is back.
+        Assert.NotNull(copy.User);
+        Assert.NotNull(_storage.Value);
+    }
+
+    [Fact]
     public async Task Without_a_session_the_handler_sends_no_token()
     {
         var (session, _) = NewApp();
@@ -320,6 +336,15 @@ public sealed class ClientTests : IAsyncLifetime
         public Task<string?> LoadAsync() => throw new InvalidOperationException("The Keychain is locked.");
         public Task SaveAsync(string value) => Task.CompletedTask;
         public Task ClearAsync() => throw new InvalidOperationException("Must not clear.");
+    }
+
+    /// <summary>The token endpoint out of reach, as on a phone without network or with the server down for a moment.</summary>
+    private sealed class Outage(HttpMessageHandler inner) : DelegatingHandler(inner)
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            request.RequestUri!.AbsolutePath == "/auth/token"
+                ? throw new HttpRequestException("No route to host.")
+                : base.SendAsync(request, cancellationToken);
     }
 
     /// <summary>Answers 401 to the first request, as a server does when it no longer takes an access token.</summary>

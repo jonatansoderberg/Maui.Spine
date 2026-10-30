@@ -33,7 +33,15 @@ internal sealed class SpineTokenService
     /// <summary>The keys access tokens are checked with: the signing key and the previous ones.</summary>
     public IReadOnlyList<ECDsaSecurityKey> VerificationKeys { get; }
 
-    public async Task<SpineTokens> IssueAsync(SpineAuthUser user, string provider, string? familyId = null, CancellationToken cancellationToken = default)
+    public Task<SpineTokens> IssueAsync(SpineAuthUser user, string provider, string? familyId = null, CancellationToken cancellationToken = default) =>
+        IssueAsync(user, provider, familyId, issuedFrom: null, cancellationToken);
+
+    /// <param name="user">The user.</param>
+    /// <param name="provider">How the user signed in.</param>
+    /// <param name="familyId">The sign-in's family, for a refresh; a new one for a sign-in.</param>
+    /// <param name="issuedFrom">The hash of the refresh token this pair replaces, for a refresh.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    public async Task<SpineTokens> IssueAsync(SpineAuthUser user, string provider, string? familyId, string? issuedFrom, CancellationToken cancellationToken)
     {
         var now = _time.GetUtcNow();
         var expiresAt = now + _options.AccessTokenLifetime;
@@ -60,12 +68,15 @@ internal sealed class SpineTokenService
 
         var refresh = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
         await _store.AddRefreshAsync(new SpineRefreshToken(
-            Hash(refresh), familyId ?? Guid.NewGuid().ToString("N"), user.Id, provider, now + _options.RefreshTokenLifetime), cancellationToken);
+            Hash(refresh), familyId ?? Guid.NewGuid().ToString("N"), user.Id, provider, now + _options.RefreshTokenLifetime) { IssuedFrom = issuedFrom }, cancellationToken);
 
         return new SpineTokens(access, expiresAt, refresh, user.ToContract(provider, await _users.GetLoginsAsync(user.Id, cancellationToken)));
     }
 
-    /// <summary>Trades a refresh token for a new pair. A token presented twice revokes its whole family.</summary>
+    /// <summary>
+    /// Trades a refresh token for a new pair. A token presented twice revokes its whole family, unless the answer to its
+    /// first use was lost: then the pair issued for it was never used, and the client gets a new one.
+    /// </summary>
     /// <returns>The new pair, or <see langword="null"/> when the token is unknown, expired, revoked or reused.</returns>
     public async Task<SpineTokens?> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
@@ -73,6 +84,13 @@ internal sealed class SpineTokenService
         var now = _time.GetUtcNow();
 
         if (await _store.FindRefreshAsync(hash, cancellationToken) is not { } stored) return null;
+
+        // Retired unused: the client it was issued for never got it (below), so whoever has it read the answer on the way.
+        if (stored.SupersededAt is not null)
+        {
+            await RevokeReusedAsync(stored, cancellationToken);
+            return null;
+        }
 
         if (stored.UsedAt is not null || !await _store.TryUseRefreshAsync(hash, now, cancellationToken))
         {
@@ -83,13 +101,22 @@ internal sealed class SpineTokenService
                 _logger.LogInformation("Spine sign-in: a refresh token was presented again {Seconds:0.#} s after its use; within the grace, a new pair is issued.",
                     (now - used).TotalSeconds);
             }
+            else if (await _store.FindLatestRefreshAsync(stored.UserId, stored.FamilyId, cancellationToken) is { UsedAt: null, SupersededAt: null } latest
+                && latest.IssuedFrom == hash)
+            {
+                // The answer was lost past the grace too: a background run the system ended as it came, an app suspended,
+                // and the token presented again at the next launch, hours later. The pair issued for it was never used,
+                // so the client that traded it in never got it. It gets a new pair, and the one it never saw is retired,
+                // so a copy of that in other hands is still caught. Once the chain has moved on, this is reuse as ever.
+                await _store.SupersedeRefreshAsync(latest.Hash, now, cancellationToken);
+                _logger.LogInformation("Spine sign-in: a refresh token was presented again {Minutes:0.#} min after its use, and the pair issued then was never used; the answer was lost, so a new pair is issued.",
+                    usedAt is { } at ? (now - at).TotalMinutes : 0);
+            }
             else
             {
                 // Rotation means a token is presented once. A second presentation is either a stolen copy or a stolen
                 // original, and there is no telling which, so every device of that sign-in starts over.
-                await _store.RevokeFamilyAsync(stored.UserId, stored.FamilyId, cancellationToken);
-                _logger.LogWarning("Spine sign-in: a used refresh token was presented again; family {Family} of user {User} is revoked.",
-                    stored.FamilyId, stored.UserId);
+                await RevokeReusedAsync(stored, cancellationToken);
                 return null;
             }
         }
@@ -98,7 +125,14 @@ internal sealed class SpineTokenService
         if (await _store.IsFamilyRevokedAsync(stored.UserId, stored.FamilyId, cancellationToken)) return null;
         if (await _users.FindByIdAsync(stored.UserId, cancellationToken) is not { } user) return null;
 
-        return await IssueAsync(user, stored.Provider, stored.FamilyId, cancellationToken);
+        return await IssueAsync(user, stored.Provider, stored.FamilyId, hash, cancellationToken);
+    }
+
+    private async Task RevokeReusedAsync(SpineRefreshToken stored, CancellationToken cancellationToken)
+    {
+        await _store.RevokeFamilyAsync(stored.UserId, stored.FamilyId, cancellationToken);
+        _logger.LogWarning("Spine sign-in: a used refresh token was presented again; family {Family} of user {User} is revoked.",
+            stored.FamilyId, stored.UserId);
     }
 
     /// <summary>Revokes the family of a refresh token, if the token is known.</summary>

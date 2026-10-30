@@ -38,18 +38,20 @@ public sealed class RefreshTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task A_refresh_token_used_twice_revokes_the_whole_sign_in()
+    public async Task A_retired_token_presented_once_the_chain_has_moved_on_revokes_the_whole_sign_in()
     {
         var first = await _host.SignInWithAppleAsync();
         var second = await TokensAsync(await RefreshAsync(first.RefreshToken));
+        var third = await TokensAsync(await RefreshAsync(second.RefreshToken));
 
+        // A copy of the first token, stolen before its use: the honest device has gone on since.
         _host.Time.Advance(TimeSpan.FromSeconds(31));
         var replay = await RefreshAsync(first.RefreshToken);
         Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
         Assert.Equal(SpineAuthErrors.InvalidGrant, (await AuthHost.ProblemAsync(replay))!.Error);
 
         // The honest device's newer token went with it.
-        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(second.RefreshToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(third.RefreshToken)).StatusCode);
     }
 
     [Fact]
@@ -58,9 +60,10 @@ public sealed class RefreshTests : IAsyncLifetime
         var phone = await _host.SignInWithAppleAsync();
         var tablet = await _host.SignInWithAppleAsync();
 
-        await RefreshAsync(phone.RefreshToken);
+        var phoneAgain = await TokensAsync(await RefreshAsync(phone.RefreshToken));
+        await RefreshAsync(phoneAgain.RefreshToken);
         _host.Time.Advance(TimeSpan.FromSeconds(31));
-        await RefreshAsync(phone.RefreshToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(phone.RefreshToken)).StatusCode);
 
         Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(tablet.RefreshToken)).StatusCode);
     }
@@ -76,6 +79,37 @@ public sealed class RefreshTests : IAsyncLifetime
 
         // Both successors work: the one whose answer was lost and the one the client got.
         Assert.NotEqual(lost.RefreshToken, retried.RefreshToken);
+        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(retried.RefreshToken)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_client_whose_answer_was_lost_may_present_the_token_again_at_its_next_launch()
+    {
+        var first = await _host.SignInWithAppleAsync();
+        var lost = await TokensAsync(await RefreshAsync(first.RefreshToken));
+
+        // The system ended the app's background run as the answer came; it presents the same token hours later.
+        _host.Time.Advance(TimeSpan.FromHours(3));
+        var retried = await TokensAsync(await RefreshAsync(first.RefreshToken));
+        Assert.NotEqual(lost.RefreshToken, retried.RefreshToken);
+
+        // The pair nobody got is retired: whoever presents it read the answer on the way, and the sign-in is over.
+        var third = await TokensAsync(await RefreshAsync(retried.RefreshToken));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(lost.RefreshToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(third.RefreshToken)).StatusCode);
+    }
+
+    [Fact]
+    public async Task An_answer_lost_twice_in_a_row_is_still_no_reuse()
+    {
+        var first = await _host.SignInWithAppleAsync();
+        await TokensAsync(await RefreshAsync(first.RefreshToken));
+        _host.Time.Advance(TimeSpan.FromMinutes(41));
+        await TokensAsync(await RefreshAsync(first.RefreshToken));
+        _host.Time.Advance(TimeSpan.FromMinutes(41));
+
+        var retried = await TokensAsync(await RefreshAsync(first.RefreshToken));
+
         Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(retried.RefreshToken)).StatusCode);
     }
 
