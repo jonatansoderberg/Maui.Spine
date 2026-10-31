@@ -180,10 +180,13 @@ half4 main(float2 fragCoord) {
     // The look: the shape's own resting direction, the scheduler's gaze (saccades, the look aside while
     // thinking) and a held look toward the pointer. Connecting scans side to side; thinking drifts up.
     // At rest each figure looks its own way; listening and speaking turn it toward the viewer, and while
-    // idle its look drifts slowly. Talking moves the eyes a little from side to side.
+    // idle its look drifts slowly. A held look (AvatarView.LookAt) replaces the resting direction, so a figure
+    // told where to look, such as straight at a room from a television, looks there whatever its shape.
+    // Talking moves the eyes a little from side to side.
     float facing = clamp(stateListening + stateSpeaking + stateInterrupted, 0.0, 1.0);
+    float held = step(0.0000001, dot(look, look));
     float2 aim = gaze * 3.2 + look * 1.8;
-    float2 dir = home * (0.8 - 0.55 * facing) + aim;
+    float2 dir = home * (0.8 - 0.55 * facing) * (1.0 - held) + aim;
     dir += (1.0 - facing) * float2(0.22 * sin(flow * 0.21 + phase), 0.1 * sin(flow * 0.17 + phase * 1.7));
     dir.x += stateConnecting * 0.55 * sin(flow * 2.6) + 0.06 * talk * sin(flow * 6.0);
     dir += stateThinking * float2(0.25 * sin(flow * 0.6), 0.35);
