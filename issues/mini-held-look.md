@@ -16,7 +16,7 @@ aside whenever it was idle or thinking. On a television that reads as not lookin
 - `samples/SpineAvatarLab/Tools/mini_avatars.sksl`: a held look replaces the resting direction (`home` is dropped
   while `look` is not zero); the scheduler's saccades and the state behaviour stay.
 - `samples/Avatars/mini.spineavatar` regenerated with `mini_avatars.py` and packed with `spine-avatar pack … --strip
-  --size 256` (posters rendered again).
+  --size 192` (posters rendered again; 256 px posters pushed the package past the 40 KB the Mini test allows).
 
 ## Decisions
 
