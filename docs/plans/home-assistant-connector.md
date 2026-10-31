@@ -1,7 +1,7 @@
 # Plan: HA:Dispatcher – a Home Assistant connector
 
 **Started:** 2026-10-30
-**Last updated:** 2026-10-30 (S1 in progress in the private `ha-dispatcher` repository, so far local only: the HA client, the state cache and an Aspire chain with a demo HA, tested against a real HA as the non-admin user; the 24 h run on the Pi remains. Before that: named HA:Dispatcher, Q12; the TV launcher is TV:Dash. Earlier the same day the owner answered Q1, Q2, Q5 and Q6: HA runs on an HA Green, Azure with a Web App is fine, the domain is cosmomedia.se at Loopia, the TV launcher is a Spine app on Chromecast with Google TV; D2, D10 and D12 decided, D7 adapted, D13 added, S5 and S7 ready)
+**Last updated:** 2026-10-30 (S1 in progress in the private `ha-dispatcher` repository, on GitHub since 2026-10-31: the HA client, the state cache and an Aspire chain with a demo HA, tested against a real HA as the non-admin user; the 24 h run on the Pi remains. Before that: named HA:Dispatcher, Q12; the TV launcher is TV:Dash. Earlier the same day the owner answered Q1, Q2, Q5 and Q6: HA runs on an HA Green, Azure with a Web App is fine, the domain is cosmomedia.se at Loopia, the TV launcher is a Spine app on Chromecast with Google TV; D2, D10 and D12 decided, D7 adapted, D13 added, S5 and S7 ready)
 
 A .NET 10 service at home, **HA:Dispatcher** (called *the connector* below), is the only thing that talks to Home Assistant (HA), which runs on an HA Green. The connector runs on a Raspberry Pi 5 of its own first and on a NAS later. It owns the entity model, name resolution and the safety policy, serves a local `/v1` API with a live hub, and dials out to Azure over a single outbound connection. Through Azure, a Spine app, an ESP32-S3 voice display, TV:Dash (the owner's TV launcher, a Spine app on Chromecast with Google TV) and the Spine AI server reach the same `/v1` contract from anywhere. The app picks the local or the cloud path by itself and switches without the user noticing. Dashboards are built from HA entities and loaded by every client. The Spine AI server gets smart-home functions (list, search, read state, lights, blinds, climate, scenes, scripts) for text chat, realtime voice, the ESP display and the TV.
 
@@ -220,7 +220,7 @@ To be filed as Maui.Spine issues when the phase that needs them starts.
 | Q9 | Which realtime provider and region (Azure OpenAI Sweden Central, OpenAI, Gemini Live)? | Cost, data residency, latency | Open |
 | Q10 | Should the ESP display's backend move into the gateway, or get the Home Link itself? | Phase 3 | Open |
 | Q11 | Should HA scenes appear in Control Center / Quick Settings? | Spine gap: configurable controls | Open |
-| Q12 | What are the connector and its repository called, and is it private? | Where phase 1 starts | HA:Dispatcher in `ha-dispatcher`, private (2026-10-30); so far a local repository, not yet on GitHub |
+| Q12 | What are the connector and its repository called, and is it private? | Where phase 1 starts | HA:Dispatcher in `jonatansoderberg/ha-dispatcher`, private (2026-10-30, on GitHub 2026-10-31) |
 | Q13 | Where does TV:Dash's code live, so its Spine gaps can be read? | Phase 5, Spine gaps | Open |
 
 ---
