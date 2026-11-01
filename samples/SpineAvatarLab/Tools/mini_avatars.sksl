@@ -90,9 +90,11 @@ float drawn(float2 q, float4 amp, float4 phase, float fuller) {
          + amp.w * sin(5.0 * a + phase.w) + fuller * q.x;
 }
 
-// The outline of shape s (the option's index), drawn by hand.
+// The outline of shape s (the option's index), drawn by hand. One exit: see mini_avatars.py.
 float outline(float2 q, float s) {
+    float o = 0.0;
 {{OUTLINES}}
+    return o;
 }
 
 // x unchanged up to 70 % of the limit, then easing to a stop at it, with no kink at the knee.
