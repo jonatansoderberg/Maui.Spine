@@ -40,8 +40,8 @@ internal sealed class GltfSkiaAvatarRenderer : AvatarRenderer
 
 /// <summary>
 /// A skia avatar: the frame is evaluated and drawn in the paint pass. On iOS and Mac Catalyst it draws on the GPU through
-/// an <c>SKMetalView</c>; on Android a shader draws on the GPU through an <see cref="SKGLView"/> (OpenGL ES) unless
-/// <see cref="SpineAvatarOptions.GpuOnAndroid"/> is off; elsewhere, and for scenes, on the CPU through an <see cref="SKCanvasView"/>.
+/// an <c>SKMetalView</c>; on Android a shader draws on the GPU through an <see cref="SKGLView"/> (OpenGL ES) when
+/// <see cref="SpineAvatarOptions.GpuOnAndroid"/> is on; elsewhere, and for scenes, on the CPU through an <see cref="SKCanvasView"/>.
 /// </summary>
 /// <remarks>
 /// The CPU path rasterised a full-size SkSL shader at 8–9 fps on an iPhone and spent 4–18 ms per frame on blurs, which
