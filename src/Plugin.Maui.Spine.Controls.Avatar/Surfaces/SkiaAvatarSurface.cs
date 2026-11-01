@@ -59,6 +59,9 @@ internal sealed class SkiaAvatarSurface : AvatarSurface
 #endif
 #if ANDROID
     private readonly SKGLView? _gl;
+    // Temporary, for the Chromecast: how often the GL view is asked to paint and how often it does.
+    private int _invalidates, _paints;
+    private IntPtr _context;
 #endif
     private bool _dark;
     private bool _disposed;
@@ -136,7 +139,12 @@ internal sealed class SkiaAvatarSurface : AvatarSurface
         _metal.SetNeedsDisplay();
 #else
 #if ANDROID
-        _gl?.InvalidateSurface();
+        if (_gl is not null)
+        {
+            _gl.InvalidateSurface();
+            if (++_invalidates <= 5 || _invalidates % 60 == 0)
+                Android.Util.Log.Info("Spine.Avatar", $"GL invalidate {_invalidates}, paints {_paints}, view {_gl.Width}x{_gl.Height}, visible {_gl.IsVisible}, handler {(_gl.Handler is null ? "none" : "yes")}, frame {_hasFrame}");
+        }
 #endif
         _canvas?.InvalidateSurface();
 #endif
@@ -146,7 +154,15 @@ internal sealed class SkiaAvatarSurface : AvatarSurface
     private void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs e) => Paint(e.Surface.Canvas, e.Info.Width, e.Info.Height);
 #endif
 #if ANDROID
-    private void OnPaintGl(object? sender, SKPaintGLSurfaceEventArgs e) => Paint(e.Surface.Canvas, e.Info.Width, e.Info.Height);
+    private void OnPaintGl(object? sender, SKPaintGLSurfaceEventArgs e)
+    {
+        var context = e.Surface.Context?.Handle ?? IntPtr.Zero;
+        var changed = context != _context;
+        _context = context;
+        if (++_paints <= 5 || _paints % 60 == 0 || changed)
+            Android.Util.Log.Info("Spine.Avatar", $"GL paint {_paints}: {e.Info.Width}x{e.Info.Height}, context {context}{(changed ? " (new)" : "")}, frame {_hasFrame}, thread {Environment.CurrentManagedThreadId}");
+        Paint(e.Surface.Canvas, e.Info.Width, e.Info.Height);
+    }
 #endif
 
     private void Paint(SKCanvas canvas, int width, int height)

@@ -158,12 +158,18 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     private void ApplyOptions()
     {
         _optionsApplied = Options;
+        var applied = new List<string>();
         foreach (var (uniform, name) in _optionUniforms)
         {
             var option = _model.Manifest.Options[name];
             var index = Options?.GetValueOrDefault(name) is { } value ? option.IndexOf(value) : -1;
             Set(uniform, index >= 0 ? index : option.IndexOf(option.Default));
+            applied.Add($"{uniform}={(index >= 0 ? index : option.IndexOf(option.Default))}");
         }
+#if ANDROID
+        // Temporary, for the Chromecast.
+        Android.Util.Log.Info("Spine.Avatar", $"options applied: {string.Join(", ", applied)} (from {(Options is null ? "none" : Options.Count + " given")}), thread {Environment.CurrentManagedThreadId}");
+#endif
     }
 
     public void Evaluate(AvatarRenderFrame f)
