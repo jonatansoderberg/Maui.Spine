@@ -93,7 +93,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         {
             if (!File.Exists(path)) return [];
             try { lines = File.ReadAllLines(path); File.Delete(path); }
-            catch (IOException) { return []; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return []; }
         }
 
         var actions = new List<RecordedAction>();
@@ -142,19 +142,28 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     /// <summary>
     /// Writes the language the app shows where the extension reads it, so what the system writes in a widget or an
     /// activity ("2 min, 5 secs", a rounded age) is in that language: the app's own choice can differ from the phone's.
+    /// Runs at launch, so a container the app may not open is logged, not thrown: macOS refuses another app group's
+    /// container to a build whose signature it does not recognise, such as a debug build launched from a new path.
     /// </summary>
     public void WriteLanguage(System.Globalization.CultureInfo culture)
     {
         if (_containerPath is null) return;
         var path = Path.Combine(_containerPath, "language");
-        if (culture.Name.Length == 0)
+        try
         {
-            File.Delete(path);
-            return;
+            if (culture.Name.Length == 0)
+            {
+                File.Delete(path);
+                return;
+            }
+            if (File.Exists(path) && File.ReadAllText(path) == culture.Name) return;
+            Directory.CreateDirectory(_containerPath);
+            AtomicFile.WriteAllText(path, culture.Name);
         }
-        if (File.Exists(path) && File.ReadAllText(path) == culture.Name) return;
-        Directory.CreateDirectory(_containerPath);
-        AtomicFile.WriteAllText(path, culture.Name);
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(e, "Could not write the widgets' language to the app group container.");
+        }
     }
 
     public void WriteTimeline(string kind, string json)
