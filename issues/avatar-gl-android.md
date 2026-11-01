@@ -2,7 +2,7 @@
 
 **GitHub:** no issue; found in TV:Dash on the Chromecast with Google TV on 2026-11-01.
 **Branch:** feat/avatar-gl-android (on fix/mini-arm32-length)
-**Status:** In review (opt-in; not yet right on the Chromecast)
+**Status:** In review (opt-in; verified on the Chromecast 2026-11-01, late)
 
 ## What happened
 
@@ -41,3 +41,12 @@ stopped, before the preset binding and the app's `SetOption` reached it, and did
 was destroyed and recreated. Not confirmed: there is no instrumentation in the Release build. Until it is understood
 the option is off by default and TV:Dash sets it off explicitly; the CPU path with the `vlen` fix is what the box runs.
 Next: a build that logs the GL view's paint count, surface size and `GRContext` changes, read over adb on the box.
+
+## On the Chromecast again, 2026-11-01, late
+
+With temporary logging in the GL surface and the shader renderer (paints counted, surface size, `GRContext` identity,
+the option indices as applied) the view painted every frame the timer asked for (about 15 a second on the box, paints
+keeping pace with invalidations), applied `shape=0, eyeStyle=1` from the two options given at the first paint, kept one
+`GRContext` through five openings of the card with hides between, and drew the Mini crisp with the chosen tall eyes each
+time. The earlier failure (first frames with the defaults, nothing after a hide) did not come back and stays
+unexplained; the option stays opt-in for now, and TV:Dash turns it on. The logging is reverted.
