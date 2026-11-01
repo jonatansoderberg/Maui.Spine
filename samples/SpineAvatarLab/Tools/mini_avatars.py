@@ -125,9 +125,12 @@ def shader():
     for i, name in enumerate(SHAPES):
         d = DRAWN[name]
         cond = f"s < {i + 0.5:.1f}" if i < len(SHAPES) - 1 else None
+        # One exit from outline(): a return inside each if block drew nothing but the first shape on a Mali-G31
+        # (the Chromecast with Google TV, 2026-11-01), while every other GPU and the CPU were fine with it.
         body = (f"        {OUTLINES[name][0]}\n"
-                f"        return d - drawn(q, float4({v(d['amp'])}), float4({v(d['phase'])}), {f(d['fuller'])});")
-        outlines.append(f"    // {name}\n" + (f"    if ({cond}) {{\n{body}\n    }}" if cond else "    {\n" + body + "\n    }"))
+                f"        o = d - drawn(q, float4({v(d['amp'])}), float4({v(d['phase'])}), {f(d['fuller'])});")
+        outlines.append(("    if" if i == 0 else "    } else if") + f" ({cond}) {{  // {name}\n{body}" if cond
+                        else f"    }} else {{  // {name}\n{body}\n    }}")
         face, r = FACES[name], data[name]["reach"]
         assign = (f"        home = float2({v(face['home'])}); sep = {f(face['sep'])}; mapX = {f(face['mapX'])};\n"
                   f"        eyeY = {f(face['eyeY'])}; bodyY = {f(face['bodyY'])}; foot = {f(data[name]['foot'])}; phase = {f(i * 1.37)};\n"
