@@ -45,6 +45,20 @@ public sealed class SpineVoiceOptions
     /// <summary>The server's speech feature (<c>Kind: Speech</c>) a <see cref="ServerSpeech"/> reads with unless it is given another.</summary>
     public string? SpeechFeature { get; set; }
 
+    /// <summary>
+    /// Whether a conversation opens the device's microphone. On by default. Off for a device whose own microphone is not
+    /// the one to use (a TV box whose remote's microphone reaches only the system's recogniser): the session connects and
+    /// plays, and the app hands it the user's words with <see cref="IVoiceSession.SendTextAsync"/>.
+    /// </summary>
+    public bool Microphone { get; set; } = true;
+
+    /// <summary>
+    /// The platform's echo cancellation and noise suppression on the microphone (<see cref="VoiceAudioOptions.VoiceProcessing"/>).
+    /// On by default. Off, the microphone is opened as a plain recognition source, which is what a TV's remote-microphone
+    /// bridge feeds; the provider then hears the device's own answer unless the app keeps the two apart.
+    /// </summary>
+    public bool VoiceProcessing { get; set; } = true;
+
     internal Dictionary<string, VoicePipeline> Pipelines { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
