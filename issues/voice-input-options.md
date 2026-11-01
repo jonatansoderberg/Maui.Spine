@@ -2,7 +2,7 @@
 
 **GitHub:** no issue; found in TV:Dash on the Chromecast with Google TV on 2026-11-01.
 **Branch:** feat/voice-input-options
-**Status:** In progress
+**Status:** In review
 
 ## What happened
 
@@ -22,3 +22,10 @@ microphone as a voice-communication source with the platform's echo cancellation
 ## Decisions
 
 - App-level options rather than per-conversation ones: the device decides, not the call.
+
+## On the Chromecast, 2026-11-01
+
+With `VoiceProcessing = false` the session's `AudioRecord` is a plain recognition source, the remote's service bridges
+the remote's microphone into it at a press of the Assistant button, and the conversation reaches the backend and comes
+back as speech: the first answers from the TV. `Microphone = false` was the other candidate (Google's recogniser for the
+words as text) and was not needed.
