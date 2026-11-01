@@ -146,6 +146,8 @@ spine-avatar pack nova.spineavatar -o shipped/nova.spineavatar --strip
 
 Posters are drawn with the package's own Skia renderers on any OS: vector scenes, shaders and glTF models without alpha-masked materials. A model only SceneKit draws (alpha-masked hair or lashes, such as Kairo) keeps its posters unless `--poster-light` and `--poster-dark` give it pictures captured on Apple, with a transparent background.
 
+**Shaders on 32-bit ARM.** On Android and Windows an `sksl` avatar runs on the CPU, in Skia's raster pipeline, and on a 32-bit ARM device (the Chromecast with Google TV, older phones) that pipeline takes a square root by an estimate that is NaN at exactly zero. `length()` of a zero vector, `sqrt(0.0)`, `normalize()` and `inversesqrt()` of zero then poison every pixel they reach: a rounded box whose inside is `length(max(d, 0.0))` draws as a ring, since only the band within the corner radius of its edge is non-zero. Take a length with a floor under the root, `sqrt(dot(v, v) + 1e-12)`, wherever the vector can be zero, as the Mini does (`vlen` in `mini_avatars.sksl`). The Avatar Lab on a Mac and the Android emulator on x86 never show it, so a shader meant for such a device is checked on one.
+
 ## Driving an avatar
 
 One driver at a time pushes state, levels and visemes into the avatar on each tick (`AvatarDriver`, `AvatarInput`). Every driver states what its mouth timing is worth (`AvatarLipSyncQuality`): `EstimatedText` for text, `AudioReactive` for a level, `TimedVisemes` for a voice with viseme timings, such as a server voice from Azure Speech through `ServerSpeech` ([Speech](speech.md#a-voice-from-the-server)).

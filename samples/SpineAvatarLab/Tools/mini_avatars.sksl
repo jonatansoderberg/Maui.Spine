@@ -52,9 +52,16 @@ const float BODY_SCALE = 1.0;
 // How narrow an eye gets as it turns away round the body, at the most: enough to read the curve, never a sliver.
 const float EYE_FAR = 0.65;
 
+// A vector's length with a floor under the root. Skia's CPU pipeline on 32-bit ARM (the Chromecast with Google
+// TV) takes sqrt by an estimate that is NaN at exactly zero, and vlen(max(d, 0.0)) is zero over a rounded
+// box's whole inside: the figure drew as a ring there. The floor moves no distance by more than a millionth.
+float vlen(float2 v) {
+    return sqrt(dot(v, v) + 1e-12);
+}
+
 float roundBox(float2 q, float2 b, float r) {
     float2 d = abs(q) - b + r;
-    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r;
+    return vlen(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r;
 }
 
 // A rounded box whose corners differ: r is top right, bottom right, top left, bottom left.
@@ -62,12 +69,12 @@ float roundBox4(float2 q, float2 b, float4 r) {
     float2 rr = q.x > 0.0 ? r.xy : r.zw;
     float k = q.y > 0.0 ? rr.x : rr.y;
     float2 d = abs(q) - b + k;
-    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - k;
+    return vlen(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - k;
 }
 
 // An ellipse's signed distance, close enough near the outline for antialiasing.
 float ellipse(float2 q, float2 r) {
-    float k = length(q / r);
+    float k = vlen(q / r);
     return (k - 1.0) * min(r.x, r.y);
 }
 
@@ -266,7 +273,7 @@ half4 main(float2 fragCoord) {
     float3 c = mix(body, float3(1.0), 0.1 * dark);
     c *= 1.0 + 0.07 * clamp(q.y, -1.0, 1.0);
     float2 light = q - float2(-0.26 - 0.2 * turn, 0.36);
-    float shine = smoothstep(0.55, 0.0, length(light * float2(1.0, 1.3)));
+    float shine = smoothstep(0.55, 0.0, vlen(light * float2(1.0, 1.3)));
     c = mix(c, float3(1.0), 0.16 * shine * shine);
     c *= 1.0 - 0.07 * smoothstep(-0.14, 0.0, db);
     c *= 1.0 - 0.06 * smoothstep(-0.25, -0.8, q.y);

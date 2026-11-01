@@ -27,7 +27,7 @@ EYES = ["round", "tall"]
 # Each outline in body space (x right, y up; the drawing spans -1..1 and the body stays inside about 0.8 of it,
 # so squash, stretch and the jump stay in the frame): the SkSL lines that compute `d`, and the same in Python.
 OUTLINES = {
-    "ball": ("float d = length(q) - 0.72;",
+    "ball": ("float d = vlen(q) - 0.72;",
              lambda x, y: m.length(x, y) - 0.72),
     # The cube's corners differ top from bottom and a little side from side, never diagonally: big corners at
     # opposite ends of a diagonal read as a turned box.
