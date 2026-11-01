@@ -199,7 +199,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
             _detector = new TurnDetector(Rate, pipeline.SpeechThreshold, pipeline.StartOfTurn, pipeline.EndOfTurn, pipeline.MaxTurn);
             _preRollLength = 0;
-            await _audio.StartAsync(new VoiceAudioOptions { InputRate = Rate, OutputRate = Rate, Duplex = _audio.Duplex }, cancellationToken);
+            await _audio.StartAsync(new VoiceAudioOptions { Input = _options.Microphone, VoiceProcessing = _options.VoiceProcessing, InputRate = Rate, OutputRate = Rate, Duplex = _audio.Duplex }, cancellationToken);
             _audio.InputAvailable += OnMicrophone;
 
             _run = new CancellationTokenSource();

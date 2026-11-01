@@ -243,7 +243,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
                 await OpenLinkAsync(feature, history, forWarm: false, cancellationToken);
             var token = _token!;
 
-            await _audio.StartAsync(new VoiceAudioOptions { InputRate = Rate, OutputRate = Rate, Duplex = _audio.Duplex }, cancellationToken);
+            await _audio.StartAsync(new VoiceAudioOptions { Input = _options.Microphone, VoiceProcessing = _options.VoiceProcessing, InputRate = Rate, OutputRate = Rate, Duplex = _audio.Duplex }, cancellationToken);
             _audio.InputAvailable += OnMicrophone;
             _farewell.Cancel();
             if (reuse)
