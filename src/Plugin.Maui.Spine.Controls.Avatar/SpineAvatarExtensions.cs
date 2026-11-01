@@ -13,6 +13,13 @@ public sealed class SpineAvatarOptions
     /// </summary>
     [Experimental(AvatarRenderer.DiagnosticId)]
     public IList<AvatarRenderer> Renderers { get; } = [];
+
+    /// <summary>
+    /// On Android, whether an <c>sksl</c> avatar draws on the GPU (OpenGL ES, a texture view with a render thread of its
+    /// own) at full size, rather than on the CPU in a buffer of 112 pixels scaled up. On by default; off keeps every
+    /// avatar on the CPU.
+    /// </summary>
+    public bool GpuOnAndroid { get; set; } = true;
 }
 
 /// <summary>Registers <c>Plugin.Maui.Spine.Controls.Avatar</c> with a <see cref="MauiAppBuilder"/>.</summary>

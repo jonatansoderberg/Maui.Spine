@@ -40,20 +40,28 @@ internal sealed class GltfSkiaAvatarRenderer : AvatarRenderer
 
 /// <summary>
 /// A skia avatar: the frame is evaluated and drawn in the paint pass. On iOS and Mac Catalyst it draws on the GPU through
-/// an <c>SKMetalView</c>; elsewhere on the CPU through an <see cref="SKCanvasView"/>.
+/// an <c>SKMetalView</c>; on Android a shader draws on the GPU through an <see cref="SKGLView"/> (OpenGL ES) unless
+/// <see cref="SpineAvatarOptions.GpuOnAndroid"/> is off; elsewhere, and for scenes, on the CPU through an <see cref="SKCanvasView"/>.
 /// </summary>
 /// <remarks>
 /// The CPU path rasterised a full-size SkSL shader at 8–9 fps on an iPhone and spent 4–18 ms per frame on blurs, which
-/// is why the GPU is used where SkiaSharp has a Metal view.
+/// is why the GPU is used where SkiaSharp has a Metal view. On the CPU a shader draws into a small buffer scaled up
+/// (<see cref="AvatarShaderRenderer.MaxPixels"/>), which a TV shows as soft, stepped edges. The GL view paints on a
+/// thread of its own, so the frame and the renderer are handed over under a lock.
 /// </remarks>
 internal sealed class SkiaAvatarSurface : AvatarSurface
 {
     private readonly ISkiaAvatarRenderer _renderer;
     private readonly AvatarRenderFrame _frame = new();
+    private readonly object _gate = new();
 #if !(IOS || MACCATALYST)
-    private readonly SKCanvasView _canvas;
+    private readonly SKCanvasView? _canvas;
+#endif
+#if ANDROID
+    private readonly SKGLView? _gl;
 #endif
     private bool _dark;
+    private bool _disposed;
     private SKColor? _accent;
     private IReadOnlyDictionary<string, Color>? _themeColors;
     private IReadOnlyDictionary<string, string>? _options;
@@ -82,6 +90,17 @@ internal sealed class SkiaAvatarSurface : AvatarSurface
         if (_renderer is AvatarShaderRenderer shader)
             shader.MaxPixels = null;
 #else
+#if ANDROID
+        if (_renderer is AvatarShaderRenderer gpuShader && SpineAvatarExtensions.Options.GpuOnAndroid)
+        {
+            _gl = new SKGLView { HasRenderLoop = false, EnableTouchEvents = false, InputTransparent = true };
+            _gl.PaintSurface += OnPaintGl;
+            View = _gl;
+            RendererName = "skia (OpenGL ES)";
+            gpuShader.MaxPixels = null;
+            return;
+        }
+#endif
         _canvas = new SKCanvasView { EnableTouchEvents = false, InputTransparent = true };
         _canvas.PaintSurface += OnPaintSurface;
         View = _canvas;
@@ -95,43 +114,55 @@ internal sealed class SkiaAvatarSurface : AvatarSurface
 
     public override void Render(AvatarRenderFrame frame, bool dark, Color? accent)
     {
-        // Copied, because the paint pass comes later.
-        frame.CopyTo(_frame);
-        _dark = dark;
-        _accent = accent?.ToSKColor();
-        if (!ReferenceEquals(_themeColors, ThemeColors))
+        // Copied, because the paint pass comes later (on the GL view's thread on Android).
+        lock (_gate)
         {
-            _themeColors = ThemeColors;
-            _renderer.ThemeColors = ThemeColors.Count == 0 ? null : ThemeColors.ToDictionary(p => p.Key, p => p.Value.ToSKColor(), StringComparer.Ordinal);
+            frame.CopyTo(_frame);
+            _dark = dark;
+            _accent = accent?.ToSKColor();
+            if (!ReferenceEquals(_themeColors, ThemeColors))
+            {
+                _themeColors = ThemeColors;
+                _renderer.ThemeColors = ThemeColors.Count == 0 ? null : ThemeColors.ToDictionary(p => p.Key, p => p.Value.ToSKColor(), StringComparer.Ordinal);
+            }
+            if (!ReferenceEquals(_options, Options))
+            {
+                _options = Options;
+                _renderer.Options = Options;
+            }
+            _hasFrame = true;
         }
-        if (!ReferenceEquals(_options, Options))
-        {
-            _options = Options;
-            _renderer.Options = Options;
-        }
-        _hasFrame = true;
 #if IOS || MACCATALYST
         _metal.SetNeedsDisplay();
 #else
-        _canvas.InvalidateSurface();
+#if ANDROID
+        _gl?.InvalidateSurface();
+#endif
+        _canvas?.InvalidateSurface();
 #endif
     }
 
 #if !(IOS || MACCATALYST)
     private void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs e) => Paint(e.Surface.Canvas, e.Info.Width, e.Info.Height);
 #endif
+#if ANDROID
+    private void OnPaintGl(object? sender, SKPaintGLSurfaceEventArgs e) => Paint(e.Surface.Canvas, e.Info.Width, e.Info.Height);
+#endif
 
     private void Paint(SKCanvas canvas, int width, int height)
     {
         canvas.Clear(SKColors.Transparent);
-        if (!_hasFrame)
-            return;
+        lock (_gate)
+        {
+            if (!_hasFrame || _disposed)
+                return;
 
-        var allocated = GC.GetAllocatedBytesForCurrentThread();
-        var start = Stopwatch.GetTimestamp();
-        _renderer.Evaluate(_frame);
-        _renderer.Draw(canvas, new SKRect(0, 0, width, height), _dark, _accent);
-        Stats.Record(Stopwatch.GetElapsedTime(start).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated);
+            var allocated = GC.GetAllocatedBytesForCurrentThread();
+            var start = Stopwatch.GetTimestamp();
+            _renderer.Evaluate(_frame);
+            _renderer.Draw(canvas, new SKRect(0, 0, width, height), _dark, _accent);
+            Stats.Record(Stopwatch.GetElapsedTime(start).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated);
+        }
     }
 
 #if IOS || MACCATALYST
@@ -149,8 +180,17 @@ internal sealed class SkiaAvatarSurface : AvatarSurface
         _metal.RemoveFromSuperview();
         _metal.Dispose();
 #else
-        _canvas.PaintSurface -= OnPaintSurface;
+        if (_canvas is not null)
+            _canvas.PaintSurface -= OnPaintSurface;
 #endif
-        _renderer.Dispose();
+#if ANDROID
+        if (_gl is not null)
+            _gl.PaintSurface -= OnPaintGl;
+#endif
+        lock (_gate)
+        {
+            _disposed = true;
+            _renderer.Dispose();
+        }
     }
 }
