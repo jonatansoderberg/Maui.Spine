@@ -2,7 +2,7 @@
 
 **GitHub:** no issue; found in TV:Dash on the Chromecast with Google TV (armeabi-v7a) on 2026-11-01.
 **Branch:** fix/mini-arm32-length
-**Status:** In review
+**Status:** Completed (PR #730 merged 2026-11-01)
 
 ## What happened
 
@@ -25,3 +25,9 @@ by the NaN body distance.
 
 - The fix is in the shader, not the renderer: Skia's pipeline is SkiaSharp's, and the other `sksl` avatars in
   `samples/Avatars` have not been checked on a 32-bit device; the wiki says what to look for.
+
+## On the Chromecast
+
+Seen whole on the box the same evening with the ball shape on the CPU path (the ring showed with the box-like shapes);
+the shader's floor is in the package TV:Dash ships. The GPU path (#732) would not show the NaN at all, but is off until
+it draws every frame on the device.

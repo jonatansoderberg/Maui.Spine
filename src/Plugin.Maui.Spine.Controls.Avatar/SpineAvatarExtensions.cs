@@ -13,6 +13,14 @@ public sealed class SpineAvatarOptions
     /// </summary>
     [Experimental(AvatarRenderer.DiagnosticId)]
     public IList<AvatarRenderer> Renderers { get; } = [];
+
+    /// <summary>
+    /// On Android, whether an <c>sksl</c> avatar draws on the GPU (OpenGL ES, a texture view with a render thread of its
+    /// own) at full size, rather than on the CPU in a buffer of 112 pixels scaled up. Off by default: on the one Mali
+    /// device tried (a Chromecast with Google TV) the view drew its first frames and then no more, and nothing after
+    /// being hidden and shown again, while the emulator drew every frame; on until that is understood.
+    /// </summary>
+    public bool GpuOnAndroid { get; set; }
 }
 
 /// <summary>Registers <c>Plugin.Maui.Spine.Controls.Avatar</c> with a <see cref="MauiAppBuilder"/>.</summary>
