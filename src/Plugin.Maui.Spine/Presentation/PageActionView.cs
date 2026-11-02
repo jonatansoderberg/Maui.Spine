@@ -54,12 +54,6 @@ internal sealed class PageActionView : ContentView
         set => SetValue(InGroupProperty, value);
     }
 
-    /// <summary>Whether the action has the prominent or washed look, which keeps glass of its own.</summary>
-    internal bool IsProminent => _front.Prominent;
-
-    /// <summary>Raised when <see cref="IsProminent"/> changes.</summary>
-    public event Action? ProminenceChanged;
-
     public bool OverContent
     {
         get => (bool)GetValue(OverContentProperty);
@@ -376,7 +370,6 @@ internal sealed class PageActionView : ContentView
     {
         readonly PageActionView _owner;
 
-        public bool Prominent => _prominent || _washed;
         readonly Button _textButton;
         readonly ImageButton _imageButton;
         readonly Border _badge;
@@ -783,8 +776,6 @@ internal sealed class PageActionView : ContentView
 
             _prominent = prominent;
             _washed = washed;
-            if (ReferenceEquals(_owner._front, this))
-                _owner.ProminenceChanged?.Invoke();
             if (_owner._glass)
                 ApplyGlass();
             else
