@@ -30,16 +30,7 @@
 		<!-- Plugin.Maui.Spine.Scanner uses CameraX, which needs Android 6.0. -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
 
-		<!-- Versions. Minutes since 2026-01-01 UTC: a new, increasing build number for every build, which the settings page
-		     turns back into the build time (docs/wiki/settings-pages.md). 639028224000000000 is the ticks of that date. -->
-		<AppBuildNumber Condition="'$(AppBuildNumber)' == ''">$([System.Math]::Floor($([MSBuild]::Divide($([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), 639028224000000000)), 600000000))))</AppBuildNumber>
-		<ApplicationDisplayVersion>1.0.$(AppBuildNumber)</ApplicationDisplayVersion>
-		<ApplicationVersion>$(AppBuildNumber)</ApplicationVersion>
-		<!-- MAUI derives the assembly's versions from ApplicationDisplayVersion, and an assembly version part stops at
-		     65535 (CS7034). Fixed ones also keep the build number from recompiling the assembly on every build. -->
-		<AssemblyVersion>1.0.0.0</AssemblyVersion>
-		<FileVersion>1.0.0.0</FileVersion>
-		<InformationalVersion>1.0</InformationalVersion>
+		<!-- Versions: major.yyMMdd.revision and a build id, from Version.props (samples/Directory.Build.props). -->
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>

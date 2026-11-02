@@ -6,9 +6,9 @@ public partial class SettingsPageViewModel(INavigationService _navigation) : Vie
 {
     private const string FeedbackUrl = "https://github.com/jonatansoderberg/Maui.Spine/issues/new";
 
-    public string Version => AppInfo.Current.VersionString;
+    // major.yyMMdd.revision and the build id, minutes since 2026-01-01 UTC (Version.props).
+    public string Version => $"{AppInfo.Current.VersionString} ({AppInfo.Current.BuildString})";
 
-    // The build number is the minutes since 2026-01-01 UTC (MauiSpineSampleApp.csproj).
     public string BuildTime => int.TryParse(AppInfo.Current.BuildString, out var minutes)
         ? new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMinutes(minutes).ToLocalTime().ToString("d MMMM yyyy HH:mm", CultureInfo.CurrentCulture)
         : "";
