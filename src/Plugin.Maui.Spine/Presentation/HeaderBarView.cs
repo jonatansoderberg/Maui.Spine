@@ -188,7 +188,6 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         };
         view.Action = action;
         view.VisibilityChanged += () => UpdateMoreTrailingVisibility(view);
-        view.ProminenceChanged += UpdateTrailingGroup;
         view.SizeChanged += (_, _) => PublishActionSlots();
         return view;
     }
@@ -552,8 +551,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
     /// <summary>
     /// Two or more trailing actions share one glass capsule, as the bar button items of one group do in a
-    /// UINavigationBar on iOS 26, and each shows its own glass only while pressed. A prominent action keeps
-    /// its own glass, so a bar with one has no group.
+    /// UINavigationBar on iOS 26, and each shows its own glass only while pressed. A prominent action (a
+    /// Confirm, a selected action) stays in the capsule and shows its prominent glass there.
     /// </summary>
     void UpdateTrailingGroup()
     {
@@ -561,7 +560,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             return;
 
         var showing = _trailing.Children.OfType<PageActionView>().Where(ShowsTrailing).ToList();
-        var grouped = GroupsActions && Glass != HeaderBarGlass.Transient && showing.Count > 1 && !showing.Any(v => v.IsProminent);
+        var grouped = GroupsActions && Glass != HeaderBarGlass.Transient && showing.Count > 1;
 
         foreach (var view in _trailing.Children.OfType<PageActionView>())
             view.InGroup = grouped;
@@ -749,7 +748,6 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         // properties above never fire; the view tells us directly.
         _primaryPageActionView.VisibilityChanged += UpdatePrimaryActionVisibility;
         _secondaryPageActionView.VisibilityChanged += UpdateSecondaryActionVisibility;
-        _secondaryPageActionView.ProminenceChanged += UpdateTrailingGroup;
 
         var buttonGrid = new Grid()
         {
