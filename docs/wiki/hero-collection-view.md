@@ -104,7 +104,7 @@ When `EnableAdaptiveOverlay` is `true`, the control samples colours from the hea
     ...>
 ```
 
-Register additional targets via `AdaptiveTargets` or let the control auto-register children of `HeaderTopContent` and `HeaderBottomContent`.
+Register additional targets via `AdaptiveTargets` or let the control auto-register the `ImageButton`s and `Label`s in `HeaderTopContent` and `HeaderBottomContent`, also those inside a stack. Each one is tinted for the part of the image behind it; the buttons in a `Border` (glass buttons on one capsule) share one colour, sampled behind the whole border.
 
 The `AdaptiveCaptionButtons` and `CaptionButtonColorRequested` properties integrate with the Windows caption (close/minimise/maximise) buttons so they match the header image as it scrolls.
 

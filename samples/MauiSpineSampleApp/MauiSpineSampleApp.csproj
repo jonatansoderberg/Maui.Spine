@@ -30,9 +30,16 @@
 		<!-- Plugin.Maui.Spine.Scanner uses CameraX, which needs Android 6.0. -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
 
-		<!-- Versions -->
-		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>1</ApplicationVersion>
+		<!-- Versions. Minutes since 2026-01-01 UTC: a new, increasing build number for every build, which the settings page
+		     turns back into the build time (docs/wiki/settings-pages.md). 639028224000000000 is the ticks of that date. -->
+		<AppBuildNumber Condition="'$(AppBuildNumber)' == ''">$([System.Math]::Floor($([MSBuild]::Divide($([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), 639028224000000000)), 600000000))))</AppBuildNumber>
+		<ApplicationDisplayVersion>1.0.$(AppBuildNumber)</ApplicationDisplayVersion>
+		<ApplicationVersion>$(AppBuildNumber)</ApplicationVersion>
+		<!-- MAUI derives the assembly's versions from ApplicationDisplayVersion, and an assembly version part stops at
+		     65535 (CS7034). Fixed ones also keep the build number from recompiling the assembly on every build. -->
+		<AssemblyVersion>1.0.0.0</AssemblyVersion>
+		<FileVersion>1.0.0.0</FileVersion>
+		<InformationalVersion>1.0</InformationalVersion>
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
@@ -614,6 +621,24 @@
 
     <Compile Include="Pages\Rows\RowsPage.ViewModel.cs">
       <DependentUpon>RowsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Settings\SettingsPage.View.xaml">
+      <DependentUpon>SettingsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Settings\SettingsPage.ViewModel.cs">
+      <DependentUpon>SettingsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Settings\AboutPage.View.xaml">
+      <DependentUpon>AboutPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Settings\AboutPage.ViewModel.cs">
+      <DependentUpon>AboutPage.cs</DependentUpon>
     </Compile>
 
     <MauiXaml Update="Pages\Dates\DatesPage.View.xaml">

@@ -1,0 +1,23 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Settings.SettingsPage"
+    x:TypeArguments="SettingsPageViewModel"
+    x:DataType="SettingsPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Margin="0,12,0,24"
+                             Spacing="28" MaximumWidthRequest="640">
+            <SpineSection Header="About">
+                <SpineRow Icon="info.svg" IconBackground="#8E8E93" Title="About Spine Showcase"
+                          Command="{Binding OpenAboutCommand}" />
+                <SpineRow Icon="externallink.svg" IconBackground="#5856D6" Title="Send feedback"
+                          Command="{Binding SendFeedbackCommand}" />
+                <SpineRow Icon="tag.svg" IconBackground="#8E8E93" Title="Version"
+                          Value="{Binding Version}" Detail="{Binding BuildTime}" DetailMarquee="True" />
+            </SpineSection>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

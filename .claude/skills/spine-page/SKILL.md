@@ -184,7 +184,7 @@ Put `[PageAction]` on a `[RelayCommand]` method (or an `ICommand` property); Spi
 [PageAction("Filter")]             [RelayCommand] private Task FilterAsync() { … }         // text: only when there is no standard icon
 ```
 
-Hand-made actions still work (`PageActions.Add(new PageAction("Save", SaveCommand) { Svg = … })`, best from the constructor). The header shows the first visible `Primary` action on the left and every visible `Secondary` action on the right, the first declared at the edge. `Svg` is a short file name of an embedded SVG (the app's own or `Plugin.Maui.Spine.Svg.Icons`). On iOS 26 the header bar's buttons are Liquid Glass by default (`options.Apple.GlassHeaderActions = false` turns it off).
+Hand-made actions still work (`PageActions.Add(new PageAction("Save", SaveCommand) { Svg = … })`, best from the constructor). The header shows the first visible `Primary` action on the left and every visible `Secondary` action on the right, the first declared at the edge. `Svg` is a short file name of an embedded SVG (the app's own or `Plugin.Maui.Spine.Svg.Icons`). On iOS 26 the header bar's buttons are Liquid Glass by default (`options.Apple.GlassHeaderActions = false` turns it off), and two or more trailing actions share one glass capsule unless one of them is prominent (`options.Apple.GroupHeaderActions = false` gives each its own circle).
 
 A tap can play a haptic: `[PageAction("Save", Role = PageActionRole.Confirm, Haptic = Haptic.Success)]` (see docs/wiki/haptics.md).
 

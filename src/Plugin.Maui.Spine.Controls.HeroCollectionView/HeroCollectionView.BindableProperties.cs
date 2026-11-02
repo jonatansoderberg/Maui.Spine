@@ -226,9 +226,10 @@ public partial class HeroCollectionView
 
     /// <summary>
     /// Visual elements whose foreground colour is automatically adjusted based on
-    /// the header image luminance behind them. Elements inside
-    /// <see cref="HeaderTopContent"/> and <see cref="HeaderBottomContent"/> are
-    /// auto-registered when <see cref="EnableAdaptiveOverlay"/> is true.
+    /// the header image luminance behind them. The image buttons and labels inside
+    /// <see cref="HeaderTopContent"/> and <see cref="HeaderBottomContent"/>, at any depth, are
+    /// auto-registered when <see cref="EnableAdaptiveOverlay"/> is true; the ones in a <see cref="Border"/>
+    /// share one colour.
     /// </summary>
     public IList<VisualElement> AdaptiveTargets { get; } = new List<VisualElement>();
 
