@@ -160,4 +160,4 @@ A release build can pin the number with `-p:AppBuildNumber=<n>`. The widget exte
 
 ## Sample
 
-The Showcase's **Rows** page has a section of menu rows, status marks and a destructive row.
+The Showcase's settings page (the gear beside the theme button on its start page) is the About section on its own: an About sheet from `Resources/Raw/about.md`, feedback as an issue on GitHub (the Showcase is open source, so it has no mail address to write to) and the version with its build time. Its **Rows** page has a section of menu rows, status marks and a destructive row.

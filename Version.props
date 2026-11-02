@@ -1,0 +1,86 @@
+<Project>
+
+	<!--
+		The version of an app built on Spine: major.yyMMdd.revision, with the build id beside it.
+
+		    0.261031.412 (437245)
+
+		- VersionMajor     bumped by hand, in Directory.Build.props before this file is imported. 0 until the first release.
+		- VersionDate      the day of the build, yyMMdd (local time), so the version always increases.
+		- VersionRevision  the commit count of HEAD (what git rev-list counts for HEAD), so a version names its commit.
+		                   Read at build time, because MSBuild cannot run git while it evaluates the project.
+		- BuildId          minutes since 2026-01-01 UTC, new for every build. It is ApplicationVersion
+		                   (CFBundleVersion, Android's versionCode), and the app turns it back into the build time.
+
+		Pin any of them with -p:<Name>=<value>. AssemblyVersion stays major.0.0.0 and FileVersion splits the date
+		(major.yy.MMdd.revision), because an assembly version part stops at 65535 (CS7034).
+
+		This file is copied unchanged into each app's repository and imported at the end of its Directory.Build.props;
+		docs/wiki/versioning.md in Maui.Spine has the reasoning, and this copy there is the one to change first.
+	-->
+
+	<!-- A universal Mac Catalyst build (Release: arm64 and x64) writes the app's Info.plist in its outer build and
+	     builds the extensions in one inner build per architecture, each evaluated later. The inner builds take the
+	     outer build's date and build id from this file, so the extensions carry the app's version. -->
+	<PropertyGroup>
+		<_SpineVersionHandOver>$(MSBuildProjectDirectory)/obj/spine-version-$(TargetFramework).txt</_SpineVersionHandOver>
+		<_SpineVersionHandedOver Condition="'$(_IsMultiRidBuild)' == 'true' And Exists('$(_SpineVersionHandOver)')">$([System.IO.File]::ReadAllText('$(_SpineVersionHandOver)').Trim())</_SpineVersionHandedOver>
+		<VersionDate Condition="'$(VersionDate)' == '' And '$(_SpineVersionHandedOver)' != ''">$(_SpineVersionHandedOver.Split(' ')[0])</VersionDate>
+		<BuildId Condition="'$(BuildId)' == '' And '$(_SpineVersionHandedOver)' != ''">$(_SpineVersionHandedOver.Split(' ')[1])</BuildId>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<VersionMajor Condition="'$(VersionMajor)' == ''">0</VersionMajor>
+		<VersionDate Condition="'$(VersionDate)' == ''">$([System.DateTime]::Now.ToString('yyMMdd'))</VersionDate>
+		<!-- 639028224000000000 is the ticks of 2026-01-01 UTC, 600000000 the ticks of a minute. -->
+		<BuildId Condition="'$(BuildId)' == ''">$([System.Math]::Floor($([MSBuild]::Divide($([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), 639028224000000000)), 600000000))))</BuildId>
+		<_SpineRevisionFromGit Condition="'$(VersionRevision)' == ''">true</_SpineRevisionFromGit>
+		<VersionRevision Condition="'$(VersionRevision)' == ''">0</VersionRevision>
+	</PropertyGroup>
+
+	<!-- What evaluation can give; SpineVersionFromGit puts the revision in before anything reads it. -->
+	<PropertyGroup>
+		<_SpineVersion>$(VersionMajor).$(VersionDate).$(VersionRevision)</_SpineVersion>
+		<_SpineFileVersion>$(VersionMajor).$(VersionDate.Substring(0, 2)).$([System.Int32]::Parse($(VersionDate.Substring(2)))).$(VersionRevision)</_SpineFileVersion>
+		<ApplicationDisplayVersion Condition="'$(ApplicationDisplayVersion)' == ''">$(_SpineVersion)</ApplicationDisplayVersion>
+		<ApplicationVersion Condition="'$(ApplicationVersion)' == ''">$(BuildId)</ApplicationVersion>
+		<Version Condition="'$(Version)' == ''">$(_SpineVersion)</Version>
+		<AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(VersionMajor).0.0.0</AssemblyVersion>
+		<FileVersion Condition="'$(FileVersion)' == ''">$(_SpineFileVersion)</FileVersion>
+		<InformationalVersion Condition="'$(InformationalVersion)' == ''">$(_SpineVersion)</InformationalVersion>
+	</PropertyGroup>
+
+	<!-- Before Android (_GetAndroidPackageName), iOS and Mac Catalyst (_CompileAppManifestInputs, _CompileAppManifest),
+	     Spine's widget and notification extensions, the assembly attributes and a pack read the versions.
+	     A value the project set itself is left alone. -->
+	<Target Name="SpineVersionFromGit"
+	        Condition="'$(_SpineRevisionFromGit)' == 'true'"
+	        BeforeTargets="PrepareForBuild;_GetAndroidPackageName;_CompileAppManifestInputs;_CompileAppManifest;_SpineWidgetsStampVersion;_SpinePushNotificationsImagesStampVersion;GetAssemblyVersion;GenerateAssemblyInfo;GenerateNuspec;_GetOutputItemsFromPack">
+		<Exec Command="git rev-list --count HEAD" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true"
+		      IgnoreExitCode="true" EchoOff="true" StandardOutputImportance="low" StandardErrorImportance="low">
+			<Output TaskParameter="ConsoleOutput" PropertyName="_SpineGitCommitCount" />
+			<Output TaskParameter="ExitCode" PropertyName="_SpineGitExitCode" />
+		</Exec>
+		<PropertyGroup Condition="'$(_SpineGitExitCode)' == '0'">
+			<_SpineOldVersion>$(_SpineVersion)</_SpineOldVersion>
+			<_SpineOldFileVersion>$(_SpineFileVersion)</_SpineOldFileVersion>
+			<VersionRevision>$(_SpineGitCommitCount.Trim())</VersionRevision>
+			<_SpineVersion>$(VersionMajor).$(VersionDate).$(VersionRevision)</_SpineVersion>
+			<_SpineFileVersion>$(VersionMajor).$(VersionDate.Substring(0, 2)).$([System.Int32]::Parse($(VersionDate.Substring(2)))).$(VersionRevision)</_SpineFileVersion>
+			<ApplicationDisplayVersion Condition="'$(ApplicationDisplayVersion)' == '$(_SpineOldVersion)'">$(_SpineVersion)</ApplicationDisplayVersion>
+			<PackageVersion Condition="'$(PackageVersion)' == '$(Version)' And '$(Version)' == '$(_SpineOldVersion)'">$(_SpineVersion)</PackageVersion>
+			<Version Condition="'$(Version)' == '$(_SpineOldVersion)'">$(_SpineVersion)</Version>
+			<FileVersion Condition="'$(FileVersion)' == '$(_SpineOldFileVersion)'">$(_SpineFileVersion)</FileVersion>
+			<InformationalVersion Condition="'$(InformationalVersion)' == '$(_SpineOldVersion)'">$(_SpineVersion)</InformationalVersion>
+		</PropertyGroup>
+		<PropertyGroup>
+			<!-- Run once per project, however many of the targets above are reached. -->
+			<_SpineRevisionFromGit>false</_SpineRevisionFromGit>
+		</PropertyGroup>
+	</Target>
+
+	<Target Name="_SpineVersionHandOver" BeforeTargets="_RunRidSpecificBuild">
+		<WriteLinesToFile File="$(_SpineVersionHandOver)" Lines="$(VersionDate) $(BuildId)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+	</Target>
+
+</Project>

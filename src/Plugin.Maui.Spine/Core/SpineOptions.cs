@@ -429,6 +429,15 @@ public sealed class SpineOptions
         /// <see langword="false"/> crossfades two buttons instead. Default <see langword="true"/>.
         /// </summary>
         public bool MorphHeaderActions { get; set; } = true;
+
+        /// <summary>
+        /// With <see cref="GlassHeaderActions"/>, puts two or more trailing header actions side by side on one glass
+        /// capsule, as a <c>UINavigationBar</c> groups its bar button items on iOS 26: each button shows glass of its
+        /// own only while it is pressed. A prominent action (a confirm, a selected action) keeps its own glass, and the
+        /// actions beside it then keep theirs. <see langword="false"/> gives every action its own circle.
+        /// Default <see langword="true"/>.
+        /// </summary>
+        public bool GroupHeaderActions { get; set; } = true;
     }
 
     /// <summary>Options that apply on iOS and Mac Catalyst.</summary>

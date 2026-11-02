@@ -6,4 +6,10 @@
 		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 
+	<!-- The samples are versioned as an app is (docs/wiki/versioning.md): major.yyMMdd.revision and a build id. -->
+	<PropertyGroup>
+		<VersionMajor>0</VersionMajor>
+	</PropertyGroup>
+	<Import Project="$(MSBuildThisFileDirectory)../Version.props" />
+
 </Project>

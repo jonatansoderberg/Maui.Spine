@@ -30,9 +30,7 @@
 		<!-- Plugin.Maui.Spine.Scanner uses CameraX, which needs Android 6.0. -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
 
-		<!-- Versions -->
-		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>1</ApplicationVersion>
+		<!-- Versions: major.yyMMdd.revision and a build id, from Version.props (samples/Directory.Build.props). -->
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
@@ -614,6 +612,24 @@
 
     <Compile Include="Pages\Rows\RowsPage.ViewModel.cs">
       <DependentUpon>RowsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Settings\SettingsPage.View.xaml">
+      <DependentUpon>SettingsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Settings\SettingsPage.ViewModel.cs">
+      <DependentUpon>SettingsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Settings\AboutPage.View.xaml">
+      <DependentUpon>AboutPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Settings\AboutPage.ViewModel.cs">
+      <DependentUpon>AboutPage.cs</DependentUpon>
     </Compile>
 
     <MauiXaml Update="Pages\Dates\DatesPage.View.xaml">

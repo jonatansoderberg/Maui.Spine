@@ -1,0 +1,12 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Settings.AboutPage"
+    x:TypeArguments="AboutPageViewModel"
+    x:DataType="AboutPageViewModel">
+
+    <ScrollView>
+        <MarkdownView Text="{Binding Text}" Padding="{x:Static HeaderBarConstants.PagePadding}" Margin="0,8,0,24" />
+    </ScrollView>
+
+</SpinePage>

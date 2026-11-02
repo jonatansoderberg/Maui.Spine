@@ -43,6 +43,23 @@ internal sealed class PageActionView : ContentView
         nameof(BackgroundProgress), typeof(double), typeof(PageActionView), 0.0,
         propertyChanged: static (b, _, _) => ((PageActionView)b).ForEachFace(f => f.ApplyContainerFade()));
 
+    /// <summary>Whether the action sits on its group's shared glass, with glass of its own only while pressed.</summary>
+    public static readonly BindableProperty InGroupProperty = BindableProperty.Create(
+        nameof(InGroup), typeof(bool), typeof(PageActionView), false,
+        propertyChanged: static (b, _, _) => ((PageActionView)b).ForEachFace(f => f.ApplyGlass()));
+
+    public bool InGroup
+    {
+        get => (bool)GetValue(InGroupProperty);
+        set => SetValue(InGroupProperty, value);
+    }
+
+    /// <summary>Whether the action has the prominent or washed look, which keeps glass of its own.</summary>
+    internal bool IsProminent => _front.Prominent;
+
+    /// <summary>Raised when <see cref="IsProminent"/> changes.</summary>
+    public event Action? ProminenceChanged;
+
     public bool OverContent
     {
         get => (bool)GetValue(OverContentProperty);
@@ -358,6 +375,8 @@ internal sealed class PageActionView : ContentView
     sealed class Face : Grid
     {
         readonly PageActionView _owner;
+
+        public bool Prominent => _prominent || _washed;
         readonly Button _textButton;
         readonly ImageButton _imageButton;
         readonly Border _badge;
@@ -764,6 +783,8 @@ internal sealed class PageActionView : ContentView
 
             _prominent = prominent;
             _washed = washed;
+            if (ReferenceEquals(_owner._front, this))
+                _owner.ProminenceChanged?.Invoke();
             if (_owner._glass)
                 ApplyGlass();
             else
@@ -850,6 +871,7 @@ internal sealed class PageActionView : ContentView
 
             var style = (_prominent || _washed, _owner.Glass) switch
             {
+                (false, _) when _owner.InGroup => GlassStyle.Transient,
                 (true, HeaderBarGlass.Clear) => GlassStyle.ProminentClear,
                 (true, _) => GlassStyle.Prominent,
                 (false, HeaderBarGlass.Clear) => GlassStyle.Clear,

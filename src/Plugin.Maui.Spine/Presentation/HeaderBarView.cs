@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.Controls.Shapes;
 using Plugin.Maui.Spine.Core;
+using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Presentation;
 
 #if WINDOWS
@@ -53,7 +55,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             var bar = (HeaderBarView)b;
             foreach (var view in bar.ActionViews)
                 view.Glass = (HeaderBarGlass)v;
-            bar.ApplyTrailingSpacing();
+            bar.UpdateTrailingGroup();
         });
 
     public HeaderBarGlass Glass
@@ -111,6 +113,9 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     readonly HorizontalStackLayout _trailing;
     readonly List<PageActionView> _moreTrailing = [];
 
+    // Holds _trailing; with GroupHeaderActions it is the glass capsule the grouped actions share.
+    readonly Border _trailingGroup;
+
     IEnumerable<PageActionView> ActionViews => [_primaryPageActionView, _secondaryPageActionView, .. _moreTrailing];
 
     /// <summary>The page's further trailing actions, from the edge inward (see NavigationRegionViewModel.MoreSecondaryPageActions).</summary>
@@ -161,6 +166,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         // Only the new ones: showing one that is already there would play its arrival again.
         foreach (var view in added)
             UpdateMoreTrailingVisibility(view);
+        UpdateTrailingGroup();
         PublishActionSlots();
     }
 
@@ -182,12 +188,23 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         };
         view.Action = action;
         view.VisibilityChanged += () => UpdateMoreTrailingVisibility(view);
+        view.ProminenceChanged += UpdateTrailingGroup;
         view.SizeChanged += (_, _) => PublishActionSlots();
         return view;
     }
 
-    void UpdateMoreTrailingVisibility(PageActionView view) =>
-        _ = AnimateVisibility(view, !(IsWindowsDesktop() && IsTitleBarVisible) && view.Action is { IsVisible: true });
+    void UpdateMoreTrailingVisibility(PageActionView view)
+    {
+        UpdateTrailingGroup();
+        _ = AnimateVisibility(view, ShowsTrailing(view));
+    }
+
+    // Whether a trailing action is, or is on its way to being, on screen: the group follows where the
+    // actions are going, not the frame they are fading through.
+    bool ShowsTrailing(PageActionView view) =>
+        (ReferenceEquals(view, _secondaryPageActionView) || _moreTrailing.Contains(view))
+        && !(IsWindowsDesktop() && IsTitleBarVisible)
+        && view.Action is { IsVisible: true };
 
     async Task RemoveTrailingAsync(PageActionView view)
     {
@@ -474,6 +491,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             }
         }
 
+        UpdateTrailingGroup();
         _ = AnimateVisibility(_secondaryPageActionView, shouldShow);
     }
 
@@ -522,18 +540,42 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         if (visible.Count == 0)
             return 0;
         if (Width > 0 && _trailing.Width > 0 && visible.All(v => v.Width > 0))
-            return Math.Max(0, Width - (_trailing.X + visible.Min(v => v.X)));
+            return Math.Max(0, Width - (_trailingGroup.X + _trailing.X + visible.Min(v => v.X)));
         return visible.Count * (SideMargin + IconButtonWidth);
     }
 
     void UpdateActionWidth(PageActionView pageActionView) => pageActionView.IconWidth = IconButtonWidth;
 
-    // Transient glass buttons have no shape at rest, so the gap between their circles read as a wide gap between
-    // bare icons; they touch instead, as the buttons in one group of a UINavigationBar do.
-    void ApplyTrailingSpacing()
+    static bool GroupsActions =>
+        PageActionView.UseGlassHeaderActions
+        && IPlatformApplication.Current?.Services.GetService<SpineOptions>()?.Apple.GroupHeaderActions == true;
+
+    /// <summary>
+    /// Two or more trailing actions share one glass capsule, as the bar button items of one group do in a
+    /// UINavigationBar on iOS 26, and each shows its own glass only while pressed. A prominent action keeps
+    /// its own glass, so a bar with one has no group.
+    /// </summary>
+    void UpdateTrailingGroup()
     {
-        if (_trailing is not null)
-            _trailing.Spacing = PageActionView.UseGlassHeaderActions && Glass == HeaderBarGlass.Transient ? 0 : HeaderBarConstants.TitleActionGap;
+        if (_trailingGroup is null)
+            return;
+
+        var showing = _trailing.Children.OfType<PageActionView>().Where(ShowsTrailing).ToList();
+        var grouped = GroupsActions && Glass != HeaderBarGlass.Transient && showing.Count > 1 && !showing.Any(v => v.IsProminent);
+
+        foreach (var view in _trailing.Children.OfType<PageActionView>())
+            view.InGroup = grouped;
+
+        Material.SetPreset(_trailingGroup, !grouped ? MaterialPreset.None
+            : Glass == HeaderBarGlass.Clear ? MaterialPreset.GlassClear
+            : MaterialPreset.GlassRegular);
+        _trailingGroup.StrokeShape = new RoundRectangle { CornerRadius = ButtonHeight / 2 };
+
+        // Transient glass buttons have no shape at rest, so the gap between their circles read as a wide gap
+        // between bare icons; they touch instead, as the buttons in one group of a UINavigationBar do.
+        _trailing.Spacing = grouped || PageActionView.UseGlassHeaderActions && Glass == HeaderBarGlass.Transient
+            ? 0
+            : HeaderBarConstants.TitleActionGap;
     }
 
     // Glass buttons are 44-point circles whose edge lines up with the page's content, as a
@@ -707,6 +749,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         // properties above never fire; the view tells us directly.
         _primaryPageActionView.VisibilityChanged += UpdatePrimaryActionVisibility;
         _secondaryPageActionView.VisibilityChanged += UpdateSecondaryActionVisibility;
+        _secondaryPageActionView.ProminenceChanged += UpdateTrailingGroup;
 
         var buttonGrid = new Grid()
         {
@@ -736,9 +779,18 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             Spacing = HeaderBarConstants.TitleActionGap,
             Children = { _secondaryPageActionView },
         };
-        ApplyTrailingSpacing();
+        _trailingGroup = new Border
+        {
+            HorizontalOptions = LayoutOptions.End,
+            VerticalOptions = LayoutOptions.Center,
+            StrokeThickness = 0,
+            Padding = 0,
+            BackgroundColor = Colors.Transparent,
+            Content = _trailing,
+        };
+        UpdateTrailingGroup();
         _trailing.SizeChanged += (_, _) => PublishActionSlots();
-        buttonGrid.Add(_trailing, 3);
+        buttonGrid.Add(_trailingGroup, 3);
 
         Content = buttonGrid;
 

@@ -1,14 +1,15 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Microsoft.Maui.Controls.Shapes;
+using Plugin.Maui.Spine.Extensions;
 
 namespace MauiSpineSampleApp.Pages;
 
-public partial class MainPageViewModel(INavigationService _navigation) : SampleViewModel
+public partial class MainPageViewModel(INavigationService _navigation, SpineOptions _options) : SampleViewModel
 {
 
-    // The theme button sits where the header bar's action sits on every other page, so it stays put
-    // when a page is pushed. The collapsed hero is the bar's row below the status bar, with the title
-    // and the theme button centred on one line.
+    // The buttons sit where the header bar's actions sit on every other page. The collapsed hero is the
+    // bar's row below the status bar, with the title and the buttons centred on one line.
     private static double CompactBar => HeaderBarConstants.Height;
 
     // On the Mac the theme button sits on the close button's line, whose centre is this far down from the
@@ -39,6 +40,19 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
 
     // Tall enough that the photo's S starts below the status bar (and the Dynamic Island) rather than behind it.
     public double HeaderMaxHeight => SystemBarInsets.Top + 270;
+
+    // The settings and theme buttons share one glass capsule where the header bar groups its actions
+    // (SpineOptions.Apple.GroupHeaderActions), as the other pages' header bars do; elsewhere each is a circle of its own.
+    public bool GroupsButtons => (OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26))
+        && _options.Apple.GlassHeaderActions && _options.Apple.GroupHeaderActions;
+
+    public GlassStyle ButtonGlass => GroupsButtons ? GlassStyle.Transient : GlassStyle.Clear;
+
+    public MaterialPreset ButtonGroupMaterial => GroupsButtons ? MaterialPreset.GlassClear : MaterialPreset.None;
+
+    public double ButtonSpacing => GroupsButtons ? 0 : HeaderBarConstants.TitleActionGap;
+
+    public RoundRectangle ButtonGroupShape => new() { CornerRadius = ThemeButton / 2 };
 
     public Thickness GearMargin => DeviceInfo.Platform == DevicePlatform.WinUI
         ? new Thickness(0, 0, 144, 0)
@@ -71,6 +85,9 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(FooterHeight)));
         }
     }
+
+    [RelayCommand]
+    private Task OpenSettings() => _navigation.NavigateToAsync<Settings.SettingsPage>();
 
     [RelayCommand]
     private async Task ItemTapped(Item item)

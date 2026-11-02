@@ -37,26 +37,30 @@ public partial class HeroCollectionView
         AutoRegisterTargets(HeaderBottomContent);
     }
 
-    private void AutoRegisterTargets(View? root)
+    // The buttons and labels anywhere in the header content, which ApplyColor tints. A Border is one target:
+    // the glass buttons on one capsule share the colour the image behind the whole capsule asks for.
+    private void AutoRegisterTargets(IVisualTreeElement? element)
     {
-        if (root is Layout layout)
+        switch (element)
         {
-            foreach (var child in layout.Children)
-            {
-                if (child is VisualElement ve)
-                    RegisterTarget(ve);
-            }
-        }
-        else if (root is VisualElement ve)
-        {
-            RegisterTarget(ve);
+            case ImageButton or Label or Border:
+                RegisterTarget((VisualElement)element);
+                break;
+            case not null:
+                foreach (var child in element.GetVisualChildren())
+                    AutoRegisterTargets(child);
+                break;
         }
     }
 
     private void RegisterTarget(VisualElement ve)
     {
-        if (!AdaptiveTargets.Contains(ve))
-            AdaptiveTargets.Add(ve);
+        if (AdaptiveTargets.Contains(ve))
+            return;
+
+        AdaptiveTargets.Add(ve);
+        // A target inside a Border or a stack gets its size after the first sample, which skips it then.
+        ve.SizeChanged += (_, _) => ScheduleAdaptiveUpdate();
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -363,6 +367,14 @@ public partial class HeroCollectionView
 
             case Label lbl:
                 lbl.TextColor = color;
+                break;
+
+            case Border border:
+                foreach (var child in border.GetVisualTreeDescendants().OfType<VisualElement>())
+                {
+                    if (child is ImageButton or Label)
+                        ApplyColor(child, color);
+                }
                 break;
         }
     }

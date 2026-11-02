@@ -87,6 +87,12 @@ public static partial class SpineExtensions
             tracker.Apply = isPressed => UIView.Animate(0.2, () => button.Configuration = BuildConfiguration(handler, button, view, style, isPressed));
             pressed = tracker.Pressed;
         }
+        // A tap can change the style (a grouped header action that turns prominent when selected): the touch
+        // ends after that and would put the transient configuration back.
+        else if (TransientTrackers.TryGetValue(button, out var tracker))
+        {
+            tracker.Apply = null;
+        }
 
         button.Configuration = BuildConfiguration(handler, button, view, style, pressed);
     }
