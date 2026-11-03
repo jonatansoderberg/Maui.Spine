@@ -1051,6 +1051,16 @@ Android forbids custom views in a promoted notification ("custom notifications m
 
 In `Layout`, the expanded notification is the system's header (app icon, name, the age) over the tree on a rounded `Background`; with no `Background` Spine paints the translucent black iOS draws, since the tree is laid out for it, and with `SystemBackground` the theme's surface. The rounded font, `.SingleLine` shrinking and a `W.Relative` written out ("för 2 minuter sedan") are iOS's: Android draws the default font and the age as a chronometer (`02:14`), which keeps counting while the app is not running.
 
+The same Glukos layout in each, on Android 17 (API 37) and 16.0:
+
+| `Template`, promoted (Android 17) | `Layout`, expanded (Android 17) |
+|---|---|
+| ![Template](images/live-updates/1-template-promoted-android17.png) | ![Layout expanded](images/live-updates/2-layout-expanded-android17.png) |
+| **`Layout`, collapsed (Android 17)** | **`Automatic` on Android 16.0: `Layout`** |
+| ![Layout collapsed](images/live-updates/3-layout-collapsed-android17.png) | ![Layout on Android 16.0](images/live-updates/4-layout-expanded-android16-tablet.png) |
+| **The chip of a promoted `Template`** | |
+| ![Chip](images/live-updates/5-chip-statusbar-android17.png) | |
+
 In `Template` the regions map onto the notification template rather than being drawn as a tree:
 
 | Region | Becomes |
