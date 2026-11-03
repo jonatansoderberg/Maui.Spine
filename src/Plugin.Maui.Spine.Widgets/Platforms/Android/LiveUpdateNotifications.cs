@@ -4,6 +4,7 @@ using Android.App;
 using Android.Content;
 using Android.Graphics.Drawables;
 using Android.Runtime;
+using Android.Widget;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common.Serialization;
 
@@ -80,7 +81,17 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         else
             builder.SetShowWhen(false);
 
-        if ((Find(lockScreen, "progress") ?? Find(Region(layout, "expandedBottom"), "progress")) is { } progress)
+        // Android promotes only its own templates: the app's layout and the chip rule each other out (LiveUpdatePresentation).
+        var drawn = lockScreen is not null && Text(own, "presentation")?.ToLowerInvariant() switch
+        {
+            "layout" => true,
+            "template" => false,
+            _ => !CanPostPromoted(),
+        };
+
+        if (drawn)
+            builder.SetStyle(new Notification.DecoratedCustomViewStyle()).SetCustomBigContentView(Banner(layout, lockScreen!.Value));
+        else if ((Find(lockScreen, "progress") ?? Find(Region(layout, "expandedBottom"), "progress")) is { } progress)
         {
             var value = progress.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
             var segment = new Notification.ProgressStyle.Segment(100);
@@ -98,9 +109,12 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         else if (Region(layout, "compactTrailing") is { } compact && Find(compact, "text") is { } compactText && compactText.TryGetProperty("text", out var chipText))
             builder.SetShortCriticalText(chipText.GetString());
 
-        // The promoted template has no image region of its own; the large icon is the one picture it shows.
+        // The template has no image region of its own; the large icon is the one picture it shows, and a graph reads there.
+        // The drawn tree has its own, and a large icon would take the right of its width in the expanded notification.
         if (Text(own, "icon") is { } asset && Bitmap(asset) is { } picture)
             builder.SetLargeIcon(picture);
+        else if (!drawn && (Find(lockScreen, "sparkline") ?? Find(Region(layout, "expandedBottom"), "sparkline")) is { } sparkline)
+            builder.SetLargeIcon(Graph(sparkline));
 
         if (layout.TryGetProperty("link", out var link) && link.GetString() is { } url && Android.Net.Uri.Parse(url) is { } uri)
             builder.SetContentIntent(PendingIntent.GetActivity(_context, tag.GetHashCode(),
@@ -110,10 +124,10 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         // The user can swipe an ongoing notification away; this is the only way the app hears of it.
         builder.SetDeleteIntent(SpineBackgroundReceiver.ActivityDismissed(_context));
 
-        RequestPromotedOngoing(builder);
+        if (!drawn) RequestPromotedOngoing(builder);
 
         var notification = builder.Build();
-        if (!notification.HasPromotableCharacteristics)
+        if (!drawn && !notification.HasPromotableCharacteristics)
             _logger.LogWarning("Live Activity \"{Tag}\" is posted as a plain ongoing notification; Android found it not promotable.", tag);
         Manager.Notify(tag, NotificationId, notification);
     }
@@ -150,6 +164,43 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         Android.Graphics.BitmapFactory.DecodeFile(System.IO.Path.Combine(WidgetStore.AssetsDirectory(_context), assetId));
 
     private string AppLabel() => _context.ApplicationInfo!.LoadLabel(_context.PackageManager!)?.ToString() ?? _context.PackageName!;
+
+    /// <summary>
+    /// The Lock Screen tree as the widget renderer draws it, on the layout's background. iOS puts a translucent black
+    /// behind a tree with none, so a tree is laid out for a dark surface unless it asks for the system's.
+    /// </summary>
+    private RemoteViews Banner(JsonElement layout, JsonElement tree)
+    {
+        var system = layout.TryGetProperty("systemBackground", out var flag) && flag.ValueKind == JsonValueKind.True;
+        var renderer = new RemoteViewsRenderer(_context, _icons) { Background = Text(layout, "background") ?? (system ? null : TranslucentBlack) };
+        return renderer.Root(tree, tap: null, Resource.Layout.spine_live_update);
+    }
+
+    private const string TranslucentBlack = "#E6141414";
+
+    /// <summary>The graph twice as wide as it is high, the shape the template's large icon is drawn in.</summary>
+    private Android.Graphics.Bitmap Graph(JsonElement sparkline)
+    {
+        var height = (int)(GraphDp * _context.Resources!.DisplayMetrics!.Density);
+        return new RemoteViewsRenderer(_context, _icons).Sparkline(sparkline, height * 2, height);
+    }
+
+    private const float GraphDp = 48;
+
+    // NotificationManager.canPostPromotedNotifications came with Android 16.1, the user's switch for the app included,
+    // and is not bound in Mono.Android 36.
+    private bool CanPostPromoted()
+    {
+        try
+        {
+            var method = JNIEnv.GetMethodID(Manager.Class.Handle, "canPostPromotedNotifications", "()Z");
+            return JNIEnv.CallBooleanMethod(Manager.Handle, method);
+        }
+        catch (Java.Lang.NoSuchMethodError)
+        {
+            return false;
+        }
+    }
 
     // Notification.EXTRA_REQUEST_PROMOTED_ONGOING. The builder's setRequestPromotedOngoing, which only sets it, came with
     // Android 16.1 and throws NoSuchMethodError on 16.0; the extra is read on both.
