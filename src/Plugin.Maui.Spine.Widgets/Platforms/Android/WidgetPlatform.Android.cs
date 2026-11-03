@@ -24,15 +24,22 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         _controls = WidgetStore.ControlKinds(_context);
 
         // Live Updates — promoted ongoing notifications — arrived with Android 16; older versions have no
-        // Live Activity, and a plain notification would not be one.
-        if (OperatingSystem.IsAndroidVersionAtLeast(36))
+        // Live Activity, and a plain notification would not be one. The build declares the promoted-notifications
+        // permission for an app with SpineWidgetsLiveActivities, with or without any widget; a normal permission,
+        // it is granted exactly when declared.
+        if (OperatingSystem.IsAndroidVersionAtLeast(36)
+            && _context.CheckSelfPermission(PromotedNotifications) == Android.Content.PM.Permission.Granted)
             _live = new LiveUpdateNotifications(_context, new WidgetIcons(_context), logger);
 
-        if (_kinds.Length == 0 && _controls.Length == 0)
+        if (_kinds.Length == 0 && _controls.Length == 0 && _live is null)
             logger.LogWarning("No widget receivers in the manifest; widgets are disabled. Is build/Plugin.Maui.Spine.Widgets.targets imported and at least one <SpineWidget> declared?");
     }
 
+    private const string PromotedNotifications = "android.permission.POST_PROMOTED_NOTIFICATIONS";
+
     public bool IsSupported => _kinds.Length > 0;
+
+    public bool AreActivitiesSupported => _live is not null;
 
     public void WriteTimeline(string kind, string json)
     {
@@ -40,7 +47,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     }
 
     public Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken) =>
-        IsSupported || AreControlsSupported
+        IsSupported || AreControlsSupported || AreActivitiesSupported
             ? AtomicFile.WriteAsync(Path.Combine(WidgetStore.AssetsDirectory(_context), assetId), png, cancellationToken)
             : Task.CompletedTask;
 
@@ -59,18 +66,22 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     }
 
     // The notification permission cannot be told apart from "never asked" here, so it is not a reason to say no;
-    // StartActivityAsync asks for it. What remains is the Android version.
-    public bool AreActivitiesEnabled => IsSupported && OperatingSystem.IsAndroidVersionAtLeast(36);
+    // StartActivityAsync asks for it. What remains is the Android version and the build.
+    public bool AreActivitiesEnabled => AreActivitiesSupported;
 
     public IReadOnlyDictionary<string, string> ActiveActivities() =>
-        OperatingSystem.IsAndroidVersionAtLeast(36) ? _live!.Active() : new Dictionary<string, string>();
+        OperatingSystem.IsAndroidVersionAtLeast(36) && _live is not null ? _live.Active() : new Dictionary<string, string>();
 
     public async Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt, string? channel)
     {
-        if (!IsSupported) return null;
         if (!OperatingSystem.IsAndroidVersionAtLeast(36))
         {
             _logger.LogWarning("Live Activity \"{Kind}\" not started: Live Updates need Android 16.", kind);
+            return null;
+        }
+        if (_live is null)
+        {
+            _logger.LogWarning("Live Activity \"{Kind}\" not started: the manifest has no POST_PROMOTED_NOTIFICATIONS. Is SpineWidgetsLiveActivities set for Android?", kind);
             return null;
         }
 
@@ -82,17 +93,17 @@ internal sealed class WidgetPlatform : IWidgetPlatform
             return null;
         }
 
-        return _live!.Start(kind, json);
+        return _live.Start(kind, json);
     }
 
     public void UpdateActivity(string id, string json, DateTimeOffset? staleAt)
     {
-        if (OperatingSystem.IsAndroidVersionAtLeast(36)) _live!.Update(id, json);
+        if (OperatingSystem.IsAndroidVersionAtLeast(36)) _live?.Update(id, json);
     }
 
     public void EndActivity(string id)
     {
-        if (OperatingSystem.IsAndroidVersionAtLeast(36)) _live!.End(id);
+        if (OperatingSystem.IsAndroidVersionAtLeast(36)) _live?.End(id);
     }
 
     // Android Live Updates are driven by the app; a server reaches them through the app's own push handler.

@@ -25,7 +25,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     private bool _adopted;
     private bool _seeded;
 
-    public bool IsSupported => _platform.IsSupported;
+    public bool IsSupported => _platform.AreActivitiesSupported;
 
     public bool AreActivitiesEnabled => _platform.AreActivitiesEnabled;
 
@@ -52,7 +52,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     /// </remarks>
     private void Adopt()
     {
-        if (_adopted || !_platform.IsSupported) return;
+        if (_adopted || !_platform.AreActivitiesSupported) return;
         _adopted = true;
         _unannounced.AddRange(Sync().Gone);
     }
@@ -65,7 +65,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     /// </summary>
     internal void Reconcile()
     {
-        if (!_platform.IsSupported) return;
+        if (!_platform.AreActivitiesSupported) return;
 
         List<LiveActivity> ended;
         bool added;
@@ -122,7 +122,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     public async Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null, string? channel = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
-        if (!_platform.IsSupported) return null;
+        if (!_platform.AreActivitiesSupported) return null;
 
         await _icons.EnsureAsync(layout, CancellationToken.None);
         lock (_active) Adopt();
@@ -158,7 +158,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     // covers it, and none by then means the platform is not going to issue one.
     private async Task<string?> PollAsync(Func<string?> read, CancellationToken cancellationToken)
     {
-        if (!_platform.IsSupported) return null;
+        if (!_platform.AreActivitiesSupported) return null;
         for (var attempt = 0; attempt < 10; attempt++)
         {
             if (read() is { Length: > 0 } token) return token;

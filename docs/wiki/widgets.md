@@ -777,6 +777,7 @@ The extension that draws a Live Activity on iOS is the widget extension, and the
 - The value is the default, but here it has to be in the project. Referencing the package does not build an extension the app never asked for.
 - iOS gets an extension holding only the Live Activity. Nothing shows in the widget gallery. Start, update, push tokens, push-to-start, `SpineWidgetsFrequentUpdates` and the App Group work as they do with widgets. Device builds still need the extension's App ID and profile; see [Register the extension](#4-register-the-extension-in-the-developer-portal-for-device-builds).
 - Android gets the notification permissions a Live Update needs, and no widget receivers. The background-refresh receiver is left out, since there is nothing for it to refresh.
+- On Android the permission is also what turns Live Updates on at run time: `ILiveActivityService.IsSupported` is true on Android 16 when the manifest has `POST_PROMOTED_NOTIFICATIONS`. A property set inside an iOS-only `PropertyGroup` therefore leaves Android without a Live Activity.
 - `SpineWidgetsPush` is ignored without a widget: it would only raise the extension to iOS 26. Pushes to the activity itself work either way.
 - Mac Catalyst has no Live Activities, so it gets nothing.
 

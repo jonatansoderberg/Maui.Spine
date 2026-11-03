@@ -24,6 +24,12 @@ internal interface IWidgetPlatform
     void Reload(string kind);
     void ReloadAll();
 
+    /// <summary>
+    /// Whether this platform and build can show Live Activities at all. Separate from <see cref="IsSupported"/>, which is
+    /// about widgets: an Android app can have a Live Update without any widget.
+    /// </summary>
+    bool AreActivitiesSupported { get; }
+
     bool AreActivitiesEnabled { get; }
 
     /// <summary>The activities this app still has running, as id to kind, including any it started before it was last killed.</summary>
@@ -68,6 +74,7 @@ internal sealed class NoOpWidgetPlatform : IWidgetPlatform
     public Task FetchRemoteAsync(string kind, Uri source, CancellationToken cancellationToken) => Task.CompletedTask;
     public void Reload(string kind) { }
     public void ReloadAll() { }
+    public bool AreActivitiesSupported => false;
     public bool AreActivitiesEnabled => false;
     public IReadOnlyDictionary<string, string> ActiveActivities() => ReadOnlyDictionary<string, string>.Empty;
     public Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt, string? channel) => Task.FromResult<string?>(null);
