@@ -892,14 +892,27 @@ enum Palette {
         return layout.systemBackground == true ? nil : .black.opacity(0.6)
     }
 
+    /// Whether the Lock Screen is drawn on a dark tint: Spine's translucent black, or a dark color of the layout's. Its
+    /// semantic colors then resolve as in dark mode, so `primary` is white on it in light mode too, as on Android's dark
+    /// notification.
+    static func lockScreenIsDark(_ layout: ActivityLayout) -> Bool {
+        guard let background = layout.background else { return layout.systemBackground != true }
+        guard let rgb = rgb(background) else { return false }
+        return 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b < 0.5
+    }
+
     private static func hex(_ value: String) -> Color? {
+        rgb(value).map { Color(.sRGB, red: $0.r, green: $0.g, blue: $0.b, opacity: $0.a) }
+    }
+
+    private static func rgb(_ value: String) -> (r: Double, g: Double, b: Double, a: Double)? {
         let digits = value.hasPrefix("#") ? String(value.dropFirst()) : value
         guard digits.count == 6 || digits.count == 8, let number = UInt64(digits, radix: 16) else { return nil }
         let a = digits.count == 8 ? Double((number >> 24) & 0xFF) / 255 : 1
         let r = Double((number >> 16) & 0xFF) / 255
         let g = Double((number >> 8) & 0xFF) / 255
         let b = Double(number & 0xFF) / 255
-        return Color(.sRGB, red: r, green: g, blue: b, opacity: a)
+        return (r, g, b, a)
     }
 }
 
@@ -1111,6 +1124,7 @@ private func spineActivityConfiguration() -> some WidgetConfiguration {
         let layout = ActivityLayout.parse(context.state.layout)
         ActivityBanner(layout: layout, kind: context.attributes.kind)
             .opacity(context.isStale ? 0.5 : 1)
+            .darkScheme(Palette.lockScreenIsDark(layout))
             .activityBackgroundTint(Palette.lockScreenTint(layout))
             .activitySystemActionForegroundColor(layout.actionColor.map { Palette.color($0) })
             .widgetURL(layout.link.flatMap(URL.init(string:)))
@@ -1133,6 +1147,12 @@ private func spineActivityConfiguration() -> some WidgetConfiguration {
             Slot(node: layout.minimal, kind: kind, backdrop: .black, clipped: true, toned: true)
         }
         .widgetURL(layout.link.flatMap(URL.init(string:)))
+    }
+}
+
+private extension View {
+    @ViewBuilder func darkScheme(_ dark: Bool) -> some View {
+        if dark { environment(\.colorScheme, .dark) } else { self }
     }
 }
 

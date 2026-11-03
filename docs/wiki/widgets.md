@@ -345,8 +345,8 @@ timeline.Add(midsummerEve.AddDays(1), Page(midsummerEve.AddDays(1)));
 | `WidgetSurface` on an entry | The entry's own `containerBackground`, the same three layers; WidgetKit switches it with the entry | The entry drawn now decides the surface, the same three layers; the entry alarm redraws at the next date |
 | `.Accented()` / `.FullColor()` | `widgetAccentable` / `widgetAccentedRenderingMode(.fullColor)` | Ignored |
 | `WidgetColor.Surface` / `OnAccent` | `systemBackground` / white | `colorBackground` / `textColorPrimaryInverse`, in the launcher's theme from API 31 |
-| `LiveActivityLayout.Background` | `activityBackgroundTint` | Behind the tree in a `Layout` Live Update; ignored in `Template`, which Android would not promote with a color |
-| `LiveActivityLayout.SystemBackground` | `activityBackgroundTint(nil)` | The theme's surface behind the tree in `Layout`; ignored in `Template` |
+| `LiveActivityLayout.Background` | `activityBackgroundTint` | Ignored: `Template` would not be promoted with a color, and `Layout` draws on the notification's surface |
+| `LiveActivityLayout.SystemBackground` | `activityBackgroundTint(nil)` | Ignored; `Layout` is always on the notification's surface |
 | `LiveActivityLayout.ActionColor` | `activitySystemActionForegroundColor` | Ignored |
 | `.Padding` / `.Background` | `padding` / `background` | `setViewPadding` / `setBackgroundColor`; ignored in a Live Update |
 | `.CornerRadius` | Clips the background and the children | The same from API 31; square below |
@@ -709,7 +709,7 @@ await activity.EndAsync();
 | `Minimal` | A small circle when another app's activity also runs | One glyph | An icon |
 | `Small` | CarPlay's Dashboard and the Apple Watch Smart Stack, with `SpineWidgetsLiveActivitySmall` (see [below](#carplay-and-apple-watch)) | A small tile; padded by Spine | One row: the value, its trend, how old it is |
 
-A region left `null` is empty. The Dynamic Island is always black, so fixed colors there are drawn on black whatever the appearance; the Lock Screen is drawn on `Background`, on the system material with `SystemBackground`, or on Spine's translucent black. A `W.Adaptive` node renders its fallback in every region.
+A region left `null` is empty. The Dynamic Island is always black, so fixed colors there are drawn on black whatever the appearance; the Lock Screen is drawn on `Background`, on the system material with `SystemBackground`, or on Spine's translucent black. On a dark one (Spine's black, or a dark `Background`) semantic colors resolve as in dark mode, so `WidgetColor.Primary` is white there in light mode too. A `W.Adaptive` node renders its fallback in every region.
 
 ### CarPlay and Apple Watch
 
@@ -1044,20 +1044,20 @@ A Live Activity on Android 16 is an ongoing notification in one of two presentat
 | `LiveUpdatePresentation` | What shows | Promoted (chip in the status bar, top of the shade and lock screen) |
 |---|---|---|
 | `Template` | Android's own template, filled from the regions as in the table below, with the first `W.Sparkline` as the large icon | Yes, where the system and the user allow it (Android 16.1 and later) |
-| `Layout` | The `LockScreen` tree drawn as on iOS, by the widget renderer, on `Background`, when the notification is expanded; collapsed it is the template's title, text and age | No: Android promotes only its own templates |
+| `Layout` | The `LockScreen` tree drawn as on iOS, by the widget renderer, on the notification's own surface, when the notification is expanded; collapsed it is the template's title, text and age | No: Android promotes only its own templates |
 | `Automatic` (default) | `Template` where `NotificationManager.canPostPromotedNotifications()` says it will be promoted, `Layout` otherwise | Where it can be |
 
 Android forbids custom views in a promoted notification ("custom notifications make consistent testing and UX difficult", in the Live Updates guide), so an app chooses between its own look and the chip. `Automatic` gives the chip where there is one, and the iOS look everywhere else (Android 16.0, Live Updates turned off for the app). `Layout` draws the tree everywhere; `Template` never does.
 
-In `Layout`, the expanded notification is the system's header (app icon, name, the age) over the tree on a rounded `Background`; with no `Background` Spine paints the translucent black iOS draws, since the tree is laid out for it, and with `SystemBackground` the theme's surface. The rounded font, `.SingleLine` shrinking and a `W.Relative` written out ("för 2 minuter sedan") are iOS's: Android draws the default font and the age as a chronometer (`02:14`), which keeps counting while the app is not running.
+In `Layout`, the expanded notification is the system's header (app icon, name, the age) over the tree, drawn straight on the notification: a card of `Background` inside the notification's own would be a notification in a notification, so `Background` and `SystemBackground` stay iOS only. The notification is light or dark with the system, so give the tree semantic colors (`WidgetColor.Primary`, `Secondary`) rather than white: on iOS they resolve as in dark mode on a dark Lock Screen (Spine's translucent black, or a dark `Background`), so the same tree is white on black there. The rounded font, `.SingleLine` shrinking and a `W.Relative` written out ("för 2 minuter sedan") are iOS's: Android draws the default font and the age as a chronometer (`02:14`), which keeps counting while the app is not running.
 
 The same Glukos layout in each, on Android 17 (API 37) and 16.0:
 
-| `Template`, promoted (Android 17) | `Layout`, expanded (Android 17) |
+| `Template`, promoted (Android 17) | `Automatic` on Android 16.0: `Layout`, expanded |
 |---|---|
-| ![Template](images/live-updates/1-template-promoted-android17.png) | ![Layout expanded](images/live-updates/2-layout-expanded-android17.png) |
-| **`Layout`, collapsed (Android 17)** | **`Automatic` on Android 16.0: `Layout`** |
-| ![Layout collapsed](images/live-updates/3-layout-collapsed-android17.png) | ![Layout on Android 16.0](images/live-updates/4-layout-expanded-android16-tablet.png) |
+| ![Template](images/live-updates/1-template-promoted-android17.png) | ![Layout, light](images/live-updates/2-layout-expanded-android16-light.png) |
+| **`Layout`, collapsed (Android 17)** | **`Layout` in dark mode (Android 16.0)** |
+| ![Layout collapsed](images/live-updates/3-layout-collapsed-android17.png) | ![Layout, dark](images/live-updates/4-layout-expanded-android16-dark.png) |
 | **The chip of a promoted `Template`** | |
 | ![Chip](images/live-updates/5-chip-statusbar-android17.png) | |
 
@@ -1181,7 +1181,7 @@ What Spine widgets cannot do, and what to do instead.
 | A button in a Live Activity whose kind is not a widget's | Taps are routed by kind to a `[Widget]` provider | Open the app with `Link` |
 | Start a Live Activity from the background on iOS | ActivityKit starts one only in the foreground | Push-to-start from a server |
 | Keep a Live Activity longer than eight hours on iOS | The system ends it | Start a new one; see [Keeping one on screen around the clock](#keeping-one-on-screen-around-the-clock) |
-| Color a Live Update on Android | Android does not promote a colorized notification | `LiveUpdatePresentation.Layout`, which draws `Background` and gives up the chip |
+| Color a Live Update on Android | Android does not promote a colorized notification | `LiveUpdatePresentation.Layout`, which colors the tree's own text and graph (not a background) and gives up the chip |
 | Widgets on Windows | Not implemented | The services are no-ops there; check `IsSupported` |
 | A Live Activity on the Mac | ActivityKit does not exist on macOS | A widget, or a notification |
 | A control drawn from the tree vocabulary, or with an SVG on iOS | A control is a fixed template, and iOS draws only SF Symbols in one | `Title`, `Status`, `Icon`/`Symbol`, `Tint` |

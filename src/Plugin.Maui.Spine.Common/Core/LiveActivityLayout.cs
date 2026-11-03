@@ -59,8 +59,10 @@ public sealed record LiveActivityLayout
 
     /// <summary>
     /// The color behind the Lock Screen presentation; a translucent black when <see langword="null"/>.
-    /// iOS only: the Dynamic Island is always black, and Android does not promote a Live Update that
-    /// asks for a color. A fixed color stays fixed in dark mode, so give the text fixed colors too.
+    /// iOS only: the Dynamic Island is always black, Android does not promote a Live Update that asks for a
+    /// color, and <see cref="LiveUpdatePresentation.Layout"/> draws on the notification's own surface. On a
+    /// dark color (and on the default black) semantic colors resolve as in dark mode, so <see cref="WidgetColor.Primary"/>
+    /// is white on it and follows the notification on Android.
     /// </summary>
     public WidgetColor? Background { get; init; }
 
@@ -128,8 +130,9 @@ public enum LiveUpdatePresentation
     Template,
 
     /// <summary>
-    /// The <see cref="LiveActivityLayout.LockScreen"/> tree drawn as on iOS, on <see cref="LiveActivityLayout.Background"/>, when the
-    /// notification is expanded; collapsed it is the template with the graph as its large icon. Never promoted.
+    /// The <see cref="LiveActivityLayout.LockScreen"/> tree drawn as on iOS, on the notification's own surface, when the
+    /// notification is expanded; collapsed it is the template with the graph as its large icon. Never promoted. The
+    /// surface is light or dark with the system, so the tree's text takes semantic colors.
     /// </summary>
     Layout,
 }

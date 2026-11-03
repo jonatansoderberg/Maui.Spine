@@ -29,7 +29,7 @@ The owner asked for Glukos's Live Activity, designed iOS first (name and age, a 
 | Value, arrow, colour | In the title, colour only on the small icon | As on iOS, coloured, default font |
 | Unit, high or low | In the text | As on iOS |
 | Graph | Large icon, 2:1, beside the text | As on iOS, beside the value |
-| Background | System card (colour forbidden) | The layout's `Background`, rounded |
+| Background | System card (colour forbidden) | The notification's own surface (see Decisions) |
 | Status-bar chip, top of lock screen | Yes (16.1+) | No |
 
 Both are worth having, so the app chooses (`LiveUpdatePresentation`), and the default picks the one that keeps the chip where there is one.
@@ -44,7 +44,7 @@ Both are worth having, so the app chooses (`LiveUpdatePresentation`), and the de
 ## Changes
 
 - `LiveActivityLayout.cs`: `LiveUpdatePresentation`, `LiveUpdateText.Presentation`.
-- `LiveUpdateNotifications.cs`: the choice; `Banner` (the tree on `Background`, translucent black by default as on iOS, the theme's surface with `SystemBackground`); `Graph` (the sparkline as a 2:1 large icon, template only, since in the drawn view it would take the right of the width); `CanPostPromoted`; promotion requested only for the template.
+- `LiveUpdateNotifications.cs`: the choice; `Banner` (the tree on the notification's own surface); `Graph` (the sparkline as a 2:1 large icon, template only, since in the drawn view it would take the right of the width); `CanPostPromoted`; promotion requested only for the template.
 - `RemoteViewsRenderer`: `Root` takes the container layout; `Sparkline` is internal.
 - `Resources/layout/spine_live_update.xml`.
 - `docs/wiki/widgets.md`: the two presentations, the graph as the large icon, `Background` in `Layout`, `MetricStyle` noted.
@@ -52,11 +52,14 @@ Both are worth having, so the app chooses (`LiveUpdatePresentation`), and the de
 - **Trend arrows** in `Plugin.Maui.Spine.Svg.Icons` (`ArrowUp`, `ArrowUpRight`, `ArrowRight`, `ArrowDownRight`, `ArrowDown`, 247 icons): one shape turned, a round stroke of 13 % of the box, as Glukos's `TrendArrow` (its Spine gap G5). The owner found the font's `→` thin and low on Android, finer on iOS.
 - `WidgetIconAssets.Open` also tries the PascalCase form, so `W.Icon("arrow.up.right")` finds `ArrowUpRight.svg` and keeps the SF Symbol as the iOS fallback (a push can show a trend whose icon the app has not stored).
 - The template's graph is drawn at 16:9: at 2:1 Android cropped its sides, the dot at the end included.
+- `Layout` draws on the notification's own surface instead of a card of `Background` (the owner: "a black blob notification in a notification"). `spine_live_update` has no background, and `Background` / `SystemBackground` are iOS only again.
+- iOS: the Lock Screen banner resolves semantic colors as in dark mode when its tint is dark (Spine's translucent black, or a `Background` with luminance under 0.5), so one tree with `WidgetColor.Primary` / `Secondary` is white on black on iOS and follows the notification on Android. Glukos switches its white text to those.
 
 ## Decisions
 
 - **No large icon in `Layout`.** The first try kept it for the collapsed row: the expanded view then got half the width and the arrow fell out of it.
 - **Collapsed `Layout` is the template.** A collapsed custom view is at most about 48 dp high, too little for the tree; the title, text and age read well there.
+- **No card in `Layout`.** A tree laid out for a dark surface needs one, but a dark card inside a light notification looks like a second notification. Semantic colors make the tree fit either surface, and iOS's dark tint now resolves them dark, so the app writes one tree.
 - **`MetricStyle` not used**: it would drop the graph for more numbers. Worth revisiting when `LiveUpdateText` can name metrics.
 
 ## Verification
@@ -67,7 +70,8 @@ Glukos (demo, Alex) with these packages packed locally (`0.0.0-local`):
 - Same phone, `Layout`: the system header over a black rounded card with "Alex" and the age, "5,5 →" in green, "mmol/L", the coloured graph on the right; collapsed "Alex 5,5 → • 01:42" with the change; no chip.
 - **Pixel Tablet emulator, Android 16.0**, `Automatic`: `Layout`, as above.
 - `Plugin.Maui.Spine.Server.Tests`: 274 passed.
-- Not tried: a real device, an OEM skin, dark mode in `Layout` with `SystemBackground`.
+- Not tried: a real device, an OEM skin.
+- Without the card, on the tablet: light mode dark text on the light notification, dark mode light text on the dark one; value, arrow, "Högt" and graph in their colours. iOS's dark scheme compiles (`swiftc -typecheck`) but is not checked on a device or simulator.
 
 - After the follow-ups: the template's graph whole at 16:9 on the phone; on the tablet the arrow drawn bold and centred on the value at 70 % of its size.
 

@@ -90,7 +90,7 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         };
 
         if (drawn)
-            builder.SetStyle(new Notification.DecoratedCustomViewStyle()).SetCustomBigContentView(Banner(layout, lockScreen!.Value));
+            builder.SetStyle(new Notification.DecoratedCustomViewStyle()).SetCustomBigContentView(Banner(lockScreen!.Value));
         else if ((Find(lockScreen, "progress") ?? Find(Region(layout, "expandedBottom"), "progress")) is { } progress)
         {
             var value = progress.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
@@ -166,17 +166,12 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
     private string AppLabel() => _context.ApplicationInfo!.LoadLabel(_context.PackageManager!)?.ToString() ?? _context.PackageName!;
 
     /// <summary>
-    /// The Lock Screen tree as the widget renderer draws it, on the layout's background. iOS puts a translucent black
-    /// behind a tree with none, so a tree is laid out for a dark surface unless it asks for the system's.
+    /// The Lock Screen tree as the widget renderer draws it, on the notification's own surface: a card of the layout's
+    /// background inside the notification's would be a notification in a notification. Semantic colors follow the
+    /// notification's light or dark.
     /// </summary>
-    private RemoteViews Banner(JsonElement layout, JsonElement tree)
-    {
-        var system = layout.TryGetProperty("systemBackground", out var flag) && flag.ValueKind == JsonValueKind.True;
-        var renderer = new RemoteViewsRenderer(_context, _icons) { Background = Text(layout, "background") ?? (system ? null : TranslucentBlack) };
-        return renderer.Root(tree, tap: null, Resource.Layout.spine_live_update);
-    }
-
-    private const string TranslucentBlack = "#E6141414";
+    private RemoteViews Banner(JsonElement tree) =>
+        new RemoteViewsRenderer(_context, _icons).Root(tree, tap: null, Resource.Layout.spine_live_update);
 
     /// <summary>The graph at 16:9, the widest the template draws its large icon; a wider one is cropped at the sides.</summary>
     private Android.Graphics.Bitmap Graph(JsonElement sparkline)
