@@ -73,7 +73,7 @@ Glukos (demo, Alex) with these packages packed locally (`0.0.0-local`):
 - `Plugin.Maui.Spine.Server.Tests`: 274 passed.
 - Not tried: a real device, an OEM skin.
 - Tablet after the follow-up: "Alex", the value and the unit line up with "Glukos" in the header, no age in the tree, the graph's end under the expand button; light and dark.
-- Without the card, on the tablet: light mode dark text on the light notification, dark mode light text on the dark one; value, arrow, "Högt" and graph in their colours. iOS's dark scheme compiles (`swiftc -typecheck`) but is not checked on a device or simulator.
+- Without the card, on the tablet: light mode dark text on the light notification, dark mode light text on the dark one; value, arrow, "Högt" and graph in their colours. iOS's dark scheme and the drawn arrow checked by the owner on an iPhone 16 Pro (Glukos with `Primary` / `Secondary` text): looks as before.
 
 - After the follow-ups: the template's graph whole at 16:9 on the phone; on the tablet the arrow drawn bold and centred on the value at 70 % of its size.
 
