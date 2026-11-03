@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Android.App;
 using Android.Content;
 using Android.Graphics.Drawables;
@@ -168,10 +169,29 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
     /// <summary>
     /// The Lock Screen tree as the widget renderer draws it, on the notification's own surface: a card of the layout's
     /// background inside the notification's would be a notification in a notification. Semantic colors follow the
-    /// notification's light or dark.
+    /// notification's light or dark. The notification insets its content to the header's text, so the tree's own padding
+    /// goes, and the age or timer the header already counts is not drawn a second time.
     /// </summary>
-    private RemoteViews Banner(JsonElement tree) =>
-        new RemoteViewsRenderer(_context, _icons).Root(tree, tap: null, Resource.Layout.spine_live_update);
+    private RemoteViews Banner(JsonElement tree)
+    {
+        var root = JsonNode.Parse(tree.GetRawText())!.AsObject();
+        root.Remove("padding");
+        if (Chronometer(tree) is not null) Remove(root, Find(tree, "timer") is not null ? "timer" : "relative");
+        using var drawn = JsonDocument.Parse(root.ToJsonString());
+        return new RemoteViewsRenderer(_context, _icons).Root(drawn.RootElement, tap: null, Resource.Layout.spine_live_update);
+    }
+
+    /// <summary>Depth-first, as <see cref="Find"/>: takes the first node of <paramref name="type"/> out of its stack.</summary>
+    private static bool Remove(JsonNode node, string type)
+    {
+        if (node["children"] is not JsonArray children) return false;
+        foreach (var child in children)
+        {
+            if (child?["type"]?.GetValue<string>() == type) return children.Remove(child);
+            if (child is not null && Remove(child, type)) return true;
+        }
+        return false;
+    }
 
     /// <summary>The graph at 16:9, the widest the template draws its large icon; a wider one is cropped at the sides.</summary>
     private Android.Graphics.Bitmap Graph(JsonElement sparkline)

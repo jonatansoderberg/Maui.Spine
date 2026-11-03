@@ -53,6 +53,7 @@ Both are worth having, so the app chooses (`LiveUpdatePresentation`), and the de
 - `WidgetIconAssets.Open` also tries the PascalCase form, so `W.Icon("arrow.up.right")` finds `ArrowUpRight.svg` and keeps the SF Symbol as the iOS fallback (a push can show a trend whose icon the app has not stored).
 - The template's graph is drawn at 16:9: at 2:1 Android cropped its sides, the dot at the end included.
 - `Layout` draws on the notification's own surface instead of a card of `Background` (the owner: "a black blob notification in a notification"). `spine_live_update` has no background, and `Background` / `SystemBackground` are iOS only again.
+- After the owner's next look: `Layout` drops the tree's root padding, since the notification insets its content to the header's app name, and leaves out the `relative` / `timer` node the header's chronometer already shows; a sparkline's picture sits at the end of its column (`spine_widget_sparkline`), where the iOS line ends, instead of at the start.
 - iOS: the Lock Screen banner resolves semantic colors as in dark mode when its tint is dark (Spine's translucent black, or a `Background` with luminance under 0.5), so one tree with `WidgetColor.Primary` / `Secondary` is white on black on iOS and follows the notification on Android. Glukos switches its white text to those.
 
 ## Decisions
@@ -71,6 +72,7 @@ Glukos (demo, Alex) with these packages packed locally (`0.0.0-local`):
 - **Pixel Tablet emulator, Android 16.0**, `Automatic`: `Layout`, as above.
 - `Plugin.Maui.Spine.Server.Tests`: 274 passed.
 - Not tried: a real device, an OEM skin.
+- Tablet after the follow-up: "Alex", the value and the unit line up with "Glukos" in the header, no age in the tree, the graph's end under the expand button; light and dark.
 - Without the card, on the tablet: light mode dark text on the light notification, dark mode light text on the dark one; value, arrow, "Högt" and graph in their colours. iOS's dark scheme compiles (`swiftc -typecheck`) but is not checked on a device or simulator.
 
 - After the follow-ups: the template's graph whole at 16:9 on the phone; on the tablet the arrow drawn bold and centred on the value at 70 % of its size.
