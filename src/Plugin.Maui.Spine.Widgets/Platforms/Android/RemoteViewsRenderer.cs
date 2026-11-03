@@ -182,6 +182,9 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         var evenly = vertical == false && Text(node, "distribute") == "evenly";
         if (vertical == true && Text(node, "align") == "center")
             views.SetInt(Node, "setGravity", (int)GravityFlags.CenterHorizontal);
+        // A LinearLayout aligns its children's baselines by default, but only those it places at the top.
+        if (vertical == false && Text(node, "align") == "baseline")
+            views.SetInt(Node, "setGravity", (int)GravityFlags.Top);
 
         if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
             foreach (var child in children.EnumerateArray())

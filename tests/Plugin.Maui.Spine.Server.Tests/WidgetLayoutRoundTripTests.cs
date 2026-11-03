@@ -37,6 +37,21 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_baseline_row_keeps_its_alignment()
+    {
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(8, W.Text("Blodsocker").FontSize(15).Bold(), W.Spacer(), W.Text("nu").Caption()).AlignBaselines(),
+        };
+
+        var json = layout.ToJson();
+        var back = WidgetJson.DeserializeLayout(json)!;
+
+        Assert.Contains("\"align\":\"baseline\"", json);
+        Assert.Equal("baseline", Assert.IsType<HStackNode>(back.LockScreen).Align);
+    }
+
+    [Fact]
     public void A_centred_timer_keeps_its_prefix()
     {
         var faceOff = new DateTimeOffset(2026, 9, 19, 19, 43, 0, TimeSpan.Zero);
