@@ -151,11 +151,13 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
 
     private string AppLabel() => _context.ApplicationInfo!.LoadLabel(_context.PackageManager!)?.ToString() ?? _context.PackageName!;
 
-    // Not bound in Mono.Android 36.1; the Java method exists on API 36 and returns the builder.
+    // Notification.EXTRA_REQUEST_PROMOTED_ONGOING. The builder's setRequestPromotedOngoing, which only sets it, came with
+    // Android 16.1 and throws NoSuchMethodError on 16.0; the extra is read on both.
     private static void RequestPromotedOngoing(Notification.Builder builder)
     {
-        var method = JNIEnv.GetMethodID(builder.Class.Handle, "setRequestPromotedOngoing", "(Z)Landroid/app/Notification$Builder;");
-        JNIEnv.DeleteLocalRef(JNIEnv.CallObjectMethod(builder.Handle, method, new JValue(true)));
+        using var extras = new Android.OS.Bundle();
+        extras.PutBoolean("android.requestPromotedOngoing", true);
+        builder.AddExtras(extras);
     }
 
     /// <summary>

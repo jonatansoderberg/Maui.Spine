@@ -25,10 +25,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 
         // Live Updates — promoted ongoing notifications — arrived with Android 16; older versions have no
         // Live Activity, and a plain notification would not be one. The build declares the promoted-notifications
-        // permission for an app with SpineWidgetsLiveActivities, with or without any widget; a normal permission,
-        // it is granted exactly when declared.
-        if (OperatingSystem.IsAndroidVersionAtLeast(36)
-            && _context.CheckSelfPermission(PromotedNotifications) == Android.Content.PM.Permission.Granted)
+        // permission for an app with SpineWidgetsLiveActivities, with or without any widget. Declared, not granted:
+        // Android 16.0 does not define the permission yet, so it is never granted there.
+        if (OperatingSystem.IsAndroidVersionAtLeast(36) && Declares(_context, PromotedNotifications))
             _live = new LiveUpdateNotifications(_context, new WidgetIcons(_context), logger);
 
         if (_kinds.Length == 0 && _controls.Length == 0 && _live is null)
@@ -36,6 +35,11 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     }
 
     private const string PromotedNotifications = "android.permission.POST_PROMOTED_NOTIFICATIONS";
+
+    [System.Runtime.Versioning.SupportedOSPlatform("android33.0")]
+    private static bool Declares(Context context, string permission) =>
+        context.PackageManager?.GetPackageInfo(context.PackageName!, Android.Content.PM.PackageManager.PackageInfoFlags.Of((long)Android.Content.PM.PackageInfoFlags.Permissions))
+            ?.RequestedPermissions?.Contains(permission) == true;
 
     public bool IsSupported => _kinds.Length > 0;
 
