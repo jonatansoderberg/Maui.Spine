@@ -76,11 +76,13 @@ The file itself stays as it was exported.
 
 ### The built-in icon set
 
-`Plugin.Maui.Spine.Svg.Icons` carries 242 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
+`Plugin.Maui.Spine.Svg.Icons` carries 247 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Svg.Icons
 ```
+
+**Trend arrows** — `ArrowUp`, `ArrowUpRight`, `ArrowRight`, `ArrowDownRight`, `ArrowDown` — are one shape turned, with a round stroke three times the line icons' weight, so the direction of a value reads beside the number. In a widget or Live Activity, `W.Icon("arrow.up.right")` finds `ArrowUpRight.svg`, and an iOS widget that has not stored it yet falls back to the SF Symbol of that name.
 
 **Delete and remove** use `Delete.svg` (`SpineIcons.Delete`), in menus, action sheets, swipe actions and header buttons alike. `Trashcan.svg` is the trash can as an object, not the action.
 

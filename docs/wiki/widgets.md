@@ -540,7 +540,7 @@ public Task OnWidgetOpenedAsync(WidgetLink link) =>
 <EmbeddedResource Include="Resources\Svg\*.svg" />
 ```
 
-Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it. On iOS a name with no SVG falls back to the SF Symbol of the same name; on Android it is left out and a warning is logged under the `SpineWidgets` tag.
+Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it. The icons of `Plugin.Maui.Spine.Svg.Icons` are found by the symbol's name too, in PascalCase: `W.Icon("arrow.up.right")` is `ArrowUpRight.svg`, the trend arrows drawn to stand beside a value. On iOS a name with no SVG falls back to the SF Symbol of the same name; on Android it is left out and a warning is logged under the `SpineWidgets` tag.
 
 ### Images
 
@@ -1070,7 +1070,7 @@ In `Template` the regions map onto the notification template rather than being d
 | `CompactTrailing` | A `W.Text` there becomes the status-bar chip's text; a `W.Timer` leaves the chip to the system's chronometer |
 | `Link` | The notification's tap, through the same activity as the widget |
 
-| `W.Sparkline` (the first, in `LockScreen` or `ExpandedBottom`) | The large icon, drawn twice as wide as high, unless `Android.Icon` names one |
+| `W.Sparkline` (the first, in `LockScreen` or `ExpandedBottom`) | The large icon, at 16:9 (the widest the template draws it), unless `Android.Icon` names one |
 
 `staleAt` is not visualised on Android, and neither is a stack's box. In `Template`, `Background` is left out on purpose: Android promotes a notification only when it does not ask to be colorized (`Notification.hasPromotableCharacteristics`), so a colored Live Update would fall back to a plain notification. Below Android 16 `AreActivitiesEnabled` is `false` and `StartAsync` returns `null`; a plain ongoing notification would not be a Live Activity, so Spine does not pretend.
 

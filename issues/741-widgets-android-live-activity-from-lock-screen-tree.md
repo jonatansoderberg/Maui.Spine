@@ -49,6 +49,9 @@ Both are worth having, so the app chooses (`LiveUpdatePresentation`), and the de
 - `Resources/layout/spine_live_update.xml`.
 - `docs/wiki/widgets.md`: the two presentations, the graph as the large icon, `Background` in `Layout`, `MetricStyle` noted.
 - Test: `The_android_presentation_survives_the_trip`.
+- **Trend arrows** in `Plugin.Maui.Spine.Svg.Icons` (`ArrowUp`, `ArrowUpRight`, `ArrowRight`, `ArrowDownRight`, `ArrowDown`, 247 icons): one shape turned, a round stroke of 13 % of the box, as Glukos's `TrendArrow` (its Spine gap G5). The owner found the font's `→` thin and low on Android, finer on iOS.
+- `WidgetIconAssets.Open` also tries the PascalCase form, so `W.Icon("arrow.up.right")` finds `ArrowUpRight.svg` and keeps the SF Symbol as the iOS fallback (a push can show a trend whose icon the app has not stored).
+- The template's graph is drawn at 16:9: at 2:1 Android cropped its sides, the dot at the end included.
 
 ## Decisions
 
@@ -65,6 +68,8 @@ Glukos (demo, Alex) with these packages packed locally (`0.0.0-local`):
 - **Pixel Tablet emulator, Android 16.0**, `Automatic`: `Layout`, as above.
 - `Plugin.Maui.Spine.Server.Tests`: 274 passed.
 - Not tried: a real device, an OEM skin, dark mode in `Layout` with `SystemBackground`.
+
+- After the follow-ups: the template's graph whole at 16:9 on the phone; on the tablet the arrow drawn bold and centred on the value at 70 % of its size.
 
 ## Sources
 

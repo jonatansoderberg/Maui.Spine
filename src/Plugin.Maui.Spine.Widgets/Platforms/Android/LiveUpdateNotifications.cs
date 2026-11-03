@@ -178,11 +178,11 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
 
     private const string TranslucentBlack = "#E6141414";
 
-    /// <summary>The graph twice as wide as it is high, the shape the template's large icon is drawn in.</summary>
+    /// <summary>The graph at 16:9, the widest the template draws its large icon; a wider one is cropped at the sides.</summary>
     private Android.Graphics.Bitmap Graph(JsonElement sparkline)
     {
         var height = (int)(GraphDp * _context.Resources!.DisplayMetrics!.Density);
-        return new RemoteViewsRenderer(_context, _icons).Sparkline(sparkline, height * 2, height);
+        return new RemoteViewsRenderer(_context, _icons).Sparkline(sparkline, height * 16 / 9, height);
     }
 
     private const float GraphDp = 48;
