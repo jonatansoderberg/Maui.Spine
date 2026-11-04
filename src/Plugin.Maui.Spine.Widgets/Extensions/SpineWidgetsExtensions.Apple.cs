@@ -15,7 +15,7 @@ public static partial class SpineWidgetsExtensions
 {
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpineWidgetsOptions options)
     {
-        builder.Services.AddSingleton<IWidgetPlatform, WidgetPlatform>();
+        builder.Services.AddSingleton<IWidgetPlatform, NativeWidgetPlatform>();
 
         // The identifier the build wrote into Info.plist; the task can only be registered for one listed there.
         var refreshTask = NSBundle.MainBundle.ObjectForInfoDictionary("BGTaskSchedulerPermittedIdentifiers") is NSArray permitted
@@ -74,7 +74,7 @@ public static partial class SpineWidgetsExtensions
     // redrawn when it changes; an activity takes it at its next update.
     private static void ShareLanguage(IServiceProvider services)
     {
-        if (services.GetService<IWidgetPlatform>() is not WidgetPlatform platform) return;
+        if (services.GetService<IWidgetPlatform>() is not NativeWidgetPlatform platform) return;
         var strings = services.GetService<ISpineStrings>() ?? SpineStrings.Current;
         platform.WriteLanguage(strings.Culture);
         strings.Changed += (_, _) =>
@@ -94,7 +94,7 @@ public static partial class SpineWidgetsExtensions
     // on an iOS that ran the intent there.
     private static void ListenForActions()
     {
-        if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { ActionNotificationName: { } name }) return;
+        if (Services().GetRequiredService<IWidgetPlatform>() is not NativeWidgetPlatform { ActionNotificationName: { } name }) return;
         CFNotificationCenter.Darwin.AddObserver(name, null!, (_, _) => DrainActions(Services()), CFNotificationSuspensionBehavior.DeliverImmediately);
     }
 
@@ -103,7 +103,7 @@ public static partial class SpineWidgetsExtensions
     // covers a notification that found the process suspended, which Darwin does not queue.
     private static void ListenForActivities()
     {
-        if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { ActivityNotificationName: { } name } platform) return;
+        if (Services().GetRequiredService<IWidgetPlatform>() is not NativeWidgetPlatform { ActivityNotificationName: { } name } platform) return;
         CFNotificationCenter.Darwin.AddObserver(name, null!, (_, _) => ReconcileActivities(Services()), CFNotificationSuspensionBehavior.DeliverImmediately);
         platform.ObserveActivities();
     }
@@ -112,7 +112,7 @@ public static partial class SpineWidgetsExtensions
     // the bridge says it changed. The widget service passes the news on, so Spine.PushNotifications registers it.
     private static void ListenForWidgetPushToken()
     {
-        if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { PushTokenNotificationName: { } name } platform) return;
+        if (Services().GetRequiredService<IWidgetPlatform>() is not NativeWidgetPlatform { PushTokenNotificationName: { } name } platform) return;
         CFNotificationCenter.Darwin.AddObserver(name, null!, (_, _) =>
         {
             platform.RefreshWidgetPushToken();
@@ -128,7 +128,7 @@ public static partial class SpineWidgetsExtensions
 
     private static void DrainActions(IServiceProvider services)
     {
-        if (services.GetRequiredService<IWidgetPlatform>() is not WidgetPlatform platform) return;
+        if (services.GetRequiredService<IWidgetPlatform>() is not NativeWidgetPlatform platform) return;
         foreach (var action in platform.TakeActions())
             HandleRecordedActionAsync(services, platform, action)
                 .SafeFireAndForget(e => services.GetRequiredService<ILogger<IWidgetService>>().LogError(e, "Handling action \"{Action}\" of widget \"{Kind}\" failed.", action.ActionId, action.Kind));
@@ -136,7 +136,7 @@ public static partial class SpineWidgetsExtensions
 
     // The intent's perform() waits for the completion, so it is sent whatever the handler did: an
     // unanswered tap holds the process for the intent's full timeout.
-    private static async Task HandleRecordedActionAsync(IServiceProvider services, WidgetPlatform platform, RecordedAction action)
+    private static async Task HandleRecordedActionAsync(IServiceProvider services, NativeWidgetPlatform platform, RecordedAction action)
     {
         var started = Environment.TickCount64;
         try

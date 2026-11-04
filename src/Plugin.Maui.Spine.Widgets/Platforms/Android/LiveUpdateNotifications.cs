@@ -58,7 +58,14 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
 
     private void Post(string tag, string json)
     {
-        using var document = JsonDocument.Parse(WidgetJson.ResolveShared(json));
+        // The regions as the notification draws them: their overrides for Android's notification applied, hidden nodes out.
+        var place = new DrawPlace("android", ["notification"], null, AndroidVersion);
+        var resolved = JsonNode.Parse(WidgetJson.ResolveShared(json))!.AsObject();
+        // Spine leaves the root's padding out of the drawn notification unless the app's own override for it sets padding.
+        var keepPadding = resolved["lockScreen"] is JsonObject raw && (WidgetOverrides.Sets(raw, "padding", place) || WidgetOverrides.Sets(raw, "insets", place));
+        foreach (var region in new[] { "lockScreen", "expandedTrailing", "expandedBottom" })
+            if (resolved[region] is JsonObject tree) resolved[region] = WidgetOverrides.Apply(tree, place);
+        using var document = JsonDocument.Parse(resolved.ToJsonString());
         var layout = document.RootElement;
         var lockScreen = Region(layout, "lockScreen");
         var texts = Texts(lockScreen).Concat(Texts(Region(layout, "expandedBottom"))).ToList();
@@ -92,7 +99,7 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
 
         var kind = tag[TagPrefix.Length..];
         if (drawn)
-            builder.SetStyle(new Notification.DecoratedCustomViewStyle()).SetCustomBigContentView(Banner(lockScreen!.Value, kind));
+            builder.SetStyle(new Notification.DecoratedCustomViewStyle()).SetCustomBigContentView(Banner(lockScreen!.Value, kind, keepPadding));
         else if ((Find(lockScreen, "progress") ?? Find(Region(layout, "expandedBottom"), "progress")) is { } progress)
         {
             var value = progress.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
@@ -178,16 +185,25 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
     /// notification's light or dark. The notification insets its content to the header's text, so the tree's own padding
     /// goes, and the age or timer the header already counts is not drawn a second time.
     /// </summary>
-    private RemoteViews Banner(JsonElement tree, string kind)
+    private RemoteViews Banner(JsonElement tree, string kind, bool keepPadding)
     {
         var root = JsonNode.Parse(tree.GetRawText())!.AsObject();
-        root.Remove("padding");
-        root.Remove("insets");
-        if (Chronometer(tree) is not null) Remove(root, Find(tree, "timer") is not null ? "timer" : "relative");
+        if (!keepPadding)
+        {
+            root.Remove("padding");
+            root.Remove("insets");
+        }
+        // The header counts the age or the timer; one kept with .On(Surface.Notification, n => n.Hidden(false)) stays.
+        if (Chronometer(tree) is not null && Find(tree, Find(tree, "timer") is not null ? "timer" : "relative") is { } clock
+            && !(clock.TryGetProperty("hidden", out var hidden) && hidden.ValueKind == JsonValueKind.False))
+            Remove(root, Find(tree, "timer") is not null ? "timer" : "relative");
         using var drawn = JsonDocument.Parse(root.ToJsonString());
         return new RemoteViewsRenderer(_context, _icons, actionId => SpineBackgroundReceiver.ActivityButton(_context, kind, actionId)) { WidthDp = ContentWidth() }
             .Root(drawn.RootElement, tap: null, Resource.Layout.spine_live_update);
     }
+
+    /// <summary>Android's major version, for overrides with a <c>minVersion</c>.</summary>
+    internal static int AndroidVersion => int.TryParse(Android.OS.Build.VERSION.Release?.Split('.')[0], out var major) ? major : 0;
 
     /// <summary>
     /// The width in dp of an expanded notification's own content, measured on Android 17 and 16: a card 16 dp in from the

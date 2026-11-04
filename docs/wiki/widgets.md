@@ -315,6 +315,25 @@ var graph = W.Sparkline(readings.Select(r => (r.Time, r.Value)), now.AddHours(-1
 - **Edges.** The last value sits on the graph's trailing edge, so the graph ends where text aligned to the same edge ends; its dot, and the area's fade, reach over by a few points into the margin. With an area the line starts 2 points in from the leading edge, which leaves room for the fade. In the Dynamic Island, which clips its regions, and on Android, whose picture cannot reach over, the dot stays inside.
 - **Size.** The line fills the width it is offered, at `height` points (48 by default), on both platforms. Android draws it as a picture of its column's width, worked out from the widget's size or the notification's width through the tree's padding, margins, spacing and `Expand` shares; where that width cannot be known (beside a text, whose width is only known once drawn) it is `Aspect` times as wide as it is high (3 by default), at the end of its column, where the iOS line ends. `.MaxAspect(4)` caps the width on both. A notification is measured in the orientation it is posted in. Android's Live Update template draws the first one as its large icon, and the `Layout` presentation draws it in the tree.
 
+### Overrides by platform, place and size
+
+One tree serves every platform and place. Where one of them needs something else, a node says so with `.On(…)`, which writes a small patch of that node's own properties; the renderer applies the ones that match where it draws:
+
+```csharp
+W.Label(value).FontSize(40).On(WidgetPlatform.Android, n => n.FontSize(36))
+W.Elapsed(at, ElapsedFormat.Ago).On(WidgetPlace.Notification, n => n.Hidden())
+W.Label(names).On(WidgetFamily.Small, n => n.MaxLines(1))
+W.Label(note).On(WidgetPlatform.iOS, WidgetPlace.LockScreen, n => n.Italic())
+W.Label(text).On(null, null, null, minVersion: 18, n => n.Bold())   // iOS 18 / Android 18 and later
+```
+
+- **Where:** `WidgetPlatform` (`iOS`, `Android`), `WidgetPlace` (`HomeScreen`, `LockScreen`, `Island`, `Notification`, `StatusChip`, `CarPlay`, `Watch`, combined with `|`), a `WidgetFamily`, a lowest OS version. Every condition given must hold. A Live Activity's Lock Screen tree is drawn on `LockScreen` on iOS and on `Notification` on Android; its island regions on `Island`; `Small` on `CarPlay` and `Watch`. A widget's lock-screen sizes are on `LockScreen`, the rest on `HomeScreen`.
+- **Order:** several `.On` apply in the order they were added, and the last one wins. An override changes the node's own properties, never its children; a place that needs other children gets a tree of its own.
+- **`.Hidden()`** leaves a node out. `.Hidden(false)` keeps one that Spine would leave out: Android's drawn notification leaves out the age or timer its header already counts, unless that node says `.On(WidgetPlace.Notification, n => n.Hidden(false))`, and drops the root's padding unless an override for the notification sets padding.
+- **On the wire** an override is `"on":[{"when":{"platform":"android"},"set":{"size":36}}]`, only on the nodes that have one. An app built with an older Spine ignores the key and draws the tree as written.
+
+`layout.Explain(WidgetPlatform.Android)` (and `tree.Explain(platform, place, size)`) lists what a platform will draw differently from the tree: the overrides that apply, the nodes left out, Spine's own rules for the place, and what the platform cannot draw as written (baselines on Android, the rounded design, shrinking, clocks for `Ago`). Spine logs it at Debug level when a Live Activity starts.
+
 ### Backgrounds and boxes
 
 A stack can carry a box — padding, a background color, rounded corners — which is what a card, a label or a rounded logo is built from. The sample widget's button is one:

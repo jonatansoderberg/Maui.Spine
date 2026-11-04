@@ -37,6 +37,7 @@ internal sealed record WidgetTimelineEntryDocument(
 [JsonSerializable(typeof(ControlState))]
 [JsonSerializable(typeof(WidgetNode))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, WidgetNode>))]
+[JsonSerializable(typeof(JsonObject))]
 internal sealed partial class WidgetJsonContext : JsonSerializerContext;
 
 /// <summary>
@@ -98,6 +99,27 @@ public static class WidgetJson
             throw new ArgumentException($"The layout uses \"{missing.Name}\", which is not one of its shared nodes.", nameof(layout));
 
         return JsonSerializer.Serialize(layout, (JsonTypeInfo<LiveActivityLayout>)Written.GetTypeInfo(typeof(LiveActivityLayout)));
+    }
+
+    // A node's structure, which an override cannot change: only its own properties.
+    private static readonly HashSet<string> Structure = ["type", "children", "child", "fallback", "trees", "on"];
+
+    /// <summary>What <paramref name="changed"/> sets on <paramref name="node"/>, as a merge patch of its own properties.</summary>
+    /// <exception cref="ArgumentException">The change touched the node's type or children.</exception>
+    internal static JsonObject Patch(WidgetNode node, WidgetNode changed)
+    {
+        var before = (JsonObject)JsonSerializer.SerializeToNode(node, (JsonTypeInfo<WidgetNode>)Written.GetTypeInfo(typeof(WidgetNode)))!;
+        var after = (JsonObject)JsonSerializer.SerializeToNode(changed, (JsonTypeInfo<WidgetNode>)Written.GetTypeInfo(typeof(WidgetNode)))!;
+        var patch = new JsonObject();
+        foreach (var (key, value) in after)
+            if (!JsonNode.DeepEquals(value, before[key]))
+                patch[key] = value?.DeepClone();
+        foreach (var (key, _) in before)
+            if (!after.ContainsKey(key))
+                patch[key] = null;
+        if (patch.Select(p => p.Key).FirstOrDefault(Structure.Contains) is { } structural)
+            throw new ArgumentException($"An override cannot change a node's \"{structural}\"; give the place a tree of its own instead.");
+        return patch;
     }
 
     /// <summary>

@@ -55,6 +55,17 @@ public abstract record WidgetNode
     /// </summary>
     [JsonPropertyName("hAlign")]
     public WidgetLayoutOptions? HorizontalOptions { get; init; }
+
+    /// <summary>
+    /// Leaves the node out of the tree. Mostly set where it applies, with
+    /// <see cref="WidgetNodeStyling.On{T}(T, WidgetPlace, Func{T, T})"/>: <c>.On(WidgetPlace.Notification, n =&gt; n.Hidden())</c>.
+    /// </summary>
+    [JsonPropertyName("hidden")]
+    public bool? Hidden { get; init; }
+
+    /// <summary>The node's overrides by platform, surface and size, applied in order where the tree is drawn; see <see cref="WidgetOverride"/>.</summary>
+    [JsonPropertyName("on")]
+    public IReadOnlyList<WidgetOverride>? On { get; init; }
 }
 
 /// <summary>A container that lays its <see cref="Children"/> out along one axis.</summary>

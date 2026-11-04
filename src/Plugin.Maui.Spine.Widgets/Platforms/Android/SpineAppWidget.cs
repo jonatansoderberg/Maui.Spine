@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Common.Serialization;
 using System.Collections.Concurrent;
+using System.Text.Json.Nodes;
 using System.Net.Http;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
@@ -251,6 +252,14 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
 
     private static readonly ConcurrentDictionary<string, byte> RateLimited = new();
 
+    private static JsonElement Placed(JsonElement tree, string family)
+    {
+        var place = new DrawPlace("android", ["homeScreen"], family == WidgetJson.DefaultFamilyKey ? null : family, LiveUpdateNotifications.AndroidVersion);
+        var applied = WidgetOverrides.Apply(JsonNode.Parse(tree.GetRawText()), place);
+        // A root left out by its override draws an empty widget rather than none.
+        return JsonDocument.Parse(applied?.ToJsonString() ?? """{"type":"vstack"}""").RootElement.Clone();
+    }
+
     private static bool HasSurface(JsonElement document) =>
         document.TryGetProperty("background", out _) || document.TryGetProperty("backgroundGradient", out _) || document.TryGetProperty("backgroundImage", out _);
 
@@ -259,7 +268,8 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
 
     private static RemoteViews Views(RemoteViewsRenderer renderer, JsonElement trees, PendingIntent? tap, AppWidgetManager manager, int id)
     {
-        var byFamily = trees.EnumerateObject().ToDictionary(p => p.Name, p => p.Value, StringComparer.OrdinalIgnoreCase);
+        // Each family's tree with its overrides for Android's home screen and that size applied, hidden nodes out.
+        var byFamily = trees.EnumerateObject().ToDictionary(p => p.Name, p => Placed(p.Value, p.Name), StringComparer.OrdinalIgnoreCase);
         // The widget's width in portrait, for pictures drawn at their column's width; a family's own breakpoint when the
         // widget is narrower than it, as the launcher then shows another family.
         var current = manager.GetAppWidgetOptions(id)?.GetInt(AppWidgetManager.OptionAppwidgetMinWidth) ?? 0;
