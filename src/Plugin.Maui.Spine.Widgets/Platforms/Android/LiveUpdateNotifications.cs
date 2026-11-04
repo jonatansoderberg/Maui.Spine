@@ -179,7 +179,23 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         root.Remove("insets");
         if (Chronometer(tree) is not null) Remove(root, Find(tree, "timer") is not null ? "timer" : "relative");
         using var drawn = JsonDocument.Parse(root.ToJsonString());
-        return new RemoteViewsRenderer(_context, _icons).Root(drawn.RootElement, tap: null, Resource.Layout.spine_live_update);
+        return new RemoteViewsRenderer(_context, _icons) { WidthDp = ContentWidth() }.Root(drawn.RootElement, tap: null, Resource.Layout.spine_live_update);
+    }
+
+    /// <summary>
+    /// The width in dp of an expanded notification's own content, measured on Android 17 and 16: a card 16 dp in from the
+    /// screen's sides (on a tablet in landscape, in the shade's half of the screen), and the content 72 dp in from the card's
+    /// start, past the app icon, and 16 dp from its end. Measured for the orientation it is posted in; an update after a
+    /// turn draws it again.
+    /// </summary>
+    private double ContentWidth()
+    {
+        var configuration = _context.Resources!.Configuration!;
+        var screen = (double)configuration.ScreenWidthDp;
+        var shade = configuration.SmallestScreenWidthDp >= 600 && configuration.Orientation == Android.Content.Res.Orientation.Landscape
+            ? screen / 2 - 24
+            : screen;
+        return shade - 2 * 16 - 72 - 16;
     }
 
     /// <summary>Depth-first, as <see cref="Find"/>: takes the first node of <paramref name="type"/> out of its stack.</summary>

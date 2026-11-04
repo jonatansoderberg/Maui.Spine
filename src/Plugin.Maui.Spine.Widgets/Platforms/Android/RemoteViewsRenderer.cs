@@ -37,9 +37,22 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     private string Package => _context.PackageName!;
     private float Density => _context.Resources!.DisplayMetrics!.Density;
 
+    /// <summary>
+    /// The width in dp the tree is drawn in: the widget's or the notification content's. A picture (a sparkline) is drawn at
+    /// the width its column gets from it, as SwiftUI fills the width it offers; <see langword="null"/> when it is not known.
+    /// </summary>
+    public double? WidthDp { get; set; }
+
+    // The width in dp of the node being rendered, worked out from WidthDp through the tree; null where it cannot be known.
+    private double? _width;
+
     /// <param name="layout">The outer container: the widget's (<c>spine_widget_root</c>) by default, or one with the same ids.</param>
     public RemoteViews Root(JsonElement tree, PendingIntent? tap, int? layout = null)
     {
+        // The widget's root is padded (spine_widget_padding); other containers bring none.
+        _width = layout is null && WidthDp is { } width
+            ? width - 2 * _context.Resources!.GetDimension(Resource.Dimension.spine_widget_padding) / Density
+            : WidthDp;
         var root = new RemoteViews(Package, layout ?? Resource.Layout.spine_widget_root);
         // A host re-applies the actions on the existing view when the widget is resized, so every
         // AddView is preceded by a RemoveAllViews or the tree would be appended a second time.
@@ -69,21 +82,26 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     /// </summary>
     public RemoteViews Render(JsonElement node, bool inline = false)
     {
+        var outer = _width;
+        var margin = Thickness(node, "margin");
+        if (margin is { } m) _width -= m.Left + m.Right;
         var views = RenderNode(node, inline);
-        if (Thickness(node, "margin") is not { } margin) return views;
+        _width = outer;
+        if (margin is null) return views;
+        var (left, top, right, bottom) = margin.Value;
         if (OperatingSystem.IsAndroidVersionAtLeast(31))
         {
-            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Start, (float)margin.Left, (int)ComplexUnitType.Dip);
-            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Top, (float)margin.Top, (int)ComplexUnitType.Dip);
-            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.End, (float)margin.Right, (int)ComplexUnitType.Dip);
-            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Bottom, (float)margin.Bottom, (int)ComplexUnitType.Dip);
+            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Start, (float)left, (int)ComplexUnitType.Dip);
+            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Top, (float)top, (int)ComplexUnitType.Dip);
+            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.End, (float)right, (int)ComplexUnitType.Dip);
+            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Bottom, (float)bottom, (int)ComplexUnitType.Dip);
             return views;
         }
         // Below Android 12 RemoteViews cannot set a margin, so the node sits in a frame padded by it. The frame does not
         // take the node's share of a row, so a margin on a filled stack wraps it there.
         var frame = new RemoteViews(Package, Resource.Layout.spine_widget_margin);
         frame.RemoveAllViews(Node);
-        Pad(frame, margin);
+        Pad(frame, margin.Value);
         frame.AddView(Node, views);
         return frame;
     }
@@ -167,9 +185,11 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             }
             case "sparkline":
             {
-                // RemoteViews cannot draw a path either; a picture Aspect times as wide as it is high.
+                // RemoteViews cannot draw a path either, so the line is a picture: as wide as its column, as SwiftUI fills the
+                // width it offers, and Aspect times as wide as it is high where the column's width is not known.
                 var height = (Number(node, "height") ?? 48) * Density;
-                var width = height * (Number(node, "aspect") ?? 3);
+                var width = _width is { } column and > 0 ? column * Density : height * (Number(node, "aspect") ?? 3);
+                if (Number(node, "maxAspect") is { } maxAspect) width = Math.Min(width, height * maxAspect);
                 var views = new RemoteViews(Package, Resource.Layout.spine_widget_sparkline);
                 views.SetImageViewBitmap(Node, Sparkline(node, (int)Math.Max(1, width), (int)Math.Max(1, height)));
                 return views;
@@ -215,9 +235,12 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         if (vertical is { } stackAxis && Gravity(align, stackAxis) is { } gravity)
             views.SetInt(Node, "setGravity", gravity);
 
+        var outer = _width;
+        var inner = outer is { } o && (Thickness(node, "insets") ?? Thickness(node, "padding")) is { } p ? o - p.Left - p.Right : outer;
         if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
             foreach (var child in children.EnumerateArray())
             {
+                _width = vertical == false ? Share(children, child, inner, spacing) : inner;
                 if (evenly) views.AddView(Node, new RemoteViews(Package, Resource.Layout.spine_widget_spacer));
                 var childViews = Place(Render(child, inline: vertical == false), child, vertical, align);
                 // The spacing is the child's leading margin, so it adds to a margin of the child's own on that side.
@@ -230,6 +253,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 first = false;
             }
         if (evenly) views.AddView(Node, new RemoteViews(Package, Resource.Layout.spine_widget_spacer));
+        _width = outer;
 
         // A ZStack is as wide as its content, as on iOS, so its centred layers sit where iOS puts them; with a background it
         // fills the width, as every stack with one does on iOS.
@@ -758,6 +782,18 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         frame.SetInt(Node, "setGravity", gravity);
         frame.AddView(Node, child);
         return frame;
+    }
+
+    /// <summary>
+    /// A child's width in an HStack: an equal share of the row when every child takes a share (<c>fill</c>), as the
+    /// LinearLayout's weights divide it; unknown otherwise, since the width of text cannot be known before it is drawn.
+    /// </summary>
+    private static double? Share(JsonElement children, JsonElement child, double? row, float spacing)
+    {
+        if (row is not { } width || !Bool(child, "fill")) return null;
+        var count = children.GetArrayLength();
+        if (children.EnumerateArray().Any(c => !Bool(c, "fill"))) return null;
+        return (width - spacing * (count - 1)) / count;
     }
 
     /// <summary>A thickness written as one number or as [left, top, right, bottom].</summary>

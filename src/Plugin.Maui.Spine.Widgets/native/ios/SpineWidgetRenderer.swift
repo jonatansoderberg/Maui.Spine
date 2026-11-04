@@ -207,6 +207,8 @@ final class Node: Decodable {
     var margin: [Double]?
     /// Where the node sits across its VStack: start, center, end or fill; the stack's alignment when nil.
     var hAlign: String?
+    /// The widest a sparkline may be, as a multiple of its height.
+    var maxAspect: Double?
     var background: String?
     var cornerRadius: Double?
     var children: [Node]?
@@ -389,7 +391,8 @@ struct NodeView: View {
             .padding(line / 2)
             .frame(width: size, height: size)
         case "sparkline":
-            SparklineView(node: node).frame(maxWidth: .infinity).frame(height: CGFloat(node.height ?? 48))
+            SparklineView(node: node).frame(maxWidth: node.maxAspect.map { CGFloat($0 * (node.height ?? 48)) } ?? .infinity)
+                .frame(height: CGFloat(node.height ?? 48))
         case "spacer":
             Spacer(minLength: 0)
         case "divider":

@@ -72,3 +72,16 @@ public class WidgetNamesTests
         Assert.DoesNotContain("italic", json);
     }
 }
+
+/// <summary>A picture's width (#748): the line fills its column on both platforms, MaxAspect caps it.</summary>
+public class SparklineWidthTests
+{
+    [Fact]
+    public void Max_aspect_is_written_and_refuses_zero()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.Sparkline([1, 2, 3]).MaxAspect(4) }.ToJson();
+        Assert.Contains("\"maxAspect\":4", json);
+        Assert.DoesNotContain("maxAspect", new LiveActivityLayout { LockScreen = W.Sparkline([1, 2, 3]) }.ToJson());
+        Assert.Throws<ArgumentOutOfRangeException>(() => W.Sparkline([1, 2]).MaxAspect(0));
+    }
+}

@@ -260,6 +260,9 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
     private static RemoteViews Views(RemoteViewsRenderer renderer, JsonElement trees, PendingIntent? tap, AppWidgetManager manager, int id)
     {
         var byFamily = trees.EnumerateObject().ToDictionary(p => p.Name, p => p.Value, StringComparer.OrdinalIgnoreCase);
+        // The widget's width in portrait, for pictures drawn at their column's width; a family's own breakpoint when the
+        // widget is narrower than it, as the launcher then shows another family.
+        var current = manager.GetAppWidgetOptions(id)?.GetInt(AppWidgetManager.OptionAppwidgetMinWidth) ?? 0;
 
         if (OperatingSystem.IsAndroidVersionAtLeast(31))
         {
@@ -268,6 +271,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
                 if (byFamily.TryGetValue(name, out var tree))
                 {
                     renderer.Family = name;
+                    renderer.WidthDp = Math.Max(width, current);
                     sized[new Android.Util.SizeF(width, height)] = renderer.Root(tree, tap);
                 }
             if (sized.Count > 0) return new RemoteViews(sized);
@@ -277,6 +281,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
                 foreach (var (name, width, height) in Families)
                 {
                     renderer.Family = name;
+                    renderer.WidthDp = Math.Max(width, current);
                     sized[new Android.Util.SizeF(width, height)] = renderer.Root(shared, tap);
                 }
                 return new RemoteViews(sized);
@@ -292,6 +297,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
             : byFamily.TryGetValue(WidgetJson.DefaultFamilyKey, out var fallback) ? fallback
             : byFamily.Values.FirstOrDefault();
         renderer.Family = family;
+        renderer.WidthDp = minWidth > 0 ? minWidth : null;
         return renderer.Root(chosen.ValueKind == JsonValueKind.Object ? chosen : Placeholder, tap);
     }
 

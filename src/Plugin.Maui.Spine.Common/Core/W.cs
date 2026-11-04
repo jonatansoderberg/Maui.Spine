@@ -449,6 +449,13 @@ public static class WidgetNodeStyling
     /// <summary>A soft fill under the line, in its colour at each point, fading out downwards.</summary>
     public static SparklineNode Area(this SparklineNode node) => node with { Area = true };
 
+    /// <summary>Lets the line grow no wider than <paramref name="aspect"/> times its height; it fills the width it is offered otherwise.</summary>
+    public static SparklineNode MaxAspect(this SparklineNode node, double aspect)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(aspect, 0);
+        return node with { MaxAspect = aspect };
+    }
+
     /// <summary>A dot on the last value, in its colour.</summary>
     public static SparklineNode Dot(this SparklineNode node) => node with { Dot = true };
 
