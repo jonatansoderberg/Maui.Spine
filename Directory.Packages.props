@@ -154,6 +154,12 @@
 		<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
 	</ItemGroup>
 
+	<!-- The layout files' source generator: the oldest Roslyn with incremental generators, so any SDK since .NET 6 runs it. The tests compile with a current one. -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.0.0" />
+		<PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
+	</ItemGroup>
+
 	<!-- Tests -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.8" />

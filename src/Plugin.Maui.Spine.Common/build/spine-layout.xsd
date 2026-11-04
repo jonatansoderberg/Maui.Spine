@@ -1,0 +1,1147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spine's layout files (*.layout.xml, *.resources.xml). Generated from the generator's vocabulary; do not edit. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="https://schemas.cosmomedia.se/spine/layout" xmlns="https://schemas.cosmomedia.se/spine/layout" elementFormDefault="qualified">
+  <xs:element name="LiveActivity">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="Model" type="xs:string">
+        <xs:annotation><xs:documentation>The model type's full name.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Class" type="xs:string">
+        <xs:annotation><xs:documentation>The generated class's full name; the file's name and Layout by default.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Background" type="xs:string">
+        <xs:annotation><xs:documentation>The color behind the Lock Screen presentation (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="SystemBackground" type="xs:string">
+        <xs:annotation><xs:documentation>The system's material behind the Lock Screen presentation (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="ActionColor" type="xs:string">
+        <xs:annotation><xs:documentation>The color of the buttons iOS puts on the activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Link" type="xs:string">
+        <xs:annotation><xs:documentation>The URL the app is opened with.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="On">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="Platform" type="WidgetPlatform">
+        <xs:annotation><xs:documentation>iOS, Android.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Surface" type="WidgetPlace">
+        <xs:annotation><xs:documentation>Where it is drawn.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Size" type="WidgetSize">
+        <xs:annotation><xs:documentation>The widget's size.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="MinVersion" type="xs:string">
+        <xs:annotation><xs:documentation>The lowest major OS version.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Otherwise">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Resources">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Template">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="Name" type="xs:string">
+        <xs:annotation><xs:documentation>The element name it is used by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Parameters" type="xs:string">
+        <xs:annotation><xs:documentation>Its parameters as C#: double Size = 40, WidgetColor? Tint = null.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="When">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Widget">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="Model" type="xs:string">
+        <xs:annotation><xs:documentation>The model type's full name.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Class" type="xs:string">
+        <xs:annotation><xs:documentation>The generated class's full name; the file's name and Layout by default.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Background" type="xs:string">
+        <xs:annotation><xs:documentation>The widget's surface: a color or {LinearGradient …}.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Button">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Action" type="xs:string">
+        <xs:annotation><xs:documentation>The action id the handler gets; End ends a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Choose">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Content">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Countdown">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontSize" type="xs:string">
+        <xs:annotation><xs:documentation>Points, or the type scale: Body, Headline, Title, Caption, LargeTitle.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontAttributes" type="WidgetFontAttributes">
+        <xs:annotation><xs:documentation>Bold, Italic or both.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontDesign" type="TextDesign">
+        <xs:annotation><xs:documentation>The system font's design.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="TextColor" type="xs:string">
+        <xs:annotation><xs:documentation>The text's color.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalTextAlignment" type="WidgetTextAlignment">
+        <xs:annotation><xs:documentation>How the lines are aligned in the text's width.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="MaxLines" type="xs:string">
+        <xs:annotation><xs:documentation>At most this many lines.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="ShrinkToFit" type="xs:string">
+        <xs:annotation><xs:documentation>Shrinks to this share of the size before it is cut off (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Until" type="xs:string">
+        <xs:annotation><xs:documentation>The moment it reaches zero.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Prefix" type="xs:string">
+        <xs:annotation><xs:documentation>Text in front of the time.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Divider">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Elapsed">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontSize" type="xs:string">
+        <xs:annotation><xs:documentation>Points, or the type scale: Body, Headline, Title, Caption, LargeTitle.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontAttributes" type="WidgetFontAttributes">
+        <xs:annotation><xs:documentation>Bold, Italic or both.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontDesign" type="TextDesign">
+        <xs:annotation><xs:documentation>The system font's design.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="TextColor" type="xs:string">
+        <xs:annotation><xs:documentation>The text's color.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalTextAlignment" type="WidgetTextAlignment">
+        <xs:annotation><xs:documentation>How the lines are aligned in the text's width.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="MaxLines" type="xs:string">
+        <xs:annotation><xs:documentation>At most this many lines.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="ShrinkToFit" type="xs:string">
+        <xs:annotation><xs:documentation>Shrinks to this share of the size before it is cut off (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Since" type="xs:string">
+        <xs:annotation><xs:documentation>The moment it counts from.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Format" type="ElapsedFormat">
+        <xs:annotation><xs:documentation>How it is written.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Prefix" type="xs:string">
+        <xs:annotation><xs:documentation>Text in front of the time.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="ForEach">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="Items" type="xs:string">
+        <xs:annotation><xs:documentation>The bound list.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Max" type="xs:string">
+        <xs:annotation><xs:documentation>At most this many items.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="HStack">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Spacing" type="xs:string">
+        <xs:annotation><xs:documentation>Points between the children, or Evenly (HStack).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Padding" type="xs:string">
+        <xs:annotation><xs:documentation>Space inside the stack: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Alignment" type="WidgetAlignment">
+        <xs:annotation><xs:documentation>How the children line up across the stack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Background" type="xs:string">
+        <xs:annotation><xs:documentation>The color behind the stack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="CornerRadius" type="xs:string">
+        <xs:annotation><xs:documentation>Rounds the stack's corners.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Expand" type="xs:string">
+        <xs:annotation><xs:documentation>Takes an equal share of the parent's axis.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Fill" type="xs:string">
+        <xs:annotation><xs:documentation>The same as Expand.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Icon">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Source" type="xs:string">
+        <xs:annotation><xs:documentation>The SVG: one of Spine's icons by name (ArrowUpRight) or the app's by file name (drop).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Values" type="xs:string">
+        <xs:annotation><xs:documentation>Every icon a bound Source can name, comma-separated, so each is stored at start.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Tint" type="xs:string">
+        <xs:annotation><xs:documentation>The icon's color.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Size" type="xs:string">
+        <xs:annotation><xs:documentation>Points square.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="AltText" type="xs:string">
+        <xs:annotation><xs:documentation>The icon as text where only text fits.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Image">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Source" type="xs:string">
+        <xs:annotation><xs:documentation>A stored asset's id.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Height" type="xs:string">
+        <xs:annotation><xs:documentation>Points high.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FullColor" type="xs:string">
+        <xs:annotation><xs:documentation>Keeps its colors in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Label">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontSize" type="xs:string">
+        <xs:annotation><xs:documentation>Points, or the type scale: Body, Headline, Title, Caption, LargeTitle.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontAttributes" type="WidgetFontAttributes">
+        <xs:annotation><xs:documentation>Bold, Italic or both.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FontDesign" type="TextDesign">
+        <xs:annotation><xs:documentation>The system font's design.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="TextColor" type="xs:string">
+        <xs:annotation><xs:documentation>The text's color.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalTextAlignment" type="WidgetTextAlignment">
+        <xs:annotation><xs:documentation>How the lines are aligned in the text's width.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="MaxLines" type="xs:string">
+        <xs:annotation><xs:documentation>At most this many lines.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="ShrinkToFit" type="xs:string">
+        <xs:annotation><xs:documentation>Shrinks to this share of the size before it is cut off (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Text" type="xs:string">
+        <xs:annotation><xs:documentation>The text.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Progress">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Value" type="xs:string">
+        <xs:annotation><xs:documentation>0 to 1.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Tint" type="xs:string">
+        <xs:annotation><xs:documentation>The bar's color.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Ring">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Value" type="xs:string">
+        <xs:annotation><xs:documentation>0 to 1, or absent for unknown.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Tint" type="xs:string">
+        <xs:annotation><xs:documentation>The ring's color.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Size" type="xs:string">
+        <xs:annotation><xs:documentation>Points square.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Spacer">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Sparkline">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Values" type="xs:string">
+        <xs:annotation><xs:documentation>The points: times and values with From and To, or values alone.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="From" type="xs:string">
+        <xs:annotation><xs:documentation>The time at the left edge.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="To" type="xs:string">
+        <xs:annotation><xs:documentation>The time at the right edge.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Step" type="xs:string">
+        <xs:annotation><xs:documentation>The time between two values: 5m, 30s, 1h.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Tint" type="xs:string">
+        <xs:annotation><xs:documentation>The line's color.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Color" type="xs:string">
+        <xs:annotation><xs:documentation>The same as Tint.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Height" type="xs:string">
+        <xs:annotation><xs:documentation>Points high.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Area" type="xs:string">
+        <xs:annotation><xs:documentation>A soft fill under the line.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Dot" type="xs:string">
+        <xs:annotation><xs:documentation>A dot on the last value.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="BandLow" type="xs:string">
+        <xs:annotation><xs:documentation>The target band's low edge.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="BandHigh" type="xs:string">
+        <xs:annotation><xs:documentation>The target band's high edge.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="AboveColor" type="xs:string">
+        <xs:annotation><xs:documentation>The line over the band.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="BelowColor" type="xs:string">
+        <xs:annotation><xs:documentation>The line under the band.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shaded" type="xs:string">
+        <xs:annotation><xs:documentation>Draws the band faintly behind the line.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Minimum" type="xs:string">
+        <xs:annotation><xs:documentation>The value at the bottom edge.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Maximum" type="xs:string">
+        <xs:annotation><xs:documentation>The value at the top edge.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="MaxAspect" type="xs:string">
+        <xs:annotation><xs:documentation>No wider than this times its height.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Use">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>The shared node's name.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Height" type="xs:string">
+        <xs:annotation><xs:documentation>Its height here.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="VStack">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Spacing" type="xs:string">
+        <xs:annotation><xs:documentation>Points between the children, or Evenly (HStack).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Padding" type="xs:string">
+        <xs:annotation><xs:documentation>Space inside the stack: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Alignment" type="WidgetAlignment">
+        <xs:annotation><xs:documentation>How the children line up across the stack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Background" type="xs:string">
+        <xs:annotation><xs:documentation>The color behind the stack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="CornerRadius" type="xs:string">
+        <xs:annotation><xs:documentation>Rounds the stack's corners.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Expand" type="xs:string">
+        <xs:annotation><xs:documentation>Takes an equal share of the parent's axis.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Fill" type="xs:string">
+        <xs:annotation><xs:documentation>The same as Expand.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="ZStack">
+    <xs:complexType mixed="true">
+      <xs:sequence>
+        <xs:any namespace="##targetNamespace" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="If" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is true, or the bound value is present.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="IfNot" type="xs:string">
+        <xs:annotation><xs:documentation>Shown only when the bound bool is false, or the bound value is absent.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Margin" type="xs:string">
+        <xs:annotation><xs:documentation>Space around the node: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="HorizontalOptions" type="WidgetLayoutOptions">
+        <xs:annotation><xs:documentation>Where the node sits across its VStack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Hidden" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out (usually inside On).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Part" type="ActivityPart">
+        <xs:annotation><xs:documentation>What the node is in a Live Activity.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Description" type="xs:string">
+        <xs:annotation><xs:documentation>What a screen reader says for the node.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Decorative" type="xs:string">
+        <xs:annotation><xs:documentation>Leaves the node out of what a screen reader says.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Pending" type="xs:string">
+        <xs:annotation><xs:documentation>Dimmed from a tap until the rebuild after it (iOS).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Accented" type="xs:string">
+        <xs:annotation><xs:documentation>In the accent group in iOS's tinted widgets.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Shared" type="xs:string">
+        <xs:annotation><xs:documentation>In LiveActivity.Shared: the name a region uses the node by.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Spacing" type="xs:string">
+        <xs:annotation><xs:documentation>Points between the children, or Evenly (HStack).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Padding" type="xs:string">
+        <xs:annotation><xs:documentation>Space inside the stack: one number, horizontal,vertical, or left,top,right,bottom.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Alignment" type="WidgetAlignment">
+        <xs:annotation><xs:documentation>How the children line up across the stack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Background" type="xs:string">
+        <xs:annotation><xs:documentation>The color behind the stack.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="CornerRadius" type="xs:string">
+        <xs:annotation><xs:documentation>Rounds the stack's corners.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Expand" type="xs:string">
+        <xs:annotation><xs:documentation>Takes an equal share of the parent's axis.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="Fill" type="xs:string">
+        <xs:annotation><xs:documentation>The same as Expand.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:anyAttribute processContents="skip" />
+    </xs:complexType>
+  </xs:element>
+  <xs:simpleType name="ActivityPart">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Subject" />
+          <xs:enumeration value="Value" />
+          <xs:enumeration value="Symbol" />
+          <xs:enumeration value="Detail" />
+          <xs:enumeration value="Time" />
+          <xs:enumeration value="Graph" />
+          <xs:enumeration value="Progress" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="ElapsedFormat">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Precise" />
+          <xs:enumeration value="Clock" />
+          <xs:enumeration value="Minutes" />
+          <xs:enumeration value="Ago" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="LiveUpdatePresentation">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Automatic" />
+          <xs:enumeration value="Template" />
+          <xs:enumeration value="Layout" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="TextDesign">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Default" />
+          <xs:enumeration value="Rounded" />
+          <xs:enumeration value="Monospaced" />
+          <xs:enumeration value="Serif" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="TextRole">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Body" />
+          <xs:enumeration value="Headline" />
+          <xs:enumeration value="Title" />
+          <xs:enumeration value="Caption" />
+          <xs:enumeration value="LargeTitle" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="WidgetAlignment">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Start" />
+          <xs:enumeration value="Center" />
+          <xs:enumeration value="End" />
+          <xs:enumeration value="Baseline" />
+          <xs:enumeration value="TopStart" />
+          <xs:enumeration value="Top" />
+          <xs:enumeration value="TopEnd" />
+          <xs:enumeration value="BottomStart" />
+          <xs:enumeration value="Bottom" />
+          <xs:enumeration value="BottomEnd" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="WidgetFontAttributes">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="None" />
+          <xs:enumeration value="Bold" />
+          <xs:enumeration value="Italic" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="WidgetGradientDirection">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Vertical" />
+          <xs:enumeration value="Horizontal" />
+          <xs:enumeration value="Diagonal" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="WidgetLayoutOptions">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Start" />
+          <xs:enumeration value="Center" />
+          <xs:enumeration value="End" />
+          <xs:enumeration value="Fill" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="WidgetPlace">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="HomeScreen" />
+          <xs:enumeration value="LockScreen" />
+          <xs:enumeration value="Island" />
+          <xs:enumeration value="Notification" />
+          <xs:enumeration value="StatusChip" />
+          <xs:enumeration value="CarPlay" />
+          <xs:enumeration value="Watch" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="WidgetPlatform">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="iOS" />
+          <xs:enumeration value="Android" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="WidgetSize">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Small" />
+          <xs:enumeration value="Medium" />
+          <xs:enumeration value="Large" />
+          <xs:enumeration value="ExtraLarge" />
+          <xs:enumeration value="LockRectangle" />
+          <xs:enumeration value="LockCircle" />
+          <xs:enumeration value="LockLine" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="WidgetTextAlignment">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Start" />
+          <xs:enumeration value="Center" />
+          <xs:enumeration value="End" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+</xs:schema>

@@ -1,0 +1,27 @@
+<!-- No value to show, and why: the first branch of Glukos's GlucoseActivity.Layout, as a file. -->
+<LiveActivity xmlns="https://schemas.cosmomedia.se/spine/layout"
+              Model="Plugin.Maui.Spine.Layouts.Tests.GlucoseModel"
+              Background="#000000"
+              Link="{Link}">
+    <VStack Spacing="6" Padding="14">
+        <Label Text="{Name}" FontSize="Caption" TextColor="Secondary" />
+        <Label Text="{Message}" FontSize="Headline" FontAttributes="Bold" TextColor="Primary" />
+    </VStack>
+
+    <LiveActivity.Island>
+        <Island.Leading><Icon Source="drop" Tint="{Color}" /></Island.Leading>
+        <Island.Center><Label Text="{Message}" FontSize="Caption" TextColor="Primary" HorizontalTextAlignment="Center" /></Island.Center>
+        <Island.CompactLeading><Icon Source="drop" Tint="{Color}" /></Island.CompactLeading>
+        <Island.CompactTrailing><Label Text="–" FontSize="Headline" FontAttributes="Bold" TextColor="Secondary" /></Island.CompactTrailing>
+        <Island.Minimal><Icon Source="drop" Tint="{Color}" /></Island.Minimal>
+    </LiveActivity.Island>
+
+    <LiveActivity.Small>
+        <VStack Spacing="2">
+            <Label Text="{Name}" FontSize="Caption" TextColor="Secondary" />
+            <Label Text="{Message}" FontSize="Headline" FontAttributes="Bold" TextColor="Primary" />
+        </VStack>
+    </LiveActivity.Small>
+
+    <LiveActivity.Notification Title="{Name}" Text="{Message}" />
+</LiveActivity>

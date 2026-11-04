@@ -102,6 +102,7 @@ PushNotifications                                    AnimatedLabel
 | Generated images made once and served from storage, ordered when missing | `Plugin.Maui.Spine.Server.AI.Assets` beside `.Server.AI` and a messaging transport |
 | Queues on the server: work handled by Azure Functions or a hosted pump | `Plugin.Maui.Spine.Server.Messaging.AzureStorage` (or `.ServiceBus`) in each server project that publishes or handles |
 | A domain or test project that builds widget trees without MAUI | `Plugin.Maui.Spine.Common` |
+| Widget trees and Live Activities as XML files bound to a model (`*.layout.xml`), compiled at build time | `Plugin.Maui.Spine.Common`, which carries the generator ([widget-layout-files.md](widget-layout-files.md)) |
 | A server or test project that encodes barcodes or reads a light grid | `Plugin.Maui.Spine.Barcodes` (its `net10.0` build has no MAUI) |
 
 ## Registration
@@ -213,7 +214,7 @@ These packages carry MSBuild files that run in the consuming app's build, import
 |---|---|
 | `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
 | `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Scanner`, `.Images`, `.AI`, `.Voice`, `.Authentication`, `.Authentication.Microsoft` | Declare their `SpineModule` in `<PackageId>.props` |
-| `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other packages contribute, and one partial `Info.plist` with `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers` from the `SpineBackgroundMode` and `SpineBackgroundTaskIdentifier` items, merged with the app's own |
+| `Plugin.Maui.Spine.Common` | Gives the layout generator the project's `*.layout.xml`, `*.resources.xml` and `Strings/strings*.xml` as additional files (`SpineLayouts=false` turns it off); writes the app's iOS entitlements file once from the `SpineEntitlement` items the other packages contribute, and one partial `Info.plist` with `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers` from the `SpineBackgroundMode` and `SpineBackgroundTaskIdentifier` items, merged with the app's own |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |
 | `Plugin.Maui.Spine.Authentication` | Adds the `com.apple.developer.applesignin` entitlement when the app sets `SpineSignInWithApple=true` |

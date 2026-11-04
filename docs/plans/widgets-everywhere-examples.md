@@ -6,6 +6,8 @@ Every widget and Live Activity in Glukos, Puckkoll and Almanacka (as of 2026-11-
 
 ## Glukos
 
+*Proven in W12 (#755):* the files as they compile and write today's JSON are `tests/Plugin.Maui.Spine.Layouts.Tests/Layouts/Glucose.layout.xml` and `GlucoseNoValue.layout.xml` (and in Glukos, on its branch `spine/layout-files`). They differ from the draft below where the draft would have changed the JSON: `HorizontalTextAlignment="End"` and `MaxLines="1" ShrinkToFit="0.7"` for the age, a `Choose Shared="Unit"` for the unit, no `Part` (Glukos has none yet), `Parameters="double Size"`, `Expand`, `Prefix=' · '` quoted, and a model whose `Value` and `LastHour` are never null (`HasValue`, `HasGraph`).
+
 ### The reading (`GlucoseActivity.layout.xml`)
 
 ```xml

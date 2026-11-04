@@ -1,0 +1,8 @@
+<strings culture="sv">
+    <s key="NoGoals">Inga mål än</s>
+    <s key="NoMoreGames">Inga fler matcher</s>
+    <s key="NextGame">Nästa match ›</s>
+    <s key="Shots">Skott {0}–{1}</s>
+    <s key="Goals.one">{0} mål</s>
+    <s key="Goals.other">{0} mål</s>
+</strings>

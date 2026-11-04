@@ -1,0 +1,4 @@
+<Resources xmlns="https://schemas.cosmomedia.se/spine/layout">
+    <Color Name="Ink">#1C1C1E/#FFFFFF</Color>
+    <Number Name="Gap">6</Number>
+</Resources>

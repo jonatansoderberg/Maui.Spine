@@ -1,0 +1,39 @@
+<!-- A team widget in the manner of Puckkoll's: every structure and markup extension a widget layout has. -->
+<Widget xmlns="https://schemas.cosmomedia.se/spine/layout"
+        Model="Plugin.Maui.Spine.Layouts.Tests.TeamModel"
+        Background="{LinearGradient #1C222D, #0B0E13}">
+
+    <Template Name="Card" Parameters="string Title, WidgetColor? Accent = null">
+        <VStack Spacing="{StaticResource Gap}" Padding="12,8">
+            <Label Text="{Title}" FontSize="Headline" FontAttributes="Bold,Italic" TextColor="{StaticResource Ink}" />
+            <Content />
+        </VStack>
+    </Template>
+
+    <VStack Spacing="4">
+        <Card Title="{TeamName}">
+            <Label Text="{Live.HomeGoals}–{Live.AwayGoals}" If="{Live}" FontSize="Title" TextColor="{OnBool IsWinning, True=Green, False=Red}" />
+            <ForEach Items="{Goals}" Max="2">
+                <Label Text="{Scorer} {Minute, Format=00}'" FontSize="Caption" />
+                <ForEach.Empty>
+                    <Label Text="{Loc NoGoals}" FontSize="Caption" TextColor="Secondary" />
+                </ForEach.Empty>
+            </ForEach>
+        </Card>
+        <Label Text="{Loc Goals, Count=GoalCount}" />
+        <HStack Background="{OnBool IsLive, True=Red}" Spacing="Evenly">
+            <Icon Source="{Mark}" Values="ArrowUpRight, ArrowDownRight" Tint="{AppThemeBinding Light=#1C1C1E, Dark=#FFFFFF}" Decorative="True" />
+            <Label Text="{Next, Fallback={Loc NoMoreGames}}" MaxLines="2" Margin="0,2,0,0">
+                <On Platform="Android" FontSize="12" />
+            </Label>
+            <Label Text="{Venue, Prefix='@ '}" TextColor="{OnPlatform iOS=Secondary, Default=Primary}" />
+        </HStack>
+        <Button Action="next-game" If="{IsFinal}">
+            <Label Text="{Loc NextGame}" FontSize="Caption" />
+        </Button>
+    </VStack>
+
+    <Widget.LockCircle>
+        <Ring Value="{Share}" Tint="Accent" Size="40" Description="{Loc Shots, HomeShots, AwayShots}" />
+    </Widget.LockCircle>
+</Widget>
