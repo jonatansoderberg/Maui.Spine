@@ -34,7 +34,13 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice" />
 	</ItemGroup>
 
-	<!-- The entitlements step Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.PushNotifications share. -->
+	<!-- The layout files' source generator rides in this package: a tree described in *.layout.xml becomes W.* calls at build time. -->
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Layouts.Generator\Plugin.Maui.Spine.Layouts.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+		<None Include="..\Plugin.Maui.Spine.Layouts.Generator\bin\$(Configuration)\netstandard2.0\Plugin.Maui.Spine.Layouts.Generator.dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
+	</ItemGroup>
+
+	<!-- The entitlements step Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.PushNotifications share; the layout files' additional files and XSD. -->
 	<ItemGroup>
 		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
 	</ItemGroup>

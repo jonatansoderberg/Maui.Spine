@@ -1,0 +1,8 @@
+<strings>
+    <s key="NoGoals">No goals yet</s>
+    <s key="NoMoreGames">No more games</s>
+    <s key="NextGame">Next game ›</s>
+    <s key="Shots">Shots {0}–{1}</s>
+    <s key="Goals.one">{0} goal</s>
+    <s key="Goals.other">{0} goals</s>
+</strings>

@@ -188,6 +188,8 @@ Without either, macOS blocks the container ("Data Access Blocked") and the widge
 
 ## Building a widget
 
+The trees below are written with `W.*` in C#. The same tree can be written as an XML file bound to a model, which a source generator turns into these calls at build time: see [widget-layout-files.md](widget-layout-files.md).
+
 A provider is a class with `[Widget]`. It is constructed through DI on every refresh, so inject services the way a view model does.
 
 ```csharp

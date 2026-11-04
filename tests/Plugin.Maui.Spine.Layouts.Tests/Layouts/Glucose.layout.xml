@@ -1,0 +1,120 @@
+<!-- One person's reading in every place iOS and Android show it: Glukos's GlucoseActivity.Layout, as a file. -->
+<LiveActivity xmlns="https://schemas.cosmomedia.se/spine/layout"
+              Model="Plugin.Maui.Spine.Layouts.Tests.GlucoseModel"
+              Background="#000000"
+              Link="{Link}">
+
+    <!-- Sent once in the payload and used in several regions. -->
+    <LiveActivity.Shared>
+        <Label Shared="Title" Text="{Name}" FontSize="15" FontAttributes="Bold" TextColor="Primary" />
+        <Elapsed Shared="Age" Since="{MeasuredAt}" Format="Ago" FontSize="Caption" TextColor="Secondary"
+                 HorizontalTextAlignment="End" MaxLines="1" ShrinkToFit="0.7" />
+        <Choose Shared="Unit">
+            <When If="{Below}">
+                <HStack Spacing="4">
+                    <Label Text="{Unit}" FontSize="Caption" FontAttributes="Bold" TextColor="Secondary" />
+                    <Label Text="· {Below}" FontSize="Caption" FontAttributes="Bold" TextColor="{BelowColor}" />
+                </HStack>
+            </When>
+            <Otherwise>
+                <Label Text="{Unit}" FontSize="Caption" FontAttributes="Bold" TextColor="Secondary" />
+            </Otherwise>
+        </Choose>
+        <Sparkline Shared="Graph" If="{HasGraph}" Values="{LastHour}" From="{GraphFrom}" To="{MeasuredAt}" Step="5m"
+                   Color="{Static GlucoseModel.InRange}" Height="56" Area="True" Dot="True"
+                   BandLow="{TargetLow}" BandHigh="{TargetHigh}"
+                   AboveColor="{Static GlucoseModel.High}" BelowColor="{Static GlucoseModel.Low}" />
+    </LiveActivity.Shared>
+
+    <!-- The value and the arrow, or a warning mark once the value stopped coming. -->
+    <Template Name="Reading" Parameters="double Size">
+        <HStack Spacing="6">
+            <Label Text="{Value}" FontSize="{Size}" FontAttributes="Bold" FontDesign="Rounded" TextColor="{Color}" />
+            <Choose>
+                <When IfNot="{Arrow}">
+                    <Icon Source="exclamationmark.circle" Tint="#FF9500" Size="{Size, Scale=0.6}" />
+                </When>
+                <When If="{Symbol}">
+                    <Icon Source="{Symbol}" Tint="{Color}" Size="{Size, Scale=0.7}" />
+                </When>
+                <Otherwise>
+                    <Label Text="{Arrow}" FontSize="{Size, Scale=0.7}" FontAttributes="Bold" TextColor="{Color}" />
+                </Otherwise>
+            </Choose>
+        </HStack>
+    </Template>
+
+    <!-- The reading with the graph beside it, the graph always taking the right half; under them the unit. -->
+    <Template Name="Row" Parameters="double Size, double GraphHeight">
+        <VStack Spacing="2">
+            <HStack Spacing="12" If="{HasGraph}">
+                <VStack Expand="True"><Reading Size="{Size}" /></VStack>
+                <VStack Expand="True"><Use Shared="Graph" Height="{GraphHeight}" /></VStack>
+            </HStack>
+            <Reading Size="{Size}" IfNot="{HasGraph}" />
+            <Use Shared="Unit" />
+        </VStack>
+    </Template>
+
+    <VStack Spacing="10" Padding="16">
+        <HStack Spacing="8">
+            <Use Shared="Title" />
+            <Spacer />
+            <Use Shared="Age" />
+        </HStack>
+        <Row Size="40" GraphHeight="56" />
+    </VStack>
+
+    <!-- Inset from the island's rounded corners, which otherwise clip the name and the age. -->
+    <LiveActivity.Island>
+        <Island.Leading>
+            <HStack Spacing="0" Padding="6"><Use Shared="Title" /></HStack>
+        </Island.Leading>
+        <Island.Trailing>
+            <HStack Spacing="0" Padding="6"><Spacer /><Use Shared="Age" /></HStack>
+        </Island.Trailing>
+        <Island.Bottom>
+            <HStack Spacing="0" Padding="10"><Row Size="40" GraphHeight="48" /></HStack>
+        </Island.Bottom>
+        <Island.CompactLeading>
+            <Icon Source="drop" Tint="{Color}" />
+        </Island.CompactLeading>
+        <Island.CompactTrailing>
+            <Label Text="{Value} {Arrow, Fallback=!}" FontSize="Headline" FontAttributes="Bold" FontDesign="Rounded" TextColor="{Color}" />
+        </Island.CompactTrailing>
+        <Island.Minimal>
+            <Label Text="{Value}" FontSize="Headline" FontAttributes="Bold" FontDesign="Rounded" TextColor="{Color}" />
+        </Island.Minimal>
+    </LiveActivity.Island>
+
+    <!-- CarPlay's Dashboard and the watch's Smart Stack: the lock screen in less room. -->
+    <LiveActivity.Small>
+        <Choose>
+            <When If="{HasGraph}">
+                <HStack Spacing="12">
+                    <VStack Spacing="2" Expand="True">
+                        <Use Shared="Title" />
+                        <Reading Size="26" />
+                        <Use Shared="Unit" />
+                    </VStack>
+                    <VStack Spacing="4" Expand="True">
+                        <HStack Spacing="0"><Spacer /><Use Shared="Age" /></HStack>
+                        <Use Shared="Graph" Height="36" />
+                    </VStack>
+                </HStack>
+            </When>
+            <Otherwise>
+                <VStack Spacing="2">
+                    <HStack Spacing="8"><Use Shared="Title" /><Spacer /><Use Shared="Age" /></HStack>
+                    <Reading Size="26" />
+                    <Use Shared="Unit" />
+                </VStack>
+            </Otherwise>
+        </Choose>
+    </LiveActivity.Small>
+
+    <!-- Android's promoted Live Update: the unit and high or low, as under the value on iOS. -->
+    <LiveActivity.Notification Title="{Name} {Value} {Arrow, Fallback=!}"
+                               Text="{Unit}{Below, Prefix=' · '}"
+                               Chip="{Value}{Arrow, Fallback=!}" />
+</LiveActivity>

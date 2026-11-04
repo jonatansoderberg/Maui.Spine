@@ -1,7 +1,7 @@
 # Widgets everywhere: one description for every platform
 
 **Status:** In progress. Decisions D1–D12 approved by the owner on 2026-11-03.
-**Last updated:** 2026-11-04 (W0–W10 done)
+**Last updated:** 2026-11-04 (W0–W12 done)
 **Inputs:** the owner's review of Glukos's Live Activity on Android and iOS (#737, #739, #741); research into how others describe widgets for several platforms (§2); every widget and Live Activity in Glukos, Puckkoll and Almanacka, read and measured (§3).
 **Related:** [widgets-everywhere-examples.md](widgets-everywhere-examples.md) (every one of those written as a layout file), [docs/wiki/widgets.md](../wiki/widgets.md).
 **Goal:** An app describes a widget or Live Activity once, in names that read like MAUI and Spine, with narrow overrides where a platform needs something else, and Spine draws it on iOS and Android alike. Optionally as an XML layout file bound to a view model, compiled into the same C# by a source generator, so it is checked at build time and costs nothing extra at run time.
@@ -89,6 +89,17 @@ Payload modes: **tree** (today's JSON, smaller through D2 and leaving out defaul
 
 Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002` unknown attribute, `SPL003` unknown binding path, `SPL004` wrong type, `SPL005` bad literal, `SPL006` nullable without fallback, `SPL007` duplicate part, `SPL008` drawn nowhere, `SPL009`/`SPL010` strings, `SPL012` unknown icon, `SPL013` silent for screen readers.
 
+*Done in W12 (#755):* the generator is `src/Plugin.Maui.Spine.Layouts.Generator`, shipped in `Plugin.Maui.Spine.Common`'s package; the format is documented in [docs/wiki/widget-layout-files.md](../wiki/widget-layout-files.md). Choices made on the way:
+
+- **The JSON decides the attribute.** Glukos's files write today's JSON byte for byte (`GlucoseActivityLayoutFileTests` in Glukos, `GlucoseLayoutTests` here), which settled cases the examples had loose: an age at the right edge is `HorizontalTextAlignment="End"` (`.Trailing()`), not `HorizontalOptions`; `MaxLines="1"` with `ShrinkToFit` is `.SingleLine()`; a node that is a label in one case and a stack in another is a `Choose` (which may carry `Shared`), not a stack with an `If` child; `{Size, Scale=0.7}` on a `FontSize` rounds to whole points, as Glukos's arrow did.
+- **Shared names are camel-cased in the payload** (`Shared="Title"` is `"title"`), as the C# had them.
+- **`{Loc}` takes `ISpineStrings`, not a culture:** `Build(model, strings)`, the strings in the user's culture, which a server builds too. One argument is passed as an object, so `Get(key, n)` is never taken for a plural by accident; a plural is `Count=`.
+- **Templates are local functions of `Build`**, parameters as written (`Parameters="double Size"`), named arguments at the call.
+- **Narrowing:** inside `If="{X}"`, and in the branches after a `When IfNot="{X}"`, `X` is known to be there, so the model needs no `!` or fallback; a model is written with non-null values where there always are some (Glukos's `Value` and `LastHour`, with `HasValue` and `HasGraph`).
+- **Three diagnostics more than planned:** `SPL011` a `Use` of a shared node that is there only under a condition, `SPL014` a duplicate resource, template or shared node, `SPL015` broken XML.
+- **A widget file** writes `Build`, `Surface` (from `Background`, a color or `{LinearGradient}`) and `Timeline(entries)`; every file writes `Actions` and `Icons`.
+- **Not in W12:** watching the files for hot reload (§9), `Explain()` warnings in the generator (the generator warns for its own cases; `Explain()` stays the run-time check), Glukos switching to its files (it waits for the Spine release; the proof is on Glukos's local branch `spine/layout-files`).
+
 ## 6. Steps
 
 | Step | What | Depends on | Status | Issue | PR |
@@ -104,10 +115,10 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 | W8 | Accessibility (D10) | W7 | Done | #751 | #771 |
 | W9 | Light and dark colour pairs (D11) | — | Done | #752 | #767 |
 | W10 | Buttons in Live Activities and Android notifications (D7) | — | Done | #753 | #768 |
-| W11 | Controls on SVG icons (D8) | W0, W4 | Done | #754 | |
-| W12 | Layout files in tree mode; Glukos proven against today's JSON (§5, D9, D11) | W1–W7 | Waiting | #755 | |
-| W13 | `Bind(viewModel)` for Live Activities | W12 | Waiting | #756 | |
-| W14 | A preview page for layouts in the Showcase | W12 | Waiting | #757 | |
+| W11 | Controls on SVG icons (D8) | W0, W4 | Done | #754 | #772 |
+| W12 | Layout files in tree mode; Glukos proven against today's JSON (§5, D9, D11) | W1–W7 | Done | #755 | |
+| W13 | `Bind(viewModel)` for Live Activities | W12 | Ready | #756 | |
+| W14 | A preview page for layouts in the Showcase | W12 | Ready | #757 | |
 | W15 | Template and data payloads | W12 | Proposal | | |
 
 ## 7. Platform differences

@@ -18,6 +18,16 @@
 		imports it on its own.
 	-->
 
+	<!--
+		Layout files (*.layout.xml) for the source generator in this package, with the project's *.resources.xml and its
+		strings documents (Resources/Strings/strings.xml, strings.sv.xml), which {Loc …} is checked against. Turn it off
+		with <SpineLayouts>false</SpineLayouts>; add strings kept elsewhere as AdditionalFiles named strings*.xml.
+	-->
+	<ItemGroup Condition="'$(SpineLayouts)' != 'false'">
+		<AdditionalFiles Include="**\*.layout.xml;**\*.resources.xml;**\Strings\strings.xml;**\Strings\strings.*.xml"
+						 Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder);@(AdditionalFiles)" />
+	</ItemGroup>
+
 	<PropertyGroup>
 		<_SpineEntitlementsApplies Condition="($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst') And '$(DesignTimeBuild)' != 'true'">true</_SpineEntitlementsApplies>
 	</PropertyGroup>

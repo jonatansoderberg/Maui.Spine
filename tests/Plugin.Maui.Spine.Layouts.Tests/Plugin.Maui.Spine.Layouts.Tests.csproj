@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<IsPackable>false</IsPackable>
+		<RootNamespace>Plugin.Maui.Spine.Layouts.Tests</RootNamespace>
+		<!-- The Glukos copy keeps its graph without a description, as Glukos has it today. -->
+		<NoWarn>$(NoWarn);SPL013</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+		<!-- As the package brings it: the generator runs on this project's layout files, and the tests drive it directly too. -->
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Layouts.Generator\Plugin.Maui.Spine.Layouts.Generator.csproj" OutputItemType="Analyzer" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AdditionalFiles Include="Layouts\**\*.xml" />
+		<None Update="Layouts\Strings\*.xml" CopyToOutputDirectory="PreserveNewest" />
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="5.0.0" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" />
+		<PackageReference Include="xunit" />
+		<PackageReference Include="xunit.runner.visualstudio" />
+	</ItemGroup>
+
+</Project>
