@@ -310,7 +310,9 @@ internal sealed class PushNotificationService : IPushNotificationService
             installation.LiveActivities?.PushToStart,
             string.Join(',', (installation.LiveActivities?.Activities ?? new Dictionary<string, string>())
                 .OrderBy(p => p.Key, StringComparer.Ordinal)
-                .Select(p => $"{p.Key}={p.Value}")));
+                .Select(p => $"{p.Key}={p.Value}")),
+            // A new template is worth a registration of its own: until then the server sends this phone the layout.
+            string.Join(',', (installation.LiveActivities?.Templates ?? []).Order(StringComparer.Ordinal)));
 
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
     }
