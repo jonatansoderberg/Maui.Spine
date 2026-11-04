@@ -349,17 +349,26 @@ public sealed partial class NavigationRegion : ContentView
             if (ViewModel.CurrentRegionViewModel is { } vm)
             {
                 ApplySafeAreaPadding(_contentHostFront, vm);
-
-                // Push the updated insets to the ViewModel so bindings that depend on
-                // SystemBarInsets / SafeAreaInsets reflect the measured values.
-                var insets = SystemBarInsetsFor(vm, _insetsProvider, ViewModel.Presentation is NavigationPresentation.Region);
-                vm.SystemBarInsets = insets;
-                vm.SafeAreaInsets = SafeAreaInsetsFor(vm, insets);
+                RefreshSystemBarInsets(vm);
             }
 
             if (FrontIsLightbox)
                 UpdateLightboxToolbar();
         });
+    }
+
+    /// <summary>
+    /// Gives the page the insets measured now, so bindings that depend on <see cref="ViewModelBase.SystemBarInsets"/> /
+    /// <see cref="ViewModelBase.SafeAreaInsets"/> (the header bar's row) reflect them. A page keeps the insets it had when it
+    /// was last in front, so one that comes back to the front takes them again: a page built before the window had its safe
+    /// area (the root set while the app was still coming to the foreground from a Live Activity on a locked phone) otherwise
+    /// had its header bar and content in the status bar once a page above it was popped.
+    /// </summary>
+    private void RefreshSystemBarInsets(ViewModelBase vm)
+    {
+        var insets = SystemBarInsetsFor(vm, _insetsProvider, ViewModel.Presentation is NavigationPresentation.Region);
+        vm.SystemBarInsets = insets;
+        vm.SafeAreaInsets = SafeAreaInsetsFor(vm, insets);
     }
 
     /// <summary>
@@ -552,6 +561,7 @@ public sealed partial class NavigationRegion : ContentView
                 // The page's header comes back as its search is, without an animation.
                 this.AbortAnimation(SearchAnimation);
                 vm.SearchProgress = vm.SearchHidesHeaderBar ? 1 : 0;
+                RefreshSystemBarInsets(vm);
                 ApplyKeyboardInset(vm);
                 ApplySafeAreaPadding(_contentHostFront, vm);
             }
@@ -739,7 +749,11 @@ public sealed partial class NavigationRegion : ContentView
     private void ApplySafeAreaPaddingForPresenter(ContentView host, PagePresenter? presenter)
     {
         if (presenter?.Content?.BindingContext is ViewModelBase vm)
+        {
+            // Before the transition starts: the page uncovered by a pop has its header bar in place as it slides in.
+            RefreshSystemBarInsets(vm);
             ApplySafeAreaPadding(host, vm);
+        }
     }
 
     private void OnPointerReleased(object? sender, PointerEventArgs e) => _dragAccepted = false;
