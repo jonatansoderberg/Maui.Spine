@@ -93,7 +93,7 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 
 | Step | What | Depends on | Status | Issue | PR |
 | --- | --- | --- | --- | --- | --- |
-| W0 | Spike: a stroked SVG as an iOS custom symbol for controls (D8) | — | In review | #743 | |
+| W0 | Spike: a stroked SVG as an iOS custom symbol for controls (D8) | — | In review | #743 | #764 |
 | W1 | Padding per side and margin (D1) | — | Done | #744 | #761 |
 | W2 | One alignment model; ZStack centred on Android (D2) | — | Done | #745 | #762 |
 | W3 | MAUI-style names in C#; stacks skip null; no default values in JSON (D12) | — | Done | #746 | #763 |
