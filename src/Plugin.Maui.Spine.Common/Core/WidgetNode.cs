@@ -128,7 +128,8 @@ public sealed record ZStackNode : StackNode;
 /// <param name="Role">Which of the platform's text styles to use.</param>
 /// <param name="Bold">Whether to render in bold weight.</param>
 /// <param name="Color">The foreground color; the platform's primary text color when <see langword="null"/>.</param>
-public readonly record struct TextStyle(TextRole Role = TextRole.Body, bool Bold = false, WidgetColor? Color = null);
+/// <param name="Italic">Whether to render in italics.</param>
+public readonly record struct TextStyle(TextRole Role = TextRole.Body, bool Bold = false, WidgetColor? Color = null, bool Italic = false);
 
 /// <summary>Base for nodes that render as text and accept <see cref="TextStyle"/>.</summary>
 public abstract record TextLikeNode : WidgetNode
@@ -155,6 +156,11 @@ public abstract record TextLikeNode : WidgetNode
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Bold { get => Style.Bold; init => Style = Style with { Bold = value }; }
 
+    /// <summary>Italics, exposed flat for serialization. Android draws it on a <see cref="TextNode"/>, not on a clock.</summary>
+    [JsonPropertyName("italic")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Italic { get => Style.Italic; init => Style = Style with { Italic = value }; }
+
     /// <summary>Foreground color, exposed flat for serialization.</summary>
     [JsonPropertyName("color")]
     public WidgetColor? Color { get => Style.Color; init => Style = Style with { Color = value }; }
@@ -179,6 +185,17 @@ public abstract record TextLikeNode : WidgetNode
     /// </summary>
     [JsonPropertyName("singleLine")]
     public double? SingleLine { get; init; }
+
+    /// <summary>The most lines the text wraps to, cut off with an ellipsis past them. Set with <see cref="WidgetNodeStyling.MaxLines{T}"/>.</summary>
+    [JsonPropertyName("maxLines")]
+    public int? MaxLines { get; init; }
+
+    /// <summary>
+    /// The smallest share of its size the text shrinks to before it is cut off. iOS only: Android cannot size a widget's
+    /// text to fit. Set with <see cref="WidgetNodeStyling.ShrinkToFit{T}"/>.
+    /// </summary>
+    [JsonPropertyName("shrink")]
+    public double? Shrink { get; init; }
 
     /// <summary>
     /// The system font's design: <see cref="TextDesign.Rounded"/> for values in SF Pro Rounded, as Apple's own apps

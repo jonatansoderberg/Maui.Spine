@@ -54,3 +54,28 @@ public enum WidgetTextAlignment
     /// <summary>At the trailing edge.</summary>
     End,
 }
+
+/// <summary>Bold and italic, as MAUI's <c>FontAttributes</c>.</summary>
+[Flags]
+public enum WidgetFontAttributes
+{
+    /// <summary>Regular.</summary>
+    None = 0,
+    /// <summary>Bold weight.</summary>
+    Bold = 1,
+    /// <summary>Italics.</summary>
+    Italic = 2,
+}
+
+/// <summary>How <see cref="W.Elapsed"/> writes the time since a moment.</summary>
+public enum ElapsedFormat
+{
+    /// <summary>"18 min, 35 sec", counting every second. A clock on Android.</summary>
+    Precise,
+    /// <summary>"18:35", for regions with no room for words.</summary>
+    Clock,
+    /// <summary>"5 minutes", "1 hour, 5 minutes", counting each minute. iOS 18 and later; as <see cref="Precise"/> before, a clock on Android.</summary>
+    Minutes,
+    /// <summary>"now", then "2 minutes ago", "3 hours ago", rounded to whole units. iOS 18 and later; as <see cref="Precise"/> before, a clock on Android.</summary>
+    Ago,
+}
