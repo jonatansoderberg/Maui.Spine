@@ -197,14 +197,54 @@ public static class WidgetNodeStyling
     /// </summary>
     public static T Fill<T>(this T node) where T : StackNode => (T)(node with { Fill = true });
 
+    /// <summary>Takes an equal share of the space along the parent's axis, as <see cref="Fill{T}(T)"/>.</summary>
+    public static T Expand<T>(this T node) where T : StackNode => node.Fill();
+
     /// <summary>Centres a vertical stack's children on its axis (a ring tile: label, ring and time under each other).</summary>
-    public static VStackNode CenterItems(this VStackNode node) => node with { Align = "center" };
+    public static VStackNode CenterItems(this VStackNode node) => node.Alignment(WidgetAlignment.Center);
+
+    /// <summary>
+    /// Lines the children up across the stack's axis. <see cref="WidgetAlignment.Baseline"/> is for an HStack, and the corners
+    /// and edges (<see cref="WidgetAlignment.TopStart"/> … <see cref="WidgetAlignment.BottomEnd"/>) are for a ZStack.
+    /// </summary>
+    public static T Alignment<T>(this T node, WidgetAlignment alignment) where T : StackNode
+    {
+        var fits = alignment switch
+        {
+            WidgetAlignment.Start or WidgetAlignment.Center or WidgetAlignment.End => true,
+            WidgetAlignment.Baseline => node is HStackNode,
+            _ => node is ZStackNode,
+        };
+        if (!fits)
+            throw new ArgumentException($"{alignment} does not line up the children of a {node.GetType().Name}.", nameof(alignment));
+        return (T)(node with { Align = AlignmentName(alignment) });
+    }
+
+    private static string AlignmentName(WidgetAlignment alignment) => alignment switch
+    {
+        WidgetAlignment.TopStart => "topStart",
+        WidgetAlignment.TopEnd => "topEnd",
+        WidgetAlignment.BottomStart => "bottomStart",
+        WidgetAlignment.BottomEnd => "bottomEnd",
+        _ => alignment.ToString().ToLowerInvariant(),
+    };
+
+    /// <summary>
+    /// Places the node across its VStack, instead of the stack's alignment, as MAUI's <c>HorizontalOptions</c>;
+    /// <see cref="WidgetLayoutOptions.Fill"/> stretches it across the width. A child of an HStack or a ZStack keeps to its
+    /// stack's alignment.
+    /// </summary>
+    public static T HorizontalOptions<T>(this T node, WidgetLayoutOptions options) where T : WidgetNode => (T)(node with { HorizontalOptions = options });
+
+    /// <summary>Aligns the text's lines within its width, as MAUI's <c>HorizontalTextAlignment</c>.</summary>
+    public static T HorizontalTextAlignment<T>(this T node, WidgetTextAlignment alignment) where T : TextLikeNode =>
+        (T)(node with { IsCentered = alignment == WidgetTextAlignment.Center ? true : null, IsTrailing = alignment == WidgetTextAlignment.End ? true : null });
 
     /// <summary>
     /// Lines up a horizontal stack's text on its first baseline instead of centring the children: a name beside a smaller
     /// "2 min ago" then reads as one line. Children without text keep to the top on Android.
     /// </summary>
-    public static HStackNode AlignBaselines(this HStackNode node) => node with { Align = "baseline" };
+    public static HStackNode AlignBaselines(this HStackNode node) => node.Alignment(WidgetAlignment.Baseline);
 
     /// <summary>Spreads a horizontal stack's children evenly: the same space at its ends as between them.</summary>
     public static HStackNode Evenly(this HStackNode node) => node with { Distribute = "evenly" };

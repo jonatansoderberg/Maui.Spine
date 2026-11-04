@@ -202,6 +202,8 @@ final class Node: Decodable {
     var insets: [Double]?
     /// [left, top, right, bottom] around the node, outside any background.
     var margin: [Double]?
+    /// Where the node sits across its VStack: start, center, end or fill; the stack's alignment when nil.
+    var hAlign: String?
     var background: String?
     var cornerRadius: Double?
     var children: [Node]?
@@ -309,9 +311,9 @@ struct NodeView: View {
                 .buttonStyle(.plain)
             }
         case "vstack":
-            let center = node.align == "center"
-            VStack(alignment: center ? .center : .leading, spacing: node.spacing ?? 4) { children }
-                .modifier(BoxModifier(node: node, alignment: center ? .center : .leading))
+            let across = Align.horizontal(node.align)
+            VStack(alignment: across, spacing: node.spacing ?? 4) { children }
+                .modifier(BoxModifier(node: node, alignment: Alignment(horizontal: across, vertical: .center)))
         case "hstack" where node.distribute == "evenly":
             // The same space at the ends as between the children, which keep their own width.
             HStack(spacing: 0) {
@@ -322,10 +324,10 @@ struct NodeView: View {
                 }
             }.modifier(BoxModifier(node: node, alignment: .leading))
         case "hstack":
-            HStack(alignment: node.align == "baseline" ? .firstTextBaseline : .center, spacing: node.spacing ?? 4) { children }
+            HStack(alignment: Align.vertical(node.align), spacing: node.spacing ?? 4) { children }
                 .modifier(BoxModifier(node: node, alignment: .leading))
         case "zstack":
-            ZStack { children }.modifier(BoxModifier(node: node, alignment: .center))
+            ZStack(alignment: Align.both(node.align)) { children }.modifier(BoxModifier(node: node, alignment: Align.both(node.align)))
         case "text":
             Text(node.text ?? "").modifier(TextStyleModifier(node: node))
         // Self-updating text takes every point offered to it inside a Live Activity — a long-standing
@@ -408,7 +410,12 @@ struct NodeView: View {
 
     @ViewBuilder private var children: some View {
         ForEach(Array((node.children ?? []).enumerated()), id: \.offset) {
-            NodeView(node: $0.element).environment(\.spineInline, node.type == "hstack")
+            if node.type == "vstack", let options = $0.element.hAlign {
+                // A child placed on its own across the column: the whole width, with the child at one place in it.
+                NodeView(node: $0.element).frame(maxWidth: .infinity, alignment: Align.options(options))
+            } else {
+                NodeView(node: $0.element).environment(\.spineInline, node.type == "hstack")
+            }
         }
     }
 }
@@ -738,6 +745,36 @@ struct SparklinePlot {
         }
 
         if let final = ends.last { last = (final.point, color(atY: final.point.y)) }
+    }
+}
+
+/// A stack's `align` and a child's `hAlign` as SwiftUI alignments. Start and end are the leading and trailing edges across a
+/// VStack and the top and bottom across an HStack.
+enum Align {
+    static func horizontal(_ value: String?) -> HorizontalAlignment {
+        switch value { case "center": .center; case "end": .trailing; default: .leading }
+    }
+
+    static func vertical(_ value: String?) -> VerticalAlignment {
+        switch value { case "baseline": .firstTextBaseline; case "start": .top; case "end": .bottom; default: .center }
+    }
+
+    static func both(_ value: String?) -> Alignment {
+        switch value {
+        case "topStart": .topLeading
+        case "top": .top
+        case "topEnd": .topTrailing
+        case "start": .leading
+        case "end": .trailing
+        case "bottomStart": .bottomLeading
+        case "bottom": .bottom
+        case "bottomEnd": .bottomTrailing
+        default: .center
+        }
+    }
+
+    static func options(_ value: String) -> Alignment {
+        switch value { case "center": .center; case "end": .trailing; default: .leading }
     }
 }
 
