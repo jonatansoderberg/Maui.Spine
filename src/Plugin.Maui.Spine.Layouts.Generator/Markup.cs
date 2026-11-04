@@ -125,12 +125,19 @@ internal sealed class Markup : Value
             if (end < 0) { owner.Error ??= "a closing quote is missing"; end = text.Length; }
             var quoted = text.Substring(i + 1, end - i - 1);
             i = System.Math.Min(text.Length, end + 1);
-            return new Literal(quoted);
+            // Quoted text keeps its spaces and may hold bindings of its own: Fallback='v {Week}'.
+            return Value.Parse(quoted);
         }
+        // Up to the next comma or brace outside a binding of its own: Fallback=v {Week}.
         var builder = new StringBuilder();
-        while (i < text.Length && text[i] != ',' && text[i] != '}')
+        var depth = 0;
+        while (i < text.Length && (depth > 0 || text[i] != ',' && text[i] != '}'))
+        {
+            if (text[i] == '{') depth++;
+            else if (text[i] == '}') depth--;
             builder.Append(text[i++]);
-        return new Literal(builder.ToString().Trim());
+        }
+        return Value.Parse(builder.ToString().Trim());
     }
 
     static string Token(string text, ref int i)

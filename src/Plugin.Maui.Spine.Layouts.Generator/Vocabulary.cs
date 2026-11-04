@@ -218,7 +218,8 @@ internal static class Vocabulary
         ["Widget"] = [
             new("Model", Kind.Name, "The model type's full name."),
             new("Class", Kind.Name, "The generated class's full name; the file's name and Layout by default."),
-            new("Background", Kind.Background, "The widget's surface: a color or {LinearGradient …}.")],
+            new("Background", Kind.Background, "The widget's surface: a color or {LinearGradient …}."),
+            new("BackgroundImage", Kind.Text, "A stored picture over the background, scaled to fill and cropped.")],
         ["Resources"] = [],
     };
 

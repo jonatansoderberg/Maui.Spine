@@ -108,6 +108,9 @@
       <xs:attribute name="Background" type="xs:string">
         <xs:annotation><xs:documentation>The widget's surface: a color or {LinearGradient …}.</xs:documentation></xs:annotation>
       </xs:attribute>
+      <xs:attribute name="BackgroundImage" type="xs:string">
+        <xs:annotation><xs:documentation>A stored picture over the background, scaled to fill and cropped.</xs:documentation></xs:annotation>
+      </xs:attribute>
       <xs:anyAttribute processContents="skip" />
     </xs:complexType>
   </xs:element>

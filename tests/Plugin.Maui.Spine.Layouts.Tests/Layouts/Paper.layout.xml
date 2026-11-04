@@ -1,0 +1,7 @@
+<!-- A widget whose surface is the same for every entry: it goes on the timeline once. -->
+<Widget xmlns="https://schemas.cosmomedia.se/spine/layout"
+        Model="Plugin.Maui.Spine.Layouts.Tests.TeamModel"
+        Background="#102030"
+        BackgroundImage="paper">
+    <Label Text="{TeamName}" FontSize="Headline" />
+</Widget>

@@ -35,6 +35,8 @@ public class TeamLayoutTests
                 Card(m.TeamName, [m.Live is null ? null : W.Label($"{m.Live.HomeGoals}–{m.Live.AwayGoals}").Title().TextColor(m.IsWinning ? WidgetColor.Green : WidgetColor.Red), .. goals]),
                 W.Label(s.Get("Goals", m.GoalCount)),
                 m.IsLive ? row.Background(WidgetColor.Red) : row,
+                W.Label(m.Venue ?? $"Home of {m.TeamName}").Caption(),
+                W.Label(m.Next ?? $"v {m.GoalCount}").Caption(),
                 m.IsFinal ? W.Button("next-game", W.Label(s["NextGame"]).Caption()) : null)
             .Spacing(4);
 
@@ -45,7 +47,7 @@ public class TeamLayoutTests
     }
 
     static TeamModel Live() => new("Owls", new LiveGame(3, 2), [new("Ek", 4), new("Berg", 17), new("Lind", 33)], 3, true, false, true,
-        "ArrowUpRight", "Bears, Friday", "Arena", 0.62, 31, 24);
+        "ArrowUpRight", "Bears, Friday", "Arena", 0.62, 31, 24) { Badge = "badge-owls" };
 
     static TeamModel Between() => new("Owls", null, [], 0, false, true, false, "ArrowDownRight", null, null, null, 0, 0);
 
@@ -61,19 +63,33 @@ public class TeamLayoutTests
     }
 
     [Fact]
-    public void The_background_is_the_gradient()
+    public void The_background_is_the_gradient_with_the_picture_over_it()
     {
         var surface = TeamLayout.Surface(Live(), Strings(""));
         Assert.Equal(["#1C222D", "#0B0E13"], surface.Gradient!.Colors.Select(c => c.Value));
+        Assert.Equal("badge-owls", surface.Image);
+        Assert.Null(TeamLayout.Surface(Between(), Strings("")).Image);
     }
 
     [Fact]
-    public void The_timeline_has_an_entry_per_model()
+    public void A_surface_that_follows_the_model_is_each_entrys_own()
     {
         var now = DateTimeOffset.UtcNow;
         var timeline = TeamLayout.Timeline([(now, Live()), (now.AddHours(2), Between())], Strings("sv"));
         Assert.Equal(2, timeline.Entries.Count);
-        Assert.NotNull(timeline.Entries[1].Surface);
+        Assert.Equal("badge-owls", timeline.Entries[0].Surface!.Image);
+        Assert.NotNull(timeline.Entries[1].Surface!.Gradient);
+        Assert.Null(timeline.BackgroundGradient);
+    }
+
+    [Fact]
+    public void A_surface_that_does_not_is_the_timelines_once()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var timeline = PaperLayout.Timeline([(now, Live()), (now.AddDays(1), Between())]);
+        Assert.Equal("#102030", timeline.BackgroundColor?.Value);
+        Assert.Equal("paper", timeline.BackgroundAsset);
+        Assert.All(timeline.Entries, e => Assert.Null(e.Surface));
     }
 
     [Fact]

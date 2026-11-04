@@ -499,23 +499,43 @@ internal sealed class LayoutCompiler
         code.Append(Templates(top));
         code.Append($"        return {value};\n#line default\n    }}\n");
 
+        // The surface: a color or gradient, and a stored picture over it. One that does not change with the model goes
+        // on the timeline once; one that does is each entry's own, and carries all of it, as an entry's surface replaces
+        // the timeline's.
+        var fill = root.Attribute("Background") is { } background ? Fill(background, top) : null;
+        var image = root.Attribute("BackgroundImage") is { } picture ? Text(picture, top, required: false) : null;
         string? surface = null;
-        if (root.Attribute("Background") is { } background)
-            surface = Surface(background, top);
+        var optional = false;
+        if (fill is not null)
+            surface = $"new {Common}WidgetSurface({fill}{(image is null ? "" : ", " + image.Code)})";
+        else if (image is not null)
+        {
+            optional = image.MaybeNull;
+            surface = image.MaybeNull ? $"({image.Present} ? new {Common}WidgetSurface({image.Sure}) : null)" : $"new {Common}WidgetSurface({image.Code})";
+        }
         if (surface is not null)
         {
             code.Append("\n    /// <summary>The widget's surface.</summary>\n");
-            code.Append($"    public static {Common}WidgetSurface Surface({Parameters(model)}) => {surface};\n#line default\n");
+            code.Append($"    public static {Common}WidgetSurface{(optional ? "?" : "")} Surface({Parameters(model)}) => {surface};\n#line default\n");
         }
 
         if (model is not null)
         {
             var strings = _usesStrings ? ", " + Common + "ISpineStrings strings" : "";
             var pass = _usesStrings ? ", strings" : "";
+            var perEntry = surface is not null && (Bound(fill) || Bound(image?.Code));
             code.Append("\n    /// <summary>A timeline of one entry per model, each shown from its time.</summary>\n");
             code.Append($"    public static {Common}WidgetTimeline Timeline(global::System.Collections.Generic.IEnumerable<(global::System.DateTimeOffset At, {model} Entry)> entries{strings})\n    {{\n");
             code.Append($"        var timeline = new {Common}WidgetTimeline();\n");
-            code.Append($"        foreach (var (at, entry) in entries)\n            timeline.Add(at, Build(entry{pass}), {(surface is null ? "null" : $"Surface(entry{pass})")});\n");
+            if (surface is not null && !perEntry)
+            {
+                if (fill is not null) code.Append($"        timeline.Background({fill});\n");
+                if (image is not null) code.Append($"        timeline.BackgroundImage({image.Code});\n");
+                code.Append("#line default\n");
+            }
+            code.Append(perEntry
+                ? $"        foreach (var (at, entry) in entries)\n            timeline.Add(at, Build(entry{pass}), Surface(entry{pass}));\n"
+                : $"        foreach (var (at, entry) in entries)\n            timeline.Add(at, Build(entry{pass}));\n");
             code.Append("        return timeline;\n    }\n");
         }
         return code.ToString();
@@ -635,7 +655,8 @@ internal sealed class LayoutCompiler
         return $"{Line(element)}new {Common}LiveUpdateText({string.Join(", ", arguments)})";
     }
 
-    string? Surface(XAttribute attribute, Scope scope)
+    /// <summary>A widget's color or gradient (<c>Background</c>), as a <c>WidgetColor</c> or a <c>WidgetGradient</c>.</summary>
+    string? Fill(XAttribute attribute, Scope scope)
     {
         var value = Parse(attribute);
         if (value is Markup { Name: "LinearGradient" } gradient)
@@ -647,9 +668,9 @@ internal sealed class LayoutCompiler
                 return null;
             }
             var direction = gradient["Direction"] is Literal d ? EnumValue(attribute, "WidgetGradientDirection", d.Text) : null;
-            return $"{Line(attribute)}new {Common}WidgetSurface(new {Common}WidgetGradient(new {Common}WidgetColor[] {{ {string.Join(", ", colors)} }}{(direction is null ? "" : ", " + direction)}))";
+            return $"{Line(attribute)}new {Common}WidgetGradient(new {Common}WidgetColor[] {{ {string.Join(", ", colors)} }}{(direction is null ? "" : ", " + direction)})";
         }
-        return Color(attribute, value, scope) is { } color ? $"{Line(attribute)}new {Common}WidgetSurface({color.Sure})" : null;
+        return Color(attribute, value, scope) is { } color ? $"{Line(attribute)}{color.Sure}" : null;
     }
 
     // ---- Templates and resources ----

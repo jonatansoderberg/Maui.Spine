@@ -44,7 +44,7 @@ A project that references Spine's projects instead of its packages adds the gene
 | Root | Members |
 |---|---|
 | `<LiveActivity>` | `static LiveActivityLayout Build(Model m)` |
-| `<Widget>` | `static WidgetNode Build(Model m)` (with `W.Adaptive` when there are sizes), or `IReadOnlyDictionary<WidgetFamily, WidgetNode>` when every size has its own tree; `static WidgetSurface Surface(Model m)` when it has a `Background`; `static WidgetTimeline Timeline(IEnumerable<(DateTimeOffset At, Model Entry)> entries)` |
+| `<Widget>` | `static WidgetNode Build(Model m)` (with `W.Adaptive` when there are sizes), or `IReadOnlyDictionary<WidgetFamily, WidgetNode>` when every size has its own tree; `static WidgetSurface Surface(Model m)` when it has a `Background` or `BackgroundImage`; `static WidgetTimeline Timeline(IEnumerable<(DateTimeOffset At, Model Entry)> entries)`, which puts a surface that does not change with the model on the timeline once and one that does on each entry |
 | `<LiveActivity>` with a model that announces changes | `static LiveActivityBinding Bind(LiveActivity activity, Model m, …)` and `static Task<LiveActivityBinding?> StartAsync(ILiveActivityService activities, string kind, Model m, …)`; see [Following a view model](#following-a-view-model) |
 | Both | `Actions` (a constant per button action, `Actions.NextGame` for `Action="next-game"`) and `Icons` (every icon the file can show, for `SpineWidgetsOptions.Icons`) |
 
@@ -110,7 +110,7 @@ A `LiveActivity` holds one tree for the Lock Screen (and Android's notification 
 
 Root attributes: `Model`, `Class`, `Background`, `SystemBackground`, `ActionColor`, `Link`, `Payload` (`Template`; see [Sending only the values](#sending-only-the-values)).
 
-A `Widget` holds one tree for every size, and a size its own with `<Widget.Small>`, `Widget.Medium`, `Widget.Large`, `Widget.ExtraLarge`, `Widget.LockRectangle`, `Widget.LockCircle` or `Widget.LockLine`. `Background` is a color or `{LinearGradient #1C222D, #0B0E13}` (`Direction=Horizontal`).
+A `Widget` holds one tree for every size, and a size its own with `<Widget.Small>`, `Widget.Medium`, `Widget.Large`, `Widget.ExtraLarge`, `Widget.LockRectangle`, `Widget.LockCircle` or `Widget.LockLine`. `Background` is a color or `{LinearGradient #1C222D, #0B0E13}` (`Direction=Horizontal`); `BackgroundImage` is a stored picture drawn over it (`BackgroundImage="{ThemeAsset}"`, the id given to `StoreAssetAsync`). A surface bound to the model is each entry's own and carries the background with the picture, since an entry's surface replaces the timeline's; a fixed one is set on the timeline once.
 
 | Element | C# | Attributes |
 |---|---|---|
@@ -138,7 +138,7 @@ Colors are `Primary`, `Secondary`, `Accent`, `Surface`, `OnAccent`, `Green`, `Re
 |---|---|
 | `{Name}`, `{Live.HomeGoals}` | The model's property; a step through a value that may be absent is `?.` |
 | `"{HomeGoals}–{AwayGoals}"` | Text mixed with bindings; an absent value writes nothing |
-| `{Arrow, Fallback=!}`, `{Venue, Fallback={Loc FaceOff}}` | The fallback where the value is absent |
+| `{Arrow, Fallback=!}`, `{Venue, Fallback={Loc FaceOff}}`, `{Note, Fallback='v {Week}'}` | The fallback where the value is absent; text, quoted or not, may hold bindings of its own |
 | `{Below, Prefix=' · '}` | The prefix in front of a value that is there (quote it to keep the spaces) |
 | `{Minute, Format=00}` | Formatted, as in `$"{x:00}"` |
 | `{Size, Scale=0.7}` | Times a number, the only arithmetic. On a `FontSize` it is rounded to whole points. |

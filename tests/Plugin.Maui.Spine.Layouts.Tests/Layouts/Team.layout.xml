@@ -1,7 +1,8 @@
 <!-- A team widget in the manner of Puckkoll's: every structure and markup extension a widget layout has. -->
 <Widget xmlns="https://schemas.cosmomedia.se/spine/layout"
         Model="Plugin.Maui.Spine.Layouts.Tests.TeamModel"
-        Background="{LinearGradient #1C222D, #0B0E13}">
+        Background="{LinearGradient #1C222D, #0B0E13}"
+        BackgroundImage="{Badge}">
 
     <Template Name="Card" Parameters="string Title, WidgetColor? Accent = null">
         <VStack Spacing="{StaticResource Gap}" Padding="12,8">
@@ -28,6 +29,8 @@
             </Label>
             <Label Text="{Venue, Prefix='@ '}" TextColor="{OnPlatform iOS=Secondary, Default=Primary}" />
         </HStack>
+        <Label Text="{Venue, Fallback='Home of {TeamName}'}" FontSize="Caption" />
+        <Label Text="{Next, Fallback=v {GoalCount}}" FontSize="Caption" />
         <Button Action="next-game" If="{IsFinal}">
             <Label Text="{Loc NextGame}" FontSize="Caption" />
         </Button>
