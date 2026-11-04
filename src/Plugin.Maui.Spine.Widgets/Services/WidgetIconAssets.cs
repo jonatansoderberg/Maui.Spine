@@ -74,7 +74,16 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     private static string Pascal(string name) =>
         string.Concat(name.Split('.', '_', '-').Where(p => p.Length > 0).Select(p => char.ToUpperInvariant(p[0]) + p[1..]));
 
-    private static byte[]? Render(Stream svgStream)
+    /// <summary>The icon as a PNG in <paramref name="color"/>, for <see cref="WidgetPreview"/>; null when there is no SVG of that name.</summary>
+    internal byte[]? Picture(string name, SKColor color)
+    {
+        using var stream = Open(name);
+        return stream is null ? null : Render(stream, color);
+    }
+
+    private static byte[]? Render(Stream svgStream) => Render(svgStream, SKColors.White);
+
+    private static byte[]? Render(Stream svgStream, SKColor color)
     {
         using var svg = new SKSvg();
         svg.Load(svgStream);
@@ -90,7 +99,7 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
         canvas.Scale(scale);
         canvas.Translate(-bounds.Left, -bounds.Top);
 
-        using var paint = new SKPaint { IsAntialias = true, ColorFilter = SKColorFilter.CreateBlendMode(SKColors.White, SKBlendMode.SrcIn) };
+        using var paint = new SKPaint { IsAntialias = true, ColorFilter = SKColorFilter.CreateBlendMode(color, SKBlendMode.SrcIn) };
         canvas.DrawPicture(picture, paint);
 
         using var image = SKImage.FromBitmap(bitmap);

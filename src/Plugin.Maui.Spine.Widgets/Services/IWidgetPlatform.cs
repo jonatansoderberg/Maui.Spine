@@ -14,6 +14,9 @@ internal interface IWidgetPlatform
     /// <summary>Stores a bitmap under <paramref name="assetId"/> where the renderer reads it.</summary>
     Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken);
 
+    /// <summary>Where a stored bitmap is, for <see cref="WidgetPreview"/>; null where there is none.</summary>
+    string? AssetPath(string assetId);
+
     /// <summary>
     /// Fetches the timeline's remote source where the platform does not do it itself. WidgetKit fetches
     /// one on every reload; Android's renderer reads a copy that only the app can refresh, and without
@@ -71,6 +74,7 @@ internal sealed class NoOpWidgetPlatform : IWidgetPlatform
     public bool IsSupported => false;
     public void WriteTimeline(string kind, string json) { }
     public Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken) => Task.CompletedTask;
+    public string? AssetPath(string assetId) => null;
     public Task FetchRemoteAsync(string kind, Uri source, CancellationToken cancellationToken) => Task.CompletedTask;
     public void Reload(string kind) { }
     public void ReloadAll() { }

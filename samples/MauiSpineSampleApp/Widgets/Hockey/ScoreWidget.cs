@@ -59,7 +59,7 @@ public sealed class ScoreWidget(LiveScore _score, IWidgetService _widgets, INavi
         ? _navigation.ShowAsync<LiveActivitiesPage>()
         : _navigation.ShowAsync<WidgetsPage>();
 
-    private static Dictionary<WidgetFamily, WidgetNode> Trees(Game game, DateTimeOffset now)
+    internal static Dictionary<WidgetFamily, WidgetNode> Trees(Game game, DateTimeOffset now)
     {
         var next = game.Phase == GamePhase.Scheduled;
         return new()

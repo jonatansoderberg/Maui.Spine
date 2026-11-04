@@ -1,7 +1,7 @@
 # Widgets everywhere: one description for every platform
 
 **Status:** In progress. Decisions D1–D12 approved by the owner on 2026-11-03.
-**Last updated:** 2026-11-04 (W0–W13 done)
+**Last updated:** 2026-11-04 (W0–W14 done; W15 waits for the owner)
 **Inputs:** the owner's review of Glukos's Live Activity on Android and iOS (#737, #739, #741); research into how others describe widgets for several platforms (§2); every widget and Live Activity in Glukos, Puckkoll and Almanacka, read and measured (§3).
 **Related:** [widgets-everywhere-examples.md](widgets-everywhere-examples.md) (every one of those written as a layout file), [docs/wiki/widgets.md](../wiki/widgets.md).
 **Goal:** An app describes a widget or Live Activity once, in names that read like MAUI and Spine, with narrow overrides where a platform needs something else, and Spine draws it on iOS and Android alike. Optionally as an XML layout file bound to a view model, compiled into the same C# by a source generator, so it is checked at build time and costs nothing extra at run time.
@@ -102,6 +102,8 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 
 *Done in W13 (#756):* `LiveActivityBinding` in Common, made by a file's generated `Bind`/`StartAsync` when its model is `INotifyPropertyChanged`, or by `LiveActivityBindings.Bind`/`StartBoundAsync` for a tree in C#. The window opens at the first change and the update is built when it closes (a throttle, not a debounce: a model that never stops changing still updates once per interval). An update with the same JSON as the last is left out. The generator lists the model's first-level properties that announce changes (`INotifyPropertyChanged`, `INotifyCollectionChanged`) and the binding follows them, re-reading them after each build; deeper levels are not followed. Disposing drops a pending update (`FlushAsync` sends it).
 
+*Done in W14 (#757):* `WidgetPreview` in the Widgets package draws a tree or a Live Activity in MAUI views at each place (Lock Screen, the island's three presentations, CarPlay, Android's notification, every widget size), from the platforms' own JSON: `WidgetJson.ResolveShared`, then `WidgetOverrides.Apply` for the platform and the place, the icons from the app's SVGs and the stored images from the App Group or the app's files. The Showcase's *Layout preview* page shows the score's activity and widget (C#) and `Reading.layout.xml` (a layout file in the sample) at every place, iOS or Android, light or dark, with `Explain()` under each. Screenshots: `images/w14-*.png`. It already showed one real problem: the score's fixed white text vanishes on Android's light notification when the tree is drawn there. Not done: reading a layout file at run time (§9).
+
 ## 6. Steps
 
 | Step | What | Depends on | Status | Issue | PR |
@@ -119,8 +121,8 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 | W10 | Buttons in Live Activities and Android notifications (D7) | — | Done | #753 | #768 |
 | W11 | Controls on SVG icons (D8) | W0, W4 | Done | #754 | #772 |
 | W12 | Layout files in tree mode; Glukos proven against today's JSON (§5, D9, D11) | W1–W7 | Done | #755 | #773 |
-| W13 | `Bind(viewModel)` for Live Activities | W12 | Done | #756 | |
-| W14 | A preview page for layouts in the Showcase | W12 | Ready | #757 | |
+| W13 | `Bind(viewModel)` for Live Activities | W12 | Done | #756 | #774 |
+| W14 | A preview page for layouts in the Showcase | W12 | Done | #757 | |
 | W15 | Template and data payloads | W12 | Proposal | | |
 
 ## 7. Platform differences
@@ -137,5 +139,5 @@ Any time, as their own issues when wanted: Divider colour and thickness; Spacer 
 ## 9. Open questions
 
 - W15: is a tenth of the payload worth a second template interpreter in Swift, or is the smaller tree enough? Glukos fits in 4 KB with the tree.
-- Hot reload for layout files: the generator runs on build; W14's preview reads files at run time in Debug.
+- Hot reload for layout files: the generator runs on build. Reading a file at run time in Debug, as W14 first meant to, needs an interpreter of the format beside the generator, the same second implementation W15 asks about; W14 previews what the generator built instead.
 - The file ending: `.layout.xml`, which every editor treats as XML, or one of Spine's own.

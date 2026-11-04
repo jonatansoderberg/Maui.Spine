@@ -55,6 +55,9 @@ internal sealed class NativeWidgetPlatform : IWidgetPlatform
             ? AtomicFile.WriteAsync(Path.Combine(WidgetStore.AssetsDirectory(_context), assetId), png, cancellationToken)
             : Task.CompletedTask;
 
+    public string? AssetPath(string assetId) =>
+        Path.Combine(WidgetStore.AssetsDirectory(_context), assetId) is var path && File.Exists(path) ? path : null;
+
     public void Reload(string kind)
     {
         if (IsSupported) SpineAppWidget.Update(_context, kind);
