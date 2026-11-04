@@ -62,6 +62,7 @@ PushNotifications                                    AnimatedLabel
   Controls.Avatar ──► Controls.Avatar.Core, Speech, Voice, Spine (and SkiaSharp)
   Speech (no Spine dependency)
   Avatar.Tool ──► Controls.Avatar (net10.0), Controls.Avatar.Core (a .NET tool, not a library)
+  Symbols.Tool (a .NET tool, SkiaSharp and Svg.Skia only)
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
   AI, Voice, Server.AI ──► AI.Functions ──► Common (and Microsoft.Extensions.AI.Abstractions)
   Common ◄── Server.Authentication (and JwtBearer, Azure.Data.Tables)
@@ -93,6 +94,7 @@ PushNotifications                                    AnimatedLabel
 | Text read aloud with the best installed voice, word by word | `Plugin.Maui.Spine.Speech` |
 | Text read aloud by a voice on the app's server, with mouth shapes for an avatar | `ServerSpeech` in `Plugin.Maui.Spine.Voice`, and a `Kind: Speech` feature in `Plugin.Maui.Spine.Server.AI` |
 | A `.spineavatar` checked, packed with posters and stripped for shipping | The `spine-avatar` tool, `Plugin.Maui.Spine.Avatar.Tool` |
+| An app's own SVG as the icon of a Control Center control on iOS | The `spine-symbols` tool, `Plugin.Maui.Spine.Symbols.Tool` (Spine's own icons are built in) |
 | A voice assistant with a face: an avatar following a realtime conversation | `Plugin.Maui.Spine.Controls.Avatar` (brings the voice packages) |
 | Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
@@ -174,6 +176,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
 | `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
 | `Plugin.Maui.Spine.Avatar.Tool` | `net10.0`, as a .NET tool (`dotnet tool install -g Plugin.Maui.Spine.Avatar.Tool`, command `spine-avatar`) |
+| `Plugin.Maui.Spine.Symbols.Tool` | `net10.0`, as a .NET tool (`dotnet tool install -g Plugin.Maui.Spine.Symbols.Tool`, command `spine-symbols`) |
 | `Plugin.Maui.Spine.Voice` | `net10.0` (the meter, the queue, the resampler and the shared engine, for tests) and the four MAUI frameworks (adding the platform engines and `UseSpineVoice`) |
 | `Plugin.Maui.Spine.AI` | `net10.0` (the server client, the fallback chain and the meter, for tests and non-MAUI clients) and the four MAUI frameworks (adding `UseSpineAI`) |
 | `Plugin.Maui.Spine.Authentication` | `net10.0` (the server client, the session and the `HttpClient` handler, for tests) and the four MAUI frameworks (adding `o.AddAuthentication`, the sheet, `[RequiresSignIn]` and Apple) |

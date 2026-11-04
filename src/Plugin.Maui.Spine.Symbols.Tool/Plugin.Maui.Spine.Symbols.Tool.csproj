@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		The spine-symbols command: SVG icons as custom symbols (.symbolset) for an iOS asset catalog. Strokes become filled
+		outlines and the outline goes into the SF Symbols template, since iOS draws only symbols in a control (#743, #754).
+		Spine's own icons ship ready in Plugin.Maui.Spine.Widgets; an app runs this for its own SVGs.
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<AssemblyName>spine-symbols</AssemblyName>
+		<RootNamespace>SpineSymbols</RootNamespace>
+		<PackAsTool>true</PackAsTool>
+		<ToolCommandName>spine-symbols</ToolCommandName>
+		<PackageId>Plugin.Maui.Spine.Symbols.Tool</PackageId>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>The spine-symbols command: turns SVG icons into custom symbols for an iOS asset catalog, strokes outlined, so an app's own SVGs draw in Control Center controls as Spine's icons do.</Description>
+		<PackageTags>$(PackageTags);symbols;sf-symbols;tool;widgets</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="SkiaSharp" />
+		<PackageReference Include="Svg.Skia" />
+	</ItemGroup>
+
+	<!-- As Plugin.Maui.Spine.Avatar.Tool: SkiaSharp's libraries for the platforms a developer runs on, without symbols. -->
+	<PropertyGroup>
+		<ToolRuntimes>;osx;win-x64;win-arm64;linux-x64;linux-arm64;</ToolRuntimes>
+	</PropertyGroup>
+	<Target Name="TrimNativeAssets" AfterTargets="ComputeResolvedFilesToPublishList">
+		<ItemGroup>
+			<ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('runtimes')) and ('%(Extension)' == '.pdb' or !$(ToolRuntimes.Contains(';$([System.String]::Copy('%(RelativePath)').Split('/\')[1]);')))" />
+		</ItemGroup>
+	</Target>
+
+</Project>

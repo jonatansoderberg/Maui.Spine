@@ -21,8 +21,7 @@ public sealed class GoalControl(LiveScore _score) : IControlProvider
             _ => "No game on",
         };
 
-        // The SVG "plus" draws the Android tile; iOS draws only SF Symbols, so it gets a puck.
-        return Task.FromResult(ControlState.Button($"Goal {Teams.Followed.ShortName}", "plus", status) with { Symbol = "hockey.puck" });
+        return Task.FromResult(ControlState.Button($"Goal {Teams.Followed.ShortName}", "Plus", status));
     }
 
     public Task OnActionAsync(ControlAction action) => _score.GoalForFollowedAsync();

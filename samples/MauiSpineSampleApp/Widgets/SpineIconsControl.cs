@@ -5,7 +5,7 @@ namespace MauiSpineSampleApp.Widgets;
 /// <summary>
 /// A button in Control Center and Quick Settings that shows Spine's SVG icons, the next one on every tap. iOS draws
 /// only symbols in a control, so on iOS each is a custom symbol in the extension's asset catalog
-/// (Platforms/iOS/SpineWidgets.xcassets, written by tools/SpineSymbols): stroked icons outlined first, filled ones
+/// (SpineIcons.xcassets, which Plugin.Maui.Spine.Widgets builds into the extension): stroked icons outlined first, filled ones
 /// as they are (#743).
 /// </summary>
 [Control(Kind)]

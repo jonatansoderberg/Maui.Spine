@@ -29,7 +29,7 @@
 		                                                                 app; builds the extension for iOS 26 and later, so an app
 		                                                                 that turns it on has no widgets on older iOS)
 		  SpineWidgetsAssetCatalog    default empty                     (iOS: an .xcassets compiled into the extension, e.g. custom
-		                                                                 symbols from tools/SpineSymbols that a control names)
+		                                                                 symbols from the spine-symbols tool for the app's own SVGs; Spine's icons are built in)
 	-->
 	<PropertyGroup>
 		<SpineWidgetsEnabled Condition="'$(SpineWidgetsEnabled)' == ''">true</SpineWidgetsEnabled>
@@ -103,6 +103,8 @@
 			<_SpineWidgetsArgs Condition="'@(SpineWidget)' != ''">--widget &quot;@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)', '&quot; --widget &quot;')&quot;</_SpineWidgetsArgs>
 			<_SpineWidgetsArgs Condition="'@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true'">$(_SpineWidgetsArgs) --control &quot;@(SpineControl->'%(Identity)|%(Type)|%(DisplayName)|%(Description)|%(Icon)', '&quot; --control &quot;')&quot;</_SpineWidgetsArgs>
 			<_SpineWidgetsAssetCatalogDir Condition="'$(SpineWidgetsAssetCatalog)' != ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(SpineWidgetsAssetCatalog)'))</_SpineWidgetsAssetCatalogDir>
+			<!-- Spine's icons as custom symbols, ready in the package, so a control can name SpineIcons.Bell; beside the app's own catalog. -->
+			<_SpineWidgetsArgs Condition="'@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true'">$(_SpineWidgetsArgs) --assets &quot;$(_SpineWidgetsNativeDir)SpineIcons.xcassets&quot;</_SpineWidgetsArgs>
 			<_SpineWidgetsArgs Condition="'$(_SpineWidgetsAssetCatalogDir)' != ''">$(_SpineWidgetsArgs) --assets &quot;$(_SpineWidgetsAssetCatalogDir.TrimEnd('/'))&quot;</_SpineWidgetsArgs>
 			<!-- The APNs host the widget token belongs to follows the app's, which Plugin.Maui.Spine.PushNotifications sets. -->
 			<_SpineWidgetsPushEnvironment>$(SpinePushNotificationsEnvironment)</_SpineWidgetsPushEnvironment>
