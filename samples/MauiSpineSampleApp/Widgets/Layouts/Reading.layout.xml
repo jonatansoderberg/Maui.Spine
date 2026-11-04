@@ -1,6 +1,7 @@
 <!-- A reading in every place iOS and Android show a Live Activity, written as a layout file: the generator makes ReadingLayout.Build of it. -->
 <LiveActivity xmlns="https://schemas.cosmomedia.se/spine/layout"
               Model="MauiSpineSampleApp.Widgets.Layouts.ReadingModel"
+              Payload="Template"
               Background="#000000"
               Link="{Link}">
 

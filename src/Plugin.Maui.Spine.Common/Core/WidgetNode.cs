@@ -24,6 +24,9 @@ namespace Plugin.Maui.Spine.Common;
 [JsonDerivedType(typeof(ButtonNode), "button")]
 [JsonDerivedType(typeof(AdaptiveNode), "adaptive")]
 [JsonDerivedType(typeof(UseNode), "use")]
+[JsonDerivedType(typeof(TemplateIfNode), "$if")]
+[JsonDerivedType(typeof(TemplateEachNode), "$each")]
+[JsonDerivedType(typeof(TemplateDataNode), "$")]
 public abstract record WidgetNode
 {
     /// <summary>

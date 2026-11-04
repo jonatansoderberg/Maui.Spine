@@ -6,7 +6,7 @@ using Plugin.Maui.Spine.Common.Serialization;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
-internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconAssets _icons, ILogger<LiveActivityService> _logger) : ILiveActivityService
+internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconAssets _icons, SpineWidgetsOptions _options, ILogger<LiveActivityService> _logger) : ILiveActivityService
 {
     /// <summary>The activities the app last knew about, as id → kind, kept across processes.</summary>
     private const string MemoryKey = "spine.widgets.activities";
@@ -29,6 +29,9 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     public bool IsSupported => _platform.AreActivitiesSupported;
 
     public bool AreActivitiesEnabled => _platform.AreActivitiesEnabled;
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> Templates => _platform.AreActivitiesSupported ? [.. _options.Templates.Select(t => t.Id)] : [];
 
     public IReadOnlyList<LiveActivity> Active
     {

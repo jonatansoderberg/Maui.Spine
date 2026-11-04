@@ -241,10 +241,17 @@ public static partial class SpinePushNotificationsExtensions
                 return true;
         }
 
-        static LiveActivityLayout? Layout(PushMessage message) =>
-            message.Data.GetValueOrDefault(PushKeys.Layout) is { Length: > 0 } json
-                ? WidgetJson.DeserializeLayout(json)
-                : null;
+        static LiveActivityLayout? Layout(PushMessage message)
+        {
+            if (message.Data.GetValueOrDefault(PushKeys.Layout) is { Length: > 0 } json)
+                return WidgetJson.DeserializeLayout(json);
+            // Only the values, for a template the app installed (SpineWidgetsOptions.Templates): filled in here.
+            if (message.Data.GetValueOrDefault(PushKeys.Template) is not { Length: > 0 } id
+                || Services().GetService<SpineWidgetsOptions>()?.Templates.FirstOrDefault(t => t.Id == id) is not { } template
+                || System.Text.Json.Nodes.JsonNode.Parse(message.Data.GetValueOrDefault(PushKeys.TemplateData) ?? "{}") is not System.Text.Json.Nodes.JsonObject data)
+                return null;
+            return template.RenderLayout(new LiveActivityTemplateData(id, data));
+        }
 
         static string? Channel(PushMessage message) =>
             message.Data.GetValueOrDefault(PushKeys.ActivityChannel) is { Length: > 0 } channel ? channel : null;

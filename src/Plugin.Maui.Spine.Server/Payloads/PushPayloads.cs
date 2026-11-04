@@ -134,8 +134,47 @@ public static class PushPayloads
         string bundleId,
         DateTimeOffset now)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
         ArgumentNullException.ThrowIfNull(layout);
+        return ApnsLiveActivity(kind, layout.ToJson(), null, @event, alert, options, bundleId, now);
+    }
+
+    /// <summary>
+    /// Builds the APNs request for a Live Activity from the values of a template the device installed
+    /// (<see cref="LiveActivityTokens.Templates"/>): a fraction of the layout's size. A device without the template draws
+    /// nothing for it, so send this only to one that reported it.
+    /// </summary>
+    /// <param name="kind">The kind the activity was started with.</param>
+    /// <param name="data">The template's values, from a layout file's generated <c>Data(model)</c>.</param>
+    /// <param name="event">What this push does to the activity.</param>
+    /// <param name="alert">The text shown when starting by push; ignored otherwise.</param>
+    /// <param name="options">Timing and priority; defaults when omitted.</param>
+    /// <param name="bundleId">The app's bundle id; the topic gets the Live Activity suffix.</param>
+    /// <param name="now">The current time, written as the payload's timestamp.</param>
+    /// <returns>The envelope the APNs transport sends.</returns>
+    public static PushEnvelope ApnsLiveActivity(
+        string kind,
+        LiveActivityTemplateData data,
+        LiveActivityEvent @event,
+        PushAlert? alert,
+        LiveActivityOptions? options,
+        string bundleId,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return ApnsLiveActivity(kind, data.ToJson(), data.TemplateId, @event, alert, options, bundleId, now);
+    }
+
+    private static PushEnvelope ApnsLiveActivity(
+        string kind,
+        string content,
+        string? template,
+        LiveActivityEvent @event,
+        PushAlert? alert,
+        LiveActivityOptions? options,
+        string bundleId,
+        DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
 
         options ??= new LiveActivityOptions();
 
@@ -148,12 +187,13 @@ public static class PushPayloads
                     LiveActivityEvent.End => "end",
                     _ => "update",
                 },
-                ContentStateJson: layout.ToJson(),
+                ContentStateJson: content,
                 Timestamp: now,
                 StaleAt: options.StaleAt,
                 DismissAt: options.DismissAt,
                 InputPushChannel: @event == LiveActivityEvent.Start ? options.Channel : null,
-                StartKind: @event == LiveActivityEvent.Start ? kind : null),
+                StartKind: @event == LiveActivityEvent.Start ? kind : null,
+                TemplateId: template),
         };
 
         if (@event == LiveActivityEvent.Start && alert is { } text)
@@ -187,13 +227,33 @@ public static class PushPayloads
     public static PushEnvelope FcmLiveActivity(
         string kind, LiveActivityLayout layout, LiveActivityEvent @event, LiveActivityOptions? options = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
         ArgumentNullException.ThrowIfNull(layout);
+        return FcmLiveActivity(kind, new Dictionary<string, string> { [PushKeys.Layout] = layout.ToJson() }, @event, options);
+    }
+
+    /// <summary>Builds the FCM message for an Android Live Update from the values of a template the app installed.</summary>
+    /// <param name="kind">The kind the activity was started with.</param>
+    /// <param name="data">The template's values, from a layout file's generated <c>Data(model)</c>.</param>
+    /// <param name="event">What this push does to the activity.</param>
+    /// <param name="options">Timing and channel, as for the layout.</param>
+    /// <returns>The envelope the FCM transport sends.</returns>
+    public static PushEnvelope FcmLiveActivity(
+        string kind, LiveActivityTemplateData data, LiveActivityEvent @event, LiveActivityOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return FcmLiveActivity(kind, new Dictionary<string, string> { [PushKeys.Template] = data.TemplateId, [PushKeys.TemplateData] = data.ToJson() }, @event, options);
+    }
+
+    private static PushEnvelope FcmLiveActivity(
+        string kind, Dictionary<string, string> content, LiveActivityEvent @event, LiveActivityOptions? options)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
 
         var message = new FcmMessage { HighPriority = true };
         message.Data[PushKeys.Kind] = PushKeys.Kinds.LiveActivity;
         message.Data[PushKeys.Activity] = kind;
-        message.Data[PushKeys.Layout] = layout.ToJson();
+        foreach (var (key, value) in content)
+            message.Data[key] = value;
         message.Data["spine.event"] = @event switch
         {
             LiveActivityEvent.Start => "start",

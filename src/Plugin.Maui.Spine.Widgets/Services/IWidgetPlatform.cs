@@ -18,6 +18,12 @@ internal interface IWidgetPlatform
     string? AssetPath(string assetId);
 
     /// <summary>
+    /// Puts the Live Activity templates where the renderer fills them in from a push, and takes away the ones the app no
+    /// longer has. Android fills them in in the app's own process, from <see cref="SpineWidgetsOptions.Templates"/>.
+    /// </summary>
+    void InstallTemplates(IReadOnlyCollection<LiveActivityTemplate> templates) { }
+
+    /// <summary>
     /// Fetches the timeline's remote source where the platform does not do it itself. WidgetKit fetches
     /// one on every reload; Android's renderer reads a copy that only the app can refresh, and without
     /// this a reload asked for by push would redraw the copy fetched hours ago.

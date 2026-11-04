@@ -1,6 +1,7 @@
 <!-- One person's reading in every place iOS and Android show it: Glukos's GlucoseActivity.Layout, as a file. -->
 <LiveActivity xmlns="https://schemas.cosmomedia.se/spine/layout"
               Model="Plugin.Maui.Spine.Layouts.Tests.GlucoseModel"
+              Payload="Template"
               Background="#000000"
               Link="{Link}">
 

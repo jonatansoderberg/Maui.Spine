@@ -24,6 +24,9 @@
       <xs:attribute name="Link" type="xs:string">
         <xs:annotation><xs:documentation>The URL the app is opened with.</xs:documentation></xs:annotation>
       </xs:attribute>
+      <xs:attribute name="Payload" type="LayoutPayload">
+        <xs:annotation><xs:documentation>Template also writes Template and Data(model), so a push can carry the values alone.</xs:documentation></xs:annotation>
+      </xs:attribute>
       <xs:anyAttribute processContents="skip" />
     </xs:complexType>
   </xs:element>
@@ -1001,6 +1004,16 @@
           <xs:enumeration value="Clock" />
           <xs:enumeration value="Minutes" />
           <xs:enumeration value="Ago" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="LayoutPayload">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="Tree" />
+          <xs:enumeration value="Template" />
         </xs:restriction>
       </xs:simpleType>
     </xs:union>

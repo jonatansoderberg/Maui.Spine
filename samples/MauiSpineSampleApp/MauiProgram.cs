@@ -8,6 +8,7 @@ using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Svg;
 using Plugin.Maui.Spine.Voice;
+using Plugin.Maui.Spine.Widgets.Extensions;
 
 namespace MauiSpineSampleApp;
 
@@ -20,6 +21,8 @@ public static class MauiProgram
             .UseMauiApp<App>()
             // UseSpine registers every Spine package the app references (AnimatedLabel, Widgets, …);
             // a package's own call is only needed to change its options, before or after UseSpine.
+            // Reading.layout.xml as a template on the device, so a push to the reading's activity can carry its values alone.
+            .UseSpineWidgets(options => options.Templates.Add(MauiSpineSampleApp.Widgets.Layouts.ReadingLayout.Template))
             .UseSvgIcon(options =>
             {
                 options.PaddingPercent = -0.08f;

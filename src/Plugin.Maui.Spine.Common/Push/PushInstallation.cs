@@ -45,6 +45,12 @@ public sealed record LiveActivityTokens
     /// <summary>Tokens for the activities that are running, keyed by the kind each was started with.</summary>
     public IReadOnlyDictionary<string, string> Activities { get; init; } =
         new Dictionary<string, string>();
+
+    /// <summary>
+    /// The Live Activity templates the device has installed (<see cref="LiveActivityTemplate.Id"/>): a server sends one of
+    /// them only its values, and the whole layout to a device without it.
+    /// </summary>
+    public IReadOnlyList<string> Templates { get; init; } = [];
 }
 
 /// <summary>

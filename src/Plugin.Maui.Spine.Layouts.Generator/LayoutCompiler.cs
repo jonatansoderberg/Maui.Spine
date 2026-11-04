@@ -31,6 +31,8 @@ internal sealed class LayoutCompiler
     readonly HashSet<string>? _knownIcons;
     INamedTypeSymbol? _model;
     bool _usesStrings;
+    TemplatePass? _tp;
+    bool _quiet;
     readonly SortedSet<string> _sources = new(StringComparer.Ordinal);
     int _loops;
 
@@ -144,6 +146,107 @@ internal sealed class LayoutCompiler
         public bool MaybeNull { get; } = maybeNull;
     }
 
+    /// <summary>
+    /// The second pass of a file with <c>Payload="Template"</c>: the same tree with each bound value a placeholder, and
+    /// beside it the statements that collect those values, nested as the conditions and loops that guard them.
+    /// </summary>
+    sealed class TemplatePass
+    {
+        int _next;
+        public StringBuilder Data { get; set; } = new();
+        public string Site { get; set; } = "";
+        public string Values { get; set; } = "d";
+        public int Depth { get; set; }
+        public StringBuilder Functions { get; } = new();
+        public string? Failure { get; private set; }
+        public XObject? FailedAt { get; private set; }
+
+        /// <summary>The values already collected, by their code, in this block and those around it: used again rather than sent twice.</summary>
+        public List<Dictionary<string, string>> Seen { get; set; } = [new(StringComparer.Ordinal)];
+
+        public string Key()
+        {
+            var name = new StringBuilder();
+            for (var n = _next++; ; n = n / 26 - 1)
+            {
+                name.Insert(0, (char)('a' + n % 26));
+                if (n < 26) break;
+            }
+            return Site.Length == 0 ? Lit(name.ToString()) : $"{Site} + {Lit(name.ToString())}";
+        }
+
+        /// <summary>Starts the keys of a template's body again from a: its site's key keeps them apart.</summary>
+        public (int, List<Dictionary<string, string>>) Restart()
+        {
+            var saved = (_next, Seen);
+            (_next, Seen) = (0, [new(StringComparer.Ordinal)]);
+            return saved;
+        }
+
+        public void Resume((int Next, List<Dictionary<string, string>> Seen) saved) => (_next, Seen) = saved;
+
+        public void Fail(string reason, XObject? at)
+        {
+            Failure ??= reason;
+            FailedAt ??= at;
+        }
+    }
+
+    static readonly System.Text.RegularExpressions.Regex BoundCode = new(@"(?<![\w.""])(m|item\d+|strings)\b(?!"")");
+
+    static bool Bound(string? code) => code is not null && BoundCode.IsMatch(code);
+
+    /// <summary>
+    /// A value where the layout uses it: as it is on the first pass; on the template pass, when it depends on the model,
+    /// a placeholder, its value collected under a new key.
+    /// </summary>
+    string Out(string code, Kind kind, XObject? at)
+    {
+        if (_tp is null || !Bound(code))
+            return code;
+        var method = kind switch
+        {
+            Kind.Text or Kind.Icon or Kind.Name => "S",
+            Kind.Number or Kind.FontSize => "N",
+            Kind.Color => "C",
+            Kind.Date => "D",
+            Kind.Uri => "U",
+            _ => null,
+        };
+        if (method is null)
+        {
+            _tp.Fail($"'{(at as XAttribute)?.Value ?? code}' is bound to a {kind} value, which a template cannot hold", at);
+            return code;
+        }
+        var seen = _tp.Values + "|" + code;
+        if (_tp.Seen.Select(level => level.TryGetValue(seen, out var known) ? known : null).LastOrDefault(k => k is not null) is { } same)
+            return $"t.{method}({same})";
+        var key = _tp.Key();
+        _tp.Data.Append($"        {_tp.Values}.Set({key}, {code});\n");
+        _tp.Seen[_tp.Seen.Count - 1][seen] = key;
+        return $"t.{method}({key})";
+    }
+
+    /// <summary>Runs <paramref name="emit"/> with the template pass's values collected apart, and returns them.</summary>
+    T Capture<T>(Func<T> emit, out string values)
+    {
+        if (_tp is null)
+        {
+            values = "";
+            return emit();
+        }
+        var outer = _tp.Data;
+        _tp.Data = new StringBuilder();
+        _tp.Seen.Add(new Dictionary<string, string>(StringComparer.Ordinal));
+        try { return emit(); }
+        finally
+        {
+            values = _tp.Data.ToString();
+            _tp.Data = outer;
+            _tp.Seen.RemoveAt(_tp.Seen.Count - 1);
+        }
+    }
+
     public void Compile()
     {
         var document = _file.Load(Diagnostics);
@@ -180,6 +283,9 @@ internal sealed class LayoutCompiler
             Report(Layouts.Diagnostics.DrawnNowhere, template.Element.Attribute("Name") ?? (XObject)template.Element, $"The template '{template.Name}' is used nowhere");
         foreach (var shared in _shared.Values.Where(s => !s.Used))
             Report(Layouts.Diagnostics.DrawnNowhere, shared.Element.Attribute("Shared") ?? (XObject)shared.Element, $"The shared node '{shared.Element.Attribute("Shared")?.Value}' is used nowhere");
+
+        if (kind == "LiveActivity" && root.Attribute("Payload")?.Value == "Template")
+            body += TemplateBody(root, className);
 
         var code = new StringBuilder();
         code.Append("// <auto-generated/>\n");
@@ -291,18 +397,35 @@ internal sealed class LayoutCompiler
         if (_shared.Count > 0)
             properties.Add("Shared = shared.Count == 0 ? null : shared");
         if (root.Attribute("Background") is { } background && Color(background, top) is { } color)
-            properties.Add($"Background = {color.Code}");
+            properties.Add($"Background = {Out(color.Code, Kind.Color, background)}");
         if (root.Attribute("SystemBackground") is { } system && Bool(system, top) is { } systemBackground)
+        {
+            if (_tp is not null && Bound(systemBackground)) _tp.Fail("SystemBackground is bound", system);
             properties.Add($"SystemBackground = {systemBackground}");
+        }
         if (root.Attribute("ActionColor") is { } actionColor && Color(actionColor, top) is { } action)
-            properties.Add($"ActionColor = {action.Code}");
+            properties.Add($"ActionColor = {Out(action.Code, Kind.Color, actionColor)}");
         if (root.Attribute("Link") is { } link && Value(link, Kind.Uri, null, top) is { } uri)
-            properties.Add($"Link = {uri.Code}");
+            properties.Add($"Link = {Out(uri.Code, Kind.Uri, link)}");
         properties.AddRange(regions);
         if (android is not null)
             properties.Add($"Android = {android}");
 
         var code = new StringBuilder();
+        if (_tp is not null)
+        {
+            // The template: the same tree with placeholders, built once, with no model in reach.
+            var functions = Templates(top);
+            code.Append("        var shared = new global::System.Collections.Generic.Dictionary<string, " + Common + "WidgetNode>();\n");
+            code.Append(sharedCode);
+            code.Append("#line default\n");
+            code.Append(functions);
+            code.Append($"        return new {Common}LiveActivityLayout\n        {{\n");
+            foreach (var property in properties)
+                code.Append($"            {property},\n");
+            code.Append("#line default\n        };\n");
+            return code.ToString();
+        }
         code.Append($"    /// <summary>The layout for <paramref name=\"m\"/>.</summary>\n");
         code.Append($"    public static {Common}LiveActivityLayout Build({Parameters(model)})\n    {{\n");
         if (_shared.Count > 0)
@@ -420,6 +543,63 @@ internal sealed class LayoutCompiler
         return code.ToString();
     }
 
+    /// <summary>
+    /// For <c>Payload="Template"</c>: the layout again, with every bound value a placeholder (<c>Template</c>), and the
+    /// values alone (<c>Data(model)</c>), collected under the same conditions and loops as the tree draws them.
+    /// </summary>
+    string TemplateBody(XElement root, string className)
+    {
+        var model = ModelParameter();
+        if (model is null)
+        {
+            Report(Layouts.Diagnostics.NotATemplate, root.Attribute("Payload"), "A template's values come from a Model, and the file has none");
+            return "";
+        }
+        var reported = Diagnostics.Count;
+        _tp = new TemplatePass();
+        _quiet = true;
+        foreach (var shared in _shared.Values) shared.Used = false;
+        foreach (var template in _templates.Values) template.Used = false;
+        string body;
+        try { body = LiveActivity(root) ?? ""; }
+        finally { _quiet = false; }
+        var pass = _tp;
+        _tp = null;
+        if (pass.Failure is null && BoundCode.Match(body) is { Success: true } leak)
+            pass.Fail($"'{body.Substring(Math.Max(0, leak.Index - 60), Math.Min(120, body.Length - Math.Max(0, leak.Index - 60))).Replace("\n", " ")}' uses the model where the template cannot reach it", root);
+        if (pass.Failure is { } failure)
+        {
+            Report(Layouts.Diagnostics.NotATemplate, pass.FailedAt ?? root, $"The layout is sent as a tree: {failure}");
+            return "";
+        }
+
+        var name = Kebab(className.EndsWith("Layout", StringComparison.Ordinal) ? className.Substring(0, className.Length - 6) : className);
+        var code = new StringBuilder();
+        code.Append("\n    static " + Common + "LiveActivityTemplate? s_template;\n\n");
+        code.Append("    /// <summary>The layout as a template the device keeps, so a push carries only <see cref=\"Data\"/>: install it with <c>SpineWidgetsOptions.Templates</c>.</summary>\n");
+        code.Append($"    public static {Common}LiveActivityTemplate Template => s_template ??= {Common}LiveActivityTemplate.Create({Lit(name)}, Icons, static t =>\n    {{\n");
+        code.Append(body);
+        code.Append("    });\n\n");
+        code.Append("    /// <summary>The values <see cref=\"Template\"/> needs for <paramref name=\"m\"/>: with it, what <see cref=\"Build\"/> writes.</summary>\n");
+        code.Append($"    public static {Common}LiveActivityTemplateData Data({Parameters(model)})\n    {{\n");
+        code.Append($"        var d = new {Common}LiveActivityTemplateValues();\n");
+        code.Append(pass.Functions);
+        code.Append(pass.Data);
+        code.Append("#line default\n        return d.For(Template);\n    }\n");
+        return code.ToString();
+    }
+
+    static string Kebab(string name)
+    {
+        var builder = new StringBuilder();
+        foreach (var c in name)
+        {
+            if (char.IsUpper(c) && builder.Length > 0) builder.Append('-');
+            builder.Append(char.ToLowerInvariant(c));
+        }
+        return builder.ToString();
+    }
+
     string? ModelParameter() => _model?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
     string Parameters(string? model)
@@ -449,7 +629,7 @@ internal sealed class LayoutCompiler
         var arguments = new List<string>();
         foreach (var (attribute, parameter) in new[] { ("Title", "Title"), ("Text", "Body"), ("Chip", "Chip"), ("Icon", "Icon") })
             if (element.Attribute(attribute) is { } a && Text(a, scope, required: false) is { } text)
-                arguments.Add($"{parameter}: {text.Code}");
+                arguments.Add($"{parameter}: {Out(text.Code, Kind.Text, a)}");
         if (element.Attribute("Presentation") is { } presentation && Enum(presentation, "LiveUpdatePresentation") is { } p)
             arguments.Add($"Presentation: {p}");
         return $"{Line(element)}new {Common}LiveUpdateText({string.Join(", ", arguments)})";
@@ -547,9 +727,23 @@ internal sealed class LayoutCompiler
             var scope = top.WithVars(vars);
             scope.InTemplate = true;
             scope.Region = "Template";
-            var body = One(template.Element, ignore: "Parameters") is { } root ? Node(root, scope) : null;
             var signature = template.Signature + (template.HasContent ? (template.Signature.Trim().Length > 0 ? ", " : "") + $"{Common}WidgetNode?[]? content = null" : "");
-            functions.Add($"        {Common}WidgetNode? {template.Name}({signature}) =>{body?.Code ?? " null"};\n#line default\n");
+            if (_tp is null)
+            {
+                var body = One(template.Element, ignore: "Parameters") is { } root ? Node(root, scope) : null;
+                functions.Add($"        {Common}WidgetNode? {template.Name}({signature}) =>{body?.Code ?? " null"};\n#line default\n");
+                continue;
+            }
+            // On the template pass each use of the template is a site: its keys are the site's key and their own.
+            var (site, values, depth) = (_tp.Site, _tp.Values, _tp.Depth);
+            (_tp.Site, _tp.Values, _tp.Depth) = ("site", "d", 0);
+            var keys = _tp.Restart();
+            var shape = Capture(() => One(template.Element, ignore: "Parameters") is { } root ? Node(root, scope) : null, out var collected);
+            _tp.Resume(keys);
+            (_tp.Site, _tp.Values, _tp.Depth) = (site, values, depth);
+            var parameters = template.Signature.Trim().Length > 0 ? ", " + template.Signature : "";
+            functions.Add($"        {Common}WidgetNode? {template.Name}(string site{(template.HasContent ? parameters + $", {Common}WidgetNode?[]? content = null" : parameters)}) =>{shape?.Code ?? " null"};\n#line default\n");
+            _tp.Functions.Append($"        void {template.Name}Data({Common}LiveActivityTemplateValues d, string site{parameters})\n        {{\n{collected}#line default\n        }}\n");
         }
         foreach (var function in functions)
             code.Append(function);
@@ -640,19 +834,18 @@ internal sealed class LayoutCompiler
         if (element.Attribute("Description") is not null || IsTrue(element.Attribute("Decorative")))
             scope.Described = true;
 
-        Emitted? node;
-        if (_templates.TryGetValue(name, out var template))
-            node = TemplateCall(element, template, scope);
-        else if (!Vocabulary.Nodes.Contains(name))
+        Emitted? Emit()
         {
-            Report(Layouts.Diagnostics.UnknownElement, element,
-                name is "ForEach" or "Content" ? $"{name} goes among a stack's children" : $"There is no element '{name}' and no template of that name");
-            return null;
-        }
-        else
-        {
+            if (_templates.TryGetValue(name, out var template))
+                return TemplateCall(element, template, scope);
+            if (!Vocabulary.Nodes.Contains(name))
+            {
+                Report(Layouts.Diagnostics.UnknownElement, element,
+                    name is "ForEach" or "Content" ? $"{name} goes among a stack's children" : $"There is no element '{name}' and no template of that name");
+                return null;
+            }
             CheckAttributes(element, name);
-            node = name switch
+            var emitted = name switch
             {
                 "VStack" or "HStack" or "ZStack" => Stack(element, name, scope),
                 "Choose" => Choose(element, scope),
@@ -660,9 +853,12 @@ internal sealed class LayoutCompiler
                 "Button" => Button(element, scope),
                 _ => Leaf(element, name, scope),
             };
-            if (node is not null && name is not ("Choose" or "Use"))
-                node = new Emitted(Overrides(node.Code, element, name, scope), node.MaybeNull);
+            if (emitted is not null && name is not ("Choose" or "Use") && !(_tp is not null && emitted.Code.StartsWith("t.Node(", StringComparison.Ordinal)))
+                emitted = new Emitted(Overrides(emitted.Code, element, name, scope), emitted.MaybeNull);
+            return emitted;
         }
+        var guarded = "";
+        var node = conditions.Count > 0 ? Capture(Emit, out guarded) : Emit();
         if (node is null)
             return null;
 
@@ -672,6 +868,12 @@ internal sealed class LayoutCompiler
         if (conditions.Count == 0)
             return new Emitted($"{Line(element)}{node.Code}", node.MaybeNull);
         var test = string.Join(" && ", conditions.Select(c => c.Code));
+        if (_tp is not null)
+        {
+            var key = _tp.Key();
+            _tp.Data.Append($"        if ({_tp.Values}.If({key}, {test}))\n        {{\n{guarded}        }}\n");
+            return new Emitted($"{Line(element)}t.If({key}, {node.Code})", true);
+        }
         return new Emitted($"{Line(element)}({test} ? ({Common}WidgetNode?)({node.Code}) : null)", true);
     }
 
@@ -713,7 +915,11 @@ internal sealed class LayoutCompiler
                 continue;
             if (name == "ForEach")
             {
-                if (ForEach(child, scope) is { } each) { items.Add(".. " + each); spread = true; }
+                if (ForEach(child, scope) is { } each)
+                {
+                    items.Add(_tp is null ? ".. " + each : each);
+                    spread |= _tp is null;
+                }
                 continue;
             }
             if (name == "Content")
@@ -759,6 +965,8 @@ internal sealed class LayoutCompiler
 
         var variable = "item" + ++_loops;
         var inner = scope.Child(new Var(variable, itemType, itemType is not null && MaybeNull(itemType)));
+        if (_tp is not null)
+            return TemplateEach(element, items.Code, max, variable, scope, inner);
         var nodes = new List<string>();
         string? empty = null;
         foreach (var child in element.Elements())
@@ -779,6 +987,39 @@ internal sealed class LayoutCompiler
         return $"{Line(element)}{Common}LayoutValues.Each({items.Code}, {max ?? "null"}, {variable} => {Sequence(string.Join(",", nodes))}, {empty ?? "null"})";
     }
 
+    /// <summary>
+    /// A ForEach on the template pass: the item's nodes once, as <c>$each</c>, and the values of each item collected in a
+    /// list under the key, each item its own scope.
+    /// </summary>
+    string TemplateEach(XElement element, string items, string? max, string variable, Scope scope, Scope inner)
+    {
+        var pass = _tp!;
+        var key = pass.Key();
+        var outer = pass.Values;
+        var nodes = new List<string>();
+        string? empty = null;
+        var emptyValues = "";
+        pass.Depth++;
+        pass.Values = "d" + pass.Depth;
+        var itemValues = Capture(() =>
+        {
+            foreach (var child in element.Elements().Where(c => c.Name.LocalName != "ForEach.Empty"))
+            {
+                var code = child.Name.LocalName == "ForEach" ? ForEach(child, inner) : Node(child, inner)?.Code;
+                if (code is not null) nodes.Add(code);
+            }
+            return 0;
+        }, out var collected);
+        pass.Values = outer;
+        pass.Depth--;
+        _ = itemValues;
+        if (element.Elements().FirstOrDefault(c => c.Name.LocalName == "ForEach.Empty") is { } emptyElement)
+            empty = Capture(() => Children(emptyElement, scope), out emptyValues);
+        var lambda = "d" + (pass.Depth + 1);
+        pass.Data.Append($"        if (!{outer}.Each({key}, {items}, {max ?? "null"}, ({lambda}, {variable}) =>\n        {{\n{collected}        }}))\n        {{\n{emptyValues}        }}\n");
+        return $"{Line(element)}t.Each({key}, [{string.Join(",", nodes)}]{(empty is null ? "" : $", [{(empty.StartsWith("[", StringComparison.Ordinal) ? empty.Substring(1, empty.Length - 2) : empty)}]")})";
+    }
+
     /// <summary>Nodes as a sequence: a collection expression, which a ForEach or Content spreads into.</summary>
     static string Sequence(string items) =>
         $"(global::System.Collections.Generic.IEnumerable<{Common}WidgetNode?>)[{(items.StartsWith("[", StringComparison.Ordinal) ? items.Substring(1, items.Length - 2) : items)}]";
@@ -788,6 +1029,7 @@ internal sealed class LayoutCompiler
     Emitted? Choose(XElement element, Scope scope)
     {
         var branches = new List<(string? Test, string Code)>();
+        var branchValues = new List<string>();
         var rest = scope.Child();
         foreach (var branch in element.Elements())
         {
@@ -808,8 +1050,9 @@ internal sealed class LayoutCompiler
             foreach (var condition in conditions)
                 Narrow(inner, condition, true);
             var tree = One(branch, ignore: "");
-            var node = tree is null ? null : Node(tree, inner);
+            var node = Capture(() => tree is null ? null : Node(tree, inner), out var values);
             branches.Add((conditions.Count == 0 ? null : string.Join(" && ", conditions.Select(c => c.Code)), node?.Code ?? "null"));
+            branchValues.Add(values);
             if (conditions.Count == 1)
                 Narrow(rest, conditions[0], false);
             if (name == "Otherwise")
@@ -817,6 +1060,32 @@ internal sealed class LayoutCompiler
         }
         if (branches.Count == 0)
             return null;
+        if (_tp is not null)
+        {
+            // if (d.If(a, first)) { … } else if (d.If(b, second)) { … } else { … }, and t.If(a, …, t.If(b, …, …)).
+            var data = new StringBuilder();
+            var shape = new StringBuilder();
+            var closing = 0;
+            for (var i = 0; i < branches.Count; i++)
+            {
+                var (test, node) = branches[i];
+                if (test is null)
+                {
+                    data.Append($"        {(i > 0 ? "else " : "")}{{\n{branchValues[i]}        }}\n");
+                    shape.Append(node);
+                    break;
+                }
+                var key = _tp.Key();
+                data.Append($"        {(i > 0 ? "else " : "")}if ({_tp.Values}.If({key}, {test}))\n        {{\n{branchValues[i]}        }}\n");
+                shape.Append($"t.If({key}, {node}, ");
+                closing++;
+                if (i == branches.Count - 1)
+                    shape.Append("null");
+            }
+            shape.Append(')', closing);
+            _tp.Data.Append(data);
+            return new Emitted(shape.ToString(), true);
+        }
         var code = new StringBuilder("(");
         foreach (var (test, node) in branches)
             code.Append(test is null ? $"({Common}WidgetNode?)({node})" : $"{test} ? ({Common}WidgetNode?)({node}) : ");
@@ -847,7 +1116,7 @@ internal sealed class LayoutCompiler
         if (shared.Guard is { } guard && !scope.Guards.Contains(guard))
             Report(Layouts.Diagnostics.UnguardedUse, element,
                 $"'{name.Value}' is shared only {(guard.StartsWith("!", StringComparison.Ordinal) ? "unless " + guard.Substring(1) : "if " + guard)}; here it draws nothing otherwise. Give the Use, or a node around it, the same condition");
-        var height = element.Attribute("Height") is { } h ? Value(h, Kind.Number, null, scope)?.Code : null;
+        var height = element.Attribute("Height") is { } h && Value(h, Kind.Number, null, scope)?.Code is { } heightCode ? Out(heightCode, Kind.Number, h) : null;
         return new Emitted($"{Common}W.Use({Lit(shared.Key)}{(height is null ? "" : ", " + height)})", false);
     }
 
@@ -887,7 +1156,12 @@ internal sealed class LayoutCompiler
                 continue;
             }
             if (Value(attribute, KindOf(parameter.Symbol), null, scope) is { } value)
-                arguments.Add($"{parameter.Name}: {(parameter.Type.EndsWith("?", StringComparison.Ordinal) ? value.Code : value.Sure)}");
+            {
+                var argument = parameter.Type.EndsWith("?", StringComparison.Ordinal) ? value.Code : value.Sure;
+                if (_tp is not null && Bound(argument))
+                    _tp.Fail($"the template '{template.Name}' is given '{attribute.Value}', which comes from the model; pass it inside the template instead", attribute);
+                arguments.Add($"{parameter.Name}: {argument}");
+            }
         }
         if (element.Elements().Any())
         {
@@ -895,6 +1169,13 @@ internal sealed class LayoutCompiler
                 Report(Layouts.Diagnostics.UnknownElement, element.Elements().First(), $"The template '{template.Name}' has no <Content /> for what is put in it");
             else if (Children(element, scope) is { } content)
                 arguments.Add($"content: {Collection(content)}");
+        }
+        if (_tp is not null)
+        {
+            var site = _tp.Key();
+            var values = arguments.Where(a => !a.StartsWith("content:", StringComparison.Ordinal)).ToList();
+            _tp.Data.Append($"        {template.Name}Data({_tp.Values}, {site}{string.Concat(values.Select(a => ", " + a))});\n");
+            return new Emitted($"{template.Name}({site}{string.Concat(arguments.Select(a => ", " + a))})", true);
         }
         return new Emitted($"{template.Name}({string.Join(", ", arguments)})", true);
     }
@@ -918,7 +1199,7 @@ internal sealed class LayoutCompiler
 
     Emitted? Leaf(XElement element, string name, Scope scope)
     {
-        string? Required(string attribute, Kind kind)
+        string? Required(string attribute, Kind kind, bool raw = false)
         {
             if (element.Attribute(attribute) is not { } a)
             {
@@ -926,16 +1207,18 @@ internal sealed class LayoutCompiler
                 return null;
             }
             if (kind == Kind.Text)
-                return Text(a, scope, required: true)?.Code;
+                return Text(a, scope, required: true)?.Code is { } text ? (raw ? text : Out(text, kind, a)) : null;
             if (Value(a, kind, null, scope) is not { } value)
                 return null;
             if (value.MaybeNull)
                 Report(Layouts.Diagnostics.NullableWithoutFallback, a, $"'{a.Value}' may be absent, and {name} needs its {attribute}: guard the element with If, or bind a value that is always there");
-            return value.Sure;
+            return raw ? value.Sure : Out(value.Sure, kind, a);
         }
 
-        string? Optional(string attribute, Kind kind) =>
-            element.Attribute(attribute) is { } a ? (kind == Kind.Color ? Color(a, scope)?.Code : Value(a, kind, null, scope)?.Code) : null;
+        string? Optional(string attribute, Kind kind, bool raw = false) =>
+            element.Attribute(attribute) is { } a && (kind == Kind.Color ? Color(a, scope)?.Code : Value(a, kind, null, scope)?.Code) is { } code
+                ? (raw ? code : Out(code, kind, a))
+                : null;
 
         if (name is "Image" or "Sparkline" or "Ring" or "Progress" && !scope.Described)
             Report(Layouts.Diagnostics.Silent, element, $"A screen reader says nothing for this {name}: give it a Description, or Decorative=\"True\"");
@@ -948,13 +1231,13 @@ internal sealed class LayoutCompiler
             {
                 if (Required("Since", Kind.Date) is not { } since) return null;
                 var format = element.Attribute("Format") is { } f ? Enum(f, "ElapsedFormat") : null;
-                var prefix = element.Attribute("Prefix") is { } p ? Text(p, scope, required: false)?.Code : null;
+                var prefix = element.Attribute("Prefix") is { } p && Text(p, scope, required: false)?.Code is { } prefixCode ? Out(prefixCode, Kind.Text, p) : null;
                 return new Emitted($"{Common}W.Elapsed({since}{(format is null ? "" : ", " + format)}{(prefix is null ? "" : ", prefix: " + prefix)})", false);
             }
             case "Countdown":
             {
                 if (Required("Until", Kind.Date) is not { } until) return null;
-                var prefix = element.Attribute("Prefix") is { } p ? Text(p, scope, required: false)?.Code : null;
+                var prefix = element.Attribute("Prefix") is { } p && Text(p, scope, required: false)?.Code is { } prefixCode ? Out(prefixCode, Kind.Text, p) : null;
                 return new Emitted($"{Common}W.Countdown({until}{(prefix is null ? "" : ", " + prefix)})", false);
             }
             case "Icon":
@@ -966,6 +1249,7 @@ internal sealed class LayoutCompiler
                 }
                 var icon = Icon(source, element.Attribute("Values"), scope);
                 if (icon is null) return null;
+                icon = Out(icon, Kind.Icon, source);
                 var tint = Optional("Tint", Kind.Color);
                 var size = Optional("Size", Kind.Number);
                 var code = $"{Common}W.Icon({icon}{(tint is null ? "" : ", color: " + tint)}{(size is null ? "" : ", size: " + size)})";
@@ -979,8 +1263,15 @@ internal sealed class LayoutCompiler
             }
             case "Progress":
             {
-                if (Required("Value", Kind.Number) is not { } value) return null;
+                if (Required("Value", Kind.Number, raw: true) is not { } value) return null;
                 var tint = Optional("Tint", Kind.Color);
+                if (_tp is not null && Bound(value))
+                {
+                    // The factory clamps its value, which would lose the placeholder: the value is set after it.
+                    var key = _tp.Key();
+                    _tp.Data.Append($"        {_tp.Values}.Set({key}, {Common}W.Progress({value}).Value);\n");
+                    return new Emitted($"({Common}W.Progress(0{(tint is null ? "" : ", " + tint)}) with {{ Value = t.N({key}) }})", false);
+                }
                 return new Emitted($"{Common}W.Progress({value}{(tint is null ? "" : ", " + tint)})", false);
             }
             case "Ring":
@@ -989,24 +1280,48 @@ internal sealed class LayoutCompiler
                 if (value is null) return null;
                 var tint = Optional("Tint", Kind.Color);
                 var size = Optional("Size", Kind.Number);
-                return new Emitted($"{Common}W.Ring({value}{(tint is null ? "" : ", color: " + tint)}{(size is null ? "" : ", size: " + size)})", false);
+                var options = $"{(tint is null ? "" : ", color: " + tint)}{(size is null ? "" : ", size: " + size)}";
+                if (_tp is not null && Bound(value))
+                {
+                    var key = _tp.Key();
+                    _tp.Data.Append($"        {_tp.Values}.Set({key}, {Common}W.Ring({value}).Value);\n");
+                    return new Emitted($"({Common}W.Ring(0{options}) with {{ Value = t.N({key}) }})", false);
+                }
+                return new Emitted($"{Common}W.Ring({value}{options})", false);
             }
             case "Sparkline":
             {
-                if (Required("Values", Kind.Values) is not { } values) return null;
+                if (Required("Values", Kind.Values, raw: true) is not { } values) return null;
                 var color = Optional("Tint", Kind.Color) ?? Optional("Color", Kind.Color);
                 var height = Optional("Height", Kind.Number);
+                var options = $"{(color is null ? "" : ", color: " + color)}{(height is null ? "" : ", height: " + height)}";
                 var from = element.Attribute("From");
                 var to = element.Attribute("To");
                 string code;
                 if (from is not null || to is not null)
                 {
-                    if (Required("From", Kind.Date) is not { } f || Required("To", Kind.Date) is not { } t) return null;
-                    var step = Optional("Step", Kind.Duration);
-                    code = $"{Common}W.Sparkline({values}, {f}, {t}{(step is null ? "" : ", " + step)}{(color is null ? "" : ", color: " + color)}{(height is null ? "" : ", height: " + height)})";
+                    if (Required("From", Kind.Date, raw: true) is not { } f || Required("To", Kind.Date, raw: true) is not { } t) return null;
+                    var step = Optional("Step", Kind.Duration, raw: true);
+                    if (_tp is not null && (Bound(values) || Bound(f) || Bound(t) || Bound(step)))
+                    {
+                        // The values are put on their time axis by the factory: the data carries its result, the template the rest.
+                        var (kv, kf, kt, ks) = (_tp.Key(), _tp.Key(), _tp.Key(), _tp.Key());
+                        _tp.Data.Append($"        {{\n            var line = {Common}W.Sparkline({values}, {f}, {t}{(step is null ? "" : ", " + step)});\n" +
+                            $"            {_tp.Values}.Set({kv}, line.Values);\n            {_tp.Values}.Set({kf}, line.From);\n            {_tp.Values}.Set({kt}, line.To);\n            {_tp.Values}.Set({ks}, line.Step);\n        }}\n");
+                        return new Emitted($"({Common}W.Sparkline(global::System.Array.Empty<double?>(){options}) with {{ Values = t.L({kv}), From = t.D({kf}), To = t.D({kt}), Step = t.N({ks}) }})", false);
+                    }
+                    code = $"{Common}W.Sparkline({values}, {f}, {t}{(step is null ? "" : ", " + step)}{options})";
                 }
                 else
-                    code = $"{Common}W.Sparkline({values}{(color is null ? "" : ", color: " + color)}{(height is null ? "" : ", height: " + height)})";
+                {
+                    if (_tp is not null && Bound(values))
+                    {
+                        var kv = _tp.Key();
+                        _tp.Data.Append($"        {_tp.Values}.Set({kv}, {Common}W.Sparkline({values}).Values);\n");
+                        return new Emitted($"({Common}W.Sparkline(global::System.Array.Empty<double?>(){options}) with {{ Values = t.L({kv}) }})", false);
+                    }
+                    code = $"{Common}W.Sparkline({values}{options})";
+                }
                 return new Emitted(code, false);
             }
             case "Spacer":
@@ -1128,11 +1443,12 @@ internal sealed class LayoutCompiler
                         Report(Layouts.Diagnostics.UnknownAttribute, attribute, "A band needs BandLow and BandHigh");
                         continue;
                     }
-                    var lowValue = Value(low, Kind.Number, null, scope)?.Sure;
-                    var highValue = Value(high, Kind.Number, null, scope)?.Sure;
-                    var above = element.Attribute("AboveColor") is { } a ? Color(a, scope)?.Code : null;
-                    var below = element.Attribute("BelowColor") is { } b ? Color(b, scope)?.Code : null;
+                    var lowValue = Value(low, Kind.Number, null, scope)?.Sure is { } l ? Out(l, Kind.Number, low) : null;
+                    var highValue = Value(high, Kind.Number, null, scope)?.Sure is { } h ? Out(h, Kind.Number, high) : null;
+                    var above = element.Attribute("AboveColor") is { } a && Color(a, scope)?.Code is { } ac ? Out(ac, Kind.Color, a) : null;
+                    var below = element.Attribute("BelowColor") is { } b && Color(b, scope)?.Code is { } bc ? Out(bc, Kind.Color, b) : null;
                     var shaded = element.Attribute("Shaded") is { } s ? Bool(s, scope) : null;
+                    if (_tp is not null && Bound(shaded)) _tp.Fail("Shaded is bound", element.Attribute("Shaded"));
                     code += $".Band({lowValue}, {highValue}{(above is null ? "" : ", " + above)}{(below is null ? "" : ", " + below)}{(shaded is null ? "" : ", shaded: " + shaded)})";
                     continue;
                 }
@@ -1144,7 +1460,9 @@ internal sealed class LayoutCompiler
                         Report(Layouts.Diagnostics.UnknownAttribute, attribute, "A fixed scale needs Minimum and Maximum");
                         continue;
                     }
-                    code += $".Scale({Value(min, Kind.Number, null, scope)?.Sure}, {Value(max, Kind.Number, null, scope)?.Sure})";
+                    var minValue = Value(min, Kind.Number, null, scope)?.Sure is { } lo ? Out(lo, Kind.Number, min) : null;
+                    var maxValue = Value(max, Kind.Number, null, scope)?.Sure is { } hi ? Out(hi, Kind.Number, max) : null;
+                    code += $".Scale({minValue}, {maxValue})";
                     continue;
                 }
             }
@@ -1192,6 +1510,17 @@ internal sealed class LayoutCompiler
             if (BoolCondition(attribute, onBool, scope) is not { } test)
                 return code;
             var side = onBool[held ? "True" : "False"]!;
+            if (_tp is not null)
+            {
+                // A color on one side only: the data holds it on that side and nothing on the other.
+                var method = local == "Background" ? "Background" : local is "Tint" or "Color" ? "Tint" : local == "TextColor" ? "TextColor" : null;
+                if (attr.Kind != Kind.Color || method is null || Color(attribute, side, scope) is not { } color)
+                {
+                    _tp.Fail($"{local} is set on one side of an OnBool only", attribute);
+                    return code;
+                }
+                return $"{code}.{method}({Out($"({(held ? test : $"!({test})")} ? ({Common}WidgetColor?)({color.Sure}) : null)", Kind.Color, attribute)})";
+            }
             return $"{Common}LayoutValues.When({code}, {(held ? test : $"!({test})")}, n => {Setter("n", element, attribute, scope, side)})";
         }
 
@@ -1202,12 +1531,18 @@ internal sealed class LayoutCompiler
                 var method = local == "Expand" ? "Fill" : local;
                 if (value is Literal flag)
                     return Flag(attribute, flag.Text) switch { true => $"{code}.{method}()", _ => code };
-                return Bool(attribute, value, scope) is { } on ? $"{Common}LayoutValues.When({code}, {on}, n => n.{method}())" : code;
+                if (Bool(attribute, value, scope) is not { } on)
+                    return code;
+                if (_tp is not null) _tp.Fail($"{local} is bound", attribute);
+                return $"{Common}LayoutValues.When({code}, {on}, n => n.{method}())";
             }
             case "Hidden":
                 if (value is Literal hidden)
                     return Flag(attribute, hidden.Text) switch { true => $"{code}.Hidden()", false => $"{code}.Hidden(false)", _ => code };
-                return Bool(attribute, value, scope) is { } isHidden ? $"{code}.Hidden({isHidden})" : code;
+                if (Bool(attribute, value, scope) is not { } isHidden)
+                    return code;
+                if (_tp is not null) _tp.Fail("Hidden is bound", attribute);
+                return $"{code}.Hidden({isHidden})";
             case "FontSize":
                 if (value is Literal size && Vocabulary.Enums["TextRole"].Contains(size.Text))
                     return $"{code}.{size.Text}()";
@@ -1280,6 +1615,16 @@ internal sealed class LayoutCompiler
         };
         if (ex is null)
             return code;
+        if (_tp is not null && Bound(ex.Code + ex.Present))
+        {
+            // The data leaves a value out when there is none, and the placeholder's property goes with it: the same as When.
+            if (attribute.Name.LocalName is "MaxLines" or "ShrinkToFit" || kind == Kind.FontSize && Plain(ex.Type)?.Name == "TextRole")
+            {
+                _tp.Fail($"{attribute.Name.LocalName} is bound", attribute);
+                return code;
+            }
+            return code + call(Out(ex.Code, kind, attribute));
+        }
         return ex.MaybeNull
             ? $"{Common}LayoutValues.When({code}, {ex.Present}, n => n{call(ex.Sure)})"
             : code + call(ex.Code);
@@ -1961,6 +2306,8 @@ internal sealed class LayoutCompiler
 
     void Report(DiagnosticDescriptor descriptor, XObject? node, string message, SourceFile? file = null)
     {
+        if (_quiet)
+            return;
         var length = node switch
         {
             XAttribute attribute => attribute.Name.LocalName.Length,

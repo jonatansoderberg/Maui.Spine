@@ -40,6 +40,14 @@ public sealed class SpineWidgetsOptions
     public ICollection<string> Icons { get; } = [];
 
     /// <summary>
+    /// Live Activity templates the device keeps, so a push can carry only their values: a layout file's generated
+    /// <c>Template</c> (<c>Payload="Template"</c>). Spine installs them where the widget extension reads them when the app
+    /// starts, with their icons; <see cref="ILiveActivityService.Templates"/> lists what is installed, for the app to tell
+    /// its server with the push token.
+    /// </summary>
+    public ICollection<LiveActivityTemplate> Templates { get; } = [];
+
+    /// <summary>
     /// When <see langword="true"/>, Live Activities are started with a push token on iOS and the
     /// tokens are available through <see cref="ILiveActivityService.GetPushToStartTokenAsync"/> and
     /// <see cref="LiveActivity.GetPushTokenAsync"/>. Needs the push notification entitlement.

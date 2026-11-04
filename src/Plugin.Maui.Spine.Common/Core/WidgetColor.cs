@@ -15,6 +15,9 @@ public readonly record struct WidgetColor
 
     private WidgetColor(string value) => Value = value;
 
+    /// <summary>A placeholder for a bound color in a <see cref="LiveActivityTemplate"/>; never drawn.</summary>
+    internal static WidgetColor Placeholder(string value) => new(value);
+
     /// <summary>The platform's primary text color.</summary>
     public static WidgetColor Primary { get; } = new("primary");
     /// <summary>The platform's secondary, de-emphasized text color.</summary>

@@ -17,7 +17,7 @@ public class GlucoseLayoutTests
 
     public static TheoryData<string> Cases => ["current", "stale", "no symbol", "high", "no graph", "one point", "no link"];
 
-    static GlucoseModel Case(string name) => name switch
+    internal static GlucoseModel Case(string name) => name switch
     {
         "current" => Model(),
         "stale" => Model(arrow: null, symbol: null, below: "Inga nya värden"),
