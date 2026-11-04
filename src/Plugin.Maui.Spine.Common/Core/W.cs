@@ -216,6 +216,45 @@ public static class WidgetNodeStyling
     /// </summary>
     public static T Fill<T>(this T node) where T : StackNode => (T)(node with { Fill = true });
 
+    /// <summary>Leaves the node out, or with <see langword="false"/> keeps it where an override or Spine would leave it out.</summary>
+    public static T Hidden<T>(this T node, bool hidden = true) where T : WidgetNode => (T)(node with { Hidden = hidden });
+
+    /// <summary>Changes the node on <paramref name="platform"/>: <c>.On(WidgetPlatform.Android, n =&gt; n.FontSize(36))</c>.</summary>
+    public static T On<T>(this T node, WidgetPlatform platform, Func<T, T> change) where T : WidgetNode =>
+        node.On(platform, null, null, null, change);
+
+    /// <summary>Changes the node where it is drawn: <c>.On(WidgetPlace.Notification, n =&gt; n.Hidden())</c>.</summary>
+    public static T On<T>(this T node, WidgetPlace surface, Func<T, T> change) where T : WidgetNode =>
+        node.On(null, surface, null, null, change);
+
+    /// <summary>Changes the node on <paramref name="platform"/> where it is drawn on <paramref name="surface"/>.</summary>
+    public static T On<T>(this T node, WidgetPlatform platform, WidgetPlace surface, Func<T, T> change) where T : WidgetNode =>
+        node.On(platform, surface, null, null, change);
+
+    /// <summary>Changes the node in a widget of <paramref name="size"/>.</summary>
+    public static T On<T>(this T node, WidgetFamily size, Func<T, T> change) where T : WidgetNode =>
+        node.On(null, null, size, null, change);
+
+    /// <summary>
+    /// Changes the node where every given condition holds; <paramref name="minVersion"/> is the lowest major OS version. What
+    /// <paramref name="change"/> does to the node's own properties is written as a patch, applied where the tree is drawn
+    /// and in the order the overrides were added, the last one winning. It cannot change the node's children.
+    /// </summary>
+    public static T On<T>(this T node, WidgetPlatform? platform, WidgetPlace? surface, WidgetFamily? size, int? minVersion, Func<T, T> change) where T : WidgetNode
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        var own = node with { On = null };
+        var set = Serialization.WidgetJson.Patch(own, change(own) with { On = null });
+        var when = new WidgetOverrideWhen
+        {
+            Platform = WidgetOverrideWhen.Names(platform),
+            Surface = WidgetOverrideWhen.Names(surface),
+            Size = size is { } family ? WidgetOverrideWhen.JsonName(family.ToString()) : null,
+            MinVersion = minVersion,
+        };
+        return (T)(node with { On = [.. node.On ?? [], new WidgetOverride { When = when, Set = set }] });
+    }
+
     /// <summary>Takes an equal share of the space along the parent's axis, as <see cref="Fill{T}(T)"/>.</summary>
     public static T Expand<T>(this T node) where T : StackNode => node.Fill();
 
@@ -343,6 +382,9 @@ public static class WidgetNodeStyling
     /// <summary>Bold, italic or both, as MAUI's <c>FontAttributes</c>.</summary>
     public static T FontAttributes<T>(this T node, WidgetFontAttributes attributes) where T : TextLikeNode =>
         (T)node.WithStyle(node.Style with { Bold = attributes.HasFlag(WidgetFontAttributes.Bold), Italic = attributes.HasFlag(WidgetFontAttributes.Italic) });
+
+    /// <summary>Renders in italics; Android draws them on plain text only.</summary>
+    public static T Italic<T>(this T node) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Italic = true });
 
     /// <summary>Wraps the text to at most <paramref name="lines"/> lines, cut off with an ellipsis past them.</summary>
     public static T MaxLines<T>(this T node, int lines) where T : TextLikeNode

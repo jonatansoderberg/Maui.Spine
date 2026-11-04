@@ -9,15 +9,15 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 /// redrawn through <c>AppWidgetManager</c>, and Live Activities are promoted notifications.
 /// Everything is C#; the build only contributes manifest entries and the provider metadata.
 /// </summary>
-internal sealed class WidgetPlatform : IWidgetPlatform
+internal sealed class NativeWidgetPlatform : IWidgetPlatform
 {
     private readonly Context _context = Android.App.Application.Context;
     private readonly string[] _kinds;
     private readonly string[] _controls;
-    private readonly ILogger<WidgetPlatform> _logger;
+    private readonly ILogger<NativeWidgetPlatform> _logger;
     private readonly LiveUpdateNotifications? _live;
 
-    public WidgetPlatform(ILogger<WidgetPlatform> logger)
+    public NativeWidgetPlatform(ILogger<NativeWidgetPlatform> logger)
     {
         _logger = logger;
         _kinds = WidgetStore.Kinds(_context);

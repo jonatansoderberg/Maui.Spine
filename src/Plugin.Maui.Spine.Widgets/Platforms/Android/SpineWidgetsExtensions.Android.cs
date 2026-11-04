@@ -11,7 +11,7 @@ public static partial class SpineWidgetsExtensions
 
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpineWidgetsOptions options)
     {
-        builder.Services.AddSingleton<IWidgetPlatform, WidgetPlatform>();
+        builder.Services.AddSingleton<IWidgetPlatform, NativeWidgetPlatform>();
 
         builder.ConfigureLifecycleEvents(events => events.AddAndroid(android =>
         {

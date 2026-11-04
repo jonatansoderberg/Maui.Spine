@@ -45,7 +45,7 @@ enum Store {
     static func timeline(kind: String) -> TimelineDocument? {
         guard let url = root?.appendingPathComponent("\(kind).json"),
               let data = try? Data(contentsOf: url) else { return nil }
-        do { return try decoder.decode(TimelineDocument.self, from: data) }
+        do { return try decoder.decode(TimelineDocument.self, from: Overrides.placed(timeline: data)) }
         catch { NSLog("[SpineWidgets] \(kind).json failed to decode: \(error)"); return nil }
     }
 
@@ -140,7 +140,7 @@ struct ActivityLayout: Decodable {
     var link: String?
 
     static func parse(_ layout: JSONValue) -> ActivityLayout {
-        guard let data = try? JSONEncoder().encode(resolved(layout)) else { return ActivityLayout() }
+        guard let data = try? JSONEncoder().encode(Overrides.placed(activity: resolved(layout))) else { return ActivityLayout() }
         return (try? Store.decoder.decode(ActivityLayout.self, from: data)) ?? ActivityLayout()
     }
 
@@ -166,6 +166,70 @@ struct ActivityLayout: Decodable {
             }
         }
         return .object(fields.mapValues(resolve))
+    }
+}
+
+/// A tree's overrides ("on": [{ "when": {…}, "set": {…} }]) applied for the place it is drawn, as WidgetOverrides does on
+/// Android: in order, each a merge patch of the node's own properties, and a node left hidden taken out with its children.
+enum Overrides {
+    struct Place {
+        let surfaces: Set<String>
+        let size: String?
+        var platform: String { "ios" }
+        var version: Int { ProcessInfo.processInfo.operatingSystemVersion.majorVersion }
+    }
+
+    /// Each region of a Live Activity on its own surface.
+    static func placed(activity layout: JSONValue) -> JSONValue {
+        guard case .object(var fields) = layout else { return layout }
+        for (region, surfaces) in [("lockScreen", ["lockScreen"]), ("small", ["carPlay", "watch"])]
+            + ["expandedLeading", "expandedTrailing", "expandedCenter", "expandedBottom", "compactLeading", "compactTrailing", "minimal"].map({ ($0, ["island"]) }) {
+            if let tree = fields[region] { fields[region] = apply(tree, Place(surfaces: Set(surfaces), size: nil)) ?? .null }
+        }
+        return .object(fields)
+    }
+
+    /// Each entry's tree for its family: a lock-screen size on the Lock Screen, the others on the home screen.
+    static func placed(timeline data: Data) -> Data {
+        guard case .object(var document)? = try? JSONDecoder().decode(JSONValue.self, from: data),
+              case .array(let entries)? = document["entries"] else { return data }
+        document["entries"] = .array(entries.map { entry in
+            guard case .object(var fields) = entry, case .object(let trees)? = fields["trees"] else { return entry }
+            fields["trees"] = .object(Dictionary(uniqueKeysWithValues: trees.map { family, tree in
+                let surface = family.hasPrefix("accessory") ? "lockScreen" : "homeScreen"
+                let size = family == "default" ? nil : family
+                return (family, apply(tree, Place(surfaces: [surface], size: size)) ?? .object(["type": .string("vstack")]))
+            }))
+            return .object(fields)
+        })
+        return (try? JSONEncoder().encode(JSONValue.object(document))) ?? data
+    }
+
+    static func apply(_ value: JSONValue, _ place: Place) -> JSONValue? {
+        guard case .object(var node) = value else { return value }
+        if case .array(let overrides)? = node.removeValue(forKey: "on") {
+            for case .object(let entry) in overrides {
+                guard case .object(let when)? = entry["when"], matches(when, place), case .object(let set)? = entry["set"] else { continue }
+                for (key, patch) in set { node[key] = patch == .null ? nil : patch }
+            }
+        }
+        if node["hidden"] == .bool(true) { return nil }
+        if case .array(let children)? = node["children"] { node["children"] = .array(children.compactMap { apply($0, place) }) }
+        for key in ["child", "fallback"] { if let inner = node[key] { node[key] = apply(inner, place) ?? .null } }
+        if case .object(let trees)? = node["trees"] { node["trees"] = .object(trees.mapValues { apply($0, place) ?? .null }) }
+        return .object(node)
+    }
+
+    private static func matches(_ when: [String: JSONValue], _ place: Place) -> Bool {
+        func list(_ key: String) -> [String]? {
+            guard case .string(let value)? = when[key] else { return nil }
+            return value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+        }
+        if let platforms = list("platform"), !platforms.contains(place.platform) { return false }
+        if let surfaces = list("surface"), Set(surfaces).isDisjoint(with: place.surfaces.map { $0.lowercased() }) { return false }
+        if let sizes = list("size"), !(place.size.map { sizes.contains($0.lowercased()) } ?? false) { return false }
+        if case .number(let version)? = when["minVersion"], place.version < Int(version) { return false }
+        return true
     }
 }
 
@@ -1036,7 +1100,7 @@ struct Provider: TimelineProvider {
         request.timeoutInterval = 15
         URLSession.shared.dataTask(with: request) { data, _, error in
             var fetched: TimelineDocument?
-            if let data { fetched = try? Store.decoder.decode(TimelineDocument.self, from: data) }
+            if let data { fetched = try? Store.decoder.decode(TimelineDocument.self, from: Overrides.placed(timeline: data)) }
             if fetched == nil { NSLog("[SpineWidgets] remote source for \(self.kind) failed: \(error?.localizedDescription ?? "not a timeline document")") }
             completion(self.timeline(from: fetched, fallback: local))
         }.resume()

@@ -1,11 +1,12 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using System.Text.Json.Serialization;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Common.Serialization;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
-internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconAssets _icons) : ILiveActivityService
+internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconAssets _icons, ILogger<LiveActivityService> _logger) : ILiveActivityService
 {
     /// <summary>The activities the app last knew about, as id → kind, kept across processes.</summary>
     private const string MemoryKey = "spine.widgets.activities";
@@ -125,6 +126,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         if (!_platform.AreActivitiesSupported) return null;
 
         await _icons.EnsureAsync(layout, CancellationToken.None);
+        Explain(kind, layout);
         lock (_active) Adopt();
         var id = await _platform.StartActivityAsync(kind, WidgetJson.Serialize(layout), staleAt, channel);
         if (id is null) return null;
@@ -140,6 +142,16 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         OnMainThread(() => ActivitiesChanged?.Invoke());
 
         return activity;
+    }
+
+    // What this platform draws differently from the tree, at Debug level: an override that applies, a node left out,
+    // Spine's own rules for the place, what the platform cannot draw as written.
+    private void Explain(string kind, LiveActivityLayout layout)
+    {
+        if (!_logger.IsEnabled(LogLevel.Debug)) return;
+        var platform = OperatingSystem.IsAndroid() ? WidgetPlatform.Android : WidgetPlatform.iOS;
+        foreach (var line in layout.Explain(platform))
+            _logger.LogDebug("Live Activity \"{Kind}\" {Line}", kind, line);
     }
 
     public async Task EndAllAsync()

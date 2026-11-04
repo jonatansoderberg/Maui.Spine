@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 namespace Plugin.Maui.Spine.Widgets.Services;
 
 /// <summary>A button tap as the intent recorded it in <c>actions.jsonl</c>.</summary>
-/// <param name="Id">The intent's own id for the tap, which <see cref="WidgetPlatform.CompleteAction"/> answers; <see langword="null"/> for a line without one.</param>
+/// <param name="Id">The intent's own id for the tap, which <see cref="NativeWidgetPlatform.CompleteAction"/> answers; <see langword="null"/> for a line without one.</param>
 /// <param name="Kind">The widget kind the button belongs to.</param>
 /// <param name="ActionId">The id given to <see cref="W.Button"/>.</param>
 /// <param name="At">When the button was tapped.</param>
@@ -23,14 +23,14 @@ internal readonly record struct RecordedAction(string? Id, string Kind, string A
 /// and ActivityKit are reached through the Swift bridge framework the build compiles alongside the
 /// extension. The bridge is an <c>@objc</c> class, so plain <c>objc_msgSend</c> is enough — no binding project.
 /// </summary>
-internal sealed class WidgetPlatform : IWidgetPlatform
+internal sealed class NativeWidgetPlatform : IWidgetPlatform
 {
     private const string BridgeClassName = "SpineWidgetBridge";
     private const string AppGroupInfoKey = "SpineWidgetsAppGroup";
     private const string ControlsInfoKey = "SpineWidgetsControls";
     private const string SmallActivitiesInfoKey = "SpineWidgetsLiveActivitySmall";
 
-    private readonly ILogger<WidgetPlatform> _logger;
+    private readonly ILogger<NativeWidgetPlatform> _logger;
     private readonly object _actionsLock = new();
     private readonly IntPtr _bridge;
     private readonly string? _appGroup;
@@ -39,7 +39,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     private readonly bool _smallActivities;
     private bool _smallWarned;
 
-    public WidgetPlatform(SpineWidgetsOptions options, ILogger<WidgetPlatform> logger)
+    public NativeWidgetPlatform(SpineWidgetsOptions options, ILogger<NativeWidgetPlatform> logger)
     {
         _logger = logger;
         _bridge = Class.GetHandle(BridgeClassName);
