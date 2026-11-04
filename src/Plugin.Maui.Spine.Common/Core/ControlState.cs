@@ -13,14 +13,15 @@ public sealed record ControlState
     public required string Title { get; init; }
 
     /// <summary>
-    /// The icon by name, as for <see cref="W.Icon"/>: on Android an SVG of that name with dots as
-    /// underscores (<c>bell.svg</c>, <c>figure_run.svg</c>), drawn as the tile's mask; on iOS the SF Symbol
-    /// of that name unless <see cref="Symbol"/> says otherwise — iOS draws only symbols in a control.
+    /// The icon by name, as for <see cref="W.Icon"/>: an SVG (<c>Bell</c>, <c>Plus</c>). Android draws it as
+    /// the tile's mask; iOS draws only symbols in a control, so it draws the custom symbol of that name, which
+    /// Spine builds into the extension for its own icons and the spine-symbols tool makes for the app's.
     /// </summary>
     [JsonPropertyName("icon")]
     public string? Icon { get; init; }
 
     /// <summary>The SF Symbol iOS draws, when it is not named like <see cref="Icon"/> (an SVG <c>unlock</c>, the symbol <c>lock.open</c>).</summary>
+    [Obsolete("Icons are SVGs on both platforms: Spine's icons are built into the iOS extension as custom symbols, and the spine-symbols tool makes the app's own. Name the icon in Icon.")]
     [JsonPropertyName("symbol")]
     public string? Symbol { get; init; }
 

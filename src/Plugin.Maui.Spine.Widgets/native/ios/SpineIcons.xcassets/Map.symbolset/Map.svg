@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="3300" height="2200">
+ <g id="Notes">
+  <text id="template-version" style="stroke:none;fill:black;font-family:sans-serif;font-size:13;" transform="matrix(1 0 0 1 3036 1933)">Template v.3.0</text>
+ </g>
+ <style>.monochrome-0 {fill:#000000}
+.multicolor-0:tintColor {fill:#007AFF}
+.hierarchical-0:primary {fill:#000000}
+</style>
+ <g id="Guides">
+  <line id="Baseline-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="696" y2="696"/>
+  <line id="Capline-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="625.541" y2="625.541"/>
+  <line id="Baseline-M" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1126" y2="1126"/>
+  <line id="Capline-M" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1055.541" y2="1055.541"/>
+  <line id="Baseline-L" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1556" y2="1556"/>
+  <line id="Capline-L" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1485.541" y2="1485.541"/>
+  <line id="left-margin-Ultralight-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="559" x2="559" y1="600" y2="720"/>
+  <line id="right-margin-Ultralight-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="679" x2="679" y1="600" y2="720"/>
+  <line id="left-margin-Regular-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="1449" x2="1449" y1="600" y2="720"/>
+  <line id="right-margin-Regular-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="1569" x2="1569" y1="600" y2="720"/>
+  <line id="left-margin-Black-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="2339" x2="2339" y1="600" y2="720"/>
+  <line id="right-margin-Black-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="2459" x2="2459" y1="600" y2="720"/>
+ </g>
+ <g id="Symbols">
+  <g id="Ultralight-S" transform="matrix(1 0 0 1 559 696)">
+   <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M41.1708 -79.0169L10.4129 -67.4765L8.856 -66.8924L8.856 9.49036L41.3412 -2.69807L78.8292 8.55791L111.144 -3.5666L111.144 -79.9493L78.6589 -67.7609L41.1708 -79.0169ZM76.344 2.80003L43.656 -7.01473L43.656 -73.259L76.344 -63.4443L76.344 2.80003ZM81.144 2.56265L81.144 -63.5666L106.344 -73.0217L106.344 -6.89239L81.144 2.56265ZM13.656 -63.5666L38.856 -73.0217L38.856 -6.89239L13.656 2.56265L13.656 -63.5666Z"/>
+  </g>
+  <g id="Regular-S" transform="matrix(1 0 0 1 1449 696)">
+   <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M41.1708 -79.0169L10.4129 -67.4765L8.856 -66.8924L8.856 9.49036L41.3412 -2.69807L78.8292 8.55791L111.144 -3.5666L111.144 -79.9493L78.6589 -67.7609L41.1708 -79.0169ZM76.344 2.80003L43.656 -7.01473L43.656 -73.259L76.344 -63.4443L76.344 2.80003ZM81.144 2.56265L81.144 -63.5666L106.344 -73.0217L106.344 -6.89239L81.144 2.56265ZM13.656 -63.5666L38.856 -73.0217L38.856 -6.89239L13.656 2.56265L13.656 -63.5666Z"/>
+  </g>
+  <g id="Black-S" transform="matrix(1 0 0 1 2339 696)">
+   <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M41.1708 -79.0169L10.4129 -67.4765L8.856 -66.8924L8.856 9.49036L41.3412 -2.69807L78.8292 8.55791L111.144 -3.5666L111.144 -79.9493L78.6589 -67.7609L41.1708 -79.0169ZM76.344 2.80003L43.656 -7.01473L43.656 -73.259L76.344 -63.4443L76.344 2.80003ZM81.144 2.56265L81.144 -63.5666L106.344 -73.0217L106.344 -6.89239L81.144 2.56265ZM13.656 -63.5666L38.856 -73.0217L38.856 -6.89239L13.656 2.56265L13.656 -63.5666Z"/>
+  </g>
+ </g>
+</svg>

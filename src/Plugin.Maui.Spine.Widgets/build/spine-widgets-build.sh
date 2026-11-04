@@ -6,7 +6,7 @@ set -euo pipefail
 
 OUT=""; SOURCES=""; SDK="iphonesimulator"; ARCH="arm64"; MIN_OS="17.0"; CONFIG="Debug"
 BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; LIVE="true"; SMALL="false"; FREQUENT="false"
-PROVISION=""; REQUIRE_PROVISION="false"; PUSH="false"; PUSH_ENV="development"; ASSETS=""
+PROVISION=""; REQUIRE_PROVISION="false"; PUSH="false"; PUSH_ENV="development"; ASSETS=()
 WIDGETS=()
 CONTROLS=()
 
@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
     --push-environment) PUSH_ENV="$2"; shift 2;;
     --widget) WIDGETS+=("$2"); shift 2;;
     --control) CONTROLS+=("$2"); shift 2;;
-    --assets) ASSETS="$2"; shift 2;;
+    --assets) ASSETS+=("$2"); shift 2;;
     *) echo "spine-widgets-build.sh: unknown argument $1" >&2; exit 2;;
   esac
 done
@@ -410,11 +410,11 @@ app_intents_metadata "$NAME" "$APPEX_RES" "$GEN/$NAME.swiftconstvalues" "$EXT_TA
 # --- Asset catalog ---------------------------------------------------------------------------------
 # iOS draws only symbol images in a control, so SVG icons reach one as custom symbols in the extension's
 # Assets.car (#743). Controls are iOS only, so the Mac build leaves the catalog out.
-if [[ -n "$ASSETS" ]]; then
+if [[ ${#ASSETS[@]} -gt 0 ]]; then
   if [[ "$CATALYST" == "true" ]]; then
-    echo "spine-widgets-build.sh: $ASSETS is left out of the Mac Catalyst build; only controls draw from it"
+    echo "spine-widgets-build.sh: ${ASSETS[*]} left out of the Mac Catalyst build; only controls draw from them"
   else
-    xcrun actool "$ASSETS" --compile "$APPEX_RES" --platform "$SDK" --minimum-deployment-target "$EXT_MIN_OS" \
+    xcrun actool "${ASSETS[@]}" --compile "$APPEX_RES" --platform "$SDK" --minimum-deployment-target "$EXT_MIN_OS" \
       --target-device iphone --target-device ipad --output-partial-info-plist "$GEN/Assets.plist" \
       --output-format human-readable-text --errors --warnings
   fi

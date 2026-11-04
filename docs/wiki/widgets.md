@@ -989,11 +989,11 @@ As with widgets, the native side exists before any C# runs, so each control is a
 ```xml
 <ItemGroup>
   <SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="Hear about every goal, or not." Icon="bell" />
-  <SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Icon="hockey.puck" />
+  <SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Icon="Plus" />
 </ItemGroup>
 ```
 
-`DisplayName` and `Description` are what iOS's control gallery shows, and `DisplayName` is the tile's label on Android until the app has run. `Icon` is the gallery's SF Symbol before the app has stored a state of its own. At most nine controls; a kind cannot be both a `<SpineWidget>` and a `<SpineControl>`. An app may declare controls and no widgets; the extension is built either way.
+`DisplayName` and `Description` are what iOS's control gallery shows, and `DisplayName` is the tile's label on Android until the app has run. `Icon` is the gallery's icon before the app has stored a state of its own, named like `ControlState.Icon`. At most nine controls; a kind cannot be both a `<SpineWidget>` and a `<SpineControl>`. An app may declare controls and no widgets; the extension is built either way.
 
 ### Write the provider
 
@@ -1002,7 +1002,7 @@ As with widgets, the native side exists before any C# runs, so each control is a
 public sealed class GoalAlertsControl(ISettings _settings) : IControlProvider
 {
     public Task<ControlState> GetStateAsync(ControlContext context, CancellationToken cancellationToken) =>
-        Task.FromResult(ControlState.Toggle("Goal alerts", _settings.GoalAlerts, "bell") with { Tint = WidgetColor.Orange });
+        Task.FromResult(ControlState.Toggle("Goal alerts", _settings.GoalAlerts, "Bell") with { Tint = WidgetColor.Orange });
 
     public async Task OnActionAsync(ControlAction action)   // main thread; action.IsOn, action.At
     {
@@ -1015,7 +1015,7 @@ public sealed class GoalAlertsControl(ISettings _settings) : IControlProvider
 public sealed class GoalControl(LiveScore _score) : IControlProvider
 {
     public Task<ControlState> GetStateAsync(ControlContext context, CancellationToken cancellationToken) =>
-        Task.FromResult(ControlState.Button("Goal Owls", "plus", status: _score.Line) with { Symbol = "hockey.puck" });
+        Task.FromResult(ControlState.Button("Goal Owls", "Plus", status: _score.Line));
 
     public Task OnActionAsync(ControlAction action) => _score.GoalForFollowedAsync();   // action.IsOn is null
 }
@@ -1027,12 +1027,29 @@ The provider is constructed through DI every time it runs. `GetStateAsync` runs 
 |---|---|---|
 | `Title` | The control's title | The tile's label |
 | `IsOn` | The toggle's value; `null` makes it a button | Active / inactive; a button tile is inactive |
-| `Icon` | The SF Symbol of that name | An SVG of that name (dots as underscores), drawn as the tile's white mask — the same lookup as [`W.Icon`](#icons) |
-| `Symbol` | The SF Symbol, when it is not named like `Icon` | — |
+| `Icon` | The custom symbol of that SVG (see below) | The SVG, drawn as the tile's white mask — the same lookup as [`W.Icon`](#icons) |
 | `Status` | A button's second line. A toggle shows iOS's own *On* / *Off* in the user's language | The tile's subtitle (Android 10+); without one Android says *On* / *Off* |
 | `Tint` | The color of a toggle that is on | — (the system accent) |
 
-**iOS draws only symbols in a control.** An SVG that is not also an SF Symbol name leaves the control empty there, so either pick a name both have (`bell`, `clock`, `star`, `plus`) or set `Symbol`.
+**An icon is the same SVG on both platforms.** iOS draws only symbols in a control, so the SVG is turned into a custom symbol in the extension's asset catalog:
+
+- **Spine's icons** (`Plugin.Maui.Spine.Svg.Icons`, `SpineIcons.Bell`, `"Plus"`) are built into the extension whenever the app declares a `<SpineControl>`; nothing to do.
+- **The app's own icons** are written once with the `spine-symbols` tool and kept in the project:
+
+  ```bash
+  dotnet tool install -g Plugin.Maui.Spine.Symbols.Tool
+  spine-symbols Platforms/iOS/AppSymbols.xcassets Resources/Images/puck.svg Resources/Images/whistle.svg
+  ```
+
+  ```xml
+  <PropertyGroup>
+    <SpineWidgetsAssetCatalog>Platforms/iOS/AppSymbols.xcassets</SpineWidgetsAssetCatalog>
+  </PropertyGroup>
+  ```
+
+  The tool fills each SVG's outline into the SF Symbols template (Ultralight, Regular and Black, small), so stroked icons come out with the same weight. An SVG that draws nothing (an empty icon) is refused.
+
+An icon with neither a custom symbol nor an SF Symbol of that name shows a question mark on iOS. `ControlState.Symbol`, an SF Symbol for iOS alone, is obsolete.
 
 ### What happens on a tap
 
@@ -1301,7 +1318,7 @@ What Spine widgets cannot do, and what to do instead.
 | Color a Live Update on Android | Android does not promote a colorized notification | `LiveUpdatePresentation.Layout`, which colors the tree's own text and graph (not a background) and gives up the chip |
 | Widgets on Windows | Not implemented | The services are no-ops there; check `IsSupported` |
 | A Live Activity on the Mac | ActivityKit does not exist on macOS | A widget, or a notification |
-| A control drawn from the tree vocabulary, or with an SVG on iOS | A control is a fixed template, and iOS draws only SF Symbols in one | `Title`, `Status`, `Icon`/`Symbol`, `Tint` |
+| A control drawn from the tree vocabulary | A control is a fixed template, and iOS draws only symbols in one | `Title`, `Status`, `Icon` (an SVG, made a custom symbol), `Tint` |
 | A control with a parameter (the user picks which light) | Spine's controls are static; there is no configuration intent | One kind per choice |
 | Controls on the Mac or on Windows | Mac Catalyst apps have no Control Center controls; Windows has no equivalent | — |
 
@@ -1337,7 +1354,7 @@ What Spine widgets cannot do, and what to do instead.
 | The countdown stands still | Text the app computed instead of a `W.Timer` node. |
 | A button changes the widget only after the app is opened (iOS) | The intent ran in the extension: the app bundle has no `Metadata.appintents` in its root, or the one there is stale. The build writes it from the bridge framework; `rm -rf obj/spinewidgets` and build again, and check the `.app` root. |
 | A control is not in iOS's control gallery | The kind has no `<SpineControl>` item, the device runs iOS 17, or the app was never launched after install. |
-| A control's icon is empty (iOS) | Its `Icon` is not an SF Symbol name; set `Symbol`. |
+| A control's icon is a question mark (iOS) | Its `Icon` is an app SVG with no custom symbol: run `spine-symbols` on it and set `SpineWidgetsAssetCatalog`. |
 | A tile shows the item's name and a dot (Android) | The app has not stored a state yet, or the icon's SVG was not found (logcat `SpineWidgets`). |
 | `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
 | Build error about the App Group | The app's `CodesignEntitlements` does not list the group; see [setup](#3-give-the-app-the-app-group-entitlement). |
