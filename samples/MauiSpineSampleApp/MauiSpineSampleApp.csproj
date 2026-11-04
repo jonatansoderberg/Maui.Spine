@@ -750,6 +750,14 @@
 			<DependentUpon>FullscreenSheetPage.cs</DependentUpon>
 		</Compile>
 
+		<MauiXaml Update="Pages\Widgets\LayoutPreviewPage.View.xaml">
+			<Generator>MSBuild:Compile</Generator>
+			<DependentUpon>LayoutPreviewPage.cs</DependentUpon>
+		</MauiXaml>
+		<Compile Include="Pages\Widgets\LayoutPreviewPage.ViewModel.cs">
+			<DependentUpon>LayoutPreviewPage.cs</DependentUpon>
+		</Compile>
+
 		<MauiXaml Update="Pages\Widgets\WidgetsPage.View.xaml">
 	    <Generator>MSBuild:Compile</Generator>
       <DependentUpon>WidgetsPage.cs</DependentUpon>
@@ -826,6 +834,8 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Chat\Plugin.Maui.Spine.Controls.Chat.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
+		<!-- The layout files' generator, as Plugin.Maui.Spine.Common's package brings it (Widgets\Layouts\Reading.layout.xml). -->
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Layouts.Generator\Plugin.Maui.Spine.Layouts.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Biometrics\Plugin.Maui.Spine.Biometrics.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI\Plugin.Maui.Spine.AI.csproj" />

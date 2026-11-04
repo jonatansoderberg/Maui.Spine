@@ -190,6 +190,17 @@ Without either, macOS blocks the container ("Data Access Blocked") and the widge
 
 The trees below are written with `W.*` in C#. The same tree can be written as an XML file bound to a model, which a source generator turns into these calls at build time: see [widget-layout-files.md](widget-layout-files.md).
 
+### Previewing in the app
+
+`WidgetPreview` draws a tree or a Live Activity inside the app, at the size of the place it is shown, so a layout can be checked without a build and a run per surface:
+
+```xml
+<widgets:WidgetPreview Activity="{Binding Layout}" Place="IslandCompact" Platform="Android" />
+<widgets:WidgetPreview Tree="{Binding Tree}" Family="Medium" IsDark="True" />
+```
+
+`Place` is `LockScreen`, `IslandExpanded`, `IslandCompact`, `IslandMinimal`, `CarPlay` (the activity's `Small`), `Notification` (Android's Live Update: its text, then the tree) or `HomeScreen` (a widget at `Family`). The preview draws from the JSON the platforms get, with shared nodes put in and the overrides for `Platform` and the place applied, the app's icons and stored images included; `Notes` is what `Explain()` says there. It is drawn with MAUI views, close to SwiftUI's and RemoteViews' layout without being either: the real surface still has the last word. The Showcase's *Layout preview* page shows every place and size of a layout at once.
+
 A provider is a class with `[Widget]`. It is constructed through DI on every refresh, so inject services the way a view model does.
 
 ```csharp

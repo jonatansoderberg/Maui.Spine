@@ -176,6 +176,9 @@ internal sealed class NativeWidgetPlatform : IWidgetPlatform
             ? Task.CompletedTask
             : AtomicFile.WriteAsync(Path.Combine(_containerPath, "assets", assetId), png, cancellationToken);
 
+    public string? AssetPath(string assetId) =>
+        _containerPath is not null && Path.Combine(_containerPath, "assets", assetId) is var path && File.Exists(path) ? path : null;
+
     /// <summary>Nothing to do: WidgetKit fetches the timeline's remote source itself on every reload.</summary>
     public Task FetchRemoteAsync(string kind, Uri source, CancellationToken cancellationToken) => Task.CompletedTask;
 

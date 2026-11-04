@@ -1,0 +1,58 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:widgets="clr-namespace:Plugin.Maui.Spine.Widgets;assembly=Plugin.Maui.Spine.Widgets"
+    xmlns:local="clr-namespace:MauiSpineSampleApp.Pages.Widgets"
+    x:Class="MauiSpineSampleApp.Pages.Widgets.LayoutPreviewPage"
+    x:TypeArguments="LayoutPreviewPageViewModel"
+    x:DataType="LayoutPreviewPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Widgets">
+
+        <Example Title="Every place at once"
+                 Summary="A widget or Live Activity drawn in the app, at the size of each place it is shown: from the same JSON the platforms get, with the shared nodes put in and the overrides for the platform applied, and what Explain() says under each. The drawing is close to the real thing without being it; it is for writing a layout without a build and a run per change.">
+            <VerticalStackLayout Spacing="12">
+                <SegmentedControl SelectedIndex="{Binding Source}">
+                    <Segment Title="Score activity" />
+                    <Segment Title="Reading file" />
+                    <Segment Title="Score widget" />
+                </SegmentedControl>
+                <SegmentedControl SelectedIndex="{Binding PlatformIndex}">
+                    <Segment Title="iOS" />
+                    <Segment Title="Android" />
+                </SegmentedControl>
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Dark (widgets and Android's notification)" FontSize="15" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding IsDark}" />
+                </Grid>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;widgets:WidgetPreview Activity="{Binding Layout}" Place="IslandCompact" Platform="Android" /&gt;
+                &lt;widgets:WidgetPreview Tree="{Binding Tree}" Family="Medium" IsDark="True" /&gt;
+
+                // Reading.layout.xml, compiled by the generator into ReadingLayout:
+                preview.Activity = ReadingLayout.Build(ReadingModel.Sample(DateTimeOffset.Now));
+            </Example.Code>
+        </Example>
+
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Previews}" Spacing="24">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="local:LayoutPreview">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="{Binding Title}" FontSize="13" FontAttributes="Bold" />
+                        <widgets:WidgetPreview x:Name="Preview" Activity="{Binding Activity}" Tree="{Binding Tree}" Place="{Binding Place}"
+                                               Family="{Binding Family}" Platform="{Binding Platform}" IsDark="{Binding IsDark}" />
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notes, Source={x:Reference Preview}, x:DataType=widgets:WidgetPreview}" Spacing="2">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Label Text="{Binding .}" FontSize="12" TextColor="{AppThemeBinding Light=#6E6E73, Dark=#98989D}" />
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+
+    </SampleLayout>
+</SpinePage>
