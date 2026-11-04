@@ -131,8 +131,23 @@
 		<Exec Command="bash &quot;$(_SpinePushNotificationsScript)&quot; --out &quot;$(_SpinePushNotificationsImagesOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpinePushNotificationsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpinePushNotificationsImagesSdk) --arch $(_SpinePushNotificationsImagesArch) --min-os $(_SpinePushNotificationsImagesMinOS) --config $(Configuration) --bundle-id &quot;$(_SpinePushNotificationsImagesBundleId)&quot; --name &quot;$(_SpinePushNotificationsImagesExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --provision &quot;$(SpinePushNotificationsImagesCodesignProvision)&quot; --require-provision $(_SpinePushNotificationsImagesRequireProvision)" />
 	</Target>
 
-	<Target Name="_SpinePushNotificationsImagesRegister"
+	<!-- The app's version in the extension, written after the swiftc build for the reason the widget extension's
+	     _SpineWidgetsStampVersion gives. -->
+	<Target Name="_SpinePushNotificationsImagesStampVersion"
 			DependsOnTargets="_SpinePushNotificationsImagesBuild"
+			Condition="'$(_SpinePushNotificationsImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''">
+		<PropertyGroup>
+			<_SpinePushNotificationsImagesAppex>$(_SpinePushNotificationsImagesOutDir)$(_SpinePushNotificationsImagesExtensionName).appex</_SpinePushNotificationsImagesAppex>
+			<_SpinePushNotificationsImagesShortVersion>$(ApplicationDisplayVersion)</_SpinePushNotificationsImagesShortVersion>
+			<_SpinePushNotificationsImagesShortVersion Condition="'$(_SpinePushNotificationsImagesShortVersion)' == ''">1.0</_SpinePushNotificationsImagesShortVersion>
+			<_SpinePushNotificationsImagesBundleVersion>$(ApplicationVersion)</_SpinePushNotificationsImagesBundleVersion>
+			<_SpinePushNotificationsImagesBundleVersion Condition="'$(_SpinePushNotificationsImagesBundleVersion)' == ''">1</_SpinePushNotificationsImagesBundleVersion>
+		</PropertyGroup>
+		<Exec Command="p=&quot;$(_SpinePushNotificationsImagesAppex)/Info.plist&quot;; [ &quot;`plutil -extract CFBundleShortVersionString raw &quot;$p&quot;` `plutil -extract CFBundleVersion raw &quot;$p&quot;`&quot; = &quot;$(_SpinePushNotificationsImagesShortVersion) $(_SpinePushNotificationsImagesBundleVersion)&quot; ] || { plutil -replace CFBundleShortVersionString -string &quot;$(_SpinePushNotificationsImagesShortVersion)&quot; &quot;$p&quot; &amp;&amp; plutil -replace CFBundleVersion -string &quot;$(_SpinePushNotificationsImagesBundleVersion)&quot; &quot;$p&quot; &amp;&amp; /usr/bin/codesign --force --sign - --timestamp=none --entitlements &quot;$(_SpinePushNotificationsImagesOutDir)$(_SpinePushNotificationsImagesExtensionName).entitlements&quot; &quot;$(_SpinePushNotificationsImagesAppex)&quot;; }" />
+	</Target>
+
+	<Target Name="_SpinePushNotificationsImagesRegister"
+			DependsOnTargets="_SpinePushNotificationsImagesStampVersion"
 			Condition="'$(_SpinePushNotificationsImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''"
 			BeforeTargets="_CollectBundleResources;_DetectSigningIdentity;_CompileEntitlements;_ResolveAppExtensionReferences;_ExtendAppExtensionReferences">
 		<PropertyGroup>

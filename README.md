@@ -272,7 +272,8 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
 | [Packages](docs/wiki/packages.md) | The thirty-seven packages, what depends on what, which to install |
-| [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
+| [Releasing](docs/wiki/releasing.md) | Releases to nuget.org from GitHub Actions, the version worked out from the commit |
+| [Versioning](docs/wiki/versioning.md) | The recommended version scheme for apps and packages: `major.yyMMdd.revision (build id)`, set by the build from the date and git |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 
 ---

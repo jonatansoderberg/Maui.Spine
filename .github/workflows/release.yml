@@ -1,8 +1,12 @@
 name: Release
 
-# A release is a tag: `git tag v0.1.0 && git push origin v0.1.0`. The version is the tag without
-# its v; a tag with a prerelease suffix (v0.2.0-preview.1) publishes a prerelease.
+# A release is started by hand (Actions → Release → Run workflow, or `gh workflow run release.yml`) and gets
+# its version from the commit: VersionMajor.yyMMdd.revision, the major from src/Directory.Build.props, the
+# date of the run (UTC) and the commit count of master, 0.261031.812 (docs/wiki/versioning.md). The workflow
+# tags the commit v<version> itself. A pushed tag still releases its own version, so a prerelease is a tag
+# with a suffix (v0.261031.812-preview.1).
 on:
+  workflow_dispatch:
   push:
     tags: ['v*']
 
@@ -15,12 +19,17 @@ permissions:
 
 jobs:
   release:
+    # By hand from master only; a tag from anywhere.
+    if: github.ref_type == 'tag' || github.ref == 'refs/heads/master'
     runs-on: windows-latest
     defaults:
       run:
         shell: bash
     steps:
+      # The whole history: the revision is the commit count.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -34,10 +43,18 @@ jobs:
 
       - run: dotnet workload install maui
 
-      - name: Version from tag
+      - name: Version
         run: |
-          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          case "$GITHUB_REF_NAME" in *-*) echo "PRERELEASE=--prerelease" >> "$GITHUB_ENV";; esac
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            case "$VERSION" in *-*) echo "PRERELEASE=--prerelease" >> "$GITHUB_ENV";; esac
+          else
+            MAJOR=$(sed -n 's:.*<VersionMajor>\(.*\)</VersionMajor>.*:\1:p' src/Directory.Build.props)
+            VERSION="$MAJOR.$(date -u +%y%m%d).$(git rev-list --count HEAD)"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=v$VERSION" >> "$GITHUB_ENV"
+          echo "Version $VERSION"
 
       - run: dotnet restore Spine.Packages.slnf
 
@@ -68,4 +85,5 @@ jobs:
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" artifacts/packages/*.nupkg --title "$GITHUB_REF_NAME" --generate-notes $PRERELEASE
+        # Creates the tag at this commit when the run was started by hand.
+        run: gh release create "$TAG" artifacts/packages/*.nupkg --target "$GITHUB_SHA" --title "$TAG" --generate-notes $PRERELEASE

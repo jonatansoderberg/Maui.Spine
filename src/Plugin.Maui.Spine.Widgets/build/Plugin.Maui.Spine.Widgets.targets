@@ -151,6 +151,27 @@
 	</Target>
 
 	<!--
+		The extension carries the app's version, as App Store Connect expects of an extension. It is written
+		into the built bundle here rather than by the script, because the build id changes every minute and
+		the extension should not be compiled again for that; the bundle is then signed again, as the script
+		signs it. An app without ApplicationDisplayVersion / ApplicationVersion keeps the script's 1.0 (1).
+	-->
+	<Target Name="_SpineWidgetsStampVersion"
+			DependsOnTargets="_SpineWidgetsBuild"
+			Condition="'$(SpineWidgetsEnabled)' == 'true' And '$(_SpineWidgetsApple)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true') Or '$(_SpineLiveActivitiesApple)' == 'true') And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">
+		<PropertyGroup>
+			<_SpineWidgetsAppex>$(_SpineWidgetsOutDir)$(SpineWidgetsExtensionName).appex</_SpineWidgetsAppex>
+			<_SpineWidgetsAppexInfo>$(_SpineWidgetsAppex)/Info.plist</_SpineWidgetsAppexInfo>
+			<_SpineWidgetsAppexInfo Condition="'$(_SpineWidgetsSdk)' == 'maccatalyst'">$(_SpineWidgetsAppex)/Contents/Info.plist</_SpineWidgetsAppexInfo>
+			<_SpineWidgetsShortVersion>$(ApplicationDisplayVersion)</_SpineWidgetsShortVersion>
+			<_SpineWidgetsShortVersion Condition="'$(_SpineWidgetsShortVersion)' == ''">1.0</_SpineWidgetsShortVersion>
+			<_SpineWidgetsBundleVersion>$(ApplicationVersion)</_SpineWidgetsBundleVersion>
+			<_SpineWidgetsBundleVersion Condition="'$(_SpineWidgetsBundleVersion)' == ''">1</_SpineWidgetsBundleVersion>
+		</PropertyGroup>
+		<Exec Command="p=&quot;$(_SpineWidgetsAppexInfo)&quot;; [ &quot;`plutil -extract CFBundleShortVersionString raw &quot;$p&quot;` `plutil -extract CFBundleVersion raw &quot;$p&quot;`&quot; = &quot;$(_SpineWidgetsShortVersion) $(_SpineWidgetsBundleVersion)&quot; ] || { plutil -replace CFBundleShortVersionString -string &quot;$(_SpineWidgetsShortVersion)&quot; &quot;$p&quot; &amp;&amp; plutil -replace CFBundleVersion -string &quot;$(_SpineWidgetsBundleVersion)&quot; &quot;$p&quot; &amp;&amp; /usr/bin/codesign --force --sign - --timestamp=none --entitlements &quot;$(_SpineWidgetsOutDir)$(SpineWidgetsExtensionName).entitlements&quot; &quot;$(_SpineWidgetsAppex)&quot;; }" />
+	</Target>
+
+	<!--
 		Registers the outputs with the SDK. Hooked before every consumer of the items and properties it
 		sets; BeforeTargets runs after the consumer's own DependsOnTargets, so the dependency targets that
 		read them are listed too. Every target repeats the full condition because MSBuild evaluates a
@@ -158,7 +179,7 @@
 		cannot gate the targets that depend on it.
 	-->
 	<Target Name="_SpineWidgetsRegister"
-			DependsOnTargets="_SpineWidgetsBuild;_SpineWriteEntitlements"
+			DependsOnTargets="_SpineWidgetsStampVersion;_SpineWriteEntitlements"
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And '$(_SpineWidgetsApple)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true') Or '$(_SpineLiveActivitiesApple)' == 'true') And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
 			BeforeTargets="_SanitizeNativeReferences;_CollectBundleResources;_CompileAppManifestInputs;_CompileAppManifest;_DetectSigningIdentity;_CompileEntitlements;_ResolveAppExtensionReferences;_ExtendAppExtensionReferences">
 		<PropertyGroup>

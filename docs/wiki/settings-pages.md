@@ -125,30 +125,19 @@ The last section but the delete section, with the header "About". It always has 
 
 - **About <app>** opens a sheet with the app's own page: what the app does, what is important to know (a medical or financial disclaimer, unofficial data sources), privacy, sources, licences and how to reach the developer. The text is a markdown file in the app (`Resources/Raw/about.md`, and `about.sv.md` beside it for each further language), drawn with [`MarkdownView`](markdown.md) in a scrolling sheet: `[NavigableSheet(AllowedDetents = [SheetDetent.Expanded, SheetDetent.FullScreen])]`, closed with the sheet's own close button and no Done action. The sheet loads the file after it is up (a sheet waits for `OnAppearingAsync`), and links in it open with `Launcher`. Licences and sources live there, not in footers.
 - **Send feedback** opens a mail to the developer with the app's name and version as the subject, through `Email.Default.ComposeAsync`, or a `mailto:` link when Mail isn't set up.
-- **Version** shows `AppInfo.Current.VersionString` as the value, `1.0.431494`, and the day of the build as the detail, `27 Oct 2026` (`27 okt 2026` in Swedish), in the app's language. No brackets and no separate build string. Leave out the time: beside the version a time does not fit on a phone, and the detail is cut off or scrolls.
+- **Version** shows the version and the build id as the value, `0.261031.412 (437245)`, and the day of the build as the detail, `31 Oct 2026` (`31 okt 2026` in Swedish), in the app's language. Leave out the time: beside the version a time does not fit on a phone, and the detail is cut off or scrolls.
 
 A footer under the section is only for what must be seen without opening the sheet, such as "not a medical device".
 
 ### Version and build number
 
-Every build gets a new build number: the minutes since 1 January 2026 UTC. It is the app's `ApplicationVersion` (`CFBundleVersion`, Android's `versionCode`) and the third part of `ApplicationDisplayVersion`, so the version is always `major.minor.build` and always increases. Set it in the app's project, with the app's own major and minor version:
+The version is `major.yyMMdd.revision` with the build id beside it, set by the build from the date and git; [Versioning](versioning.md) has the scheme and the `Version.props` an app imports. The build id, the minutes since 1 January 2026 UTC, is new for every build: it is the app's `ApplicationVersion` (`CFBundleVersion`, Android's `versionCode`), `AppInfo.Current.BuildString` at run time.
 
-```xml
-<PropertyGroup>
-    <!-- Minutes since 2026-01-01 UTC: a new, increasing build number for every build. The app turns it back
-         into the day of the build. 639028224000000000 is the ticks of that date. -->
-    <AppBuildNumber Condition="'$(AppBuildNumber)' == ''">$([System.Math]::Floor($([MSBuild]::Divide($([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), 639028224000000000)), 600000000))))</AppBuildNumber>
-    <ApplicationDisplayVersion>1.0.$(AppBuildNumber)</ApplicationDisplayVersion>
-    <ApplicationVersion>$(AppBuildNumber)</ApplicationVersion>
-    <!-- MAUI derives the assembly's versions from ApplicationDisplayVersion, and an assembly version part stops at
-         65535 (CS7034). Fixed ones also keep the build number from recompiling the assembly on every build. -->
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <InformationalVersion>1.0</InformationalVersion>
-</PropertyGroup>
+```csharp
+public string Version => $"{AppInfo.Current.VersionString} ({AppInfo.Current.BuildString})";
 ```
 
-The settings page turns it back into the day of the build, so no second value is stamped into the build:
+The settings page turns the build id back into the day of the build, so no second value is stamped into the build:
 
 ```csharp
 // Abbreviated months end in a dot in some languages (Swedish "okt."), left out.
@@ -157,7 +146,7 @@ public string BuildDate => int.TryParse(AppInfo.Current.BuildString, out var min
     : "";
 ```
 
-A release build can pin the number with `-p:AppBuildNumber=<n>`. The widget extension's own version is still fixed at `1.0` / `1` in `Plugin.Maui.Spine.Widgets`.
+A release build can pin the build id with `-p:BuildId=<n>`. The widget and notification service extensions carry the app's version and build id.
 
 ## Sample
 
