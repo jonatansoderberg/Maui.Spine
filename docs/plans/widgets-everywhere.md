@@ -97,7 +97,7 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 | W1 | Padding per side and margin (D1) | — | Done | #744 | #761 |
 | W2 | One alignment model; ZStack centred on Android (D2) | — | Done | #745 | #762 |
 | W3 | MAUI-style names in C#; stacks skip null; no default values in JSON (D12) | — | Done | #746 | #763 |
-| W4 | Icons from SVG only, prepared at start; `AppIcons` (D3) | — | Done | #747 | #764 |
+| W4 | Icons from SVG only, prepared at start; `AppIcons` (D3) | — | Done | #747 | #765 |
 | W5 | Android pictures at the width they are given (D4) | — | Ready | #748 | |
 | W6 | Overrides and `Explain()`; Spine's rules as default overrides (D5) | W3 | Waiting | #749 | |
 | W7 | Parts and Android's derived notification text (D6) | W6 | Waiting | #750 | |
