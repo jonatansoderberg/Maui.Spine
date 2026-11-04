@@ -176,6 +176,20 @@ internal sealed class NativeWidgetPlatform : IWidgetPlatform
             ? Task.CompletedTask
             : AtomicFile.WriteAsync(Path.Combine(_containerPath, "assets", assetId), png, cancellationToken);
 
+    public void InstallTemplates(IReadOnlyCollection<LiveActivityTemplate> templates)
+    {
+        if (_containerPath is null) return;
+        var folder = Path.Combine(_containerPath, "templates");
+        Directory.CreateDirectory(folder);
+        foreach (var template in templates)
+            if (Path.Combine(folder, template.Id + ".json") is var path && !File.Exists(path))
+                AtomicFile.WriteAllText(path, template.Json);
+        var current = templates.Select(t => t.Id + ".json").ToHashSet(StringComparer.Ordinal);
+        foreach (var file in Directory.EnumerateFiles(folder, "*.json"))
+            if (!current.Contains(Path.GetFileName(file)))
+                File.Delete(file);
+    }
+
     public string? AssetPath(string assetId) =>
         _containerPath is not null && Path.Combine(_containerPath, "assets", assetId) is var path && File.Exists(path) ? path : null;
 

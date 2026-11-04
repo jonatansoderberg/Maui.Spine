@@ -25,11 +25,14 @@ public class PushSenderTests
 
         public PushEnvelope? Envelope { get; private set; }
 
+        public List<(IReadOnlyList<PushInstallation> To, PushEnvelope Envelope)> Sends { get; } = [];
+
         public Task<IReadOnlyList<PushDelivery>> SendAsync(
             IReadOnlyList<PushInstallation> installations, PushEnvelope message, CancellationToken cancellationToken = default)
         {
             Reached.AddRange(installations);
             Envelope = message;
+            Sends.Add(([.. installations], message));
 
             IReadOnlyList<PushDelivery> deliveries = installations
                 .Select(i => new PushDelivery(i.Id, platform, status, status == PushStatus.Sent ? null : "token dead"))
@@ -193,6 +196,31 @@ public class PushSenderTests
             PushTarget.User("1"), "din-start:59691", new LiveActivityLayout { LockScreen = W.Text("x") });
 
         Assert.Equal("activity-ios", Assert.Single(apple.Reached).Handle);
+    }
+
+    [Fact]
+    public async Task A_device_with_the_template_gets_its_values_and_the_others_the_layout()
+    {
+        var (sender, store, apple, android) = NewSender();
+        const string kind = "glucose:p1";
+        var with = Running(Installation("new", PushPlatform.Apple, "user:1"), kind);
+        await store.UpsertAsync(with with { LiveActivities = with.LiveActivities! with { Templates = ["glucose@1a2b3c4d"] } });
+        await store.UpsertAsync(Running(Installation("old", PushPlatform.Apple, "user:1"), kind));
+        await store.UpsertAsync(Installation("phone", PushPlatform.Android, "user:1") with
+        {
+            LiveActivities = new LiveActivityTokens { Templates = ["glucose@1a2b3c4d"] },
+        });
+
+        var data = new LiveActivityTemplateData("glucose@1a2b3c4d", new System.Text.Json.Nodes.JsonObject { ["a"] = "9,3" });
+        var result = await sender.UpdateLiveActivityAsync(PushTarget.User("1"), kind, new LiveActivityLayout { LockScreen = W.Text("9,3") }, data);
+
+        Assert.Equal(3, result.Deliveries.Count);
+        var templated = Assert.Single(apple.Sends, s => s.Envelope.Json.Contains("\"t\":\"glucose@1a2b3c4d\""));
+        Assert.Equal("activity-new", Assert.Single(templated.To).Handle);
+        Assert.Contains("\"d\":{\"a\":\"9,3\"}", templated.Envelope.Json);
+        var tree = Assert.Single(apple.Sends, s => s.Envelope.Json.Contains("\"layout\""));
+        Assert.Equal("activity-old", Assert.Single(tree.To).Handle);
+        Assert.Contains("spine.template", Assert.Single(android.Sends).Envelope.Json);
     }
 
     [Fact]

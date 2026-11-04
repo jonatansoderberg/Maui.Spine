@@ -37,6 +37,12 @@ public static class PushKeys
     /// <summary>A serialized <see cref="LiveActivityLayout"/>, for platforms that render it in the app's process.</summary>
     public const string Layout = "spine.layout";
 
+    /// <summary>The <see cref="LiveActivityTemplate.Id"/> a Live Activity message fills in, with <see cref="TemplateData"/>, instead of a <see cref="Layout"/>.</summary>
+    public const string Template = "spine.template";
+
+    /// <summary>The values for <see cref="Template"/>, as <see cref="LiveActivityTemplateData.ToJson"/> writes them.</summary>
+    public const string TemplateData = "spine.data";
+
     /// <summary>The widget kind a <see cref="Kinds.Widget"/> message should refresh; all of them when absent.</summary>
     public const string Widget = "spine.widget";
 

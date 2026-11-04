@@ -25,6 +25,8 @@
                     <Label Text="Dark (widgets and Android's notification)" FontSize="15" VerticalOptions="Center" />
                     <Switch Grid.Column="1" IsToggled="{Binding IsDark}" />
                 </Grid>
+                <Button Text="Start the reading as a Live Activity" Command="{Binding StartReadingCommand}" HorizontalOptions="Start" />
+                <Label Text="{Binding ReadingStatus}" FontSize="13" />
             </VerticalStackLayout>
             <Example.Code>
                 &lt;widgets:WidgetPreview Activity="{Binding Layout}" Place="IslandCompact" Platform="Android" /&gt;

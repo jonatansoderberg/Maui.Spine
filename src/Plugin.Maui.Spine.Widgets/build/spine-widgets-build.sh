@@ -363,7 +363,7 @@ app_intents_metadata() {  # <module> <output dir> <const values> <target> <min o
 }
 
 # --- Bridge framework ------------------------------------------------------------------------------
-BRIDGE_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineControlIntent.swift" "$SOURCES/SpineWidgetBridge.swift")
+BRIDGE_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineLayoutTemplates.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineControlIntent.swift" "$SOURCES/SpineWidgetBridge.swift")
 xcrun -sdk "$XCRUN_SDK" swiftc \
   -target "$TARGET" "${OPT[@]}" ${IOS_SUPPORT[@]+"${IOS_SUPPORT[@]}"} -parse-as-library \
   -emit-library -module-name SpineWidgetBridge \
@@ -392,7 +392,7 @@ PLIST
 } > "$FRAMEWORK_INFO/Info.plist"
 
 # --- Widget extension --------------------------------------------------------------------------------
-EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineControlIntent.swift" "$SOURCES/SpineWidgetRenderer.swift" "$SOURCES/SpineControls.swift" "$SOURCES/SpineWidgetPush.swift" "$BUNDLE")
+EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineLayoutTemplates.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineControlIntent.swift" "$SOURCES/SpineWidgetRenderer.swift" "$SOURCES/SpineControls.swift" "$SOURCES/SpineWidgetPush.swift" "$BUNDLE")
 xcrun -sdk "$XCRUN_SDK" swiftc \
   -target "$EXT_TARGET" "${OPT[@]}" ${IOS_SUPPORT[@]+"${IOS_SUPPORT[@]}"} -parse-as-library -application-extension \
   -module-name "$NAME" \

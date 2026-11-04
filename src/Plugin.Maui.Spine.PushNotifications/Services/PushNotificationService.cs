@@ -279,9 +279,10 @@ internal sealed class PushNotificationService : IPushNotificationService
                     running[activity.Kind] = token;
             }
 
-            return pushToStart is null && running.Count == 0
+            var templates = activities.Templates;
+            return pushToStart is null && running.Count == 0 && templates.Count == 0
                 ? null
-                : new LiveActivityTokens { PushToStart = pushToStart, Activities = running };
+                : new LiveActivityTokens { PushToStart = pushToStart, Activities = running, Templates = templates };
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

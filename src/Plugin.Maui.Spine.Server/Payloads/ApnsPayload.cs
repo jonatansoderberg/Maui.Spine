@@ -110,7 +110,14 @@ public sealed class ApnsPayload
                 // update the app before the server.
                 w.WritePropertyName("content-state");
                 w.WriteStartObject();
-                w.WritePropertyName("layout");
+                if (activity.TemplateId is { } template)
+                {
+                    // Only the values of a template the device installed; the extension fills it in.
+                    w.WriteString("t", template);
+                    w.WritePropertyName("d");
+                }
+                else
+                    w.WritePropertyName("layout");
                 w.WriteRawValue(activity.ContentStateJson);
                 w.WriteEndObject();
             }
@@ -134,6 +141,7 @@ public sealed class ApnsPayload
 /// <param name="DismissAt">When an ended activity should disappear.</param>
 /// <param name="InputPushChannel">On a start, the broadcast channel the new activity follows (iOS 18).</param>
 /// <param name="StartKind">On a start, the kind the new activity is created with.</param>
+/// <param name="TemplateId">The installed template <paramref name="ContentStateJson"/> holds the values of, instead of a layout.</param>
 public readonly record struct ApnsLiveActivity(
     string Event,
     string ContentStateJson,
@@ -141,4 +149,5 @@ public readonly record struct ApnsLiveActivity(
     DateTimeOffset? StaleAt = null,
     DateTimeOffset? DismissAt = null,
     string? InputPushChannel = null,
-    string? StartKind = null);
+    string? StartKind = null,
+    string? TemplateId = null);

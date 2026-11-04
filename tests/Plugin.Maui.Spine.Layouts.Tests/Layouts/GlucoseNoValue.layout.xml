@@ -1,6 +1,7 @@
 <!-- No value to show, and why: the first branch of Glukos's GlucoseActivity.Layout, as a file. -->
 <LiveActivity xmlns="https://schemas.cosmomedia.se/spine/layout"
               Model="Plugin.Maui.Spine.Layouts.Tests.GlucoseModel"
+              Payload="Template"
               Background="#000000"
               Link="{Link}">
     <VStack Spacing="6" Padding="14">

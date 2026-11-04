@@ -177,7 +177,14 @@ public static partial class SpineWidgetsExtensions
         var widgets = services.GetRequiredService<IWidgetService>();
         var controls = services.GetRequiredService<IControlService>();
         var logger = services.GetRequiredService<ILogger<IWidgetService>>();
-        if (services.GetRequiredService<SpineWidgetsOptions>().Icons is { Count: > 0 } icons)
+        var options = services.GetRequiredService<SpineWidgetsOptions>();
+        if (options.Templates.Count > 0)
+        {
+            try { services.GetRequiredService<IWidgetPlatform>().InstallTemplates([.. options.Templates]); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { logger.LogError(e, "Installing the Live Activity templates failed."); }
+        }
+        // A pushed template draws its icons from the start, as a pushed layout does those listed.
+        if (options.Icons.Concat(options.Templates.SelectMany(t => t.Icons)).Distinct(StringComparer.Ordinal).ToList() is { Count: > 0 } icons)
             services.GetRequiredService<WidgetIconAssets>().EnsureAsync(icons, CancellationToken.None)
                 .SafeFireAndForget(e => logger.LogError(e, "Drawing the widget icons failed."));
         widgets.RefreshAllAsync().SafeFireAndForget(e => logger.LogError(e, "Background widget refresh failed."));

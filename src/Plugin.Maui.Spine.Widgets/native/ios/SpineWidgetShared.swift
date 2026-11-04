@@ -12,15 +12,28 @@ public struct SpineActivityAttributes: ActivityAttributes {
         public var layout: JSONValue
 
         public init(json: String) {
-            layout = (try? JSONDecoder().decode(JSONValue.self, from: Data(json.utf8))) ?? .null
+            let value = (try? JSONDecoder().decode(JSONValue.self, from: Data(json.utf8))) ?? .null
+            // A template's values, as a push carries them, fill the template in here too.
+            if case .object(let fields) = value, case .string(let id)? = fields["t"] {
+                layout = InstalledTemplates.template(id).map { LayoutTemplates.render($0, data: fields["d"] ?? .object([:])) } ?? .null
+            } else {
+                layout = value
+            }
         }
 
-        private enum CodingKeys: String, CodingKey { case layout, json }
+        // A push to a device that has the activity's template carries its id under "t" and the values under "d" instead
+        // of the layout (LiveActivityTemplate in C#): the template is filled in here, from the App Group, where the app
+        // installed it. Stored again, the state holds the layout, so the template is read once per push.
+        private enum CodingKeys: String, CodingKey { case layout, json, t, d }
 
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             if let layout = try container.decodeIfPresent(JSONValue.self, forKey: .layout) {
                 self.layout = layout
+            } else if let id = try container.decodeIfPresent(String.self, forKey: .t) {
+                let data = try container.decodeIfPresent(JSONValue.self, forKey: .d) ?? .object([:])
+                layout = InstalledTemplates.template(id).map { LayoutTemplates.render($0, data: data) } ?? .null
+                if case .null = layout { NSLog("[SpineWidgets] no template \(id) is installed; the push draws nothing") }
             } else {
                 self = ContentState(json: try container.decode(String.self, forKey: .json))
             }
@@ -35,36 +48,22 @@ public struct SpineActivityAttributes: ActivityAttributes {
     public var kind: String
     public init(kind: String) { self.kind = kind }
 }
-#endif
 
-/// Any JSON, kept as it came: the layout travels through ActivityKit in this shape and is decoded by the renderer.
-public enum JSONValue: Codable, Hashable {
-    case null
-    case bool(Bool)
-    case number(Double)
-    case string(String)
-    case array([JSONValue])
-    case object([String: JSONValue])
+/// The templates the app installed in the App Group (spine-widgets/templates/<id>.json), each read once.
+enum InstalledTemplates {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var cache: [String: JSONValue] = [:]
 
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if container.decodeNil() { self = .null }
-        else if let value = try? container.decode(Bool.self) { self = .bool(value) }
-        else if let value = try? container.decode(Double.self) { self = .number(value) }
-        else if let value = try? container.decode(String.self) { self = .string(value) }
-        else if let value = try? container.decode([JSONValue].self) { self = .array(value) }
-        else { self = .object(try container.decode([String: JSONValue].self)) }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .null: try container.encodeNil()
-        case .bool(let value): try container.encode(value)
-        case .number(let value): try container.encode(value)
-        case .string(let value): try container.encode(value)
-        case .array(let value): try container.encode(value)
-        case .object(let value): try container.encode(value)
-        }
+    static func template(_ id: String) -> JSONValue? {
+        lock.lock(); defer { lock.unlock() }
+        if let known = cache[id] { return known }
+        guard !id.contains("/"),
+              let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: ActionLog.appGroup)?
+                .appendingPathComponent("spine-widgets/templates/\(id).json"),
+              let data = try? Data(contentsOf: url),
+              let template = try? JSONDecoder().decode(JSONValue.self, from: data) else { return nil }
+        cache[id] = template
+        return template
     }
 }
+#endif

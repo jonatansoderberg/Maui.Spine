@@ -74,6 +74,29 @@ _score.Dispose();   // stops following; await _score.FlushAsync() first to send 
 
 A tree written in C# binds the same way: `activity.Bind(viewModel, m => ScoreTree(m))` and `activities.StartBoundAsync(kind, viewModel, build)` in `LiveActivityBindings`.
 
+## Sending only the values
+
+A Live Activity push has 4 KB, and most of a layout is the same in every push. With `Payload="Template"` the file also writes a template the app installs on the device, and the values alone for each push:
+
+```xml
+<LiveActivity xmlns="https://schemas.cosmomedia.se/spine/layout" Model="Glukos.GlucoseActivityModel" Payload="Template">
+```
+
+```csharp
+// The app: install it, and tell the server it is there (Spine.PushNotifications sends it with the push tokens).
+builder.UseSpineWidgets(options => options.Templates.Add(GlucoseActivityLayout.Template));
+
+// The server: the values to devices that have the template, the whole layout to the rest.
+await sender.UpdateLiveActivityAsync(target, kind, GlucoseActivityLayout.Build(model), GlucoseActivityLayout.Data(model));
+```
+
+- `Template` (`LiveActivityTemplate`) is the layout with a placeholder where each bound value goes, and `$if` and `$each` where a condition or a list decides; its `Id` is the file's name and a hash of its content (`glucose-activity@1a2b3c4d`), so a changed layout is a new template. `Data(model)` (`LiveActivityTemplateData`) holds the values, already formatted and in the user's language, because the app's own code works them out: filling the template in only puts them in place. `Template.Render(data)` is the layout `Build(model)` writes, which the tests check case by case.
+- At start Spine writes the templates into the App Group, where the widget extension fills them in (`SpineLayoutTemplates.swift`), and draws their icons. On Android the app fills them in itself from the push. `ILiveActivityService.Templates` lists what is installed, and `LiveActivityTokens.Templates` carries it to the server.
+- A push of values is `{"t": "glucose-activity@1a2b3c4d", "d": {…}}` in APNs' `content-state`, and `spine.template` and `spine.data` in FCM. `PushPayloads.ApnsLiveActivity(kind, data, …)` and `FcmLiveActivity(kind, data, …)` build it; `IPushSender`'s `StartLiveActivityAsync` and `UpdateLiveActivityAsync` take both the layout and the data and send each device the one it can draw. A broadcast to a channel sends the layout.
+- Glukos's reading is 556 bytes of values against 2,984 of layout; the graph's values are most of them.
+
+A layout the template cannot hold is sent as a tree, with `SPL016` saying why: a template parameter bound to the model, a bound flag (`Hidden`, `Expand`, `Decorative`), a bound enum, thickness, `MaxLines` or `ShrinkToFit`.
+
 ## The tree
 
 A `LiveActivity` holds one tree for the Lock Screen (and Android's notification drawn as a layout), then:
@@ -85,7 +108,7 @@ A `LiveActivity` holds one tree for the Lock Screen (and Android's notification 
 | `<LiveActivity.Small>` | CarPlay's Dashboard and the watch's Smart Stack |
 | `<LiveActivity.Notification Title Text Chip Icon Presentation />` | Android's Live Update in its own words (`LiveUpdateText`); without it Android derives them from the parts |
 
-Root attributes: `Model`, `Class`, `Background`, `SystemBackground`, `ActionColor`, `Link`.
+Root attributes: `Model`, `Class`, `Background`, `SystemBackground`, `ActionColor`, `Link`, `Payload` (`Template`; see [Sending only the values](#sending-only-the-values)).
 
 A `Widget` holds one tree for every size, and a size its own with `<Widget.Small>`, `Widget.Medium`, `Widget.Large`, `Widget.ExtraLarge`, `Widget.LockRectangle`, `Widget.LockCircle` or `Widget.LockLine`. `Background` is a color or `{LinearGradient #1C222D, #0B0E13}` (`Direction=Horizontal`).
 
@@ -174,6 +197,7 @@ var layout = model.HasValue ? GlucoseActivityLayout.Build(model) : GlucoseNoValu
 | SPL013 | Warning | A graph, ring, progress bar or image a screen reader says nothing for |
 | SPL014 | Error | A resource, template or shared node defined twice |
 | SPL015 | Error | A file that is not well-formed XML |
+| SPL016 | Warning | A file with `Payload="Template"` whose layout a template cannot hold, and why; it is sent as a tree |
 
 ## Writing the same JSON as C#
 

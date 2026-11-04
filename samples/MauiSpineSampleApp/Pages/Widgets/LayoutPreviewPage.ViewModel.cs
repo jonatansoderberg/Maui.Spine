@@ -32,10 +32,12 @@ public partial class LayoutPreviewPageViewModel : SampleViewModel
     ];
 
     private readonly LiveScore _score;
+    private readonly ILiveActivityService _activities;
 
-    public LayoutPreviewPageViewModel(LiveScore score)
+    public LayoutPreviewPageViewModel(LiveScore score, ILiveActivityService activities)
     {
         _score = score;
+        _activities = activities;
         _score.PropertyChanged += (_, _) => Rebuild();
         Rebuild();
     }
@@ -52,6 +54,30 @@ public partial class LayoutPreviewPageViewModel : SampleViewModel
     public partial bool IsDark { get; set; }
 
     public ObservableCollection<LayoutPreview> Previews { get; } = [];
+
+    [ObservableProperty]
+    public partial string ReadingStatus { get; set; } = "Templates on this device: " + string.Join(", ", IPlatformApplication.Current!.Services.GetRequiredService<ILiveActivityService>().Templates);
+
+    /// <summary>
+    /// Starts Reading.layout.xml as a Live Activity, and writes beside the app's data the push that updates it with the
+    /// template's values alone, as a server would send it to this device (xcrun simctl push … reading-update.apns).
+    /// </summary>
+    [RelayCommand]
+    private async Task StartReading()
+    {
+        var now = DateTimeOffset.Now;
+        var model = ReadingModel.Sample(now);
+        if (await _activities.StartAsync("reading", ReadingLayout.Build(model)) is null)
+        {
+            ReadingStatus = "No Live Activity was started.";
+            return;
+        }
+        var later = ReadingModel.Sample(now.AddMinutes(5)) with { Value = "12,1", Arrow = "↑", Symbol = "ArrowUpRight", Below = "Very high" };
+        var data = ReadingLayout.Data(later);
+        var push = "{\"aps\":{\"timestamp\":" + (DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 60) + ",\"event\":\"update\",\"content-state\":{\"t\":\"" + data.TemplateId + "\",\"d\":" + data.ToJson() + "}}}";
+        await File.WriteAllTextAsync(Path.Combine(FileSystem.AppDataDirectory, "reading-update.apns"), push);
+        ReadingStatus = $"Started; the update's values are {System.Text.Encoding.UTF8.GetByteCount(data.ToJson())} bytes against {System.Text.Encoding.UTF8.GetByteCount(ReadingLayout.Build(later).ToJson())} for its layout.";
+    }
 
     partial void OnSourceChanged(int value) => Rebuild();
 

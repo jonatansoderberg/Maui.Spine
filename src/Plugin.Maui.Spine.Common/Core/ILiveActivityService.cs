@@ -63,6 +63,13 @@ public interface ILiveActivityService
     /// send it to the server at every launch and foreground.
     /// </summary>
     Task<string?> GetPushToStartTokenAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The ids of the Live Activity templates installed on this device (<see cref="SpineWidgetsOptions.Templates"/>):
+    /// what the app sends its server beside the push token, so the server sends only values to a device that has the
+    /// template and the whole layout to one that has not.
+    /// </summary>
+    IReadOnlyList<string> Templates => [];
 }
 
 /// <summary>A handle to one running Live Activity.</summary>

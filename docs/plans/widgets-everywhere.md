@@ -1,7 +1,7 @@
 # Widgets everywhere: one description for every platform
 
-**Status:** In progress. Decisions D1–D12 approved by the owner on 2026-11-03.
-**Last updated:** 2026-11-04 (W0–W14 done; W15 waits for the owner)
+**Status:** Done (2026-11-04). Decisions D1–D12 approved by the owner on 2026-11-03.
+**Last updated:** 2026-11-04 (W0–W15 done)
 **Inputs:** the owner's review of Glukos's Live Activity on Android and iOS (#737, #739, #741); research into how others describe widgets for several platforms (§2); every widget and Live Activity in Glukos, Puckkoll and Almanacka, read and measured (§3).
 **Related:** [widgets-everywhere-examples.md](widgets-everywhere-examples.md) (every one of those written as a layout file), [docs/wiki/widgets.md](../wiki/widgets.md).
 **Goal:** An app describes a widget or Live Activity once, in names that read like MAUI and Spine, with narrow overrides where a platform needs something else, and Spine draws it on iOS and Android alike. Optionally as an XML layout file bound to a view model, compiled into the same C# by a source generator, so it is checked at build time and costs nothing extra at run time.
@@ -104,6 +104,8 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 
 *Done in W14 (#757):* `WidgetPreview` in the Widgets package draws a tree or a Live Activity in MAUI views at each place (Lock Screen, the island's three presentations, CarPlay, Android's notification, every widget size), from the platforms' own JSON: `WidgetJson.ResolveShared`, then `WidgetOverrides.Apply` for the platform and the place, the icons from the app's SVGs and the stored images from the App Group or the app's files. The Showcase's *Layout preview* page shows the score's activity and widget (C#) and `Reading.layout.xml` (a layout file in the sample) at every place, iOS or Android, light or dark, with `Explain()` under each. Screenshots: `images/w14-*.png`. It already showed one real problem: the score's fixed white text vanishes on Android's light notification when the tree is drawn there. Not done: reading a layout file at run time (§9).
 
+*Done in W15 (#776):* `Payload="Template"` makes the generator run the file a second time with each bound value a placeholder (`LiveActivityTemplateBuilder`: a marked string, a number from 10¹⁵, a date in 1970, a `spine-template:` link) and each condition and list a `$if` or `$each` node, building `Template` once at run time from the same code as `Build`; beside it, `Data(model)` collects the values under the same conditions, a template's use being a site whose key prefixes its own. The device fills it in with no formatting of its own: `LayoutTemplates` in C# (Android, tests), `SpineLayoutTemplates.swift` in the extension, the same result for every test case (`SwiftTemplateTests` compiles and runs the Swift on the Mac). Values the factories transform are collected after them: a graph's points on their time axis, a ring's or bar's clamped value. A value used twice in the same branch is sent once. The app installs its templates in the App Group and reports their ids with the Live Activity tokens; `PushSender` sends the values to devices that have the template and the layout to the rest. Glukos's reading: 556 bytes against 2,984. Checked in the simulator by filling the sample's `Reading.layout.xml` in from its values through the bridge (`images/w15-template-push.png`); `simctl push` cannot reach a Live Activity, so the APNs path itself is checked only by the tests. Not done: Glukos switching to it, which waits for the Spine release.
+
 ## 6. Steps
 
 | Step | What | Depends on | Status | Issue | PR |
@@ -122,8 +124,8 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 | W11 | Controls on SVG icons (D8) | W0, W4 | Done | #754 | #772 |
 | W12 | Layout files in tree mode; Glukos proven against today's JSON (§5, D9, D11) | W1–W7 | Done | #755 | #773 |
 | W13 | `Bind(viewModel)` for Live Activities | W12 | Done | #756 | #774 |
-| W14 | A preview page for layouts in the Showcase | W12 | Done | #757 | |
-| W15 | Template and data payloads | W12 | Proposal | | |
+| W14 | A preview page for layouts in the Showcase | W12 | Done | #757 | #775 |
+| W15 | Template and data payloads | W12 | Done | #776 | |
 
 ## 7. Platform differences
 
@@ -138,6 +140,6 @@ Any time, as their own issues when wanted: Divider colour and thickness; Spacer 
 
 ## 9. Open questions
 
-- W15: is a tenth of the payload worth a second template interpreter in Swift, or is the smaller tree enough? Glukos fits in 4 KB with the tree.
+- W15 (answered by the owner: build it): the interpreter in Swift is small, because the values arrive formatted; Glukos's push is a fifth of the tree rather than a tenth, the graph's values being most of it.
 - Hot reload for layout files: the generator runs on build. Reading a file at run time in Debug, as W14 first meant to, needs an interpreter of the format beside the generator, the same second implementation W15 asks about; W14 previews what the generator built instead.
 - The file ending: `.layout.xml`, which every editor treats as XML, or one of Spine's own.

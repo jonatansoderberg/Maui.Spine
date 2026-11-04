@@ -43,6 +43,21 @@ public interface IPushSender
     Task<PushResult> UpdateLiveActivityAsync(PushTarget target, string kind, LiveActivityLayout layout, LiveActivityEvent @event = LiveActivityEvent.Update, LiveActivityOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Starts a Live Activity, sending each device that installed <paramref name="template"/>'s template only its values and
+    /// the others <paramref name="layout"/>: the two must describe the same thing, as a layout file's <c>Build(model)</c>
+    /// and <c>Data(model)</c> do.
+    /// </summary>
+    Task<PushResult> StartLiveActivityAsync(PushTarget target, string kind, LiveActivityLayout layout, LiveActivityTemplateData template, PushAlert alert, LiveActivityOptions? options = null, CancellationToken cancellationToken = default) =>
+        StartLiveActivityAsync(target, kind, layout, alert, options, cancellationToken);
+
+    /// <summary>
+    /// Updates or ends a Live Activity, sending each device that installed <paramref name="template"/>'s template only its
+    /// values and the others <paramref name="layout"/>.
+    /// </summary>
+    Task<PushResult> UpdateLiveActivityAsync(PushTarget target, string kind, LiveActivityLayout layout, LiveActivityTemplateData template, LiveActivityEvent @event = LiveActivityEvent.Update, LiveActivityOptions? options = null, CancellationToken cancellationToken = default) =>
+        UpdateLiveActivityAsync(target, kind, layout, @event, options, cancellationToken);
+
+    /// <summary>
     /// Replaces the content of every Live Activity that follows <paramref name="channel"/>, or ends
     /// them, with one push per platform: an APNs broadcast on iOS 18, the channel's FCM topic on
     /// Android. The register is not consulted — APNs and FCM know who follows.

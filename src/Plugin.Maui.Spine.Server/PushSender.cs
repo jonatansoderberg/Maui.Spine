@@ -59,6 +59,14 @@ public sealed class PushSender(
         LiveActivityAsync(target, kind, layout, @event, alert: null, options, cancellationToken);
 
     /// <inheritdoc />
+    public Task<PushResult> StartLiveActivityAsync(PushTarget target, string kind, LiveActivityLayout layout, LiveActivityTemplateData template, PushAlert alert, LiveActivityOptions? options = null, CancellationToken cancellationToken = default) =>
+        LiveActivityAsync(target, kind, layout, LiveActivityEvent.Start, alert, options, cancellationToken, template);
+
+    /// <inheritdoc />
+    public Task<PushResult> UpdateLiveActivityAsync(PushTarget target, string kind, LiveActivityLayout layout, LiveActivityTemplateData template, LiveActivityEvent @event = LiveActivityEvent.Update, LiveActivityOptions? options = null, CancellationToken cancellationToken = default) =>
+        LiveActivityAsync(target, kind, layout, @event, alert: null, options, cancellationToken, template);
+
+    /// <inheritdoc />
     /// <remarks>
     /// Two roads on Apple, chosen per installation. One with a widget token — iOS 26 and the extension
     /// built with <c>SpineWidgetsPush</c> — gets the <c>widgets</c> push: WidgetKit reloads on its own and
@@ -157,7 +165,7 @@ public sealed class PushSender(
 
     private Task<PushResult> LiveActivityAsync(
         PushTarget target, string kind, LiveActivityLayout layout, LiveActivityEvent @event,
-        PushAlert? alert, LiveActivityOptions? activityOptions, CancellationToken cancellationToken)
+        PushAlert? alert, LiveActivityOptions? activityOptions, CancellationToken cancellationToken, LiveActivityTemplateData? template = null)
     {
         var now = _time.GetUtcNow();
 
@@ -166,7 +174,14 @@ public sealed class PushSender(
             PushPlatform.Apple => PushPayloads.ApnsLiveActivity(kind, layout, @event, alert, activityOptions, BundleId, now),
             PushPlatform.Android => PushPayloads.FcmLiveActivity(kind, layout, @event, activityOptions),
             _ => null,
-        }, cancellationToken, Address);
+        }, cancellationToken, Address, template is null ? null : new Templated(
+            installation => installation.LiveActivities?.Templates.Contains(template.TemplateId) == true,
+            platform => platform switch
+            {
+                PushPlatform.Apple => PushPayloads.ApnsLiveActivity(kind, template, @event, alert, activityOptions, BundleId, now),
+                PushPlatform.Android => PushPayloads.FcmLiveActivity(kind, template, @event, activityOptions),
+                _ => null,
+            }));
 
         // Apple's liveactivity topic accepts only the activity's own token: a device token there is
         // rejected with DeviceTokenNotForTopic. Android has no separate token — Spine renders the
@@ -187,11 +202,15 @@ public sealed class PushSender(
     /// <see langword="null"/> for cannot be addressed at all and is reported rather than sent with
     /// the wrong one — the mistake that produces APNs' DeviceTokenNotForTopic.
     /// </param>
+    /// <summary>Who has a template installed, and the envelope that sends them its values.</summary>
+    private sealed record Templated(Func<PushInstallation, bool> Has, Func<PushPlatform, PushEnvelope?> Build);
+
     private async Task<PushResult> DispatchAsync(
         PushTarget target,
         Func<PushPlatform, PushEnvelope?> build,
         CancellationToken cancellationToken,
-        Func<PushPlatform, PushInstallation, string?>? address = null)
+        Func<PushPlatform, PushInstallation, string?>? address = null,
+        Templated? templated = null)
     {
         ArgumentNullException.ThrowIfNull(target);
 
@@ -218,6 +237,14 @@ public sealed class PushSender(
                         deliveries.Add(new PushDelivery(installation.Id, platform, PushStatus.Failed, NoToken));
                 }
 
+                if (addressed.Count == 0) continue;
+            }
+
+            // Devices with the template get its values; the rest the whole layout.
+            if (templated is not null && templated.Build(platform) is { } values && addressed.Where(templated.Has).ToList() is { Count: > 0 } having)
+            {
+                deliveries.AddRange(await transport.SendAsync(having, values, cancellationToken));
+                addressed = [.. addressed.Where(i => !templated.Has(i))];
                 if (addressed.Count == 0) continue;
             }
 

@@ -59,6 +59,7 @@ internal static class Vocabulary
         ["WidgetSize"] = ["Small", "Medium", "Large", "ExtraLarge", "LockRectangle", "LockCircle", "LockLine"],
         ["LiveUpdatePresentation"] = ["Automatic", "Template", "Layout"],
         ["WidgetGradientDirection"] = ["Vertical", "Horizontal", "Diagonal"],
+        ["LayoutPayload"] = ["Tree", "Template"],
     };
 
     public static readonly HashSet<string> FlagEnums = ["WidgetFontAttributes", "WidgetPlatform", "WidgetPlace"];
@@ -203,7 +204,8 @@ internal static class Vocabulary
             new("Background", Kind.Color, "The color behind the Lock Screen presentation (iOS)."),
             new("SystemBackground", Kind.Bool, "The system's material behind the Lock Screen presentation (iOS)."),
             new("ActionColor", Kind.Color, "The color of the buttons iOS puts on the activity."),
-            new("Link", Kind.Uri, "The URL the app is opened with.")],
+            new("Link", Kind.Uri, "The URL the app is opened with."),
+            new("Payload", Kind.Enum, "Template also writes Template and Data(model), so a push can carry the values alone.", "LayoutPayload")],
         ["LiveActivity.Shared"] = [],
         ["LiveActivity.Island"] = [],
         ["LiveActivity.Small"] = [],

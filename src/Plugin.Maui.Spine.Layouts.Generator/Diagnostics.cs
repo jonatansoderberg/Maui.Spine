@@ -29,4 +29,5 @@ internal static class Diagnostics
     public static readonly DiagnosticDescriptor Silent = Warning("SPL013", "Silent for screen readers", "{0}");
     public static readonly DiagnosticDescriptor DuplicateResource = Error("SPL014", "Duplicate resource", "{0}");
     public static readonly DiagnosticDescriptor BadXml = Error("SPL015", "Not well-formed XML", "{0}");
+    public static readonly DiagnosticDescriptor NotATemplate = Warning("SPL016", "Not sent as a template", "{0}");
 }

@@ -1,6 +1,7 @@
 <!-- A score that changes while the game runs: a model that announces its changes, so the file has Bind and StartAsync. -->
 <LiveActivity xmlns="https://schemas.cosmomedia.se/spine/layout"
-              Model="Plugin.Maui.Spine.Layouts.Tests.ScoreModel">
+              Model="Plugin.Maui.Spine.Layouts.Tests.ScoreModel"
+              Payload="Template">
     <VStack Spacing="4">
         <Label Text="{Home} {Game.HomeGoals}–{Game.AwayGoals} {Away}" FontSize="Title" Part="Value" />
         <ForEach Items="{Goals}" Max="3">
