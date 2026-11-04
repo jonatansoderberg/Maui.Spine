@@ -32,6 +32,14 @@ public sealed class SpineWidgetsOptions
     public TimeSpan BackgroundRefreshInterval { get; set; } = TimeSpan.FromMinutes(30);
 
     /// <summary>
+    /// Icons any widget, control or Live Activity of the app may show, by the names <c>W.Icon</c> takes
+    /// (<c>SpineIcons.ArrowUpRight</c>, an app SVG's file name). Spine draws them from their SVGs when the app starts, so
+    /// a Live Activity pushed by a server with an icon the app has not shown yet still has it. Icons in trees the app
+    /// writes itself are drawn before each tree without being listed here.
+    /// </summary>
+    public ICollection<string> Icons { get; } = [];
+
+    /// <summary>
     /// When <see langword="true"/>, Live Activities are started with a push token on iOS and the
     /// tokens are available through <see cref="ILiveActivityService.GetPushToStartTokenAsync"/> and
     /// <see cref="LiveActivity.GetPushTokenAsync"/>. Needs the push notification entitlement.

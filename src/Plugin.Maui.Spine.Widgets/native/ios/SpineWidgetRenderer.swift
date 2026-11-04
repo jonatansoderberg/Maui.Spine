@@ -351,11 +351,15 @@ struct NodeView: View {
                     .modifier(TextStyleModifier(node: node))
             }
         case "image":
-            // The app rasterized the icon from an SVG as a white mask; an SF Symbol is the fallback.
+            // The app rasterized the icon from an SVG as a white mask. Only an SF Symbol's dotted name still falls back to
+            // the symbol, as before Spine drew icons from SVGs alone; any other name draws nothing without its SVG, as on
+            // Android, so the two never differ.
             if let name = node.systemImage, let mask = Store.image(asset: "icons/\(name).png") {
                 Image(uiImage: mask).renderingMode(.template).resizable().scaledToFit()
                     .frame(width: CGFloat(node.height ?? 18), height: CGFloat(node.height ?? 18))
                     .foregroundStyle(Palette.color(node.color))
+            } else if !(node.systemImage ?? "").contains(".") {
+                EmptyView()
             } else if let size = node.height {
                 Image(systemName: node.systemImage ?? "questionmark").font(.system(size: CGFloat(size) * 0.8))
                     .frame(width: CGFloat(size), height: CGFloat(size))

@@ -1,0 +1,39 @@
+<Project>
+	<!--
+		AppIcons: a constant for each SVG the app embeds or ships as a MauiImage, named after its file, so an icon is
+		written as AppIcons.Drop beside SpineIcons.ArrowUpRight and a misspelt or removed one is a build error.
+		The value is the file name without .svg, which is what W.Icon and SvgImageSource look up.
+		Turn it off with <SpineAppIcons>false</SpineAppIcons>.
+	-->
+	<PropertyGroup>
+		<SpineAppIcons Condition="'$(SpineAppIcons)' == ''">true</SpineAppIcons>
+	</PropertyGroup>
+
+	<Target Name="SpineAppIcons" BeforeTargets="CoreCompile" Condition="'$(SpineAppIcons)' == 'true' and '$(Language)' == 'C#'">
+		<ItemGroup>
+			<_SpineAppIconFile Include="@(EmbeddedResource);@(MauiImage)" Condition="'%(Extension)' == '.svg'" />
+			<_SpineAppIcon Include="@(_SpineAppIconFile->'%(Filename)')" />
+		</ItemGroup>
+		<RemoveDuplicates Inputs="@(_SpineAppIcon)">
+			<Output TaskParameter="Filtered" ItemName="_SpineAppIconUnique" />
+		</RemoveDuplicates>
+		<ItemGroup>
+			<_SpineAppIconUnique>
+				<Const>$([System.Text.RegularExpressions.Regex]::Replace($([System.String]::Copy('%(Identity)').Substring(0,1).ToUpperInvariant())$([System.String]::Copy('%(Identity)').Substring(1)), '[^A-Za-z0-9_]', '_'))</Const>
+			</_SpineAppIconUnique>
+			<_SpineAppIconLine Include="@(_SpineAppIconUnique->'    /// &lt;summary&gt;&lt;c&gt;%(Identity).svg&lt;/c&gt;.&lt;/summary&gt;%0a    public const string %(Const) = &quot;%(Identity)&quot;%3b')" />
+		</ItemGroup>
+		<PropertyGroup>
+			<_SpineAppIconsFile>$(IntermediateOutputPath)SpineAppIcons.g.cs</_SpineAppIconsFile>
+			<_SpineAppIconsNamespace>$(RootNamespace)</_SpineAppIconsNamespace>
+			<_SpineAppIconsNamespace Condition="'$(_SpineAppIconsNamespace)' == ''">$(AssemblyName)</_SpineAppIconsNamespace>
+			<_SpineAppIconsNamespace>$([System.Text.RegularExpressions.Regex]::Replace('$(_SpineAppIconsNamespace)', '[^A-Za-z0-9_.]', '_'))</_SpineAppIconsNamespace>
+		</PropertyGroup>
+		<WriteLinesToFile File="$(_SpineAppIconsFile)" Overwrite="true" WriteOnlyWhenDifferent="true"
+			Lines="// &lt;auto-generated /&gt; by Plugin.Maui.Spine.Svg from the app's SVGs.;namespace $(_SpineAppIconsNamespace)%3b;;/// &lt;summary&gt;The app's own SVG icons, by the names W.Icon and SvgImageSource take.&lt;/summary&gt;;internal static class AppIcons;{;@(_SpineAppIconLine);}" />
+		<ItemGroup>
+			<Compile Include="$(_SpineAppIconsFile)" Condition="'@(_SpineAppIconUnique)' != ''" />
+			<FileWrites Include="$(_SpineAppIconsFile)" />
+		</ItemGroup>
+	</Target>
+</Project>
