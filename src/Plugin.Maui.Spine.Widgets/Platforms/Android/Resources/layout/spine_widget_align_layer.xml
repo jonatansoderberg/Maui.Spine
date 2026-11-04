@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One layer of a ZStack: as large as the stack, the child at the stack's alignment, set as gravity at run time. A
+     FrameLayout puts its children at the top left and RemoteViews cannot change a child's layout_gravity. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/spine_node"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal" />

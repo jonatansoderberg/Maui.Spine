@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A VStack child placed on its own (hAlign): the column's whole width, the child at the gravity set at run time.
+     RemoteViews cannot set a child's layout_gravity, but it can set a LinearLayout's gravity. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/spine_node"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal" />

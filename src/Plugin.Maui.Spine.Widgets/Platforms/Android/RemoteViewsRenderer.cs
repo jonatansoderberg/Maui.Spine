@@ -202,17 +202,15 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         var first = true;
         // Evenly: a flexible space at each end and between the children, which keep their own width.
         var evenly = vertical == false && Text(node, "distribute") == "evenly";
-        if (vertical == true && Text(node, "align") == "center")
-            views.SetInt(Node, "setGravity", (int)GravityFlags.CenterHorizontal);
-        // A LinearLayout aligns its children's baselines by default, but only those it places at the top.
-        if (vertical == false && Text(node, "align") == "baseline")
-            views.SetInt(Node, "setGravity", (int)GravityFlags.Top);
+        var align = Text(node, "align");
+        if (vertical is { } stackAxis && Gravity(align, stackAxis) is { } gravity)
+            views.SetInt(Node, "setGravity", gravity);
 
         if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
             foreach (var child in children.EnumerateArray())
             {
                 if (evenly) views.AddView(Node, new RemoteViews(Package, Resource.Layout.spine_widget_spacer));
-                var childViews = Render(child, inline: vertical == false);
+                var childViews = Place(Render(child, inline: vertical == false), child, vertical, align);
                 // The spacing is the child's leading margin, so it adds to a margin of the child's own on that side.
                 if (!first && !evenly && spacing > 0 && vertical is { } axis && OperatingSystem.IsAndroidVersionAtLeast(31))
                 {
@@ -223,6 +221,11 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 first = false;
             }
         if (evenly) views.AddView(Node, new RemoteViews(Package, Resource.Layout.spine_widget_spacer));
+
+        // A ZStack is as wide as its content, as on iOS, so its centred layers sit where iOS puts them; with a background it
+        // fills the width, as every stack with one does on iOS.
+        if (vertical is null && Text(node, "background") is not null && OperatingSystem.IsAndroidVersionAtLeast(31))
+            views.SetViewLayoutWidth(Node, ViewGroup.LayoutParams.MatchParent, (int)ComplexUnitType.Px);
 
         Box(views, node);
         return views;
@@ -691,6 +694,61 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
 
     private static string? Text(JsonElement node, string name) =>
         node.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    /// <summary>
+    /// A stack's <c>align</c> as the gravity of its LinearLayout; null keeps the layout's own (leading in a VStack, centred
+    /// in an HStack). A LinearLayout aligns its children's baselines by default, but only those it places at the top.
+    /// </summary>
+    private static int? Gravity(string? align, bool vertical) => (align, vertical) switch
+    {
+        ("center", true) => (int)GravityFlags.CenterHorizontal,
+        ("end", true) => (int)GravityFlags.End,
+        ("start", false) or ("baseline", false) => (int)GravityFlags.Top,
+        ("end", false) => (int)GravityFlags.Bottom,
+        _ => null,
+    };
+
+    /// <summary>A ZStack's <c>align</c> as the gravity of each layer; the middle by default, as on iOS.</summary>
+    private static int LayerGravity(string? align) => align switch
+    {
+        "topStart" => (int)(GravityFlags.Top | GravityFlags.Start),
+        "top" => (int)(GravityFlags.Top | GravityFlags.CenterHorizontal),
+        "topEnd" => (int)(GravityFlags.Top | GravityFlags.End),
+        "start" => (int)(GravityFlags.CenterVertical | GravityFlags.Start),
+        "end" => (int)(GravityFlags.CenterVertical | GravityFlags.End),
+        "bottomStart" => (int)(GravityFlags.Bottom | GravityFlags.Start),
+        "bottom" => (int)(GravityFlags.Bottom | GravityFlags.CenterHorizontal),
+        "bottomEnd" => (int)(GravityFlags.Bottom | GravityFlags.End),
+        _ => (int)GravityFlags.Center,
+    };
+
+    /// <summary>
+    /// A child in its stack: a ZStack's layer in a frame as large as the stack, at the stack's alignment; a VStack's child
+    /// with <c>hAlign</c> in a row as wide as the column, at its own; with <c>fill</c> stretched across it (Android 12+).
+    /// </summary>
+    private RemoteViews Place(RemoteViews child, JsonElement node, bool? vertical, string? align)
+    {
+        if (vertical is null)
+            return Wrap(Resource.Layout.spine_widget_align_layer, LayerGravity(align), child);
+        if (vertical != true || Text(node, "hAlign") is not { } options) return child;
+        if (options == "fill")
+        {
+            if (OperatingSystem.IsAndroidVersionAtLeast(31))
+                child.SetViewLayoutWidth(Node, ViewGroup.LayoutParams.MatchParent, (int)ComplexUnitType.Px);
+            return child;
+        }
+        var gravity = options switch { "center" => GravityFlags.CenterHorizontal, "end" => GravityFlags.End, _ => GravityFlags.Start };
+        return Wrap(Resource.Layout.spine_widget_align_row, (int)(gravity | GravityFlags.CenterVertical), child);
+    }
+
+    private RemoteViews Wrap(int layout, int gravity, RemoteViews child)
+    {
+        var frame = new RemoteViews(Package, layout);
+        frame.RemoveAllViews(Node);
+        frame.SetInt(Node, "setGravity", gravity);
+        frame.AddView(Node, child);
+        return frame;
+    }
 
     /// <summary>A thickness written as one number or as [left, top, right, bottom].</summary>
     private static (double Left, double Top, double Right, double Bottom)? Thickness(JsonElement node, string name)

@@ -47,6 +47,14 @@ public abstract record WidgetNode
     /// <see cref="WidgetNodeStyling.Margin{T}(T, double)"/> and its overloads.
     /// </summary>
     public WidgetThickness? Margin { get; init; }
+
+    /// <summary>
+    /// Where the node sits across a VStack, instead of the stack's alignment. Set with
+    /// <see cref="WidgetNodeStyling.HorizontalOptions{T}(T, WidgetLayoutOptions)"/>. A child of an HStack or a ZStack keeps to its
+    /// stack's alignment: iOS cannot place one child there without growing the whole stack.
+    /// </summary>
+    [JsonPropertyName("hAlign")]
+    public WidgetLayoutOptions? HorizontalOptions { get; init; }
 }
 
 /// <summary>A container that lays its <see cref="Children"/> out along one axis.</summary>
@@ -89,9 +97,9 @@ public abstract record StackNode : WidgetNode
     public bool? Fill { get; init; }
 
     /// <summary>
-    /// <c>"center"</c> centres a vertical stack's children on its axis instead of aligning them to the leading edge. Set
-    /// with <see cref="WidgetNodeStyling.CenterItems"/>. <c>"baseline"</c> lines up a horizontal stack's text on its first
-    /// baseline instead of centring the children. Set with <see cref="WidgetNodeStyling.AlignBaselines"/>.
+    /// How the children line up across the stack's axis: <c>start</c>, <c>center</c>, <c>end</c>; <c>baseline</c> in an HStack;
+    /// <c>topStart</c> … <c>bottomEnd</c> in a ZStack. The default is the leading edge in a VStack and the middle in an HStack
+    /// and a ZStack. Set with <see cref="WidgetNodeStyling.Alignment{T}(T, WidgetAlignment)"/>.
     /// </summary>
     [JsonPropertyName("align")]
     public string? Align { get; init; }

@@ -236,14 +236,28 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
 | `W.Use(name, height)` | A Live Activity layout's shared node, at its own height (see [Shared nodes](#shared-nodes)) |
 
-A stack takes `.Fill()`, which gives it an equal share of its parent's axis instead of the width of its
-content: three filled stacks in a row are three equal columns, the shape of every scoreboard, and they
-come out the same on both platforms. Spacers still centre a single node; `.Fill()` divides a row.
+A stack takes `.Expand()` (or `.Fill()`, the same), which gives it an equal share of its parent's axis instead of the
+width of its content: three expanded stacks in a row are three equal columns, the shape of every scoreboard, and they
+come out the same on both platforms.
 
-A `VStack` takes `.CenterItems()`, which centres its children on its axis: a ring with its label above and its
-time below, all on the ring's centre. An `HStack` takes `.Evenly()`, which leaves the same space at its ends as between
+**Alignment.** A stack lines its children up across its axis with `.Alignment(…)`:
+
+| Stack | `WidgetAlignment` | Default |
+|---|---|---|
+| `VStack` | `Start`, `Center`, `End` (leading, centre, trailing) | `Start` |
+| `HStack` | `Start`, `Center`, `End` (top, middle, bottom), `Baseline` | `Center` |
+| `ZStack` | `Center`, `Start`, `End`, `Top`, `Bottom`, `TopStart`, `TopEnd`, `BottomStart`, `BottomEnd` | `Center` |
+
+`.CenterItems()` is `.Alignment(WidgetAlignment.Center)` on a VStack: a ring with its label above and its time below,
+all on the ring's centre. One child of a VStack is placed on its own with `.HorizontalOptions(WidgetLayoutOptions.Center)`
+(`Start`, `Center`, `End`, `Fill`), as MAUI's `HorizontalOptions`: a centred line under a leading column needs no spacers
+either side. `Fill` stretches it across the column (Android 12 and later). A child of an HStack or a ZStack keeps to its
+stack's alignment; iOS cannot place one child there without growing the whole stack. Text lines are aligned within the
+text's own width with `.HorizontalTextAlignment(…)`, as MAUI's property; `.Centered()` and `.Trailing()` are the same.
+
+An `HStack` takes `.Evenly()`, which leaves the same space at its ends as between
 its children, the children at their own width: two ring tiles spread 1-*-1-*-1 rather than as two columns, whose gaps
-come out 1-2-1. An `HStack` takes `.AlignBaselines()` too, which lines its text up on the first baseline instead of
+come out 1-2-1. `.AlignBaselines()` (`.Alignment(WidgetAlignment.Baseline)`) lines an HStack's text up on the first baseline instead of
 centring it: a 15-point name and a caption-sized age beside it, centred, sit about a point off each other's line. On
 Android the children without text then keep to the top. Regions of a Dynamic Island are laid out by the system and
 cannot share a baseline; text that must is put in one region.
@@ -258,7 +272,7 @@ There is no shorter self-updating age, such as "2 min sedan": iOS writes the uni
 
 How the renderers lay the tree out, so a design can be planned before it is run:
 
-- **`VStack` aligns its children to the leading edge (or centres them with `.CenterItems()`), `HStack` centers them vertically (or lines up their text with `.AlignBaselines()`), `ZStack` centers them.** A `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
+- **`VStack` aligns its children to the leading edge, `HStack` centers them vertically, `ZStack` centers them, unless `.Alignment(…)` says otherwise.** A ZStack is as wide as its content on both platforms, the full width with a background. A `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
 - **Text roles are the platform's type ramp**: `LargeTitle` is SwiftUI's `.largeTitle` and 28 sp on Android, `Title` `.title2` and 22 sp, `Headline` `.headline` and 16 sp, `Body` `.body` and 14 sp, `Caption` `.caption` and 12 sp. A role follows the user's text size on both platforms; `.FontSize(points)` fixes it instead. There is no custom font.
 - **`.FontDesign(TextDesign.Rounded)` draws the text in SF Pro Rounded**, as Health and Fitness show their values; `Monospaced` and `Serif` are there too. iOS only: `RemoteViews` cannot set a typeface, so Android draws the default. `.FontSize(points)` replaces the role's size with a fixed one (sp on Android), for a region with an exact amount of room such as the Dynamic Island's; a role follows the user's text size and is the better choice anywhere else.
 - **`W.Icon` is 18 points square on iOS and 20 dp on Android** unless it is given a `size`, tinted with its color. The SVG is rasterized at 128 px, sharp up to about 40 points on a 3x screen. Android resizes the icon from Android 12; below it the icon stays 20 dp.
@@ -1113,7 +1127,8 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 
 - `W.Relative` is a chronometer counting up (`03:12`), not "3 min ago" — `RemoteViews` has no system-drawn relative text, and a text the app computed would stand still. `rounded: true` and `ago: true` are drawn the same way.
 - `W.Spacer` only stretches inside a stack that is wider than its content; stacks are full-width, so the usual `HStack(text, Spacer(), timer)` works, a spacer in a nested vertical stack does not.
-- No custom fonts, no rounded design and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
+- No custom fonts and no rounded design: `RemoteViews` cannot set a typeface.
+- A ZStack's layers and a VStack child with `HorizontalOptions` each sit in a thin frame whose gravity places them (`spine_widget_align_layer`, `spine_widget_align_row`): `RemoteViews` cannot set a child's `layout_gravity`, but it can set a `LinearLayout`'s gravity. A ZStack used to put its layers at the top left; it now centres them, as iOS does.
 - `W.Icon`'s `size` needs Android 12; below it an icon stays 20 dp.
 - `.CornerRadius` needs Android 12; below it a stack's background is square, and so is a widget's own `Background` — `RemoteViews` can neither clip nor tint there.
 - Stack spacing needs Android 12; below it children sit edge to edge.
