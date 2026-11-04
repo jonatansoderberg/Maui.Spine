@@ -24,7 +24,7 @@ Give the view on each page the same tag. A list matches the row whose tag the pa
 
 On the push, a picture of the view flies from its place in the list to its place on the page, while the pages move as `ISpineTransitions` moves them. The pop flies it back. If the list scrolled meanwhile, the view is found again by its tag.
 
-- The picture of the view as it lands fades in over the picture it left as, and its corners turn from the one view's into the other's. A `Border` with a `RoundRectangle` stroke shape gives its radius, and its background fills the corners its shape cuts off.
+- The picture of the view as it lands fades in over the picture it left as during the first half of the flight, and the picture it left as fades out under it during the second, so a view without a background of its own (a label, an icon) lands as itself and an opaque one never turns see-through. Its corners turn from the one view's into the other's. A `Border` with a `RoundRectangle` stroke shape gives its radius, and its background fills the corners its shape cuts off.
 - The flight uses the duration and easing of the region's `ISpineTransitions` (`InteractiveGestureDuration`, `InteractiveGestureEasing`), so a custom transition keeps its pace.
 - The interactive back-swipe slides the page away as usual, without a flight.
 

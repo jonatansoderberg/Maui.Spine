@@ -145,9 +145,9 @@ internal sealed partial class SharedElementFlight
         {
             foreach (var (picture, from, to, fromRadius, toRadius) in _pictures)
             {
-                // The picture of the view as it lands fades in over the one it left as.
                 picture.Radius = Lerp(fromRadius, toRadius, progress);
-                picture.ToAlpha = progress;
+                picture.ToAlpha = (float)Math.Clamp(progress / LandingFadeShare, 0, 1);
+                picture.FromAlpha = (float)Math.Clamp((1 - progress) / (1 - LandingFadeShare), 0, 1);
                 Move(picture, Lerp(from, to, progress));
             }
         });
@@ -478,6 +478,8 @@ internal sealed partial class SharedElementFlight
 
         public float Radius { get; set; }
 
+        public float FromAlpha { get; set; } = 1;
+
         public float ToAlpha { get; set; }
 
         protected override void OnDraw(Canvas canvas)
@@ -487,7 +489,8 @@ internal sealed partial class SharedElementFlight
 
             canvas.Save();
             canvas.ClipPath(_clip);
-            Draw(canvas, from, 1);
+            if (FromAlpha > 0)
+                Draw(canvas, from, FromAlpha);
             if (to is not null && ToAlpha > 0)
                 Draw(canvas, to, ToAlpha);
             canvas.Restore();

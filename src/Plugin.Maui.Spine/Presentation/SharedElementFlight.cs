@@ -113,6 +113,14 @@ internal sealed partial class SharedElementFlight : IDisposable
     private const int FocusWait = 300;
 
     /// <summary>
+    /// The part of a flight over which the picture of the view as it lands fades in over the one it
+    /// left as. The one it left as fades out over the rest, under a picture that covers it by then:
+    /// an opaque view never turns see-through on the way, and one without a background of its own
+    /// (a label, an icon) lands as itself rather than as both pictures at once (#781).
+    /// </summary>
+    private const double LandingFadeShare = 0.5;
+
+    /// <summary>
     /// Waits until <paramref name="layer"/> has been laid out with the page it was just given:
     /// one turn of the main queue on iOS, where the layout itself is synchronous; the next layout
     /// pass on Android, which runs ahead of the frame it draws.
