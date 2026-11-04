@@ -1,7 +1,7 @@
 # Widgets everywhere: one description for every platform
 
-**Status:** Decided. Decisions D1–D12 approved by the owner on 2026-11-03; no step started.
-**Last updated:** 2026-11-03 (plan written, issues #743–#757 created)
+**Status:** In progress. Decisions D1–D12 approved by the owner on 2026-11-03.
+**Last updated:** 2026-11-04 (W1 done)
 **Inputs:** the owner's review of Glukos's Live Activity on Android and iOS (#737, #739, #741); research into how others describe widgets for several platforms (§2); every widget and Live Activity in Glukos, Puckkoll and Almanacka, read and measured (§3).
 **Related:** [widgets-everywhere-examples.md](widgets-everywhere-examples.md) (every one of those written as a layout file), [docs/wiki/widgets.md](../wiki/widgets.md).
 **Goal:** An app describes a widget or Live Activity once, in names that read like MAUI and Spine, with narrow overrides where a platform needs something else, and Spine draws it on iOS and Android alike. Optionally as an XML layout file bound to a view model, compiled into the same C# by a source generator, so it is checked at build time and costs nothing extra at run time.
@@ -94,7 +94,7 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 | Step | What | Depends on | Status | Issue | PR |
 | --- | --- | --- | --- | --- | --- |
 | W0 | Spike: a stroked SVG as an iOS custom symbol for controls (D8) | — | Ready | #743 | |
-| W1 | Padding per side and margin (D1) | — | Ready | #744 | |
+| W1 | Padding per side and margin (D1) | — | Done | #744 | #761 |
 | W2 | One alignment model; ZStack centred on Android (D2) | — | Ready | #745 | |
 | W3 | MAUI-style names in C#; stacks skip null; no default values in JSON (D12) | — | Ready | #746 | |
 | W4 | Icons from SVG only, prepared at start; `AppIcons` (D3) | — | Ready | #747 | |

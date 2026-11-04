@@ -69,6 +69,27 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     /// </summary>
     public RemoteViews Render(JsonElement node, bool inline = false)
     {
+        var views = RenderNode(node, inline);
+        if (Thickness(node, "margin") is not { } margin) return views;
+        if (OperatingSystem.IsAndroidVersionAtLeast(31))
+        {
+            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Start, (float)margin.Left, (int)ComplexUnitType.Dip);
+            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Top, (float)margin.Top, (int)ComplexUnitType.Dip);
+            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.End, (float)margin.Right, (int)ComplexUnitType.Dip);
+            views.SetViewLayoutMargin(Node, (int)RemoteViewsMargin.Bottom, (float)margin.Bottom, (int)ComplexUnitType.Dip);
+            return views;
+        }
+        // Below Android 12 RemoteViews cannot set a margin, so the node sits in a frame padded by it. The frame does not
+        // take the node's share of a row, so a margin on a filled stack wraps it there.
+        var frame = new RemoteViews(Package, Resource.Layout.spine_widget_margin);
+        frame.RemoveAllViews(Node);
+        Pad(frame, margin);
+        frame.AddView(Node, views);
+        return frame;
+    }
+
+    private RemoteViews RenderNode(JsonElement node, bool inline)
+    {
         switch (Text(node, "type"))
         {
             // A filled stack takes its share of the parent's axis, which RemoteViews can only express
@@ -192,8 +213,12 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             {
                 if (evenly) views.AddView(Node, new RemoteViews(Package, Resource.Layout.spine_widget_spacer));
                 var childViews = Render(child, inline: vertical == false);
+                // The spacing is the child's leading margin, so it adds to a margin of the child's own on that side.
                 if (!first && !evenly && spacing > 0 && vertical is { } axis && OperatingSystem.IsAndroidVersionAtLeast(31))
-                    childViews.SetViewLayoutMargin(Node, (int)(axis ? RemoteViewsMargin.Top : RemoteViewsMargin.Start), spacing, (int)ComplexUnitType.Dip);
+                {
+                    var own = Thickness(child, "margin") is { } margin ? (float)(axis ? margin.Top : margin.Left) : 0;
+                    childViews.SetViewLayoutMargin(Node, (int)(axis ? RemoteViewsMargin.Top : RemoteViewsMargin.Start), spacing + own, (int)ComplexUnitType.Dip);
+                }
                 views.AddView(Node, childViews);
                 first = false;
             }
@@ -209,11 +234,8 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     /// </summary>
     private void Box(RemoteViews views, JsonElement node)
     {
-        if (Number(node, "padding") is { } padding && padding > 0)
-        {
-            var pixels = (int)(padding * Density);
-            views.SetViewPadding(Node, pixels, pixels, pixels, pixels);
-        }
+        if ((Thickness(node, "insets") ?? Thickness(node, "padding")) is { } padding)
+            Pad(views, padding);
 
         Color(views, "setBackgroundColor", Text(node, "background"));
 
@@ -669,6 +691,28 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
 
     private static string? Text(JsonElement node, string name) =>
         node.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    /// <summary>A thickness written as one number or as [left, top, right, bottom].</summary>
+    private static (double Left, double Top, double Right, double Bottom)? Thickness(JsonElement node, string name)
+    {
+        if (!node.TryGetProperty(name, out var value)) return null;
+        if (value.ValueKind == JsonValueKind.Number)
+            return value.GetDouble() is var all and > 0 ? (all, all, all, all) : null;
+        if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() != 4) return null;
+        var sides = value.EnumerateArray().Select(side => side.TryGetDouble(out var d) ? d : 0).ToArray();
+        return (sides[0], sides[1], sides[2], sides[3]);
+    }
+
+    /// <summary>
+    /// Padding in dp, left and right being the start and end: <c>setViewPadding</c> takes absolute sides, so they swap in a
+    /// right-to-left language.
+    /// </summary>
+    private void Pad(RemoteViews views, (double Left, double Top, double Right, double Bottom) sides)
+    {
+        var rtl = _context.Resources?.Configuration?.LayoutDirection == Android.Views.LayoutDirection.Rtl;
+        int Px(double dp) => (int)(dp * Density);
+        views.SetViewPadding(Node, Px(rtl ? sides.Right : sides.Left), Px(sides.Top), Px(rtl ? sides.Left : sides.Right), Px(sides.Bottom));
+    }
 
     private static double? Number(JsonElement node, string name) =>
         node.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetDouble() : null;

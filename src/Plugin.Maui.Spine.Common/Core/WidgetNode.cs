@@ -41,6 +41,12 @@ public abstract record WidgetNode
     /// <see cref="WidgetNodeStyling.Accented"/>.
     /// </summary>
     public bool? Accented { get; init; }
+
+    /// <summary>
+    /// Space in points around the node, outside any background, as MAUI's <c>Margin</c>. Set with
+    /// <see cref="WidgetNodeStyling.Margin{T}(T, double)"/> and its overloads.
+    /// </summary>
+    public WidgetThickness? Margin { get; init; }
 }
 
 /// <summary>A container that lays its <see cref="Children"/> out along one axis.</summary>
@@ -50,10 +56,17 @@ public abstract record StackNode : WidgetNode
     public double? Spacing { get; init; }
 
     /// <summary>
-    /// Space in points between the stack's edges and its children, on every side. Set with
-    /// <see cref="WidgetNodeStyling.Padding"/>.
+    /// Space in points between the stack's edges and its children, on every side; with <see cref="Insets"/> the smallest of
+    /// them, for a renderer that does not read those. Set with <see cref="WidgetNodeStyling.Padding{T}(T, double)"/>.
     /// </summary>
     public double? Padding { get; init; }
+
+    /// <summary>
+    /// The padding of each side when they differ, as <c>[left, top, right, bottom]</c>. A key of its own rather than a list in
+    /// <see cref="Padding"/>: an older renderer reads <c>padding</c> as a number and would fail on the whole layout. Set with
+    /// <see cref="WidgetNodeStyling.Padding{T}(T, double, double)"/> and its overloads.
+    /// </summary>
+    public WidgetThickness? Insets { get; init; }
 
     /// <summary>
     /// The color behind the stack, padding included. A stack with a background fills the width it is
