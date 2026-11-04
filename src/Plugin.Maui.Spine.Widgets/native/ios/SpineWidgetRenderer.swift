@@ -938,8 +938,19 @@ enum Palette {
         case "orange": return .orange
         case "yellow": return .yellow
         case "blue": return .blue
-        default: return hex(value) ?? .primary
+        default: return pair(value) ?? hex(value) ?? .primary
         }
+    }
+
+    /// An app's own light and dark color, "#RRGGBB/#RRGGBB", resolved in the environment's appearance, so on a dark Lock
+    /// Screen (darkScheme) it takes the dark one.
+    private static func pair(_ value: String) -> Color? {
+        let parts = value.split(separator: "/", maxSplits: 1).map(String.init)
+        guard parts.count == 2, let light = rgb(parts[0]), let dark = rgb(parts[1]) else { return nil }
+        return Color(uiColor: UIColor { traits in
+            let c = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: c.r, green: c.g, blue: c.b, alpha: c.a)
+        })
     }
 
     /// A stored picture, resizable. With fullColor it keeps its own colors when iOS tints the widget; see
