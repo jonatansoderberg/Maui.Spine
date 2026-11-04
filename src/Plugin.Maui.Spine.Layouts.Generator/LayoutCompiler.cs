@@ -31,6 +31,7 @@ internal sealed class LayoutCompiler
     readonly HashSet<string>? _knownIcons;
     INamedTypeSymbol? _model;
     bool _usesStrings;
+    readonly SortedSet<string> _sources = new(StringComparer.Ordinal);
     int _loops;
 
     public List<Diagnostic> Diagnostics { get; } = [];
@@ -315,6 +316,7 @@ internal sealed class LayoutCompiler
         foreach (var property in properties)
             code.Append($"            {property},\n");
         code.Append("#line default\n        };\n    }\n");
+        code.Append(Binding(model));
         return code.ToString();
     }
 
@@ -393,6 +395,28 @@ internal sealed class LayoutCompiler
             code.Append($"        foreach (var (at, entry) in entries)\n            timeline.Add(at, Build(entry{pass}), {(surface is null ? "null" : $"Surface(entry{pass})")});\n");
             code.Append("        return timeline;\n    }\n");
         }
+        return code.ToString();
+    }
+
+    /// <summary>For a model that announces its changes: <c>Bind</c> and <c>StartAsync</c>, which keep an activity in step with it.</summary>
+    string Binding(string? model)
+    {
+        if (model is null || !Announces(_model!))
+            return "";
+        var strings = _usesStrings ? $", {Common}ISpineStrings strings" : "";
+        var pass = _usesStrings ? ", strings" : "";
+        var watch = _usesStrings ? "strings" : "null";
+        var sources = _sources.Count == 0 ? "null" : $"static m => new object?[] {{ {string.Join(", ", _sources.Select(s => "m." + s))} }}";
+        var staleAt = $"global::System.Func<{model}, global::System.DateTimeOffset?>? staleAt = null";
+        var options = $"{Common}LiveActivityBindingOptions? options = null";
+        var code = new StringBuilder();
+        code.Append("\n    /// <summary>Keeps <paramref name=\"activity\"/> in step with <paramref name=\"m\"/>, one update per burst of changes.</summary>\n");
+        code.Append($"    public static {Common}LiveActivityBinding Bind({Common}LiveActivity activity, {model} m{strings}, {staleAt}, {options}) =>\n");
+        code.Append($"        {Common}LiveActivityBindings.Bind(activity, m, model => Build(model{pass}), staleAt, {sources}, {watch}, options);\n");
+        code.Append("\n    /// <summary>Starts an activity of <paramref name=\"kind\"/> drawn from <paramref name=\"m\"/> and keeps it in step; null when none was started.</summary>\n");
+        code.Append($"    public static global::System.Threading.Tasks.Task<{Common}LiveActivityBinding?> StartAsync({Common}ILiveActivityService activities, string kind, {model} m{strings},\n");
+        code.Append($"        {staleAt}, {options}, string? channel = null) =>\n");
+        code.Append($"        {Common}LiveActivityBindings.StartBoundAsync(activities, kind, m, model => Build(model{pass}), staleAt, {sources}, {watch}, options, channel);\n");
         return code.ToString();
     }
 
@@ -1788,6 +1812,9 @@ internal sealed class LayoutCompiler
                     return null;
                 }
             }
+            // The model's own objects and lists that announce changes: a binding follows them too.
+            if (report && canonical == "m" && next is not null && Announces(next))
+                _sources.Add(name);
             var known = scope.Present.Contains(canonical);
             if (maybeNull && !known)
             {
@@ -1807,6 +1834,12 @@ internal sealed class LayoutCompiler
         if (maybeNull && scope.Present.Contains(canonical))
             return new Resolved(nullableValue ? $"({code}).Value" : $"{code}!", canonical, Plain(type), false, false);
         return new Resolved(code, canonical, type, maybeNull, nullableValue);
+    }
+
+    static bool Announces(ITypeSymbol type)
+    {
+        var plain = Plain(type)!;
+        return new[] { plain }.Concat(plain.AllInterfaces).Any(t => t.ToDisplayString() is "System.ComponentModel.INotifyPropertyChanged" or "System.Collections.Specialized.INotifyCollectionChanged");
     }
 
     static bool IsNullableValue(ITypeSymbol? type) =>
