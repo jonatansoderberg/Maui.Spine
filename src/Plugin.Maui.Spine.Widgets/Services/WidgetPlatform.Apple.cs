@@ -192,6 +192,8 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         Send(_bridge, Selector.GetHandle("reloadAll"));
     }
 
+    public bool AreActivitiesSupported => IsSupported;
+
     public bool AreActivitiesEnabled => IsSupported && SendBool(_bridge, Selector.GetHandle("activitiesEnabled")) != 0;
 
     public IReadOnlyDictionary<string, string> ActiveActivities()

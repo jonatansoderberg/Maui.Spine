@@ -28,7 +28,7 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     /// <summary>Icons by name: a control's, which Android draws on its Quick Settings tile.</summary>
     public async Task EnsureAsync(IEnumerable<string> names, CancellationToken cancellationToken)
     {
-        if (!_platform.IsSupported && !_platform.AreControlsSupported) return;
+        if (!_platform.IsSupported && !_platform.AreControlsSupported && !_platform.AreActivitiesSupported) return;
 
         // A refresh running beside this one must not write its tree before the icons it shares are on disk,
         // so it waits here rather than skipping a name another caller is still storing.
