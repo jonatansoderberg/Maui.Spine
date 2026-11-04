@@ -80,6 +80,8 @@ public static class WidgetExplain
     private static IEnumerable<string> Notes(JsonObject node, WidgetPlatform platform)
     {
         var type = node["type"]?.GetValue<string>();
+        if (type is "image" or "asset" or "sparkline" or "ring" && node["description"] is null && node["decorative"] is null)
+            yield return "says nothing to a screen reader: give it a Description, or mark it Decorative";
         if (platform == WidgetPlatform.Android)
         {
             if (type == "hstack" && node["align"]?.GetValue<string>() == "baseline") yield return "lines up the tops, not the baselines";

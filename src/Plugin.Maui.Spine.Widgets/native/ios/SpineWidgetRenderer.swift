@@ -233,6 +233,13 @@ enum Overrides {
     }
 }
 
+extension Node {
+    /// Whether a button is anywhere in the tree, which VoiceOver must reach on its own.
+    var hasButton: Bool {
+        type == "button" || (children ?? []).contains { $0.hasButton } || (child?.hasButton ?? false)
+    }
+}
+
 /// One node of the tree the app wrote; the same schema as Plugin.Maui.Spine.Widgets.WidgetNode.
 /// A class because a node nests optional nodes (button child, adaptive fallback), which a struct cannot.
 final class Node: Decodable {
@@ -273,6 +280,10 @@ final class Node: Decodable {
     var hAlign: String?
     /// The widest a sparkline may be, as a multiple of its height.
     var maxAspect: Double?
+    /// What VoiceOver says for the node; on the root, the whole sentence.
+    var description: String?
+    /// Left out of what VoiceOver says.
+    var decorative: Bool?
     var background: String?
     var cornerRadius: Double?
     var children: [Node]?
@@ -352,7 +363,17 @@ struct NodeView: View {
     // stops WidgetKit from routing the tap to the intent, and it opens the app instead.
     var body: some View {
         if let margin = Insets.edges(node.margin) {
-            marked.padding(margin)
+            spoken.padding(margin)
+        } else {
+            spoken
+        }
+    }
+
+    @ViewBuilder private var spoken: some View {
+        if node.decorative == true {
+            marked.accessibilityHidden(true)
+        } else if let description = node.description {
+            marked.accessibilityElement(children: .ignore).accessibilityLabel(Text(description))
         } else {
             marked
         }
@@ -1182,6 +1203,7 @@ struct SpineWidgetView: View {
     @ViewBuilder private var content: some View {
         if let tree = entry.trees[Families.key(family)] ?? entry.trees["default"] {
             NodeView(node: tree).environment(\.spineKind, entry.kind).environment(\.locale, AppLanguage.locale)
+                .accessibilityElement(children: tree.hasButton ? .contain : .combine)
         } else {
             Text("—").foregroundStyle(.secondary)
         }
@@ -1241,8 +1263,11 @@ struct Slot: View {
     var toned = false
     var body: some View {
         if let node {
+            // One element for VoiceOver: the region's texts and labels read as one sentence, or the root's description.
+            // A region with a button stays apart, so VoiceOver can still reach the button.
             NodeView(node: node).environment(\.spineKind, kind).environment(\.locale, AppLanguage.locale)
                 .environment(\.spineBackdrop, backdrop).environment(\.spineClipped, clipped).environment(\.spineToned, toned)
+                .accessibilityElement(children: node.hasButton ? .contain : .combine)
         } else {
             EmptyView()
         }

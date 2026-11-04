@@ -324,6 +324,18 @@ A node can say what it is in a Live Activity with `.Part(ActivityPart.…)`: `Su
 
 `Explain()` warns when two nodes of a region are the same part, and on Android when an activity has neither notification text nor a subject or value part.
 
+### Accessibility
+
+A widget or a Live Activity's region reads as **one sentence** to VoiceOver and TalkBack: its texts and the descriptions of its icons and pictures, in order. A `.Description("…")` on the root replaces that sentence; on any other node it is what that node says, as MAUI's `SemanticProperties.Description`. `.Decorative()` leaves a node out, as MAUI's `IsInAccessibleTree="False"`.
+
+```csharp
+W.Icon(SpineIcons.ArrowDownRight).Description("sjunker")
+W.Image(team.LogoAsset).Decorative()                    // the team's name is beside it
+W.Sparkline(lastHour).Description("stiger från 6,7 till 9,3 senaste timmen")
+```
+
+iOS combines each region into one element (`accessibilityElement(children: .combine)`), except a region with a button, which stays apart so the button can be reached. Android puts the sentence on the root view's content description; icons and pictures are not in the accessibility tree on their own. A graph or a ring means nothing to a screen reader until the app says what it shows, so `Explain()` names every icon, picture, sparkline or ring with neither a description nor `Decorative`.
+
 ### Overrides by platform, place and size
 
 One tree serves every platform and place. Where one of them needs something else, a node says so with `.On(…)`, which writes a small patch of that node's own properties; the renderer applies the ones that match where it draws:
