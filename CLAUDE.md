@@ -28,6 +28,7 @@ Multi-issue efforts have a living plan under `docs/plans/`. When an issue belong
 - `docs/plans/ai-and-security.md` — AI, voice, sign-in, biometrics and highlight (roadmap #505, issues #506–#522).
 - `docs/plans/desktop-dashboard.md` — moving a Mac dashboard app's window, layout, chart and widget code into Spine (backdrop, margins, window sizes, masonry, charts, widget rings).
 - `docs/plans/spine-avatar.md` — avatars: the lab (#524, #542), then the Core, Avatar, Speech and Avatar.Voice packages, drivers, the Showcase pages and the spikes (phases B0–C; issues created per step).
+- `docs/plans/widgets-everywhere.md` — widgets and Live Activities described once for iOS and Android: padding, alignment, SVG icons, overrides, parts, buttons, accessibility, colours, MAUI-style names, then layout files bound to a view model (decisions D1–D12, steps W0–W15, issues #743–#757; examples in `widgets-everywhere-examples.md`).
 - `docs/plans/spine-avatar-mini-v2.md` — Minis v2 (done 2026-10-28): seven hand-drawn shapes and any colour in one `mini.spineavatar`, through the format's `options` and `presets` (phase M2).
 
 ## GitHub Issue Workflow
