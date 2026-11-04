@@ -45,11 +45,34 @@ A project that references Spine's projects instead of its packages adds the gene
 |---|---|
 | `<LiveActivity>` | `static LiveActivityLayout Build(Model m)` |
 | `<Widget>` | `static WidgetNode Build(Model m)` (with `W.Adaptive` when there are sizes), or `IReadOnlyDictionary<WidgetFamily, WidgetNode>` when every size has its own tree; `static WidgetSurface Surface(Model m)` when it has a `Background`; `static WidgetTimeline Timeline(IEnumerable<(DateTimeOffset At, Model Entry)> entries)` |
+| `<LiveActivity>` with a model that announces changes | `static LiveActivityBinding Bind(LiveActivity activity, Model m, …)` and `static Task<LiveActivityBinding?> StartAsync(ILiveActivityService activities, string kind, Model m, …)`; see [Following a view model](#following-a-view-model) |
 | Both | `Actions` (a constant per button action, `Actions.NextGame` for `Action="next-game"`) and `Icons` (every icon the file can show, for `SpineWidgetsOptions.Icons`) |
 
 A file that uses `{Loc …}` takes the strings too: `Build(model, strings)` with an `ISpineStrings` in the user's culture, which the server builds as well as the app. A file without `Model` has a `Build()` with no model.
 
 Templates become local functions of `Build`, and every node's code starts with a `#line` to its element, so a compiler error in a bound expression (a `{Static …}` that does not exist) is reported in the layout file.
+
+## Following a view model
+
+`Build(model)` is a snapshot. When the model announces its changes (`INotifyPropertyChanged`, as a MAUI view model does), the file also gets `Bind` and `StartAsync`, which keep an activity in step with it:
+
+```csharp
+// Starts the activity from the model as it is, then updates it whenever the model changes.
+_score = await ScoreLayout.StartAsync(_activities, "score", viewModel, staleAt: m => m.UpdatedAt.AddMinutes(10));
+
+// Or an activity already running:
+_score = ScoreLayout.Bind(activity, viewModel);
+
+_score.Dispose();   // stops following; await _score.FlushAsync() first to send a pending change
+```
+
+- The first change opens a window of `LiveActivityBindingOptions.Interval` (a second by default); every change made in it goes out in one update, built from the model as it is when the window closes, off the thread the change came on. A busy model therefore stays inside iOS's budget for updates.
+- An update that would send the same layout again is left out, so a property the layout does not show costs nothing.
+- The model's own objects and lists that the file binds through and that announce changes (`{Game.HomeGoals}` with a `Game` that is `INotifyPropertyChanged`, `ForEach Items="{Goals}"` over an `ObservableCollection`) are followed too, and a replaced one is let go.
+- A file with `{Loc …}` takes the strings, and a change of their culture rebuilds the layout.
+- `Failed` reports an update that could not be built or sent; the binding goes on with the next change. It stops by itself once the activity has ended. `Refresh()` marks it changed by hand.
+
+A tree written in C# binds the same way: `activity.Bind(viewModel, m => ScoreTree(m))` and `activities.StartBoundAsync(kind, viewModel, build)` in `LiveActivityBindings`.
 
 ## The tree
 
