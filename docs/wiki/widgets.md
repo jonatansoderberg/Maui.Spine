@@ -248,7 +248,7 @@ centring it: a 15-point name and a caption-sized age beside it, centred, sit abo
 Android the children without text then keep to the top. Regions of a Dynamic Island are laid out by the system and
 cannot share a baseline; text that must is put in one region.
 
-Text-like nodes take fluent styling: `.LargeTitle()`, `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.FontDesign(TextDesign.Rounded)`, `.FontSize(points)`, `.Trailing()`, `.SingleLine()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
+Text-like nodes take fluent styling: `.LargeTitle()`, `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.FontDesign(TextDesign.Rounded)`, `.FontSize(points)`, `.Trailing()`, `.SingleLine()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Margin(…)` and `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
 **A system-drawn time takes all the width it is offered**, and draws its digits from the leading edge, so spacers either side cannot centre it and a label beside it cannot be centred with it. `W.Timer(start, prefix: "Face-off in ")` makes the label and the digits one text, and `.Centered()` centres it in the width it takes. `.Centered()` is alignment only — it claims no width — so a centred node in a Dynamic Island's centre region does not squeeze the regions beside it. `.Trailing()` is the same toward the trailing edge: `W.HStack(W.Text(name), W.Spacer(), W.Relative(at, ago: true).Trailing())` puts the name top left and the age top right, as a card does. Without it the age's digits start from the leading edge of the width it took, next to the name. In the expanded island's narrow trailing region a long age such as "för 3 minuter sedan" wraps and meets the island's rounded corner. `.SingleLine(minimumScale)` keeps it on one line: the text shrinks to as little as that share of its size (0.7 by default) and is cut off with an ellipsis past it. Android cannot size a widget's text to fit and only keeps it on one line. A row that should keep its full size fits better in `ExpandedBottom`, which spans the whole width.
 
@@ -294,6 +294,16 @@ A stack can carry a box — padding, a background color, rounded corners — whi
 W.Button("bump", W.HStack(W.Text("Bump").Caption().Bold().Color(surface))
     .Background(mint).Padding(6).CornerRadius(8))
 ```
+
+Padding and margin take MAUI's `Thickness`: one value for every side, `(horizontal, vertical)`, or `(left, top, right, bottom)`, where left and right are the start and end of the line, so a right-to-left language mirrors them. Padding is on stacks, inside their background; margin is on any node, outside its background.
+
+```csharp
+W.HStack(W.Use("title")).Padding(10, 6)        // 10 at the sides, 6 above and below
+W.VStack(value, unit).Padding(16, 10, 16, 6)   // a little less at the bottom
+W.Text(note).Caption().Margin(0, 4, 0, 0)      // 4 above the note
+```
+
+Uneven padding travels as `insets` beside `padding`, which then holds the smallest side: iOS reads `padding` as a number, and an app built with an older Spine would fail to read the whole layout if it were a list, whereas it ignores `insets` and draws the smallest padding all round. A margin is a key of its own, `margin`, which older apps ignore. On Android below 12, where RemoteViews cannot set a margin, the node sits in a frame padded by it; that frame does not take a filled stack's share of a row.
 
 The surface under the whole tree is colored from the timeline, and for a Live Activity from the layout:
 
@@ -351,7 +361,8 @@ timeline.Add(midsummerEve.AddDays(1), Page(midsummerEve.AddDays(1)));
 | `LiveActivityLayout.Background` | `activityBackgroundTint` | Ignored: `Template` would not be promoted with a color, and `Layout` draws on the notification's surface |
 | `LiveActivityLayout.SystemBackground` | `activityBackgroundTint(nil)` | Ignored; `Layout` is always on the notification's surface |
 | `LiveActivityLayout.ActionColor` | `activitySystemActionForegroundColor` | Ignored |
-| `.Padding` / `.Background` | `padding` / `background` | `setViewPadding` / `setBackgroundColor`; ignored in a Live Update |
+| `.Padding` / `.Background` | `padding` (`EdgeInsets` for uneven sides) / `background` | `setViewPadding` / `setBackgroundColor`; ignored in a Live Update |
+| `.Margin` | `padding` outside the node | `setViewLayoutMargin` from Android 12, a padded frame below |
 | `.CornerRadius` | Clips the background and the children | The same from API 31; square below |
 
 ### The timeline
@@ -1016,7 +1027,8 @@ The same C# tree renders on Android without changes; the difference is what the 
 | `WidgetTimeline.Background` | The root's rounded background drawable tinted through `setBackgroundTintList` from Android 12; `setBackgroundColor` below, which loses the corners |
 | `WidgetTimeline.Background(gradient)` / `BackgroundImage` | Bitmaps in views behind the tree, clipped by the root's outline from Android 12 |
 | `WidgetSurface` on an entry | The same three, taken from the entry that applies now instead of the timeline |
-| `.Padding` / `.Background` / `.CornerRadius` | `setViewPadding`, `setBackgroundColor`, and from Android 12 `setViewOutlinePreferredRadius` with `setClipToOutline` |
+| `.Padding` / `.Background` / `.CornerRadius` | `setViewPadding` (start and end swapped in a right-to-left language), `setBackgroundColor`, and from Android 12 `setViewOutlinePreferredRadius` with `setClipToOutline` |
+| `.Margin` | `setViewLayoutMargin` (start, top, end, bottom; a stack's spacing adds to the leading side) from Android 12; below, a frame padded by it (`spine_widget_margin`) |
 | `WidgetTimeline` entries | The entry that applies now is drawn, on its own surface when it has one; an inexact alarm redraws at the next entry's date, another runs the provider `Refresh(after)` the last one |
 | `OpenUrl` | A `PendingIntent` to a small activity in the package that forwards the URL to the app's own main activity; the scheme is registered on it by the build |
 | `W.Button` | A `PendingIntent` broadcast to the widget's receiver, which runs the handler in the app's process |
@@ -1052,7 +1064,7 @@ A Live Activity on Android 16 is an ongoing notification in one of two presentat
 
 Android forbids custom views in a promoted notification ("custom notifications make consistent testing and UX difficult", in the Live Updates guide), so an app chooses between its own look and the chip. `Automatic` gives the chip where there is one, and the iOS look everywhere else (Android 16.0, Live Updates turned off for the app). `Layout` draws the tree everywhere; `Template` never does.
 
-In `Layout`, the expanded notification is the system's header (app icon, name, the age) over the tree, drawn straight on the notification: a card of `Background` inside the notification's own would be a notification in a notification, so `Background` and `SystemBackground` stay iOS only. The notification already insets its content to line up with the header's app name, so the tree's own padding is dropped, and the `W.Relative` or `W.Timer` the header counts is not drawn a second time in the tree. The notification is light or dark with the system, so give the tree semantic colors (`WidgetColor.Primary`, `Secondary`) rather than white: on iOS they resolve as in dark mode on a dark Lock Screen (Spine's translucent black, or a dark `Background`), so the same tree is white on black there. The rounded font, `.SingleLine` shrinking and a `W.Relative` written out ("för 2 minuter sedan") are iOS's: Android draws the default font and the age as a chronometer (`02:14`), which keeps counting while the app is not running.
+In `Layout`, the expanded notification is the system's header (app icon, name, the age) over the tree, drawn straight on the notification: a card of `Background` inside the notification's own would be a notification in a notification, so `Background` and `SystemBackground` stay iOS only. The notification already insets its content to line up with the header's app name, so the tree's own padding (`padding` and `insets` on its root) is dropped, and the `W.Relative` or `W.Timer` the header counts is not drawn a second time in the tree. The notification is light or dark with the system, so give the tree semantic colors (`WidgetColor.Primary`, `Secondary`) rather than white: on iOS they resolve as in dark mode on a dark Lock Screen (Spine's translucent black, or a dark `Background`), so the same tree is white on black there. The rounded font, `.SingleLine` shrinking and a `W.Relative` written out ("för 2 minuter sedan") are iOS's: Android draws the default font and the age as a chronometer (`02:14`), which keeps counting while the app is not running.
 
 The same Glukos layout in each, on Android 17 (API 37) and 16.0:
 

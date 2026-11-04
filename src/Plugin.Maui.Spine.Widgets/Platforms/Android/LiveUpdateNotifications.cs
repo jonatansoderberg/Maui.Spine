@@ -176,6 +176,7 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
     {
         var root = JsonNode.Parse(tree.GetRawText())!.AsObject();
         root.Remove("padding");
+        root.Remove("insets");
         if (Chronometer(tree) is not null) Remove(root, Find(tree, "timer") is not null ? "timer" : "relative");
         using var drawn = JsonDocument.Parse(root.ToJsonString());
         return new RemoteViewsRenderer(_context, _icons).Root(drawn.RootElement, tap: null, Resource.Layout.spine_live_update);

@@ -264,10 +264,42 @@ public static class WidgetNodeStyling
     public static T Color<T>(this T node, WidgetColor color) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Color = color });
 
     /// <summary>Puts <paramref name="points"/> of space between the stack's edges and its children, on every side.</summary>
-    public static T Padding<T>(this T node, double points) where T : StackNode
+    public static T Padding<T>(this T node, double points) where T : StackNode =>
+        node.Padding(new WidgetThickness(points));
+
+    /// <summary>Puts <paramref name="horizontal"/> points at the start and end and <paramref name="vertical"/> at the top and bottom.</summary>
+    public static T Padding<T>(this T node, double horizontal, double vertical) where T : StackNode =>
+        node.Padding(new WidgetThickness(horizontal, vertical));
+
+    /// <summary>Puts the given space between each of the stack's edges and its children; left and right are the start and end.</summary>
+    public static T Padding<T>(this T node, double left, double top, double right, double bottom) where T : StackNode =>
+        node.Padding(new WidgetThickness(left, top, right, bottom));
+
+    /// <summary>Puts <paramref name="thickness"/> between the stack's edges and its children.</summary>
+    public static T Padding<T>(this T node, WidgetThickness thickness) where T : StackNode
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(points);
-        return (T)(node with { Padding = points });
+        thickness.ThrowIfNegative();
+        return thickness.IsUniform
+            ? (T)(node with { Padding = thickness.Left, Insets = null })
+            : (T)(node with { Padding = thickness.Smallest, Insets = thickness });
+    }
+
+    /// <summary>Puts <paramref name="points"/> of space around the node on every side, outside any background.</summary>
+    public static T Margin<T>(this T node, double points) where T : WidgetNode => node.Margin(new WidgetThickness(points));
+
+    /// <summary>Puts <paramref name="horizontal"/> points at the start and end of the node and <paramref name="vertical"/> above and below it.</summary>
+    public static T Margin<T>(this T node, double horizontal, double vertical) where T : WidgetNode =>
+        node.Margin(new WidgetThickness(horizontal, vertical));
+
+    /// <summary>Puts the given space around the node; left and right are the start and end.</summary>
+    public static T Margin<T>(this T node, double left, double top, double right, double bottom) where T : WidgetNode =>
+        node.Margin(new WidgetThickness(left, top, right, bottom));
+
+    /// <summary>Puts <paramref name="thickness"/> around the node, outside any background.</summary>
+    public static T Margin<T>(this T node, WidgetThickness thickness) where T : WidgetNode
+    {
+        thickness.ThrowIfNegative();
+        return (T)(node with { Margin = thickness });
     }
 
     /// <summary>

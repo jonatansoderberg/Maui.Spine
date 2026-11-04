@@ -198,6 +198,10 @@ final class Node: Decodable {
     var distribute: String?
     var thickness: Double?
     var padding: Double?
+    /// [left, top, right, bottom] when the sides differ; padding then holds the smallest, for older renderers.
+    var insets: [Double]?
+    /// [left, top, right, bottom] around the node, outside any background.
+    var margin: [Double]?
     var background: String?
     var cornerRadius: Double?
     var children: [Node]?
@@ -276,6 +280,14 @@ struct NodeView: View {
     // modifier is applied only where asked: even invalidatableContent(false) on or inside a Button
     // stops WidgetKit from routing the tap to the intent, and it opens the app instead.
     var body: some View {
+        if let margin = Insets.edges(node.margin) {
+            marked.padding(margin)
+        } else {
+            marked
+        }
+    }
+
+    @ViewBuilder private var marked: some View {
         if node.pending == true && !insideButton && node.type != "button" {
             content.invalidatableContent().widgetAccentable(node.accented == true)
         } else {
@@ -729,6 +741,21 @@ struct SparklinePlot {
     }
 }
 
+/// A thickness as [left, top, right, bottom], left and right being the leading and trailing edges, so a right-to-left
+/// language mirrors it as SwiftUI does.
+enum Insets {
+    static func edges(_ sides: [Double]?) -> EdgeInsets? {
+        guard let sides, sides.count == 4 else { return nil }
+        return EdgeInsets(top: CGFloat(sides[1]), leading: CGFloat(sides[0]), bottom: CGFloat(sides[3]), trailing: CGFloat(sides[2]))
+    }
+
+    static func padding(_ node: Node) -> EdgeInsets {
+        if let edges = edges(node.insets) { return edges }
+        let all = CGFloat(node.padding ?? 0)
+        return EdgeInsets(top: all, leading: all, bottom: all, trailing: all)
+    }
+}
+
 /// A stack's padding, background and corner radius. With a background the stack fills the width it is
 /// offered, as every stack outside an HStack does on Android, so one tree lays out the same on both. A
 /// stack with none of the three is left exactly as SwiftUI sizes it.
@@ -742,12 +769,12 @@ struct BoxModifier: ViewModifier {
         if node.fill == true {
             // An equal share of the parent's axis: three of them in a row are three equal columns.
             boxed(content).frame(maxWidth: inline ? .infinity : nil, maxHeight: inline ? nil : .infinity, alignment: alignment)
-        } else if node.padding == nil && node.background == nil && node.cornerRadius == nil {
+        } else if node.padding == nil && node.insets == nil && node.background == nil && node.cornerRadius == nil {
             content
         } else {
             let shape = RoundedRectangle(cornerRadius: CGFloat(node.cornerRadius ?? 0))
             content
-                .padding(CGFloat(node.padding ?? 0))
+                .padding(Insets.padding(node))
                 .frame(maxWidth: node.background != nil && !inline ? .infinity : nil, alignment: alignment)
                 .background(fill, in: shape)
                 .clipShape(shape)
@@ -755,12 +782,12 @@ struct BoxModifier: ViewModifier {
     }
 
     @ViewBuilder private func boxed(_ content: Content) -> some View {
-        if node.padding == nil && node.background == nil && node.cornerRadius == nil {
+        if node.padding == nil && node.insets == nil && node.background == nil && node.cornerRadius == nil {
             content
         } else {
             let shape = RoundedRectangle(cornerRadius: CGFloat(node.cornerRadius ?? 0))
             content
-                .padding(CGFloat(node.padding ?? 0))
+                .padding(Insets.padding(node))
                 .background(fill, in: shape)
                 .clipShape(shape)
         }
