@@ -77,7 +77,8 @@ public abstract record StackNode : WidgetNode
 
     /// <summary>
     /// <c>"center"</c> centres a vertical stack's children on its axis instead of aligning them to the leading edge. Set
-    /// with <see cref="WidgetNodeStyling.CenterItems"/>.
+    /// with <see cref="WidgetNodeStyling.CenterItems"/>. <c>"baseline"</c> lines up a horizontal stack's text on its first
+    /// baseline instead of centring the children. Set with <see cref="WidgetNodeStyling.AlignBaselines"/>.
     /// </summary>
     [JsonPropertyName("align")]
     public string? Align { get; init; }

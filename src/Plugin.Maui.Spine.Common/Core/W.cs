@@ -200,6 +200,12 @@ public static class WidgetNodeStyling
     /// <summary>Centres a vertical stack's children on its axis (a ring tile: label, ring and time under each other).</summary>
     public static VStackNode CenterItems(this VStackNode node) => node with { Align = "center" };
 
+    /// <summary>
+    /// Lines up a horizontal stack's text on its first baseline instead of centring the children: a name beside a smaller
+    /// "2 min ago" then reads as one line. Children without text keep to the top on Android.
+    /// </summary>
+    public static HStackNode AlignBaselines(this HStackNode node) => node with { Align = "baseline" };
+
     /// <summary>Spreads a horizontal stack's children evenly: the same space at its ends as between them.</summary>
     public static HStackNode Evenly(this HStackNode node) => node with { Distribute = "evenly" };
 
