@@ -28,6 +28,8 @@
 		  SpineWidgetsPush            default false                     (iOS: widget push — WidgetKit reloads by push without the
 		                                                                 app; builds the extension for iOS 26 and later, so an app
 		                                                                 that turns it on has no widgets on older iOS)
+		  SpineWidgetsAssetCatalog    default empty                     (iOS: an .xcassets compiled into the extension, e.g. custom
+		                                                                 symbols from tools/SpineSymbols that a control names)
 	-->
 	<PropertyGroup>
 		<SpineWidgetsEnabled Condition="'$(SpineWidgetsEnabled)' == ''">true</SpineWidgetsEnabled>
@@ -77,6 +79,12 @@
 		<SpineUrlScheme Include="$(ApplicationId)" Name="$(ApplicationId).spine-widgets" />
 	</ItemGroup>
 
+	<!-- An asset catalog compiled into the extension, for the custom symbols controls draw (#743). The SDK takes every
+	     *.xcassets in the project into the app's own catalog, so this one is taken out of it. -->
+	<ItemGroup Condition="'$(SpineWidgetsAssetCatalog)' != ''">
+		<ImageAsset Remove="$(SpineWidgetsAssetCatalog.TrimEnd('/\'))\**" />
+	</ItemGroup>
+
 	<Target Name="_SpineWidgetsPrepare"
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And '$(_SpineWidgetsApple)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true') Or '$(_SpineLiveActivitiesApple)' == 'true') And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">
 		<PropertyGroup>
@@ -94,6 +102,8 @@
 			<_SpineWidgetsRequireProvision Condition="'$(_SpineWidgetsSdk)' == 'iphoneos' And '$(EnableCodeSigning)' != 'false'">true</_SpineWidgetsRequireProvision>
 			<_SpineWidgetsArgs Condition="'@(SpineWidget)' != ''">--widget &quot;@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)', '&quot; --widget &quot;')&quot;</_SpineWidgetsArgs>
 			<_SpineWidgetsArgs Condition="'@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true'">$(_SpineWidgetsArgs) --control &quot;@(SpineControl->'%(Identity)|%(Type)|%(DisplayName)|%(Description)|%(Icon)', '&quot; --control &quot;')&quot;</_SpineWidgetsArgs>
+			<_SpineWidgetsAssetCatalogDir Condition="'$(SpineWidgetsAssetCatalog)' != ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(SpineWidgetsAssetCatalog)'))</_SpineWidgetsAssetCatalogDir>
+			<_SpineWidgetsArgs Condition="'$(_SpineWidgetsAssetCatalogDir)' != ''">$(_SpineWidgetsArgs) --assets &quot;$(_SpineWidgetsAssetCatalogDir.TrimEnd('/'))&quot;</_SpineWidgetsArgs>
 			<!-- The APNs host the widget token belongs to follows the app's, which Plugin.Maui.Spine.PushNotifications sets. -->
 			<_SpineWidgetsPushEnvironment>$(SpinePushNotificationsEnvironment)</_SpineWidgetsPushEnvironment>
 			<_SpineWidgetsPushEnvironment Condition="'$(_SpineWidgetsPushEnvironment)' == '' And '$(Configuration)' == 'Debug'">development</_SpineWidgetsPushEnvironment>
@@ -120,12 +130,13 @@
 		<ItemGroup>
 			<_SpineWidgetsInputLine Include="@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)')" />
 			<_SpineWidgetsInputLine Include="@(SpineControl->'control:%(Identity)|%(Type)|%(DisplayName)|%(Description)|%(Icon)')" Condition="'$(_SpineControlsApple)' == 'true'" />
-			<_SpineWidgetsInputLine Include="$(_SpineWidgetsBundleId);$(SpineWidgetsAppGroup);$(SpineWidgetsLiveActivities);$(SpineWidgetsLiveActivitySmall);$(SpineWidgetsBackgroundRefresh);$(SpineWidgetsFrequentUpdates);$(SpineWidgetsMinimumOSVersion);$(Configuration);$(ApplicationTitle);$(_SpineWidgetsArch);$(_SpineWidgetsSdk);$(SpineWidgetsCodesignProvision);$(_SpineWidgetsRequireProvision);$(SpineWidgetsPush);$(_SpineWidgetsPushEnvironment)" />
+			<_SpineWidgetsInputLine Include="$(_SpineWidgetsBundleId);$(SpineWidgetsAppGroup);$(SpineWidgetsLiveActivities);$(SpineWidgetsLiveActivitySmall);$(SpineWidgetsBackgroundRefresh);$(SpineWidgetsFrequentUpdates);$(SpineWidgetsMinimumOSVersion);$(Configuration);$(ApplicationTitle);$(_SpineWidgetsArch);$(_SpineWidgetsSdk);$(SpineWidgetsCodesignProvision);$(_SpineWidgetsRequireProvision);$(SpineWidgetsPush);$(_SpineWidgetsPushEnvironment);$(_SpineWidgetsAssetCatalogDir)" />
 		</ItemGroup>
 		<WriteLinesToFile File="$(_SpineWidgetsInputsFile)" Lines="@(_SpineWidgetsInputLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
 
 		<ItemGroup>
 			<_SpineWidgetsInputs Include="$(_SpineWidgetsNativeDir)*.swift;$(_SpineWidgetsScript);$(_SpineWidgetsInputsFile)" />
+			<_SpineWidgetsInputs Include="$(_SpineWidgetsAssetCatalogDir)**" Condition="'$(_SpineWidgetsAssetCatalogDir)' != ''" />
 		</ItemGroup>
 	</Target>
 

@@ -859,9 +859,14 @@
 	</ItemGroup>
 	<!-- Controls: Control Center on iOS 18, Quick Settings tiles on Android; the providers are the [Control] classes in Widgets\Hockey\. -->
 	<ItemGroup>
-		<SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="Hear about every goal in the live score, or not." Icon="bell" />
+		<SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="Hear about every goal in the live score, or not." Icon="Bell" />
 		<SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Description="A goal for the Owls in the running game, without opening the app." Icon="hockey.puck" />
+		<SpineControl Include="spine-icons" Type="Button" DisplayName="Spine icons" Description="Spine's SVG icons as custom symbols; tap for the next one." Icon="ArrowUpRight" />
 	</ItemGroup>
+	<!-- The custom symbols the controls draw on iOS, written from Spine's SVGs by tools/SpineSymbols (#743). -->
+	<PropertyGroup>
+		<SpineWidgetsAssetCatalog>Platforms/iOS/SpineWidgets.xcassets</SpineWidgetsAssetCatalog>
+	</PropertyGroup>
 	<!-- The AI client page's on-device model: Apple Intelligence, from the .NET 10 preview of Essentials.AI (Q24). -->
 	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
 		<PackageReference Include="Microsoft.Maui.Essentials.AI" />

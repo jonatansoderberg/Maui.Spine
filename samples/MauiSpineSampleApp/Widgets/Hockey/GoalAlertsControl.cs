@@ -13,7 +13,7 @@ public sealed class GoalAlertsControl(LiveScore _score) : IControlProvider
     public const string Kind = "goal-alerts";
 
     public Task<ControlState> GetStateAsync(ControlContext context, CancellationToken cancellationToken) =>
-        Task.FromResult(ControlState.Toggle("Goal alerts", _score.GoalAlerts, "bell") with { Tint = WidgetColor.Orange });
+        Task.FromResult(ControlState.Toggle("Goal alerts", _score.GoalAlerts, "Bell") with { Tint = WidgetColor.Orange });
 
     public Task OnActionAsync(ControlAction action)
     {

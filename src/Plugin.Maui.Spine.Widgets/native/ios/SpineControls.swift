@@ -1,6 +1,7 @@
 #if !targetEnvironment(macCatalyst)
 import AppIntents
 import SwiftUI
+import UIKit
 import WidgetKit
 
 // iOS 18 controls: Control Center, the Lock Screen and the Action button. The app writes each control's
@@ -45,9 +46,12 @@ struct SpineControlValueProvider: ControlValueProvider {
 }
 
 enum ControlSymbols {
-    /// iOS draws only symbols in a control, so a name without an SF Symbol of its own shows a question mark.
-    static func name(_ document: ControlDocument, _ entry: Manifest.Control) -> String {
-        document.symbol ?? document.icon ?? entry.icon ?? "questionmark"
+    /// iOS draws only symbols in a control: a custom symbol from the extension's asset catalog by that name
+    /// (an SVG Spine built into it, with or without ".svg"), else the SF Symbol, else a question mark.
+    static func image(_ document: ControlDocument, _ entry: Manifest.Control) -> Image {
+        let name = document.symbol ?? document.icon ?? entry.icon ?? "questionmark"
+        let custom = name.hasSuffix(".svg") ? String(name.dropLast(4)) : name
+        return UIImage(named: custom) != nil ? Image(custom) : Image(systemName: name)
     }
 }
 
@@ -57,7 +61,7 @@ func spineToggleConfiguration(index: Int) -> some ControlWidgetConfiguration {
     let entry = Manifest.control(index)
     return StaticControlConfiguration(kind: entry.kind, provider: SpineControlValueProvider(entry: entry)) { document in
         ControlWidgetToggle(isOn: document.isOn == true, action: SpineControlToggleIntent(kind: entry.kind)) {
-            Label(document.title, systemImage: ControlSymbols.name(document, entry))
+            Label { Text(document.title) } icon: { ControlSymbols.image(document, entry) }
         }
         .tint(document.tint.map { Palette.color($0) })
     }
@@ -75,7 +79,7 @@ func spineButtonConfiguration(index: Int) -> some ControlWidgetConfiguration {
                 Text(document.title)
                 if let status = document.status { Text(status) }
             } icon: {
-                Image(systemName: ControlSymbols.name(document, entry))
+                ControlSymbols.image(document, entry)
             }
         }
         .tint(document.tint.map { Palette.color($0) })

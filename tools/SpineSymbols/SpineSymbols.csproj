@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Turns SVG icons into custom symbols (.symbolset) for an iOS asset catalog: strokes become filled outlines, the
+		outline goes into the SF Symbols template. Spike W0 of docs/plans/widgets-everywhere.md (#743); the start of W11.
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<AssemblyName>spine-symbols</AssemblyName>
+		<RootNamespace>SpineSymbols</RootNamespace>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="SkiaSharp" />
+		<PackageReference Include="Svg.Skia" />
+	</ItemGroup>
+
+</Project>
