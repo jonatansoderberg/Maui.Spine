@@ -37,9 +37,10 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     private string Package => _context.PackageName!;
     private float Density => _context.Resources!.DisplayMetrics!.Density;
 
-    public RemoteViews Root(JsonElement tree, PendingIntent? tap)
+    /// <param name="layout">The outer container: the widget's (<c>spine_widget_root</c>) by default, or one with the same ids.</param>
+    public RemoteViews Root(JsonElement tree, PendingIntent? tap, int? layout = null)
     {
-        var root = new RemoteViews(Package, Resource.Layout.spine_widget_root);
+        var root = new RemoteViews(Package, layout ?? Resource.Layout.spine_widget_root);
         // A host re-applies the actions on the existing view when the widget is resized, so every
         // AddView is preceded by a RemoveAllViews or the tree would be appended a second time.
         root.RemoveAllViews(Resource.Id.spine_root);
@@ -139,7 +140,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 // RemoteViews cannot draw a path either; a picture Aspect times as wide as it is high.
                 var height = (Number(node, "height") ?? 48) * Density;
                 var width = height * (Number(node, "aspect") ?? 3);
-                var views = new RemoteViews(Package, Resource.Layout.spine_widget_image);
+                var views = new RemoteViews(Package, Resource.Layout.spine_widget_sparkline);
                 views.SetImageViewBitmap(Node, Sparkline(node, (int)Math.Max(1, width), (int)Math.Max(1, height)));
                 return views;
             }
@@ -253,7 +254,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     /// through the values, split where it crosses the band's edges so each stretch takes its colour with a cut square
     /// to the line, the band faint behind it when shaded, the area fading downwards and a dot on the last value.
     /// </summary>
-    private Bitmap Sparkline(JsonElement node, int width, int height)
+    internal Bitmap Sparkline(JsonElement node, int width, int height)
     {
         var bitmap = Bitmap.CreateBitmap(width, height, Bitmap.Config.Argb8888!)!;
         double?[] values = node.TryGetProperty("values", out var array) && array.ValueKind == JsonValueKind.Array

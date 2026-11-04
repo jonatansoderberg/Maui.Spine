@@ -55,9 +55,13 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     public Task EnsureAsync(LiveActivityLayout layout, CancellationToken cancellationToken) =>
         EnsureAsync(layout.Trees, cancellationToken);
 
-    // The underscore form first: the SDK reads "figure.run.svg" as a resource for the culture "run".
+    // The underscore form first: the SDK reads "figure.run.svg" as a resource for the culture "run". Last the Spine icon
+    // set's PascalCase, so an SF Symbol's name ("arrow.up.right") finds its icon (ArrowUpRight.svg) and stays the fallback.
     private Stream? Open(string name) =>
-        _svgs.OpenStream(name.Replace('.', '_') + ".svg") ?? _svgs.OpenStream(name + ".svg");
+        _svgs.OpenStream(name.Replace('.', '_') + ".svg") ?? _svgs.OpenStream(name + ".svg") ?? _svgs.OpenStream(Pascal(name) + ".svg");
+
+    private static string Pascal(string name) =>
+        string.Concat(name.Split('.', '_', '-').Where(p => p.Length > 0).Select(p => char.ToUpperInvariant(p[0]) + p[1..]));
 
     private static byte[]? Render(Stream svgStream)
     {

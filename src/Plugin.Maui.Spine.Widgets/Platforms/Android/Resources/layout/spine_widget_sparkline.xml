@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A sparkline's picture. On iOS the line fills the width it is offered, so its end, the latest value, is at the right
+     edge; the narrower picture keeps that end there in a column, and is centred on a row's height. -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/spine_node"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="end|center_vertical"
+    android:adjustViewBounds="true"
+    android:scaleType="fitStart"
+    android:importantForAccessibility="no" />

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Live Activity's Lock Screen tree in an expanded notification: spine_widget_root's ids, as tall as the tree,
+     without the widget's padding, since the tree brings its own and the notification insets its content, and without
+     its surface, since the notification has one. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/spine_frame"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:theme="@style/SpineWidgetTheme">
+
+    <ImageView
+        android:id="@+id/spine_background_gradient"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/spine_background_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/spine_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+</FrameLayout>

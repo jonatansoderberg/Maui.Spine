@@ -52,6 +52,21 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void The_android_presentation_survives_the_trip()
+    {
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.Text("6,8"),
+            Android = new LiveUpdateText(Title: "Lisa 6,8", Presentation: LiveUpdatePresentation.Layout),
+        };
+
+        var back = WidgetJson.DeserializeLayout(layout.ToJson())!;
+
+        Assert.Equal(LiveUpdatePresentation.Layout, back.Android!.Presentation);
+        Assert.DoesNotContain("presentation", new LiveActivityLayout { Android = new LiveUpdateText(Title: "x") }.ToJson());
+    }
+
+    [Fact]
     public void A_centred_timer_keeps_its_prefix()
     {
         var faceOff = new DateTimeOffset(2026, 9, 19, 19, 43, 0, TimeSpan.Zero);

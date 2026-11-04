@@ -22,7 +22,7 @@ The reasoning behind the design — why C# cannot run inside a WidgetKit extensi
 |---|---|---|
 | iOS 17+ | ✅ WidgetKit extension built at compile time | ✅ Lock Screen and Dynamic Island (all regions) |
 | Mac Catalyst 14+ (iOS 17 API) | ✅ The same WidgetKit extension, built for the Mac: widgets on the desktop and in Notification Center. Needs a Team ID App Group and a signed build, see [Mac Catalyst](#mac-catalyst) | ❌ ActivityKit does not exist on the Mac: `AreActivitiesEnabled` is `false`, `StartAsync` returns `null`. macOS 26 mirrors an iPhone activity by itself |
-| Android 5+ | ✅ `AppWidgetProvider` receivers drawn from the tree with `RemoteViews`; size- and theme-adaptive from Android 12 | ✅ Android 16+ as a **Live Update** (promoted notification); `StartAsync` returns `null` below |
+| Android 5+ | ✅ `AppWidgetProvider` receivers drawn from the tree with `RemoteViews`; size- and theme-adaptive from Android 12 | ✅ Android 16+ as a **Live Update**: the promoted template, or the Lock Screen tree drawn as on iOS (see [Live Updates](#live-updates)); `StartAsync` returns `null` below |
 | Windows | ❌ Planned, MSIX-packaged apps only | — |
 
 On every platform without an implementation the services are still injectable and every call is a no-op; `IWidgetService.IsSupported` says which you are on.
@@ -284,7 +284,7 @@ var graph = W.Sparkline(readings.Select(r => (r.Time, r.Value)), now.AddHours(-1
 - **Colour by value.** Inside the band, or without one, the line is `color` (the accent when null). Above the band it is `above` and below it `below`; each defaults to `color`. The curve is split where it crosses an edge of the band, so each colour ends in a cut square to the line rather than a horizontal one. The area under the line takes the line's colour, softened over about 10 points so a change of colour fades across rather than cutting. It is strongest at the height of the line's highest point and fades slowly downwards to clear at the bottom, and it is drawn only under the line. Past the line's two ends it reaches 2 points further and fades out over 4. The dot takes the colour of the last value.
 - **The area is a picture.** The extension draws the area into an image (`ImageRenderer`), and the platform only shows that image. The iPhone's Lock Screen (iOS 27) draws nothing of a gradient mask, nor of a gradient whose colours are all translucent, and it drew a gradient filled path cut off under the line. It also crushes translucent pixels towards black. The Dynamic Island and the simulator drew all of them, so check a graph on a phone. In the island, which is always black, the area is blended onto black beforehand and drawn opaque. The Lock Screen darkens the dim shades of the picture (a share k of the line's colour shows as about k^1.6). The island and CarPlay draw them as they are, so they apply the same curve themselves and all three look alike.
 - **Edges.** The last value sits on the graph's trailing edge, so the graph ends where text aligned to the same edge ends; its dot, and the area's fade, reach over by a few points into the margin. With an area the line starts 2 points in from the leading edge, which leaves room for the fade. In the Dynamic Island, which clips its regions, and on Android, whose picture cannot reach over, the dot stays inside.
-- **Size.** On iOS the line fills the width it is offered, at `height` points (48 by default). Android draws it as a picture `height` dp high and `Aspect` times as wide (3 by default). Android's Live Update notification has no place for a graph and leaves it out.
+- **Size.** On iOS the line fills the width it is offered, at `height` points (48 by default). Android draws it as a picture `height` dp high and `Aspect` times as wide (3 by default), at the end of a column, so its latest value is at the right edge, where the iOS line ends. Android's Live Update template draws the first one as its large icon, and the `Layout` presentation draws it in the tree.
 
 ### Backgrounds and boxes
 
@@ -348,8 +348,8 @@ timeline.Add(midsummerEve.AddDays(1), Page(midsummerEve.AddDays(1)));
 | `WidgetSurface` on an entry | The entry's own `containerBackground`, the same three layers; WidgetKit switches it with the entry | The entry drawn now decides the surface, the same three layers; the entry alarm redraws at the next date |
 | `.Accented()` / `.FullColor()` | `widgetAccentable` / `widgetAccentedRenderingMode(.fullColor)` | Ignored |
 | `WidgetColor.Surface` / `OnAccent` | `systemBackground` / white | `colorBackground` / `textColorPrimaryInverse`, in the launcher's theme from API 31 |
-| `LiveActivityLayout.Background` | `activityBackgroundTint` | Ignored: Android does not promote a Live Update that asks for a color |
-| `LiveActivityLayout.SystemBackground` | `activityBackgroundTint(nil)` | Ignored |
+| `LiveActivityLayout.Background` | `activityBackgroundTint` | Ignored: `Template` would not be promoted with a color, and `Layout` draws on the notification's surface |
+| `LiveActivityLayout.SystemBackground` | `activityBackgroundTint(nil)` | Ignored; `Layout` is always on the notification's surface |
 | `LiveActivityLayout.ActionColor` | `activitySystemActionForegroundColor` | Ignored |
 | `.Padding` / `.Background` | `padding` / `background` | `setViewPadding` / `setBackgroundColor`; ignored in a Live Update |
 | `.CornerRadius` | Clips the background and the children | The same from API 31; square below |
@@ -543,7 +543,7 @@ public Task OnWidgetOpenedAsync(WidgetLink link) =>
 <EmbeddedResource Include="Resources\Svg\*.svg" />
 ```
 
-Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it. On iOS a name with no SVG falls back to the SF Symbol of the same name; on Android it is left out and a warning is logged under the `SpineWidgets` tag.
+Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it. The icons of `Plugin.Maui.Spine.Svg.Icons` are found by the symbol's name too, in PascalCase: `W.Icon("arrow.up.right")` is `ArrowUpRight.svg`, the trend arrows drawn to stand beside a value. On iOS a name with no SVG falls back to the SF Symbol of the same name; on Android it is left out and a warning is logged under the `SpineWidgets` tag.
 
 ### Images
 
@@ -712,7 +712,7 @@ await activity.EndAsync();
 | `Minimal` | A small circle when another app's activity also runs | One glyph | An icon |
 | `Small` | CarPlay's Dashboard and the Apple Watch Smart Stack, with `SpineWidgetsLiveActivitySmall` (see [below](#carplay-and-apple-watch)) | A small tile; padded by Spine | One row: the value, its trend, how old it is |
 
-A region left `null` is empty. The Dynamic Island is always black, so fixed colors there are drawn on black whatever the appearance; the Lock Screen is drawn on `Background`, on the system material with `SystemBackground`, or on Spine's translucent black. A `W.Adaptive` node renders its fallback in every region.
+A region left `null` is empty. The Dynamic Island is always black, so fixed colors there are drawn on black whatever the appearance; the Lock Screen is drawn on `Background`, on the system material with `SystemBackground`, or on Spine's translucent black. On a dark one (Spine's black, or a dark `Background`) semantic colors resolve as in dark mode, so `WidgetColor.Primary` is white there in light mode too. A `W.Adaptive` node renders its fallback in every region.
 
 ### CarPlay and Apple Watch
 
@@ -1042,7 +1042,29 @@ A screenshot of the widget, cropped to its tile with the corners transparent, is
 
 ### Live Updates
 
-A Live Activity on Android 16 is a **promoted ongoing notification**, and the layout's regions map onto the notification template rather than being drawn as a tree:
+A Live Activity on Android 16 is an ongoing notification in one of two presentations, `LiveActivityLayout.Android.Presentation`:
+
+| `LiveUpdatePresentation` | What shows | Promoted (chip in the status bar, top of the shade and lock screen) |
+|---|---|---|
+| `Template` | Android's own template, filled from the regions as in the table below, with the first `W.Sparkline` as the large icon | Yes, where the system and the user allow it (Android 16.1 and later) |
+| `Layout` | The `LockScreen` tree drawn as on iOS, by the widget renderer, on the notification's own surface, when the notification is expanded; collapsed it is the template's title, text and age | No: Android promotes only its own templates |
+| `Automatic` (default) | `Template` where `NotificationManager.canPostPromotedNotifications()` says it will be promoted, `Layout` otherwise | Where it can be |
+
+Android forbids custom views in a promoted notification ("custom notifications make consistent testing and UX difficult", in the Live Updates guide), so an app chooses between its own look and the chip. `Automatic` gives the chip where there is one, and the iOS look everywhere else (Android 16.0, Live Updates turned off for the app). `Layout` draws the tree everywhere; `Template` never does.
+
+In `Layout`, the expanded notification is the system's header (app icon, name, the age) over the tree, drawn straight on the notification: a card of `Background` inside the notification's own would be a notification in a notification, so `Background` and `SystemBackground` stay iOS only. The notification already insets its content to line up with the header's app name, so the tree's own padding is dropped, and the `W.Relative` or `W.Timer` the header counts is not drawn a second time in the tree. The notification is light or dark with the system, so give the tree semantic colors (`WidgetColor.Primary`, `Secondary`) rather than white: on iOS they resolve as in dark mode on a dark Lock Screen (Spine's translucent black, or a dark `Background`), so the same tree is white on black there. The rounded font, `.SingleLine` shrinking and a `W.Relative` written out ("för 2 minuter sedan") are iOS's: Android draws the default font and the age as a chronometer (`02:14`), which keeps counting while the app is not running.
+
+The same Glukos layout in each, on Android 17 (API 37) and 16.0:
+
+| `Template`, promoted (Android 17) | `Automatic` on Android 16.0: `Layout`, expanded |
+|---|---|
+| ![Template](images/live-updates/1-template-promoted-android17.png) | ![Layout, light](images/live-updates/2-layout-expanded-android16-light.png) |
+| **`Layout`, collapsed (Android 17)** | **`Layout` in dark mode (Android 16.0)** |
+| ![Layout collapsed](images/live-updates/3-layout-collapsed-android17.png) | ![Layout, dark](images/live-updates/4-layout-expanded-android16-dark.png) |
+| **The chip of a promoted `Template`** | |
+| ![Chip](images/live-updates/5-chip-statusbar-android17.png) | |
+
+In `Template` the regions map onto the notification template rather than being drawn as a tree:
 
 | Region | Becomes |
 |---|---|
@@ -1051,7 +1073,9 @@ A Live Activity on Android 16 is a **promoted ongoing notification**, and the la
 | `CompactTrailing` | A `W.Text` there becomes the status-bar chip's text; a `W.Timer` leaves the chip to the system's chronometer |
 | `Link` | The notification's tap, through the same activity as the widget |
 
-`staleAt` is not visualised on Android, and neither is a stack's box. `Background` is left out on purpose: Android promotes a notification only when it does not ask to be colorized (`Notification.hasPromotableCharacteristics`), so a colored Live Update would fall back to a plain notification. Below Android 16 `AreActivitiesEnabled` is `false` and `StartAsync` returns `null`; a plain ongoing notification would not be a Live Activity, so Spine does not pretend.
+| `W.Sparkline` (the first, in `LockScreen` or `ExpandedBottom`) | The large icon, at 16:9 (the widest the template draws it), unless `Android.Icon` names one |
+
+`staleAt` is not visualised on Android, and neither is a stack's box. In `Template`, `Background` is left out on purpose: Android promotes a notification only when it does not ask to be colorized (`Notification.hasPromotableCharacteristics`), so a colored Live Update would fall back to a plain notification. Below Android 16 `AreActivitiesEnabled` is `false` and `StartAsync` returns `null`; a plain ongoing notification would not be a Live Activity, so Spine does not pretend.
 
 **`CompactTrailing` is the one region that pulls in opposite directions.** On iOS it sits in the Dynamic Island, where a `W.Timer` or `W.Relative` claims every point offered and stretches the island — so a plain `W.Text` is the right answer there. On Android the same region becomes the status-bar chip, and a `W.Timer` is what hands the chip to the system's chronometer; a `W.Text` freezes it at whatever the app last wrote. One tree cannot be ideal for both. Use `W.Adaptive`, or build the two layouts separately, when the region matters on both platforms.
 
@@ -1065,7 +1089,9 @@ Android = new LiveUpdateText(
     Icon: home.LogoAsset),
 ```
 
-`Icon` names an asset stored with `StoreAssetAsync`, drawn as the notification's large icon — the one picture the promoted template shows.
+`Icon` names an asset stored with `StoreAssetAsync`, drawn as the notification's large icon — the one picture the promoted template shows. Without it a `W.Sparkline` in the tree is drawn there, so a graph is still seen in `Template`.
+
+`MetricStyle` (Android 17) shows up to three metrics in a promoted notification, but not the large icon, so it would trade the graph for a second and third number; Spine does not use it yet.
 
 **An icon has no region of its own.** Android's promoted-ongoing template has no leading-image slot, so the notification row always shows the app icon; the tree's first `W.Icon` becomes the notification's *small icon*, and that surfaces in the status-bar chip, beside the `CompactTrailing` text. `ExpandedLeading` — a region you can draw into on iOS — therefore has no counterpart in the expanded notification. Anything that has to be legible there belongs in text.
 
@@ -1158,7 +1184,7 @@ What Spine widgets cannot do, and what to do instead.
 | A button in a Live Activity whose kind is not a widget's | Taps are routed by kind to a `[Widget]` provider | Open the app with `Link` |
 | Start a Live Activity from the background on iOS | ActivityKit starts one only in the foreground | Push-to-start from a server |
 | Keep a Live Activity longer than eight hours on iOS | The system ends it | Start a new one; see [Keeping one on screen around the clock](#keeping-one-on-screen-around-the-clock) |
-| Color a Live Update on Android | Android does not promote a colorized notification | Leave `Background` to iOS |
+| Color a Live Update on Android | Android does not promote a colorized notification | `LiveUpdatePresentation.Layout`, which colors the tree's own text and graph (not a background) and gives up the chip |
 | Widgets on Windows | Not implemented | The services are no-ops there; check `IsSupported` |
 | A Live Activity on the Mac | ActivityKit does not exist on macOS | A widget, or a notification |
 | A control drawn from the tree vocabulary, or with an SVG on iOS | A control is a fixed template, and iOS draws only SF Symbols in one | `Title`, `Status`, `Icon`/`Symbol`, `Tint` |

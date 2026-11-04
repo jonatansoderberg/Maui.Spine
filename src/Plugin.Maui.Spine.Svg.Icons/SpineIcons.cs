@@ -12,6 +12,16 @@ public static class SpineIcons
     public const string AirConditioner = "AirConditioner.svg";
     /// <summary>The <c>Arrow.svg</c> icon.</summary>
     public const string Arrow = "Arrow.svg";
+    /// <summary>The <c>ArrowDown.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    public const string ArrowDown = "ArrowDown.svg";
+    /// <summary>The <c>ArrowDownRight.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    public const string ArrowDownRight = "ArrowDownRight.svg";
+    /// <summary>The <c>ArrowRight.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    public const string ArrowRight = "ArrowRight.svg";
+    /// <summary>The <c>ArrowUp.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    public const string ArrowUp = "ArrowUp.svg";
+    /// <summary>The <c>ArrowUpRight.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    public const string ArrowUpRight = "ArrowUpRight.svg";
     /// <summary>The <c>Auto.svg</c> icon.</summary>
     public const string Auto = "Auto.svg";
     /// <summary>The <c>Awning.svg</c> icon.</summary>
@@ -497,6 +507,11 @@ public static class SpineIcons
         AccountLink,
         AirConditioner,
         Arrow,
+        ArrowDown,
+        ArrowDownRight,
+        ArrowRight,
+        ArrowUp,
+        ArrowUpRight,
         Auto,
         Awning,
         Axes3D,

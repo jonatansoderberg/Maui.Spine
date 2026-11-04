@@ -59,8 +59,10 @@ public sealed record LiveActivityLayout
 
     /// <summary>
     /// The color behind the Lock Screen presentation; a translucent black when <see langword="null"/>.
-    /// iOS only: the Dynamic Island is always black, and Android does not promote a Live Update that
-    /// asks for a color. A fixed color stays fixed in dark mode, so give the text fixed colors too.
+    /// iOS only: the Dynamic Island is always black, Android does not promote a Live Update that asks for a
+    /// color, and <see cref="LiveUpdatePresentation.Layout"/> draws on the notification's own surface. On a
+    /// dark color (and on the default black) semantic colors resolve as in dark mode, so <see cref="WidgetColor.Primary"/>
+    /// is white on it and follows the notification on Android.
     /// </summary>
     public WidgetColor? Background { get; init; }
 
@@ -107,4 +109,30 @@ public sealed record LiveActivityLayout
 /// <param name="Body">Its text, under the title.</param>
 /// <param name="Chip">The short text beside the status-bar icon while the Live Update runs.</param>
 /// <param name="Icon">A stored asset drawn beside the text, as the notification's large icon.</param>
-public sealed record LiveUpdateText(string? Title = null, string? Body = null, string? Chip = null, string? Icon = null);
+/// <param name="Presentation">Whether the Live Update is the promoted template or the Lock Screen tree; see <see cref="LiveUpdatePresentation"/>.</param>
+public sealed record LiveUpdateText(string? Title = null, string? Body = null, string? Chip = null, string? Icon = null,
+    LiveUpdatePresentation? Presentation = null);
+
+/// <summary>
+/// How a Live Activity shows on Android. Android promotes only a notification built from its own templates, so the
+/// status-bar chip and the place at the top of the shade and the lock screen rule out the app's own layout, and the
+/// layout rules out the chip.
+/// </summary>
+public enum LiveUpdatePresentation
+{
+    /// <summary><see cref="Template"/> where the system will promote the notification (Android 16.1 and later, the user allowing it), <see cref="Layout"/> otherwise.</summary>
+    Automatic,
+
+    /// <summary>
+    /// The promoted Live Update: title, text, the age or a timer, a progress bar and the chip, from
+    /// <see cref="LiveUpdateText"/> or the tree's texts, with the first <c>W.Sparkline</c> as its large icon.
+    /// </summary>
+    Template,
+
+    /// <summary>
+    /// The <see cref="LiveActivityLayout.LockScreen"/> tree drawn as on iOS, on the notification's own surface, when the
+    /// notification is expanded; collapsed it is the template with the graph as its large icon. Never promoted. The
+    /// surface is light or dark with the system, so the tree's text takes semantic colors.
+    /// </summary>
+    Layout,
+}
