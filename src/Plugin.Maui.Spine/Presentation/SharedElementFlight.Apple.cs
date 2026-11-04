@@ -10,7 +10,7 @@ internal sealed partial class SharedElementFlight
 {
     private readonly UIView _container;
     private readonly UIView _front;
-    private readonly List<(UIView Picture, UIImageView To, CGRect End, nfloat EndRadius)> _pictures = [];
+    private readonly List<(UIView Picture, UIImageView From, UIImageView To, CGRect End, nfloat EndRadius)> _pictures = [];
 
     // The view a zooming page grows out of or shrinks into: its place, its corner radius, and a
     // picture of it over the page while the page is small.
@@ -83,7 +83,7 @@ internal sealed partial class SharedElementFlight
         }
 
         _container.InsertSubviewAbove(picture, _front);
-        _pictures.Add((picture, to, target.Frame, RadiusOf(target.Element, target.View)));
+        _pictures.Add((picture, from, to, target.Frame, RadiusOf(target.Element, target.View)));
 
         Hide(source.Element, target.Element);
     }
@@ -418,13 +418,17 @@ internal sealed partial class SharedElementFlight
         var animator = new UIViewPropertyAnimator(length / 1000.0, new UICubicTimingParameters(curve.Item1, curve.Item2));
         animator.AddAnimations(() =>
         {
-            foreach (var (picture, to, end, radius) in _pictures)
+            foreach (var (picture, from, to, end, radius) in _pictures)
             {
-                // The picture of the view as it lands fades in over the one it left as, so the
-                // flight never turns see-through.
                 picture.Frame = end;
                 picture.Layer.CornerRadius = radius;
-                to.Alpha = 1;
+
+                // Keyframes in a property animator take its duration and curve.
+                UIView.AnimateKeyframes(0, 0, UIViewKeyframeAnimationOptions.CalculationModeLinear, () =>
+                {
+                    UIView.AddKeyframeWithRelativeStartTime(0, LandingFadeShare, () => to.Alpha = 1);
+                    UIView.AddKeyframeWithRelativeStartTime(LandingFadeShare, 1 - LandingFadeShare, () => from.Alpha = 0);
+                }, null);
             }
         });
         animator.AddCompletion(_ => done.TrySetResult());
@@ -447,7 +451,7 @@ internal sealed partial class SharedElementFlight
             _cropsFocus = false;
         }
 
-        foreach (var (picture, _, _, _) in _pictures)
+        foreach (var (picture, _, _, _, _) in _pictures)
             picture.RemoveFromSuperview();
 
         _pictures.Clear();
