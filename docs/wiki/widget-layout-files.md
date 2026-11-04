@@ -199,6 +199,32 @@ var layout = model.HasValue ? GlucoseActivityLayout.Build(model) : GlucoseNoValu
 | SPL015 | Error | A file that is not well-formed XML |
 | SPL016 | Warning | A file with `Payload="Template"` whose layout a template cannot hold, and why; it is sent as a tree |
 
-## Writing the same JSON as C#
+## Moving a widget from C# to a file
 
-The file and the hand-written tree are the same calls, so a file can replace C# without changing a byte of the payload, which Glukos's `GlucoseActivityLayoutFileTests` checks. Where two C# forms give different JSON, the file names the one it means: `HorizontalTextAlignment="End"` is `.Trailing()` (the text's alignment), `HorizontalOptions="End"` places the node; a node that is a single label in one case and a stack in another is a `Choose`, not a stack with an `If` child.
+The file and the hand-written tree are the same calls, so a file can replace C# without changing a byte of the payload. Glukos moved its Live Activity this way (`GlucoseActivityLayoutFileTests`, now `GlucoseActivityTemplateTests`) and Almanacka its four widgets (`WidgetLayoutTests`). The order that worked:
+
+1. **Put the models and files in a plain `net10.0` project** that references `Plugin.Maui.Spine.Common` and the app's domain project (Almanacka's `Almanacka.Widgets`, Glukos's `Glukos.Shared`). A test project cannot reference the MAUI app, and the server needs the files too where it sends the layout. The providers stay in the app, draw and store the pictures, and call the generated classes.
+2. **Write the model from what the C# decided inline.** A substring, a joined list, a "first of these that is there" or a range of dates becomes a property worked out once (`MonthShort`, `Note`, `Range`). Make a property non-null where there always is a value and keep it nullable where its absence means something, so the file says it with `If` or `Fallback`. Name the stored pictures in the model too (`HomeLeaf = $"home/{date.DayNumber % 64}.png"`): the provider stores under the name the model gives, and the name is in one place.
+3. **Keep the old trees as the reference, in the test project.** Copy the C# that builds the trees into a `Before` class, unchanged, and assert that `Before`'s `ToJson()` equals the file's, as strings rather than a deep JSON comparison, so the order of properties and families is checked too. Cover the cases each branch needs (Almanacka: a weekday, a weekend, a red day, a nameless holiday, a flag day, a full moon, a week across two months) one at a time and as a whole timeline, and add a test that the cases really reach every branch. Break a file once on purpose and watch the tests fail.
+4. **Switch the providers in a second commit**, remove the replaced C#, and keep the test: it is the record that the file says what the C# said, and a layout changed on purpose changes its `Before` tree with it.
+
+Where two C# forms give different JSON, the file names the one it means:
+
+| C# | In the file |
+|---|---|
+| `.Trailing()` (the text's alignment) | `HorizontalTextAlignment="End"`; `HorizontalOptions="End"` places the node instead |
+| A node that is a single label in one case and a stack in another | A `Choose`, not a stack with an `If` child |
+| `.SingleLine()` | `MaxLines="1"` with `ShrinkToFit` |
+| `cond ? node.Background(Red).CornerRadius(8) : node` | One-sided `Background="{OnBool IsToday, True=Red}" CornerRadius="{OnBool IsToday, True=8}"`: the other side leaves the attribute out |
+| `cond ? OnAccent : red ? Red : Primary` | `TextColor="{OnBool IsToday, True=OnAccent, False={OnBool IsRed, True=Red, False=Primary}}"` |
+| `note ?? $"v {week}"` | `Text="{Note, Fallback='v {Week}'}"` |
+| A helper such as `Centered(node) => W.HStack(W.Spacer(), node, W.Spacer())` | A `<Template Name="Centered">` holding the stack with `<Content />` where the node goes; `Fill` and `Alignment="Center"` write different JSON |
+| `new WidgetGradient(colors, WidgetGradientDirection.Diagonal)` | `{LinearGradient #6D9BDD, #B7CDF0, Direction=Diagonal}`: a gradient is vertical unless it says otherwise |
+| `timeline.Background(…)` once | The root's `Background`; the generated `Timeline` sets it on the timeline once |
+| `timeline.Add(at, tree, new WidgetSurface(gradient, picture))` per entry | `Background` with a bound `BackgroundImage="{ThemeImage}"`; each entry carries both |
+| `.Refresh(…)` and `.OpenUrl(…)` on the timeline | Chained onto the generated `Timeline(entries)` |
+| A per-family dictionary | `<Widget.Small>`, `<Widget.LockRectangle>`, … in the order the dictionary had, which is the order of the JSON |
+| `W.Text(s)` | `<Label Text="…" />`: the same node |
+| A picture with no description | `SPL013` warns; leave it as it was with `<NoWarn>$(NoWarn);SPL013</NoWarn>` and give the description in a change of its own, since it changes the JSON |
+
+Look at the generated code when a value comes out wrong (`-p:EmitCompilerGeneratedFiles=true -p:CompilerGeneratedFilesOutputPath=<folder>`): every node starts with a `#line` to its element, so the line in the file is easy to find.

@@ -1,6 +1,6 @@
 ---
 name: spine-widgets
-description: Build home-screen widgets, Lock Screen widgets, Live Activities, and Control Center controls / Quick Settings tiles with Plugin.Maui.Spine.Widgets — the [Widget] provider, the W tree vocabulary and its limits, timelines with future entries and per-entry surfaces, stored pictures (rotating asset slots, pictures drawn with Skia), buttons that run without opening the app, Live Activity layouts for the lock screen and Dynamic Island, [Control] toggles and buttons for iOS 18 Control Center and Android Quick Settings, and the iOS App Group / MSBuild setup. Use when adding or changing a widget, Live Activity or control. Invoke as /spine-widgets.
+description: Build home-screen widgets, Lock Screen widgets, Live Activities, and Control Center controls / Quick Settings tiles with Plugin.Maui.Spine.Widgets — the [Widget] provider, the W tree vocabulary and its limits, timelines with future entries and per-entry surfaces, layout files (`*.layout.xml` bound to a model), stored pictures (rotating asset slots, pictures drawn with Skia), buttons that run without opening the app, Live Activity layouts for the lock screen and Dynamic Island, [Control] toggles and buttons for iOS 18 Control Center and Android Quick Settings, and the iOS App Group / MSBuild setup. Use when adding or changing a widget, Live Activity or control. Invoke as /spine-widgets.
 ---
 
 You are building a widget or a Live Activity with **Plugin.Maui.Spine.Widgets**. The app builds a small view tree in C#; Spine serializes it and a native renderer draws it — SwiftUI in a WidgetKit extension on iOS (compiled during the app's build, no Xcode project) and `RemoteViews` on Android. **No C# runs in the widget**: the renderer draws what the app last wrote. Full docs: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/widgets.md.
@@ -106,6 +106,33 @@ for (var i = 0; i < 60; i++)
 - `.Refresh(after)` counts from the **last** entry. iOS budgets reloads at ~40–70 a day, so keep it at 15 minutes or more on a short timeline, and leave it out of a long one — launches, backgrounding and background runs rebuild it anyway.
 - `IWidgetService.RefreshAsync(kind)` / `RefreshAsync<TProvider>()` / `RefreshAllAsync()` from the app when data changed.
 - An empty timeline is logged and changes nothing.
+
+## 2b. Layout files
+
+A tree can instead be a `*.layout.xml` bound to a model, which a source generator in `Plugin.Maui.Spine.Common` turns into the same `W.*` calls at build time (`XLayout.Build(model)`, `Surface(model)`, `Timeline(entries)`; diagnostics SPL001–SPL016 are build errors with the line). Prefer it for a new widget or Live Activity whose tree is more than a picture or two, and for one the server builds too.
+
+```xml
+<Widget xmlns="https://schemas.cosmomedia.se/spine/layout" Model="MyApp.Widgets.DayEntry"
+        Background="{LinearGradient #6D9BDD, #B7CDF0, Direction=Diagonal}" BackgroundImage="{ThemeImage}">
+    <Widget.Small><Image Source="{HomeLeaf}" FullColor="True" /></Widget.Small>
+    <Widget.LockRectangle>
+        <VStack Spacing="0">
+            <Label Text="{Weekday} {Day} {MonthShort}" FontSize="Headline" />
+            <Label Text="{Note, Fallback='v {Week}'}" FontSize="Caption" TextColor="Secondary" />
+        </VStack>
+    </Widget.LockRectangle>
+</Widget>
+```
+
+```csharp
+return DayLayout.Timeline(days).Refresh(TimeSpan.FromHours(1)).OpenUrl(_widgets.LinkFor(context.Kind));
+```
+
+- Put the models and files in a plain `net10.0` project (referencing `Plugin.Maui.Spine.Common`) so tests and a server can build them; the provider in the app only stores pictures and calls the generated class.
+- The model does the work the C# did inline (substrings, joins, "the first of these"), non-null where there always is a value, nullable where absence means something, and it names the stored pictures.
+- A fixed `Background` goes on the timeline once; a bound `BackgroundImage` puts background and picture on each entry.
+- When replacing C#, keep the old trees in the test project and assert string-equal `ToJson()` for every branch before switching; the idiom table in widget-layout-files.md ("Moving a widget from C# to a file") lists which attribute matches which C# form.
+- Check a layout in the app with `WidgetPreview` (the Showcase's "Layout preview" page) before a build per surface.
 
 ## 3. Pictures
 
@@ -227,9 +254,12 @@ public sealed class GoalAlertsControl(ISettings _settings) : IControlProvider
 - Don't start a Live Activity from a page's constructor or `OnAppearingAsync`; iOS refuses outside a user action.
 - Don't rely on colors staying fixed in dark mode unless you fixed both the surface and the text.
 - Don't design Lock Screen widgets in color.
+- Don't switch a C# tree to a layout file without a test that both write the same JSON.
+- After a Spine release, wait until every package you use is listed on nuget.org (they appear minutes apart) and restore with `dotnet restore --no-http-cache` if NuGet still finds only the previous version.
 
 ## Documentation
 
 - Widgets and Live Activities: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/widgets.md (see "Best practice", "Limits" and "Testing")
+- Layout files: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/widget-layout-files.md
 - Server-side push for activities and widgets: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/push-notifications-server.md
 - Samples: `samples/MauiSpineSampleApp/Widgets/SampleWidget.cs`, `samples/MauiSpinePushNotificationsSampleApp/Widgets/` in https://github.com/jonatansoderberg/Maui.Spine

@@ -188,7 +188,7 @@ Without either, macOS blocks the container ("Data Access Blocked") and the widge
 
 ## Building a widget
 
-The trees below are written with `W.*` in C#. The same tree can be written as an XML file bound to a model, which a source generator turns into these calls at build time: see [widget-layout-files.md](widget-layout-files.md).
+The trees below are written with `W.*` in C#. The same tree can be written as an XML file bound to a model, which a source generator turns into these calls at build time: see [widget-layout-files.md](widget-layout-files.md), the better choice for a tree that is more than a picture or two. Its section "Moving a widget from C# to a file" is how Glukos and Almanacka replaced their C# trees without changing the JSON.
 
 ### Previewing in the app
 
