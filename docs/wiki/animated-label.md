@@ -78,6 +78,7 @@ With `Mode="RollingNumber"` the label is meant for a score, a count or a clock. 
 - **Alignment.** `HorizontalTextAlignment` places the number at the start, the centre or the end of the label. With `End` the characters are paired from the right instead, so the ones stay over the ones and a digit the number gains comes in at the front. With `Center` the number shifts half a digit when it gains one.
 - **Reduce Motion.** With Reduce Motion (Remove animations on Android) turned on, the label fades as in `Marquee` mode, or changes at once if `EnableFadeOnTextChange` is `False`.
 - **No marquee.** In this mode the text does not scroll sideways, since numbers are short. Text that is too wide is clipped.
+- **Width.** The label fills the width it is given and draws the number in it, so something placed after the number (a unit, a trend arrow) does not follow the number's end on its own. The same is true of a number used as a [shared element](transitions.md#what-to-tag). In both cases, give the label a `WidthRequest` of its text's width, plus a little room in proportion to `FontSize` for glyph ink that reaches past the last digit. Widen it at once and narrow it only after `RollDurationMs`, so the wider value rolling away is not cut off. The label does not report its text's width, so measure the text as the label lays it out: every digit in a cell as wide as the widest digit, other characters at their own width.
 
 A change that comes while a roll is still running starts a new roll from the latest value.
 
@@ -111,4 +112,4 @@ A change that comes while a roll is still running starts a new roll from the lat
 
 - Set `EnableScrolling="False"` if you only want the fade-on-change effect without marquee scrolling.
 - Use `ScrollSpeedDpPerSecond` and `PauseAtEndsMs` together to control the feel — a lower speed with a longer pause gives a gentler effect.
-- The control renders via SkiaSharp (`SKCanvasView`), so it does not participate in the standard MAUI label layout. Set an explicit `HeightRequest` for best results.
+- The control renders via SkiaSharp (`SKCanvasView`), so it does not participate in the standard MAUI label layout. It sets its own `HeightRequest` from `FontSize` (`FontSize × 1.45 + 4`), again whenever the font changes, so a `HeightRequest` of your own does not last. It fills the width it is given.

@@ -78,6 +78,27 @@ The control repaints when the theme or the accent changes. To follow the accent 
 
 A segment picked by the user plays `SpineOptions.Haptics.TabSwitch`, which is off unless the app sets it. A change from code plays nothing.
 
+Prefer `TabSwitch` to a haptic in the view model's property-changed handler. The handler also runs when code sets the index, such as when a remembered pick is restored, so it would play there too.
+
+### Remembering the pick
+
+A pick that changes what the page shows (a chart's time range, a list's sort order) should still be there when the user comes back, also after the app restarts. Keep it in `Preferences`, and read it in the view model's constructor, so the control shows the pick from the start instead of moving to it:
+
+```csharp
+static readonly int[] RangeMinutes = [60, 180, 360, 720, 1440];
+
+public PersonViewModel()
+{
+    RangeIndex = Math.Max(0, Array.IndexOf(RangeMinutes, Preferences.Default.Get("graph-minutes", 180)));
+}
+
+partial void OnRangeIndexChanged(int value) =>
+    Preferences.Default.Set("graph-minutes", RangeMinutes[Math.Clamp(value, 0, RangeMinutes.Length - 1)]);
+```
+
+- **Keep the value, not the index**, so a segment added or reordered later does not change what was picked. A value no longer offered falls back to the default.
+- **Keep it out of the app's settings.** It is a view state, not a setting: it has no row on the settings page, and saving it should not trigger what a changed setting does (syncing, redrawing widgets).
+
 ## TopTabs
 
 ```xml

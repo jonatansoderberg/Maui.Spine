@@ -83,7 +83,7 @@ A section has a header when it has more than one row or when its row doesn't say
 | shows something that needs the user (a missing key, an expired sign-in) | `Status="NeedsAttention"`, `Command` to fix it; `ShowChevron="True"` when the fix is a page |
 | leaves the app (a web page, another app, mail) | `Command`, the `ExternalLink.svg` icon, or `Mail.svg` for mail |
 | deletes, removes or signs out for good | `IsDestructive="True"`, the `Delete.svg` icon on red, a confirmation before it acts |
-| states a fact (the version) | `Title` and `Value`, nothing else |
+| states a fact (the version) | `Title` and `Value`, and a short `Detail` at most |
 
 A long detail scrolls rather than truncating: set `DetailMarquee="True"` on every row with a `Detail`.
 
@@ -119,13 +119,13 @@ The last section but the delete section, with the header "About". It always has 
     <SpineRow Icon="Mail.svg" IconBackground="#5856D6" Title="{String Settings.Feedback}"
               Command="{Binding SendFeedbackCommand}" />
     <SpineRow Icon="Tag.svg" IconBackground="#8E8E93" Title="{String Settings.Version}"
-              Value="{Binding Version}" Detail="{Binding BuildTime}" />
+              Value="{Binding Version}" Detail="{Binding BuildDate}" />
 </SpineSection>
 ```
 
 - **About <app>** opens a sheet with the app's own page: what the app does, what is important to know (a medical or financial disclaimer, unofficial data sources), privacy, sources, licences and how to reach the developer. The text is a markdown file in the app (`Resources/Raw/about.md`, and `about.sv.md` beside it for each further language), drawn with [`MarkdownView`](markdown.md) in a scrolling sheet: `[NavigableSheet(AllowedDetents = [SheetDetent.Expanded, SheetDetent.FullScreen])]`, closed with the sheet's own close button and no Done action. The sheet loads the file after it is up (a sheet waits for `OnAppearingAsync`), and links in it open with `Launcher`. Licences and sources live there, not in footers.
 - **Send feedback** opens a mail to the developer with the app's name and version as the subject, through `Email.Default.ComposeAsync`, or a `mailto:` link when Mail isn't set up.
-- **Version** shows `AppInfo.Current.VersionString` as the value, `1.0.431494`, and the build time as the detail, `27 October 2026 16:47`, in the app's language. No brackets and no separate build string.
+- **Version** shows `AppInfo.Current.VersionString` as the value, `1.0.431494`, and the day of the build as the detail, `27 Oct 2026` (`27 okt 2026` in Swedish), in the app's language. No brackets and no separate build string. Leave out the time: beside the version a time does not fit on a phone, and the detail is cut off or scrolls.
 
 A footer under the section is only for what must be seen without opening the sheet, such as "not a medical device".
 
@@ -136,7 +136,7 @@ Every build gets a new build number: the minutes since 1 January 2026 UTC. It is
 ```xml
 <PropertyGroup>
     <!-- Minutes since 2026-01-01 UTC: a new, increasing build number for every build. The app turns it back
-         into the build time. 639028224000000000 is the ticks of that date. -->
+         into the day of the build. 639028224000000000 is the ticks of that date. -->
     <AppBuildNumber Condition="'$(AppBuildNumber)' == ''">$([System.Math]::Floor($([MSBuild]::Divide($([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), 639028224000000000)), 600000000))))</AppBuildNumber>
     <ApplicationDisplayVersion>1.0.$(AppBuildNumber)</ApplicationDisplayVersion>
     <ApplicationVersion>$(AppBuildNumber)</ApplicationVersion>
@@ -148,11 +148,12 @@ Every build gets a new build number: the minutes since 1 January 2026 UTC. It is
 </PropertyGroup>
 ```
 
-The settings page turns it back into the build time, so no second value is stamped into the build:
+The settings page turns it back into the day of the build, so no second value is stamped into the build:
 
 ```csharp
-public string BuildTime => int.TryParse(AppInfo.Current.BuildString, out var minutes)
-    ? new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMinutes(minutes).ToLocalTime().ToString("d MMMM yyyy HH:mm", culture)
+// Abbreviated months end in a dot in some languages (Swedish "okt."), left out.
+public string BuildDate => int.TryParse(AppInfo.Current.BuildString, out var minutes)
+    ? new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMinutes(minutes).ToLocalTime().ToString("d MMM yyyy", culture).Replace(".", "")
     : "";
 ```
 
@@ -160,4 +161,4 @@ A release build can pin the number with `-p:AppBuildNumber=<n>`. The widget exte
 
 ## Sample
 
-The Showcase's settings page (the gear beside the theme button on its start page) is the About section on its own: an About sheet from `Resources/Raw/about.md`, feedback as an issue on GitHub (the Showcase is open source, so it has no mail address to write to) and the version with its build time. Its **Rows** page has a section of menu rows, status marks and a destructive row.
+The Showcase's settings page (the gear beside the theme button on its start page) is the About section on its own: an About sheet from `Resources/Raw/about.md`, feedback as an issue on GitHub (the Showcase is open source, so it has no mail address to write to) and the version with the day of its build. Its **Rows** page has a section of menu rows, status marks and a destructive row.

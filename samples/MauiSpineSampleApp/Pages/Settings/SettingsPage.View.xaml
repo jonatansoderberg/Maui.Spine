@@ -15,7 +15,7 @@
                 <SpineRow Icon="externallink.svg" IconBackground="#5856D6" Title="Send feedback"
                           Command="{Binding SendFeedbackCommand}" />
                 <SpineRow Icon="tag.svg" IconBackground="#8E8E93" Title="Version"
-                          Value="{Binding Version}" Detail="{Binding BuildTime}" DetailMarquee="True" />
+                          Value="{Binding Version}" Detail="{Binding BuildDate}" DetailMarquee="True" />
             </SpineSection>
         </VerticalStackLayout>
     </ScrollView>

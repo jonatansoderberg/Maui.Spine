@@ -28,6 +28,17 @@ On the push, a picture of the view flies from its place in the list to its place
 - The flight uses the duration and easing of the region's `ISpineTransitions` (`InteractiveGestureDuration`, `InteractiveGestureEasing`), so a custom transition keeps its pace.
 - The interactive back-swipe slides the page away as usual, without a flight.
 
+### What to tag
+
+Each picture is the view's bounds and nothing outside them, and it flies as a frame that grows from the one view's size to the other's, the pictures filling it with their proportions kept (aspect fill). So the flight looks like the view itself moving only when the two views show their content the same way:
+
+- **Tag views that are as big as what they show.** A label that fills a card's width, with its text at the start, and one centred on the page it opens are two pictures with the text in different places. The frame flies but the text inside it jumps, and the flight reads as a cross-fade. Give each label the width of its text, and place it with `HorizontalOptions`, not with its text alignment.
+- **Keep the same proportions on both pages.** When the two views' proportions differ, aspect fill cuts the picture's edges off, and what was cut shows up as the other picture fades in. Room around the content (padding, a margin for the glyphs) should grow with the font size, so the small view and the large one are the same picture at two sizes.
+- **Tag the parts, not the row.** Something whose parts sit differently on each page, such as a value with a trend arrow beside it, flies as one picture only if the parts keep their places. Otherwise tag each part with a tag of its own made from the item's: `{id}-value`, `{id}-arrow`.
+- **Leave room for what is drawn past the bounds.** Glyph ink that reaches past the text's advance (a bold 7, an italic), a shadow or a glow is not in the picture, so it is cut off during the flight and appears when the view does. Make the view a little wider than its text, by a share of the font size.
+- **A size that changes during an animation.** A view that changes its own width mid-animation, such as a rolling number that gains a digit, widens at once and narrows only once the animation is over, so the wider text is not cut off ([AnimatedLabel](animated-label.md#rolling-numbers)).
+- **The tag must be on the page before it is shown.** Spine awaits `OnNavigationParameterAsync` before it presents the page, so whatever a tag or the tagged view binds to can be set there. Set it first, without an `await` in front of it: an `await` holds back the push. Data that arrives in `OnAppearingAsync` comes after the flight has looked for the tag.
+
 ## Zoom
 
 Put the tag on the page itself, and the whole page grows out of the view with that tag on the page under it:
