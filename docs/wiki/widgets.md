@@ -283,7 +283,7 @@ Italics are drawn on both platforms, on Android only on plain text (a span; a cl
 
 There is no shorter self-updating age, such as "2 min sedan": iOS writes the units' full names in every live format a widget can use (`.reference`, `.offset`), and the relative style's short form ("2 min, 5 sek") counts seconds.
 
-`WidgetColor` is either one of the platform's semantic colors (`Primary`, `Secondary`, `Accent`, `Surface`, `OnAccent`, `Green`, `Red`, `Orange`, `Yellow`, `Blue`), which adapt to light and dark, or a fixed value from `WidgetColor.FromHex("#2E8B57")` (or `#AARRGGBB` with alpha) / `WidgetColor.From(mauiColor)`. Prefer semantic colors for anything but a brand accent — a fixed color is a fixed color in dark mode too.
+`WidgetColor` is either one of the platform's semantic colors (`Primary`, `Secondary`, `Accent`, `Surface`, `OnAccent`, `Green`, `Red`, `Orange`, `Yellow`, `Blue`), which adapt to light and dark, or a fixed value from `WidgetColor.FromHex("#2E8B57")` (or `#AARRGGBB` with alpha) / `WidgetColor.From(mauiColor)`. Prefer semantic colors for anything but a brand accent — a fixed color is a fixed color in dark mode too. A color of the app's own that should change with the appearance is a pair, as MAUI's `AppThemeBinding`: `WidgetColor.Pair("#1C1C1E", "#FFFFFF")`, light then dark. iOS resolves it in the appearance it draws in (the dark one on a dark Lock Screen, as semantic colors); Android sets both from Android 12 and lets the launcher or the notification switch, and picks the current one below 12. It travels as `"#1C1C1E/#FFFFFF"`, which an app built with an older Spine reads as `Primary`.
 
 How the renderers lay the tree out, so a design can be planned before it is run:
 

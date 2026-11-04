@@ -657,14 +657,14 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             case "onAccent": Attr(Android.Resource.Attribute.TextColorPrimaryInverse); return;
         }
 
-        var (light, dark) = WidgetPalette.Fixed(color) is { } fixedColor ? (fixedColor, fixedColor) : WidgetPalette.Semantic(color);
+        var (light, dark) = WidgetPalette.Pair(color) ?? (WidgetPalette.Fixed(color) is { } fixedColor ? (fixedColor, fixedColor) : WidgetPalette.Semantic(color));
         if (OperatingSystem.IsAndroidVersionAtLeast(31))
         {
             if (stateList) views.SetColorStateList(id, method, ColorStateList.ValueOf(new Android.Graphics.Color(light)), ColorStateList.ValueOf(new Android.Graphics.Color(dark)));
             else views.SetColorInt(id, method, light, dark);
         }
         else if (!stateList)
-            views.SetInt(id, method, light);
+            views.SetInt(id, method, IsNight ? dark : light);
 
         void Attr(int attribute)
         {
@@ -715,8 +715,11 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         return scale >= 1 ? bitmap : Android.Graphics.Bitmap.CreateScaledBitmap(bitmap, (int)(bitmap.Width * scale), (int)(bitmap.Height * scale), true);
     }
 
+    // Below Android 12 a color is set once, so a light and dark pair takes the one of the appearance it is drawn in.
+    private bool IsNight => (_context.Resources?.Configuration?.UiMode & Android.Content.Res.UiMode.NightMask) == Android.Content.Res.UiMode.NightYes;
+
     /// <summary>One concrete ARGB for a tree color, the semantic ones resolved in the app's theme.</summary>
-    private int Argb(string color) => WidgetPalette.Fixed(color) ?? color switch
+    private int Argb(string color) => WidgetPalette.Pair(color) is var (light, dark) ? (IsNight ? dark : light) : WidgetPalette.Fixed(color) ?? color switch
     {
         "primary" => WidgetPalette.Resolve(_context, Android.Resource.Attribute.TextColorPrimary),
         "secondary" => WidgetPalette.Resolve(_context, Android.Resource.Attribute.TextColorSecondary),
@@ -851,7 +854,11 @@ internal static class WidgetPalette
     };
 
     /// <summary>A concrete ARGB for a tree color, for places that cannot take a theme attribute (notifications).</summary>
-    public static int? Concrete(string? color) => color is null ? null : Fixed(color) ?? (color is "primary" or "secondary" or "accent" or "surface" or "onAccent" ? null : Semantic(color).Light);
+    /// <summary>The light and the dark ARGB of an app's own pair (<c>"#RRGGBB/#RRGGBB"</c>); <see langword="null"/> for any other color.</summary>
+    public static (int Light, int Dark)? Pair(string color) =>
+        color.IndexOf('/') is var slash and > 0 && Fixed(color[..slash]) is { } light && Fixed(color[(slash + 1)..]) is { } dark ? (light, dark) : null;
+
+    public static int? Concrete(string? color) => color is null ? null : Pair(color)?.Light ?? Fixed(color) ?? (color is "primary" or "secondary" or "accent" or "surface" or "onAccent" ? null : Semantic(color).Light);
 
     public static int Resolve(Context context, int attribute)
     {

@@ -52,6 +52,14 @@ public readonly record struct WidgetColor
     }
 
     /// <summary>
+    /// A color of the app's own for each appearance, as MAUI's <c>AppThemeBinding</c>: <paramref name="light"/> in light mode,
+    /// <paramref name="dark"/> in dark mode, both <c>#RRGGBB</c> or <c>#AARRGGBB</c>. On a dark Lock Screen iOS takes the dark
+    /// one; Android follows its own light and dark from Android 12, and picks one when the widget is drawn below that.
+    /// Written as <c>"#RRGGBB/#RRGGBB"</c>, which an app built with an older Spine reads as <see cref="Primary"/>.
+    /// </summary>
+    public static WidgetColor Pair(string light, string dark) => new($"{FromHex(light).Value}/{FromHex(dark).Value}");
+
+    /// <summary>
     /// A fixed color from a <see cref="System.Drawing.Color"/>. The BCL type, so a server that
     /// builds trees without MAUI has a color input other than <see cref="FromHex"/>. There is no
     /// conversion between this and MAUI's <c>Color</c>; the app-side overload lives in
@@ -80,6 +88,7 @@ public readonly record struct WidgetColor
             "orange" => Orange,
             "yellow" => Yellow,
             "blue" => Blue,
+            _ when value.IndexOf('/') is var slash and > 0 => Pair(value[..slash], value[(slash + 1)..]),
             _ => FromHex(value),
         };
     }
