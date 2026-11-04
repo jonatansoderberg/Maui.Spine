@@ -90,7 +90,8 @@ public static partial class SpineWidgetsExtensions
         var logger = services.GetRequiredService<ILogger<IWidgetService>>();
         if (registry.ProviderTypeFor(kind) is not { } providerType)
         {
-            logger.LogWarning("Widget \"{Kind}\" sent action \"{Action}\" but no provider is registered for it.", kind, actionId);
+            // Not a widget's kind: a Live Activity's, whose buttons go through the same intent and broadcast.
+            await HandleActivityActionAsync(services, kind, actionId, at, logger);
             return;
         }
 
@@ -111,6 +112,33 @@ public static partial class SpineWidgetsExtensions
         }
 
         await services.GetRequiredService<IWidgetService>().RefreshAsync(kind, cancellationToken);
+    }
+
+    /// <summary>
+    /// A tapped button of a Live Activity: <see cref="LiveActivityActions.End"/> ends it; anything else goes to the app's
+    /// <see cref="ILiveActivityActionHandler"/> on the main thread.
+    /// </summary>
+    private static async Task HandleActivityActionAsync(IServiceProvider services, string kind, string actionId, DateTimeOffset at, ILogger logger)
+    {
+        if (actionId == LiveActivityActions.End)
+        {
+            if (services.GetService<ILiveActivityService>()?.Active.FirstOrDefault(a => a.Kind == kind) is { } activity)
+                await activity.EndAsync();
+            return;
+        }
+        if (services.GetService<ILiveActivityActionHandler>() is not { } handler)
+        {
+            logger.LogWarning("\"{Kind}\" sent action \"{Action}\", but it is no widget's kind and the app registers no ILiveActivityActionHandler.", kind, actionId);
+            return;
+        }
+        try
+        {
+            await MainThread.InvokeOnMainThreadAsync(() => handler.OnActionAsync(new LiveActivityAction(kind, actionId, at)));
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Handling action \"{Action}\" of Live Activity \"{Kind}\" failed.", actionId, kind);
+        }
     }
 
     /// <summary>

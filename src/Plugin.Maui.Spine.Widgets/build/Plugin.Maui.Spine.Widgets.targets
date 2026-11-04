@@ -436,7 +436,9 @@ Write("AndroidManifest.xml", w =>
         }
         w.WriteEndElement();
     }
-    if (BackgroundRefresh)
+    // The same receiver takes the alarm of the background refresh and a Live Activity's broadcasts (swiped away, a
+    // button tapped), so an app with activities and no widget needs it too.
+    if (BackgroundRefresh || LiveActivities)
     {
         w.WriteStartElement("receiver");
         w.WriteAttributeString("android", "name", Ns, Package + ".SpineBackgroundReceiver");

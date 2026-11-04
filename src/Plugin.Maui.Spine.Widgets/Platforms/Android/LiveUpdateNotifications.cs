@@ -90,8 +90,9 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
             _ => !CanPostPromoted(),
         };
 
+        var kind = tag[TagPrefix.Length..];
         if (drawn)
-            builder.SetStyle(new Notification.DecoratedCustomViewStyle()).SetCustomBigContentView(Banner(lockScreen!.Value));
+            builder.SetStyle(new Notification.DecoratedCustomViewStyle()).SetCustomBigContentView(Banner(lockScreen!.Value, kind));
         else if ((Find(lockScreen, "progress") ?? Find(Region(layout, "expandedBottom"), "progress")) is { } progress)
         {
             var value = progress.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
@@ -121,6 +122,11 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
             builder.SetContentIntent(PendingIntent.GetActivity(_context, tag.GetHashCode(),
                 new Intent(_context, typeof(SpineWidgetLinkActivity)).SetAction(Intent.ActionView).SetData(uri),
                 PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable));
+
+        // The template draws no tree, so its buttons become the notification's actions: at most three, by their text.
+        if (!drawn)
+            foreach (var button in Buttons(lockScreen).Take(3))
+                builder.AddAction(new Notification.Action.Builder((Icon?)null, button.Title, SpineBackgroundReceiver.ActivityButton(_context, kind, button.ActionId)).Build());
 
         // The user can swipe an ongoing notification away; this is the only way the app hears of it.
         builder.SetDeleteIntent(SpineBackgroundReceiver.ActivityDismissed(_context));
@@ -172,14 +178,15 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
     /// notification's light or dark. The notification insets its content to the header's text, so the tree's own padding
     /// goes, and the age or timer the header already counts is not drawn a second time.
     /// </summary>
-    private RemoteViews Banner(JsonElement tree)
+    private RemoteViews Banner(JsonElement tree, string kind)
     {
         var root = JsonNode.Parse(tree.GetRawText())!.AsObject();
         root.Remove("padding");
         root.Remove("insets");
         if (Chronometer(tree) is not null) Remove(root, Find(tree, "timer") is not null ? "timer" : "relative");
         using var drawn = JsonDocument.Parse(root.ToJsonString());
-        return new RemoteViewsRenderer(_context, _icons) { WidthDp = ContentWidth() }.Root(drawn.RootElement, tap: null, Resource.Layout.spine_live_update);
+        return new RemoteViewsRenderer(_context, _icons, actionId => SpineBackgroundReceiver.ActivityButton(_context, kind, actionId)) { WidthDp = ContentWidth() }
+            .Root(drawn.RootElement, tap: null, Resource.Layout.spine_live_update);
     }
 
     /// <summary>
@@ -279,6 +286,21 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
             foreach (var child in children.EnumerateArray())
                 if (Find(child, type) is { } found) return found;
         return null;
+    }
+
+    /// <summary>Every button in <paramref name="tree"/>, depth-first, with the first text in it as its title.</summary>
+    private static IEnumerable<(string ActionId, string Title)> Buttons(JsonElement? tree)
+    {
+        if (tree is not { } node) yield break;
+        if (node.TryGetProperty("type", out var t) && t.GetString() == "button" && Text(node, "actionId") is { } actionId)
+        {
+            var child = node.TryGetProperty("child", out var c) ? c : (JsonElement?)null;
+            yield return (actionId, Texts(child).FirstOrDefault().Text ?? actionId);
+            yield break;
+        }
+        if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
+            foreach (var child in children.EnumerateArray())
+                foreach (var found in Buttons(child)) yield return found;
     }
 
     private static IEnumerable<(string Text, string Role)> Texts(JsonElement? tree)
