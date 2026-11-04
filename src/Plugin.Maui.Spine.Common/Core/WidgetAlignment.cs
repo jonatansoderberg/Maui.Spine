@@ -79,3 +79,26 @@ public enum ElapsedFormat
     /// <summary>"now", then "2 minutes ago", "3 hours ago", rounded to whole units. iOS 18 and later; as <see cref="Precise"/> before, a clock on Android.</summary>
     Ago,
 }
+
+/// <summary>
+/// What a node of a Live Activity is, for the places that need meaning rather than layout: Android's notification text when
+/// the layout gives none, and the sentence a screen reader says. Parts place nothing; every region is laid out as written.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ActivityPart>))]
+public enum ActivityPart
+{
+    /// <summary>Who or what the activity is about: a person, an order, a match.</summary>
+    [JsonStringEnumMemberName("subject")] Subject,
+    /// <summary>The value the activity is there for: a reading, a score, minutes left.</summary>
+    [JsonStringEnumMemberName("value")] Value,
+    /// <summary>A mark beside the value, such as a trend arrow; give its icon an <c>AltText</c>.</summary>
+    [JsonStringEnumMemberName("symbol")] Symbol,
+    /// <summary>A line under the value: the unit, high or low, the venue.</summary>
+    [JsonStringEnumMemberName("detail")] Detail,
+    /// <summary>An age or a countdown.</summary>
+    [JsonStringEnumMemberName("time")] Time,
+    /// <summary>A graph.</summary>
+    [JsonStringEnumMemberName("graph")] Graph,
+    /// <summary>A progress bar.</summary>
+    [JsonStringEnumMemberName("progress")] Progress,
+}

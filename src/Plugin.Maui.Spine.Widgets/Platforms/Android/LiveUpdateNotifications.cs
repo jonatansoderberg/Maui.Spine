@@ -72,8 +72,14 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
 
         // What the app said, where it said anything; the tree is only a guess at what reads well here.
         var own = Region(layout, "android");
-        var title = Text(own, "title") ?? texts.FirstOrDefault(t => t.Role is "headline" or "title").Text ?? texts.FirstOrDefault().Text ?? AppLabel();
-        var text = Text(own, "body") ?? texts.Select(t => t.Text).FirstOrDefault(t => t != title);
+        // Then the parts the tree marks (Subject, Value, Symbol, Detail, Time, Graph), and only without them a guess.
+        var parts = Parts(lockScreen).Concat(Parts(Region(layout, "expandedBottom")))
+            .GroupBy(p => p.Part).ToDictionary(g => g.Key, g => g.First().Node);
+        string? Said(string part) => parts.TryGetValue(part, out var node) ? Spoken(node) : null;
+        var titled = string.Join(' ', new[] { Said("subject"), Said("value"), Said("symbol") }.Where(s => !string.IsNullOrEmpty(s)));
+        var title = Text(own, "title") ?? (titled.Length > 0 ? titled : null)
+            ?? texts.FirstOrDefault(t => t.Role is "headline" or "title").Text ?? texts.FirstOrDefault().Text ?? AppLabel();
+        var text = Text(own, "body") ?? Said("detail") ?? texts.Select(t => t.Text).FirstOrDefault(t => t != title);
 
         var builder = new Notification.Builder(_context, ChannelId)
             .SetOngoing(true)
@@ -84,7 +90,7 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
             .SetSmallIcon(SmallIcon(layout, out var accent));
         if (accent is { } color) builder.SetColor(color);
 
-        if (Chronometer(lockScreen, Region(layout, "expandedTrailing")) is (var when, var countDown))
+        if (Chronometer(parts.TryGetValue("time", out var time) ? time : (JsonElement?)null, lockScreen, Region(layout, "expandedTrailing")) is (var when, var countDown))
             builder.SetWhen(when).SetShowWhen(true).SetUsesChronometer(true).SetChronometerCountDown(countDown);
         else
             builder.SetShowWhen(false);
@@ -113,7 +119,8 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         else
             builder.SetStyle(new Notification.BigTextStyle().BigText(text ?? title));
 
-        if (Text(own, "chip") is { } chip)
+        var chipped = string.Concat(new[] { Said("value"), Said("symbol") }.Where(s => !string.IsNullOrEmpty(s)));
+        if ((Text(own, "chip") ?? (chipped.Length > 0 ? chipped : null)) is { } chip)
             builder.SetShortCriticalText(chip);
         else if (Region(layout, "compactTrailing") is { } compact && Find(compact, "text") is { } compactText && compactText.TryGetProperty("text", out var chipText))
             builder.SetShortCriticalText(chipText.GetString());
@@ -122,7 +129,7 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         // The drawn tree has its own, and a large icon would take the right of its width in the expanded notification.
         if (Text(own, "icon") is { } asset && Bitmap(asset) is { } picture)
             builder.SetLargeIcon(picture);
-        else if (!drawn && (Find(lockScreen, "sparkline") ?? Find(Region(layout, "expandedBottom"), "sparkline")) is { } sparkline)
+        else if (!drawn && ((parts.TryGetValue("graph", out var graph) ? graph : (JsonElement?)null) ?? Find(lockScreen, "sparkline") ?? Find(Region(layout, "expandedBottom"), "sparkline")) is { } sparkline)
             builder.SetLargeIcon(Graph(sparkline));
 
         if (layout.TryGetProperty("link", out var link) && link.GetString() is { } url && Android.Net.Uri.Parse(url) is { } uri)
@@ -303,6 +310,25 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
                 if (Find(child, type) is { } found) return found;
         return null;
     }
+
+    /// <summary>Every node in <paramref name="tree"/> that marks a part, depth-first.</summary>
+    private static IEnumerable<(string Part, JsonElement Node)> Parts(JsonElement? tree)
+    {
+        if (tree is not { } node) yield break;
+        if (Text(node, "part") is { } part) yield return (part, node);
+        if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
+            foreach (var child in children.EnumerateArray())
+                foreach (var found in Parts(child)) yield return found;
+    }
+
+    /// <summary>A part as text: a text's, an icon's alternative, or the texts of a stack in order.</summary>
+    private static string? Spoken(JsonElement node) => Text(node, "type") switch
+    {
+        "text" => Text(node, "text"),
+        "image" => Text(node, "altText"),
+        "hstack" or "vstack" or "zstack" => string.Join(' ', Texts(node).Select(t => t.Text)) is { Length: > 0 } joined ? joined : null,
+        _ => null,
+    };
 
     /// <summary>Every button in <paramref name="tree"/>, depth-first, with the first text in it as its title.</summary>
     private static IEnumerable<(string ActionId, string Title)> Buttons(JsonElement? tree)

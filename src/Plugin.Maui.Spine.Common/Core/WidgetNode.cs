@@ -63,6 +63,10 @@ public abstract record WidgetNode
     [JsonPropertyName("hidden")]
     public bool? Hidden { get; init; }
 
+    /// <summary>What the node is in a Live Activity; see <see cref="ActivityPart"/>. Set with <see cref="WidgetNodeStyling.Part{T}"/>.</summary>
+    [JsonPropertyName("part")]
+    public ActivityPart? Part { get; init; }
+
     /// <summary>The node's overrides by platform, surface and size, applied in order where the tree is drawn; see <see cref="WidgetOverride"/>.</summary>
     [JsonPropertyName("on")]
     public IReadOnlyList<WidgetOverride>? On { get; init; }
@@ -295,6 +299,13 @@ public sealed record IconNode([property: JsonPropertyName("systemImage")] string
     /// <summary>The icon's size in points (dp on Android); 18 on iOS and 20 on Android when <see langword="null"/>.</summary>
     [JsonPropertyName("height")]
     public double? Size { get; init; }
+
+    /// <summary>
+    /// The icon as text, for places only text fits: Android's notification title and chip (a trend arrow as <c>↘</c>). Set
+    /// with <see cref="WidgetNodeStyling.AltText"/>.
+    /// </summary>
+    [JsonPropertyName("altText")]
+    public string? AltText { get; init; }
 }
 
 /// <summary>A bitmap the app has placed in the shared container under <see cref="AssetId"/>.</summary>
