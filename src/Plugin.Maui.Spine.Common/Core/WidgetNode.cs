@@ -330,7 +330,8 @@ public sealed record RingNode(double? Value) : WidgetNode
 /// A line through <see cref="Values"/>, drawn by the platform. A server can push one inside a Live
 /// Activity, which a stored picture cannot travel in. It is drawn smooth, without overshooting a point.
 /// The vertical scale fits the values with a little room above and below. The node fills the width it
-/// is offered on iOS; on Android it is a picture <see cref="Aspect"/> times as wide as it is high. Build it
+/// is offered on both platforms: Android draws it as a picture of the column's width, worked out from the widget's size or
+/// the notification's width, and <see cref="Aspect"/> times as wide as it is high where that width cannot be known. Build it
 /// with <see cref="W.Sparkline(IEnumerable{ValueTuple{DateTimeOffset, double}}, DateTimeOffset, DateTimeOffset, TimeSpan?, WidgetColor?, double)"/>.
 /// </summary>
 /// <param name="Values">
@@ -392,6 +393,12 @@ public sealed record SparklineNode(IReadOnlyList<double?> Values) : WidgetNode
 
     /// <summary>Android: the picture's width as a multiple of <see cref="Height"/>; 3 when <see langword="null"/>.</summary>
     public double? Aspect { get; init; }
+
+    /// <summary>
+    /// The widest the line may be, as a multiple of its height, on both platforms; it fills the width it is offered
+    /// otherwise. Set with <see cref="WidgetNodeStyling.MaxAspect"/>.
+    /// </summary>
+    public double? MaxAspect { get; init; }
 }
 
 /// <summary>Flexible space that pushes siblings apart.</summary>
