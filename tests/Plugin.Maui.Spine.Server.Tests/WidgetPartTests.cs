@@ -31,3 +31,27 @@ public class WidgetPartTests
         Assert.DoesNotContain(twice.Explain(WidgetPlatform.Android), l => l.Contains("no Notification text"));
     }
 }
+
+/// <summary>Accessibility (#751): descriptions and decoration, and what Explain says of silent pictures.</summary>
+public class WidgetAccessibilityTests
+{
+    [Fact]
+    public void Description_and_decorative_are_written()
+    {
+        var json = new LiveActivityLayout
+        {
+            LockScreen = W.VStack(W.Icon("ArrowDownRight").Description("sjunker"), W.Image("logo-dif").Decorative()).Description("Alex, 9,3, sjunker"),
+        }.ToJson();
+        Assert.Contains("\"description\":\"sjunker\"", json);
+        Assert.Contains("\"decorative\":true", json);
+        Assert.Contains("\"description\":\"Alex, 9,3, sjunker\"", json);
+    }
+
+    [Fact]
+    public void A_picture_without_words_is_named_silent()
+    {
+        var layout = new LiveActivityLayout { LockScreen = W.HStack(W.Icon("drop"), W.Icon("Warning").Description("varning"), W.Image("logo").Decorative()) };
+        var lines = layout.Explain(WidgetPlatform.iOS);
+        Assert.Single(lines, l => l.Contains("says nothing to a screen reader"));
+    }
+}

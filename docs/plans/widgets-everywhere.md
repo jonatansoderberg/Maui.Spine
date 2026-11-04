@@ -1,7 +1,7 @@
 # Widgets everywhere: one description for every platform
 
 **Status:** In progress. Decisions D1–D12 approved by the owner on 2026-11-03.
-**Last updated:** 2026-11-04 (W0–W7, W9, W10 done)
+**Last updated:** 2026-11-04 (W0–W10 done)
 **Inputs:** the owner's review of Glukos's Live Activity on Android and iOS (#737, #739, #741); research into how others describe widgets for several platforms (§2); every widget and Live Activity in Glukos, Puckkoll and Almanacka, read and measured (§3).
 **Related:** [widgets-everywhere-examples.md](widgets-everywhere-examples.md) (every one of those written as a layout file), [docs/wiki/widgets.md](../wiki/widgets.md).
 **Goal:** An app describes a widget or Live Activity once, in names that read like MAUI and Spine, with narrow overrides where a platform needs something else, and Spine draws it on iOS and Android alike. Optionally as an XML layout file bound to a view model, compiled into the same C# by a source generator, so it is checked at build time and costs nothing extra at run time.
@@ -101,7 +101,7 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 | W5 | Android pictures at the width they are given (D4) | — | Done | #748 | #766 |
 | W6 | Overrides and `Explain()`; Spine's rules as default overrides (D5) | W3 | Done | #749 | #769 |
 | W7 | Parts and Android's derived notification text (D6) | W6 | Done | #750 | #770 |
-| W8 | Accessibility (D10) | W7 | Ready | #751 | |
+| W8 | Accessibility (D10) | W7 | Done | #751 | #771 |
 | W9 | Light and dark colour pairs (D11) | — | Done | #752 | #767 |
 | W10 | Buttons in Live Activities and Android notifications (D7) | — | Done | #753 | #768 |
 | W11 | Controls on SVG icons (D8) | W0, W4 | Ready | #754 | |

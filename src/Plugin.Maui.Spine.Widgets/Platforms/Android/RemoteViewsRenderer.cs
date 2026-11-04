@@ -58,6 +58,10 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         // AddView is preceded by a RemoveAllViews or the tree would be appended a second time.
         root.RemoveAllViews(Resource.Id.spine_root);
         root.AddView(Resource.Id.spine_root, Render(tree));
+        // One sentence for TalkBack: the root's description, or its texts and labels in order. Icons and pictures are not
+        // in the accessibility tree on their own (their layouts say so), so their descriptions are read here.
+        if (Sentence(tree) is { Length: > 0 } sentence)
+            root.SetContentDescription(Resource.Id.spine_root, sentence);
         if (tap is not null) root.SetOnClickPendingIntent(Resource.Id.spine_root, tap);
         // Tinting the drawable keeps its rounded corners. RemoteViews cannot set a tint below API 31,
         // and the flat color used there loses them.
@@ -797,6 +801,25 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         var count = children.GetArrayLength();
         if (children.EnumerateArray().Any(c => !Bool(c, "fill"))) return null;
         return (width - spacing * (count - 1)) / count;
+    }
+
+    /// <summary>What a screen reader says for a tree: its root's description, or its nodes' descriptions and texts in order.</summary>
+    internal static string? Sentence(JsonElement tree)
+    {
+        if (Text(tree, "description") is { } description) return description;
+        var said = new List<string>();
+        void Walk(JsonElement node)
+        {
+            if (Bool(node, "decorative")) return;
+            if (Text(node, "description") is { } own) { said.Add(own); return; }
+            if (Text(node, "type") == "text" && Text(node, "text") is { Length: > 0 } text) said.Add(text);
+            foreach (var key in new[] { "children" })
+                if (node.TryGetProperty(key, out var children) && children.ValueKind == JsonValueKind.Array)
+                    foreach (var child in children.EnumerateArray()) Walk(child);
+            if (node.TryGetProperty("child", out var inner) && inner.ValueKind == JsonValueKind.Object) Walk(inner);
+        }
+        Walk(tree);
+        return said.Count == 0 ? null : string.Join(", ", said);
     }
 
     /// <summary>A thickness written as one number or as [left, top, right, bottom].</summary>

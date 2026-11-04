@@ -67,6 +67,20 @@ public abstract record WidgetNode
     [JsonPropertyName("part")]
     public ActivityPart? Part { get; init; }
 
+    /// <summary>
+    /// What a screen reader says for the node, as MAUI's <c>SemanticProperties.Description</c>. On the tree's root it is
+    /// the whole widget's or activity's sentence. Set with <see cref="WidgetNodeStyling.Description{T}"/>.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+
+    /// <summary>
+    /// Leaves the node out of what a screen reader says: decoration that says nothing, as MAUI's
+    /// <c>AutomationProperties.IsInAccessibleTree="False"</c>. Set with <see cref="WidgetNodeStyling.Decorative{T}"/>.
+    /// </summary>
+    [JsonPropertyName("decorative")]
+    public bool? Decorative { get; init; }
+
     /// <summary>The node's overrides by platform, surface and size, applied in order where the tree is drawn; see <see cref="WidgetOverride"/>.</summary>
     [JsonPropertyName("on")]
     public IReadOnlyList<WidgetOverride>? On { get; init; }

@@ -367,6 +367,12 @@ public static class WidgetNodeStyling
     /// <summary>Marks what the node is in a Live Activity; see <see cref="ActivityPart"/>.</summary>
     public static T Part<T>(this T node, ActivityPart part) where T : WidgetNode => (T)(node with { Part = part });
 
+    /// <summary>What a screen reader says for the node; on the root, the whole widget's or activity's sentence.</summary>
+    public static T Description<T>(this T node, string description) where T : WidgetNode => (T)(node with { Description = description });
+
+    /// <summary>Leaves the node out of what a screen reader says.</summary>
+    public static T Decorative<T>(this T node) where T : WidgetNode => (T)(node with { Decorative = true });
+
     /// <summary>The icon as text where only text fits: Android's notification title and chip.</summary>
     public static IconNode AltText(this IconNode node, string text) => node with { AltText = text };
 
