@@ -17,6 +17,9 @@ internal sealed class SpineBackgroundReceiver : BroadcastReceiver
 {
     private const string Action = "plugin.maui.spine.widgets.BACKGROUND_REFRESH";
     private const string DismissedAction = "plugin.maui.spine.widgets.ACTIVITY_DISMISSED";
+    private const string ActivityButtonAction = "plugin.maui.spine.widgets.ACTIVITY_BUTTON";
+    private const string ExtraKind = "plugin.maui.spine.widgets.KIND";
+    private const string ExtraAction = "plugin.maui.spine.widgets.ACTION";
 
     public override void OnReceive(Context? context, Intent? intent)
     {
@@ -25,6 +28,17 @@ internal sealed class SpineBackgroundReceiver : BroadcastReceiver
         if (intent?.Action == DismissedAction)
         {
             if (services.GetService<ILiveActivityService>() is LiveActivityService activities) activities.Reconcile();
+            return;
+        }
+
+        if (intent?.Action == ActivityButtonAction && intent.GetStringExtra(ExtraKind) is { } kind && intent.GetStringExtra(ExtraAction) is { } actionId)
+        {
+            var at = DateTimeOffset.UtcNow;
+            var log = services.GetRequiredService<ILogger<IWidgetService>>();
+            ReceiverWork.Run(GoAsync(),
+                cancellationToken => Extensions.SpineWidgetsExtensions.HandleActionAsync(services, kind, actionId, at, cancellationToken),
+                e => log.LogError(e, "Live Activity action \"{Action}\" failed.", actionId),
+                _ => log.LogWarning("Live Activity action \"{Action}\" outlived the broadcast.", actionId));
             return;
         }
 
@@ -46,6 +60,12 @@ internal sealed class SpineBackgroundReceiver : BroadcastReceiver
                 else logger.LogWarning("Background refresh was still running in {Handler} after {Deadline} s and did not stop on its cancellation token; the broadcast was finished without it.", handler, ReceiverWork.Deadline.TotalSeconds);
             });
     }
+
+    /// <summary>The intent a button of a Live Activity's notification fires: its kind and action, one per pair.</summary>
+    internal static PendingIntent ActivityButton(Context context, string kind, string actionId) =>
+        PendingIntent.GetBroadcast(context, 2000 + ((kind + "|" + actionId).GetHashCode() & 0xFFFF),
+            new Intent(context, typeof(SpineBackgroundReceiver)).SetAction(ActivityButtonAction).PutExtra(ExtraKind, kind).PutExtra(ExtraAction, actionId),
+            OperatingSystem.IsAndroidVersionAtLeast(23) ? PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable : PendingIntentFlags.UpdateCurrent)!;
 
     /// <summary>The intent a Live Activity's notification fires when the user swipes it away.</summary>
     internal static PendingIntent ActivityDismissed(Context context) =>

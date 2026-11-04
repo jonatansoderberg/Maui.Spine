@@ -848,7 +848,26 @@ An activity outlives the process that started it, so the app's view of it is `Ac
 
 ### Buttons in a Live Activity
 
-`W.Button` renders in a Live Activity on iOS and runs the same intent as in a widget, but the tap is delivered by **kind**: it reaches the `IWidgetActionHandler` of the `[Widget]` provider whose kind equals the activity's, and that widget is rebuilt afterwards. An activity whose kind is not a widget kind — `$"delivery:{id}"` — has nowhere to send the tap; it is logged as *no provider is registered* and dropped. Android's Live Update template has no buttons, so they are left out there. Keep an activity's controls to its tap, which opens the app through `Link`, unless the kind is a widget's.
+`W.Button` works in a Live Activity on both platforms: on iOS on the Lock Screen, in the Dynamic Island's expanded regions and in `Small` (iOS draws no button in the compact and minimal forms), on Android in the notification. The tap runs in the app's process without opening the app, on iOS through the same App Intent as a widget's button (30 seconds, launch included).
+
+The tap goes by **kind**. If a `[Widget]` provider has the activity's kind, its `IWidgetActionHandler` gets it, as before. Otherwise Spine handles it:
+
+- **`LiveActivityActions.End`** ends the activity, with no code of the app's: `W.Button(LiveActivityActions.End, W.Label("Avsluta"))`.
+- **Any other action** goes to the app's `ILiveActivityActionHandler`, registered in its services. It gets the kind, the action and the time, and changes the activity itself (`UpdateAsync`, `EndAsync`).
+
+```csharp
+builder.Services.AddSingleton<ILiveActivityActionHandler, MatchActions>();
+
+sealed class MatchActions(ILiveActivityService activities) : ILiveActivityActionHandler
+{
+    public async Task OnActionAsync(LiveActivityAction action)
+    {
+        if (action.ActionId == "mute") await …;
+    }
+}
+```
+
+On Android the drawn presentation draws the button where the tree has it. The promoted template draws no tree, so its buttons become the notification's actions, at most three, each titled by the first text in its button. The broadcast reaches `SpineBackgroundReceiver`, which an app with Live Activities and no widget now declares too (before, it was declared only with a widget's background refresh, so such an app also never heard of a notification swiped away).
 
 ### Updating by push
 
