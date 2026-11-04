@@ -583,7 +583,20 @@ public Task OnWidgetOpenedAsync(WidgetLink link) =>
 <EmbeddedResource Include="Resources\Svg\*.svg" />
 ```
 
-Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it. The icons of `Plugin.Maui.Spine.Svg.Icons` are found by the symbol's name too, in PascalCase: `W.Icon("arrow.up.right")` is `ArrowUpRight.svg`, the trend arrows drawn to stand beside a value. On iOS a name with no SVG falls back to the SF Symbol of the same name; on Android it is left out and a warning is logged under the `SpineWidgets` tag.
+Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it.
+
+**Icons are SVGs only, by two kinds of name:** the icons of `Plugin.Maui.Spine.Svg.Icons` by their constants, `W.Icon(SpineIcons.ArrowUpRight)` (the trend arrows drawn to stand beside a value), and the app's own by file name. The build writes a constant for each SVG the app embeds or ships as a `MauiImage`, `AppIcons.Drop` for `drop.svg`, so a misspelt or removed icon is a build error (`<SpineAppIcons>false</SpineAppIcons>` turns it off). Both platforms draw the same SVG. A name with no SVG is drawn nowhere and logged once; only an SF Symbol's dotted name (`"arrow.up.right"`, from before) still finds its PascalCase SVG and, failing that, falls back to the symbol on iOS. That form is kept for existing trees and should not be used for new ones.
+
+**Icons a server may push** must be on the device before the push: the app draws the icons of every tree it writes itself, but a Live Activity updated by a server can name one the app has never shown. List them once, and Spine draws them when the app starts:
+
+```csharp
+builder.UseSpineWidgets(options =>
+{
+    options.Icons.Add(SpineIcons.ArrowUp);
+    options.Icons.Add(SpineIcons.ArrowUpRight);
+    options.Icons.Add(AppIcons.Drop);
+});
+```
 
 ### Images
 

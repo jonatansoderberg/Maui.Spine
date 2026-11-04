@@ -18,6 +18,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- AppIcons, generated in the consuming app; see build\Plugin.Maui.Spine.Svg.targets. -->
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" />
 		<PackageReference Include="SkiaSharp.Views.Maui.Controls" />
 		<PackageReference Include="Svg.Skia" />

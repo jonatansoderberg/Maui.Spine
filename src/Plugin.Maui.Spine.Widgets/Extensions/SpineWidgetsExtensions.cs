@@ -149,6 +149,9 @@ public static partial class SpineWidgetsExtensions
         var widgets = services.GetRequiredService<IWidgetService>();
         var controls = services.GetRequiredService<IControlService>();
         var logger = services.GetRequiredService<ILogger<IWidgetService>>();
+        if (services.GetRequiredService<SpineWidgetsOptions>().Icons is { Count: > 0 } icons)
+            services.GetRequiredService<WidgetIconAssets>().EnsureAsync(icons, CancellationToken.None)
+                .SafeFireAndForget(e => logger.LogError(e, "Drawing the widget icons failed."));
         widgets.RefreshAllAsync().SafeFireAndForget(e => logger.LogError(e, "Background widget refresh failed."));
         controls.RefreshAllAsync().SafeFireAndForget(e => logger.LogError(e, "Background control refresh failed."));
     }
