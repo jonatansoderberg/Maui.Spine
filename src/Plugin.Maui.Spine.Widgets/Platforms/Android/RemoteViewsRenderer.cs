@@ -105,7 +105,16 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             case "text":
             {
                 var views = TextLike(node, Resource.Layout.spine_widget_text, Resource.Layout.spine_widget_text_bold);
-                views.SetTextViewText(Node, Text(node, "text") ?? "");
+                var text = Text(node, "text") ?? "";
+                // RemoteViews cannot set a typeface's style, but it keeps the spans of the text it is given.
+                if (Bool(node, "italic"))
+                {
+                    var italic = new Android.Text.SpannableString(text);
+                    italic.SetSpan(new Android.Text.Style.StyleSpan(TypefaceStyle.Italic), 0, text.Length, Android.Text.SpanTypes.ExclusiveExclusive);
+                    views.SetTextViewText(Node, italic);
+                }
+                else
+                    views.SetTextViewText(Node, text);
                 return views;
             }
             case "timer":
@@ -585,6 +594,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         else if (Bool(node, "trailing")) views.SetInt(Node, "setGravity", (int)(GravityFlags.End | GravityFlags.CenterVertical));
         // RemoteViews cannot size text to fit, so single-line text is only kept on one line.
         if (Number(node, "singleLine") is not null) views.SetInt(Node, "setMaxLines", 1);
+        else if (Number(node, "maxLines") is { } lines && lines >= 1) views.SetInt(Node, "setMaxLines", (int)lines);
         return views;
     }
 

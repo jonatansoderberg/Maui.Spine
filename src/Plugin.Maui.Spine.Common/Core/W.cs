@@ -11,22 +11,41 @@ namespace Plugin.Maui.Spine.Common;
 public static class W
 {
     /// <summary>Children stacked top to bottom.</summary>
-    public static VStackNode VStack(params WidgetNode[] children) => new() { Children = children };
+    public static VStackNode VStack(params WidgetNode?[] children) => new() { Children = Present(children) };
 
     /// <summary>Children stacked top to bottom with <paramref name="spacing"/> points between them.</summary>
-    public static VStackNode VStack(double spacing, params WidgetNode[] children) => new() { Spacing = spacing, Children = children };
+    public static VStackNode VStack(double spacing, params WidgetNode?[] children) => new() { Spacing = spacing, Children = Present(children) };
 
     /// <summary>Children laid out leading to trailing.</summary>
-    public static HStackNode HStack(params WidgetNode[] children) => new() { Children = children };
+    public static HStackNode HStack(params WidgetNode?[] children) => new() { Children = Present(children) };
 
     /// <summary>Children laid out leading to trailing with <paramref name="spacing"/> points between them.</summary>
-    public static HStackNode HStack(double spacing, params WidgetNode[] children) => new() { Spacing = spacing, Children = children };
+    public static HStackNode HStack(double spacing, params WidgetNode?[] children) => new() { Spacing = spacing, Children = Present(children) };
 
     /// <summary>Children drawn on top of each other.</summary>
-    public static ZStackNode ZStack(params WidgetNode[] children) => new() { Children = children };
+    public static ZStackNode ZStack(params WidgetNode?[] children) => new() { Children = Present(children) };
+
+    // A child left out by a condition (cond ? node : null) is skipped, so a tree reads as the layout it describes.
+    private static WidgetNode[] Present(WidgetNode?[] children) =>
+        Array.IndexOf(children, null) < 0 ? children! : [.. children.OfType<WidgetNode>()];
 
     /// <summary>A run of text in the body style.</summary>
     public static TextNode Text(string text) => new(text);
+
+    /// <summary>A run of text in the body style, as MAUI's <c>Label</c>; the same as <see cref="Text"/>.</summary>
+    public static TextNode Label(string text) => new(text);
+
+    /// <summary>A countdown that ticks without the app running, to <paramref name="until"/>; the same as <see cref="Timer"/>.</summary>
+    /// <param name="until">The moment the countdown reaches zero.</param>
+    /// <param name="prefix">Text in front of the time, drawn as one text with it.</param>
+    public static TimerNode Countdown(DateTimeOffset until, string? prefix = null) => Timer(until, prefix);
+
+    /// <summary>The time since <paramref name="since"/>, drawn and counted by the platform without the app running.</summary>
+    /// <param name="since">The moment it counts from.</param>
+    /// <param name="format">How it is written; see <see cref="ElapsedFormat"/>.</param>
+    /// <param name="prefix">Text in front of the time, drawn as one text with it.</param>
+    public static RelativeDateNode Elapsed(DateTimeOffset since, ElapsedFormat format = ElapsedFormat.Precise, string? prefix = null) =>
+        Relative(since, compact: format == ElapsedFormat.Clock, prefix: prefix, rounded: format == ElapsedFormat.Minutes, ago: format == ElapsedFormat.Ago);
 
     /// <summary>A countdown that ticks without the app running.</summary>
     /// <param name="until">The moment the countdown reaches zero.</param>
@@ -302,6 +321,53 @@ public static class WidgetNodeStyling
 
     /// <summary>Renders in <paramref name="color"/>.</summary>
     public static T Color<T>(this T node, WidgetColor color) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Color = color });
+
+    /// <summary>Renders the text in <paramref name="color"/>, as MAUI's <c>TextColor</c>; the same as <see cref="Color{T}"/>.</summary>
+    public static T TextColor<T>(this T node, WidgetColor color) where T : TextLikeNode => node.Color(color);
+
+    /// <summary>Tints the icon with <paramref name="color"/>.</summary>
+    public static IconNode Tint(this IconNode node, WidgetColor color) => node with { Color = color };
+
+    /// <summary>Draws the ring in <paramref name="color"/>.</summary>
+    public static RingNode Tint(this RingNode node, WidgetColor color) => node with { Color = color };
+
+    /// <summary>Draws the bar in <paramref name="color"/>.</summary>
+    public static ProgressNode Tint(this ProgressNode node, WidgetColor color) => node with { Color = color };
+
+    /// <summary>Draws the line in <paramref name="color"/>.</summary>
+    public static SparklineNode Tint(this SparklineNode node, WidgetColor color) => node with { Color = color };
+
+    /// <summary>Sets the text's size from the platform's type scale, which follows the user's text size, as <see cref="Caption{T}"/> and the rest.</summary>
+    public static T FontSize<T>(this T node, TextRole role) where T : TextLikeNode => (T)(node.Role(role) with { FontSize = null });
+
+    /// <summary>Bold, italic or both, as MAUI's <c>FontAttributes</c>.</summary>
+    public static T FontAttributes<T>(this T node, WidgetFontAttributes attributes) where T : TextLikeNode =>
+        (T)node.WithStyle(node.Style with { Bold = attributes.HasFlag(WidgetFontAttributes.Bold), Italic = attributes.HasFlag(WidgetFontAttributes.Italic) });
+
+    /// <summary>Wraps the text to at most <paramref name="lines"/> lines, cut off with an ellipsis past them.</summary>
+    public static T MaxLines<T>(this T node, int lines) where T : TextLikeNode
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(lines, 1);
+        return (T)(node with { MaxLines = lines });
+    }
+
+    /// <summary>
+    /// Lets the text shrink to as little as <paramref name="minimumScale"/> of its size to fit before it is cut off. iOS only:
+    /// Android cannot size a widget's text to fit. With <c>.MaxLines(1)</c> it is <see cref="SingleLine{T}"/>.
+    /// </summary>
+    public static T ShrinkToFit<T>(this T node, double minimumScale = 0.7) where T : TextLikeNode
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(minimumScale, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(minimumScale, 1);
+        return (T)(node with { Shrink = minimumScale });
+    }
+
+    /// <summary>The space in points between the stack's children; the renderer's default (4) otherwise.</summary>
+    public static T Spacing<T>(this T node, double points) where T : StackNode
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(points);
+        return (T)(node with { Spacing = points });
+    }
 
     /// <summary>Puts <paramref name="points"/> of space between the stack's edges and its children, on every side.</summary>
     public static T Padding<T>(this T node, double points) where T : StackNode =>

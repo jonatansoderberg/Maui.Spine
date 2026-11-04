@@ -178,6 +178,9 @@ final class Node: Decodable {
     var design: String?
     var size: Double?
     var bold: Bool?
+    var italic: Bool?
+    var maxLines: Int?
+    var shrink: Double?
     var color: String?
     var until: Date?
     var date: Date?
@@ -854,10 +857,11 @@ struct TextStyleModifier: ViewModifier {
         content
             .font(Palette.font(node))
             .fontWeight(node.bold == true ? .bold : .regular)
+            .italic(node.italic == true)
             .foregroundStyle(Palette.color(node.color))
             .multilineTextAlignment(node.centered == true ? .center : node.trailing == true ? .trailing : .leading)
-            .lineLimit(node.singleLine == nil ? nil : 1)
-            .minimumScaleFactor(CGFloat(node.singleLine ?? 1))
+            .lineLimit(node.singleLine == nil ? node.maxLines : 1)
+            .minimumScaleFactor(CGFloat(node.singleLine ?? node.shrink ?? 1))
     }
 }
 

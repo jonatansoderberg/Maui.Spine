@@ -262,7 +262,22 @@ centring it: a 15-point name and a caption-sized age beside it, centred, sit abo
 Android the children without text then keep to the top. Regions of a Dynamic Island are laid out by the system and
 cannot share a baseline; text that must is put in one region.
 
-Text-like nodes take fluent styling: `.LargeTitle()`, `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.FontDesign(TextDesign.Rounded)`, `.FontSize(points)`, `.Trailing()`, `.SingleLine()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Margin(…)` and `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
+Text-like nodes take fluent styling: `.LargeTitle()`, `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.FontDesign(TextDesign.Rounded)`, `.FontSize(points)`, `.Trailing()`, `.SingleLine()`, `.Secondary()`, `.Color(…)`, `.Centered()`.
+
+**MAUI's names.** The same nodes and settings also go by the names a MAUI developer knows, and write exactly the same JSON:
+
+| MAUI-style | Same as |
+|---|---|
+| `W.Label(text)` | `W.Text(text)` |
+| `W.Elapsed(since, ElapsedFormat.Ago)` (`Precise`, `Clock`, `Minutes`, `Ago`) | `W.Relative(since, compact:, rounded:, ago:)` |
+| `W.Countdown(until, prefix)` | `W.Timer(until, prefix)` |
+| `.Spacing(8)` | the spacing argument, `W.VStack(8, …)` |
+| `.TextColor(color)` on text, `.Tint(color)` on an icon, ring, progress bar or sparkline | `.Color(color)`, the `color` argument |
+| `.FontSize(TextRole.Caption)` | `.Caption()` |
+| `.FontAttributes(WidgetFontAttributes.Bold \| WidgetFontAttributes.Italic)` | `.Bold()`, and italics, which are new |
+| `.MaxLines(2)`, `.ShrinkToFit(0.7)` | `.MaxLines(1).ShrinkToFit(0.7)` is `.SingleLine(0.7)` |
+
+Italics are drawn on both platforms, on Android only on plain text (a span; a clock cannot take one). `ShrinkToFit` is iOS only. A stack skips a `null` child, so `W.HStack(value, hasGraph ? graph : null)` needs no branches. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Margin(…)` and `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
 **A system-drawn time takes all the width it is offered**, and draws its digits from the leading edge, so spacers either side cannot centre it and a label beside it cannot be centred with it. `W.Timer(start, prefix: "Face-off in ")` makes the label and the digits one text, and `.Centered()` centres it in the width it takes. `.Centered()` is alignment only — it claims no width — so a centred node in a Dynamic Island's centre region does not squeeze the regions beside it. `.Trailing()` is the same toward the trailing edge: `W.HStack(W.Text(name), W.Spacer(), W.Relative(at, ago: true).Trailing())` puts the name top left and the age top right, as a card does. Without it the age's digits start from the leading edge of the width it took, next to the name. In the expanded island's narrow trailing region a long age such as "för 3 minuter sedan" wraps and meets the island's rounded corner. `.SingleLine(minimumScale)` keeps it on one line: the text shrinks to as little as that share of its size (0.7 by default) and is cut off with an ellipsis past it. Android cannot size a widget's text to fit and only keeps it on one line. A row that should keep its full size fits better in `ExpandedBottom`, which spans the whole width.
 
