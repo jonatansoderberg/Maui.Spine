@@ -37,6 +37,21 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_baseline_row_keeps_its_alignment()
+    {
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(8, W.Text("Blodsocker").FontSize(15).Bold(), W.Spacer(), W.Text("nu").Caption()).AlignBaselines(),
+        };
+
+        var json = layout.ToJson();
+        var back = WidgetJson.DeserializeLayout(json)!;
+
+        Assert.Contains("\"align\":\"baseline\"", json);
+        Assert.Equal("baseline", Assert.IsType<HStackNode>(back.LockScreen).Align);
+    }
+
+    [Fact]
     public void The_android_presentation_survives_the_trip()
     {
         var layout = new LiveActivityLayout

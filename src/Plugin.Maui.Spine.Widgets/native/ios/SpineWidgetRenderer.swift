@@ -310,7 +310,8 @@ struct NodeView: View {
                 }
             }.modifier(BoxModifier(node: node, alignment: .leading))
         case "hstack":
-            HStack(spacing: node.spacing ?? 4) { children }.modifier(BoxModifier(node: node, alignment: .leading))
+            HStack(alignment: node.align == "baseline" ? .firstTextBaseline : .center, spacing: node.spacing ?? 4) { children }
+                .modifier(BoxModifier(node: node, alignment: .leading))
         case "zstack":
             ZStack { children }.modifier(BoxModifier(node: node, alignment: .center))
         case "text":

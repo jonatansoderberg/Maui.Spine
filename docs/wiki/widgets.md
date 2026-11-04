@@ -243,7 +243,10 @@ come out the same on both platforms. Spacers still centre a single node; `.Fill(
 A `VStack` takes `.CenterItems()`, which centres its children on its axis: a ring with its label above and its
 time below, all on the ring's centre. An `HStack` takes `.Evenly()`, which leaves the same space at its ends as between
 its children, the children at their own width: two ring tiles spread 1-*-1-*-1 rather than as two columns, whose gaps
-come out 1-2-1.
+come out 1-2-1. An `HStack` takes `.AlignBaselines()` too, which lines its text up on the first baseline instead of
+centring it: a 15-point name and a caption-sized age beside it, centred, sit about a point off each other's line. On
+Android the children without text then keep to the top. Regions of a Dynamic Island are laid out by the system and
+cannot share a baseline; text that must is put in one region.
 
 Text-like nodes take fluent styling: `.LargeTitle()`, `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.FontDesign(TextDesign.Rounded)`, `.FontSize(points)`, `.Trailing()`, `.SingleLine()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
@@ -255,7 +258,7 @@ There is no shorter self-updating age, such as "2 min sedan": iOS writes the uni
 
 How the renderers lay the tree out, so a design can be planned before it is run:
 
-- **`VStack` aligns its children to the leading edge (or centres them with `.CenterItems()`), `HStack` centers them vertically, `ZStack` centers them.** A `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
+- **`VStack` aligns its children to the leading edge (or centres them with `.CenterItems()`), `HStack` centers them vertically (or lines up their text with `.AlignBaselines()`), `ZStack` centers them.** A `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
 - **Text roles are the platform's type ramp**: `LargeTitle` is SwiftUI's `.largeTitle` and 28 sp on Android, `Title` `.title2` and 22 sp, `Headline` `.headline` and 16 sp, `Body` `.body` and 14 sp, `Caption` `.caption` and 12 sp. A role follows the user's text size on both platforms; `.FontSize(points)` fixes it instead. There is no custom font.
 - **`.FontDesign(TextDesign.Rounded)` draws the text in SF Pro Rounded**, as Health and Fitness show their values; `Monospaced` and `Serif` are there too. iOS only: `RemoteViews` cannot set a typeface, so Android draws the default. `.FontSize(points)` replaces the role's size with a fixed one (sp on Android), for a region with an exact amount of room such as the Dynamic Island's; a role follows the user's text size and is the better choice anywhere else.
 - **`W.Icon` is 18 points square on iOS and 20 dp on Android** unless it is given a `size`, tinted with its color. The SVG is rasterized at 128 px, sharp up to about 40 points on a 3x screen. Android resizes the icon from Android 12; below it the icon stays 20 dp.
