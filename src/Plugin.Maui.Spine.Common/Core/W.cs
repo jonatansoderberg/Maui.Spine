@@ -364,6 +364,12 @@ public static class WidgetNodeStyling
     /// <summary>Renders the text in <paramref name="color"/>, as MAUI's <c>TextColor</c>; the same as <see cref="Color{T}"/>.</summary>
     public static T TextColor<T>(this T node, WidgetColor color) where T : TextLikeNode => node.Color(color);
 
+    /// <summary>Marks what the node is in a Live Activity; see <see cref="ActivityPart"/>.</summary>
+    public static T Part<T>(this T node, ActivityPart part) where T : WidgetNode => (T)(node with { Part = part });
+
+    /// <summary>The icon as text where only text fits: Android's notification title and chip.</summary>
+    public static IconNode AltText(this IconNode node, string text) => node with { AltText = text };
+
     /// <summary>Tints the icon with <paramref name="color"/>.</summary>
     public static IconNode Tint(this IconNode node, WidgetColor color) => node with { Color = color };
 

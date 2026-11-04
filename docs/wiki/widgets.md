@@ -315,6 +315,15 @@ var graph = W.Sparkline(readings.Select(r => (r.Time, r.Value)), now.AddHours(-1
 - **Edges.** The last value sits on the graph's trailing edge, so the graph ends where text aligned to the same edge ends; its dot, and the area's fade, reach over by a few points into the margin. With an area the line starts 2 points in from the leading edge, which leaves room for the fade. In the Dynamic Island, which clips its regions, and on Android, whose picture cannot reach over, the dot stays inside.
 - **Size.** The line fills the width it is offered, at `height` points (48 by default), on both platforms. Android draws it as a picture of its column's width, worked out from the widget's size or the notification's width through the tree's padding, margins, spacing and `Expand` shares; where that width cannot be known (beside a text, whose width is only known once drawn) it is `Aspect` times as wide as it is high (3 by default), at the end of its column, where the iOS line ends. `.MaxAspect(4)` caps the width on both. A notification is measured in the orientation it is posted in. Android's Live Update template draws the first one as its large icon, and the `Layout` presentation draws it in the tree.
 
+### Parts
+
+A node can say what it is in a Live Activity with `.Part(ActivityPart.…)`: `Subject` (who or what it is about), `Value`, `Symbol` (a mark beside the value), `Detail`, `Time`, `Graph`, `Progress`. Parts place nothing: every region is laid out as written. They give meaning where layout cannot:
+
+- **Android's notification text**, when the layout gives no `Android` text: the title is the subject, the value and the symbol, the text the detail, the chip the value and the symbol, the chronometer the time, the large icon the graph. A text part says its text, an icon its `.AltText("↘")`, a stack its texts in order. Without parts the title is still guessed from the tree's texts, as before.
+- **What a screen reader says** (see [Accessibility](#accessibility)).
+
+`Explain()` warns when two nodes of a region are the same part, and on Android when an activity has neither notification text nor a subject or value part.
+
 ### Overrides by platform, place and size
 
 One tree serves every platform and place. Where one of them needs something else, a node says so with `.On(…)`, which writes a small patch of that node's own properties; the renderer applies the ones that match where it draws:

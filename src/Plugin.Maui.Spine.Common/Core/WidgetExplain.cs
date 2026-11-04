@@ -22,7 +22,15 @@ public static class WidgetExplain
                ("small", WidgetPlace.CarPlay | WidgetPlace.Watch)];
         foreach (var (region, surface) in regions)
             if (json[region] is JsonObject tree)
+            {
                 lines.AddRange(Explain(tree, platform, surface, null).Select(line => $"{region}: {line}"));
+                foreach (var twice in Nodes(tree).Select(n => n.Node["part"]?.GetValue<string>()).OfType<string>().GroupBy(p => p).Where(g => g.Count() > 1))
+                    lines.Add($"{region}: two nodes are Part {twice.Key}; the first is used");
+            }
+
+        var parts = json["lockScreen"] is JsonObject lockScreen ? Nodes(lockScreen).Select(n => n.Node["part"]?.GetValue<string>()).OfType<string>().ToHashSet() : [];
+        if (platform == WidgetPlatform.Android && layout.Android is null && !parts.Contains("subject") && !parts.Contains("value"))
+            lines.Add("notification: no Notification text and no Subject or Value part, so its title is a guess from the tree's texts");
         return lines;
     }
 
@@ -50,7 +58,7 @@ public static class WidgetExplain
         {
             if (root["padding"] is not null || root["insets"] is not null)
                 lines.Add("root: its padding is dropped; the notification insets its content to the header's app name");
-            if (Nodes(root).FirstOrDefault(n => n.Node["type"]?.GetValue<string>() is "relative" or "timer") is { } clock && clock.Node["hidden"]?.GetValue<bool>() != false)
+            if (Nodes(root).FirstOrDefault(n => n.Node["type"]?.GetValue<string>() is "relative" or "timer") is { Node: not null } clock && clock.Node["hidden"]?.GetValue<bool>() != false)
                 lines.Add($"{Name(clock.Path, clock.Node)}: not drawn; the notification's header counts it (.On(WidgetPlace.Notification, n => n.Hidden(false)) keeps it)");
         }
         if (drawn is JsonObject shown)
