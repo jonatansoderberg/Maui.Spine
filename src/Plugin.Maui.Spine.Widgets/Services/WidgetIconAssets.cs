@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Svg;
 using SkiaSharp;
@@ -12,7 +13,7 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 /// white, so the renderer tints it with the node's color in light and dark alike, and stored as
 /// <c>icons/&lt;name&gt;.png</c> beside the app's own assets before the tree is written.
 /// </summary>
-internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCache _svgs)
+internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCache _svgs, ILogger<WidgetIconAssets> _logger)
 {
     /// <summary>Rendered size in pixels; large enough for a 3x display at the sizes widgets draw icons.</summary>
     private const int Pixels = 128;
@@ -40,7 +41,13 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
                 if (_stored.Contains(name)) continue;
 
                 using var stream = Open(name);
-                if (stream is null || Render(stream) is not { } png) continue;
+                if (stream is null)
+                {
+                    _logger.LogWarning("Widget icon \"{Name}\" has no SVG among Spine's icons or the app's; it is drawn nowhere.", name);
+                    _stored.Add(name);
+                    continue;
+                }
+                if (Render(stream) is not { } png) continue;
 
                 await _platform.StoreAssetAsync(AssetId(name), new MemoryStream(png), cancellationToken);
                 _stored.Add(name);
@@ -57,8 +64,12 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
 
     // The underscore form first: the SDK reads "figure.run.svg" as a resource for the culture "run". Last the Spine icon
     // set's PascalCase, so an SF Symbol's name ("arrow.up.right") finds its icon (ArrowUpRight.svg) and stays the fallback.
-    private Stream? Open(string name) =>
-        _svgs.OpenStream(name.Replace('.', '_') + ".svg") ?? _svgs.OpenStream(name + ".svg") ?? _svgs.OpenStream(Pascal(name) + ".svg");
+    // SpineIcons' constants are file names ("ArrowUpRight.svg"), so the extension is taken off before the lookup.
+    private Stream? Open(string name)
+    {
+        if (name.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) name = name[..^4];
+        return _svgs.OpenStream(name.Replace('.', '_') + ".svg") ?? _svgs.OpenStream(name + ".svg") ?? _svgs.OpenStream(Pascal(name) + ".svg");
+    }
 
     private static string Pascal(string name) =>
         string.Concat(name.Split('.', '_', '-').Where(p => p.Length > 0).Select(p => char.ToUpperInvariant(p[0]) + p[1..]));
