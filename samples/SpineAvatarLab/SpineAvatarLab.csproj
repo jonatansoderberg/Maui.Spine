@@ -16,8 +16,6 @@
 
 		<ApplicationTitle>Avatar Lab</ApplicationTitle>
 		<ApplicationId>se.cosmomedia.spineavatarlab</ApplicationId>
-		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>1</ApplicationVersion>
 		<WindowsPackageType>None</WindowsPackageType>
 		<!-- LibraryImport for the lab's process CPU and memory sampling (Lab/ProcessStats.cs). -->
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>

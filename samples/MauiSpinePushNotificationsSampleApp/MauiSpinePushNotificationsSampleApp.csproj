@@ -12,8 +12,6 @@
 
 		<ApplicationTitle>Spine Push</ApplicationTitle>
 		<ApplicationId>com.companyname.mauispinepushsampleapp</ApplicationId>
-		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>1</ApplicationVersion>
 
 		<WindowsPackageType>None</WindowsPackageType>
 		<!-- WNS push needs the installed Windows App Runtime; .NET MAUI makes an unpackaged app self-contained

@@ -2,10 +2,11 @@
 
 	<Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
-	<!-- Everything under src/ is a NuGet package. The release workflow passes -p:Version from the tag;
-	     without it a local pack is 0.0.0-local, which sorts below every published version. -->
+	<!-- Everything under src/ is a NuGet package. The release workflow passes -p:Version, VersionMajor.yyMMdd.revision
+	     (docs/wiki/versioning.md); without it a local pack is 0.0.0-local, which sorts below every published version. -->
 	<PropertyGroup>
 		<IsPackable>true</IsPackable>
+		<VersionMajor>0</VersionMajor>
 		<VersionPrefix>0.0.0</VersionPrefix>
 		<VersionSuffix>local</VersionSuffix>
 		<Authors>Jonatan Söderberg</Authors>

@@ -1,25 +1,28 @@
 # Releasing
 
-Releases are built and published by GitHub Actions. A release is a tag; nothing is packed or pushed by hand.
+Releases are built and published by GitHub Actions. Nothing is packed or pushed by hand, and no version is typed: the workflow takes it from the commit ([Versioning](versioning.md)).
 
 ## Making a release
 
+Run the `Release` workflow on `master`: Actions → Release → Run workflow, or
+
 ```bash
-git checkout master && git pull
-git tag v0.1.0
-git push origin v0.1.0
+gh workflow run release.yml --ref master
 ```
 
-The tag name is the version with a `v` in front. A prerelease is a tag with a suffix, `v0.2.0-preview.1`, and is published to nuget.org as a prerelease and marked as one on GitHub.
+The version is `VersionMajor.yyMMdd.revision`: the major from `src/Directory.Build.props`, the day of the run in UTC and the commit count of `master`, `0.261031.812`. The workflow tags the commit `v0.261031.812` when it creates the GitHub release.
+
+A pushed tag still releases the version it names, which is how a prerelease is made: a tag with a suffix, `v0.261031.812-preview.1`, is published to nuget.org as a prerelease and marked as one on GitHub. Keep to the scheme in a tag, too, so the versions keep increasing.
 
 The `Release` workflow (`.github/workflows/release.yml`) then:
 
-1. Builds every package project and the tests on `windows-latest` with the SDK and workload set pinned in `global.json`.
-2. Runs the tests.
-3. Packs with `-p:Version=<tag without v>` into `artifacts/packages/`, symbols as `.snupkg`.
-4. Prints the `lib/`, `build/`, `buildTransitive/` and `native/` entries of every package, so the log shows that each one carries all four target frameworks and its build assets.
-5. Signs in to nuget.org with Trusted Publishing (the `NuGet/login` action trades the job's OpenID Connect token for a short-lived API key) and pushes every `.nupkg` (and its symbols) with `--skip-duplicate`, so a rerun does not fail on packages already published.
-6. Creates a GitHub release for the tag with auto-generated notes from the merged pull requests and the packages attached.
+1. Checks out the whole history (the revision is the commit count) and works out the version.
+2. Builds every package project and the tests on `windows-latest` with the SDK and workload set pinned in `global.json`.
+3. Runs the tests.
+4. Packs with `-p:Version=<version>` into `artifacts/packages/`, symbols as `.snupkg`.
+5. Prints the `lib/`, `build/`, `buildTransitive/` and `native/` entries of every package, so the log shows that each one carries all four target frameworks and its build assets.
+6. Signs in to nuget.org with Trusted Publishing (the `NuGet/login` action trades the job's OpenID Connect token for a short-lived API key) and pushes every `.nupkg` (and its symbols) with `--skip-duplicate`, so a rerun does not fail on packages already published.
+7. Creates the GitHub release and its tag, `v<version>`, with auto-generated notes from the merged pull requests and the packages attached.
 
 The `CI` workflow runs the same build, test and pack on every pull request and on pushes to `master`, and uploads the packages as a workflow artifact without publishing them.
 
@@ -41,8 +44,10 @@ An API key from nuget.org still works for a push from the command line, but nuge
 
 ## Versioning rules
 
-- One version for all packages, taken from the tag. `src/Directory.Build.props` sets `0.0.0-local` for builds without one, so a local package can never be mistaken for a published one.
-- `0.x` while the API is moving; a minor version may break. From `1.0`, breaking changes bump the major version.
+- One version for all packages, `VersionMajor.yyMMdd.revision` from the release run (or the tag). `src/Directory.Build.props` sets `0.0.0-local` for builds without one, so a local package can never be mistaken for a published one.
+- `0.x` while the API is moving; any release may break. From `1`, a breaking change bumps `VersionMajor` in `src/Directory.Build.props`.
+- `src/Directory.Build.targets` keeps `AssemblyVersion` at `major.0.0.0` and splits the date in `FileVersion` (`0.26.1031.812`): an assembly version part stops at 65535.
+- A package to try in an app before a release is a prerelease of the next version, `-p:Version=0.261031.812-dev.1`.
 - Release notes are the merged pull request titles since the previous tag. Write PR titles as the line you want in the notes.
 
 ## Checking a package locally
