@@ -1,7 +1,7 @@
 # Widgets everywhere: one description for every platform
 
 **Status:** Done (2026-11-04). Decisions D1–D12 approved by the owner on 2026-11-03.
-**Last updated:** 2026-11-04 (W0–W15 done)
+**Last updated:** 2026-11-04 (W0–W15 done; Glukos and Almanacka on layout files)
 **Inputs:** the owner's review of Glukos's Live Activity on Android and iOS (#737, #739, #741); research into how others describe widgets for several platforms (§2); every widget and Live Activity in Glukos, Puckkoll and Almanacka, read and measured (§3).
 **Related:** [widgets-everywhere-examples.md](widgets-everywhere-examples.md) (every one of those written as a layout file), [docs/wiki/widgets.md](../wiki/widgets.md).
 **Goal:** An app describes a widget or Live Activity once, in names that read like MAUI and Spine, with narrow overrides where a platform needs something else, and Spine draws it on iOS and Android alike. Optionally as an XML layout file bound to a view model, compiled into the same C# by a source generator, so it is checked at build time and costs nothing extra at run time.
@@ -99,6 +99,8 @@ Diagnostics, each with file, line and column: `SPL001` unknown element, `SPL002`
 - **Three diagnostics more than planned:** `SPL011` a `Use` of a shared node that is there only under a condition, `SPL014` a duplicate resource, template or shared node, `SPL015` broken XML.
 - **A widget file** writes `Build`, `Surface` (from `Background`, a color or `{LinearGradient}`) and `Timeline(entries)`; every file writes `Actions` and `Icons`.
 - **Not in W12:** watching the files for hot reload (§9), `Explain()` warnings in the generator (the generator warns for its own cases; `Explain()` stays the run-time check), Glukos switching to its files (it waits for the Spine release; the proof is on Glukos's local branch `spine/layout-files`).
+
+*After W12, Almanacka (Almanacka #6, #7, Spine #780):* its four widgets (today, plain, minimal, week; 60 daily entries, five families) moved to layout files the same way and write the JSON of the C# they replaced, string for string (`WidgetLayoutTests`). Three gaps they found were closed in 0.1.40: a binding inside a `Fallback` (written literally before), `BackgroundImage` on a `Widget` root, and a generated `Timeline` that put a fixed background on every entry instead of once on the timeline. The recipe and the table of which attribute matches which C# form are now in [widget-layout-files.md](../wiki/widget-layout-files.md) ("Moving a widget from C# to a file") and in the `spine-widgets` skill.
 
 *Done in W13 (#756):* `LiveActivityBinding` in Common, made by a file's generated `Bind`/`StartAsync` when its model is `INotifyPropertyChanged`, or by `LiveActivityBindings.Bind`/`StartBoundAsync` for a tree in C#. The window opens at the first change and the update is built when it closes (a throttle, not a debounce: a model that never stops changing still updates once per interval). An update with the same JSON as the last is left out. The generator lists the model's first-level properties that announce changes (`INotifyPropertyChanged`, `INotifyCollectionChanged`) and the binding follows them, re-reading them after each build; deeper levels are not followed. Disposing drops a pending update (`FlushAsync` sends it).
 
