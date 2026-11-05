@@ -2,7 +2,7 @@
 
 **Related:** [widgets-everywhere.md](widgets-everywhere.md), where the format and the decisions are.
 
-Every widget and Live Activity in Glukos, Puckkoll and Almanacka (as of 2026-11-03) written as a layout file, with its model. They are a design, not compiled; step W12 makes the first two real and proves them against today's JSON.
+Every widget and Live Activity in Glukos, Puckkoll and Almanacka (as of 2026-11-03) written as a layout file, with its model. They are a design, not compiled; step W12 made Glukos's real and proved it against the JSON of the day, and Almanacka followed on 2026-11-04 (notes under each).
 
 ## Glukos
 
@@ -601,6 +601,15 @@ if (action.ActionId == TeamLayout.Actions.Next) …
 ```
 
 ## Almanacka
+
+*Done in Almanacka (Almanacka #6 on Spine 0.1.39, #7 on 0.1.40):* the files that compile and write the JSON of the C# they replaced are `src/Almanacka.Widgets/Layouts/Today.layout.xml`, `Plain.layout.xml`, `Minimal.layout.xml` and `Week.layout.xml` in Almanacka, with `DayEntry`, `WeekEntry` and `WidgetLayoutTests`. They differ from the draft below where the draft would have changed the JSON or did not compile:
+
+- The gradients say `Direction=Diagonal`, because a `WidgetGradient` is vertical unless it says otherwise, and `BackgroundImage` is the attribute the draft guessed: on 0.1.39 it did not exist, and the picture stayed in C# until #780 added it.
+- `{Note, Fallback='v {Week}'}` wrote the braces literally on 0.1.39 (a `Choose` stood in) and reads the binding from 0.1.40.
+- In the week, each day's two lines sit in a `<Template Name="Centered">` (an HStack of a spacer, `<Content />` and a spacer), as the C# helper did, instead of `Fill` and `CenterItems`. Today's box is `Background="{OnBool IsToday, True=Red}" CornerRadius="{OnBool IsToday, True=8}"`, since a corner radius on the other days would change their JSON.
+- `DayEntry` also carries the `Theme` the app paints and names every stored picture (`home/<slot>.png`, `theme/<name>.png`), so the providers store under the model's names. It has no `Date`.
+- Plain, minimal and week take the generated `Timeline` from 0.1.40, which puts their fixed background on the timeline once, as the C# did. On 0.1.39 it put the background on every entry, and Almanacka lifted it onto the timeline by hand.
+- The models and files live in a plain `net10.0` project, `Almanacka.Widgets`, so the tests can build them; the providers in the app only draw and store the pictures.
 
 ### Today
 
