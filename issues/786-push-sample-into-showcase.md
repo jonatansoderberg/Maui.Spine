@@ -23,6 +23,7 @@ Placement (owner's choice): two new pages, Push notifications and Local notifica
 - Apple Developer: Push Notifications with Broadcast Capability on the App ID `se.cosmomedia.spineshowcase`, the Spine Showcase Development profile made again and installed; the local user secret `Push:Apple:BundleId` set to the Showcase's.
 - Azure: `Push__Apple__BundleId` on `spine-showcase-e41ddd` is now `se.cosmomedia.spineshowcase` (the other push keys were already there).
 - Simulator: the old Spine Push app uninstalled.
+- Firebase: a project of its own, Spine Showcase (`spine-showcase-56b63`, no Analytics or Gemini), with the Android app `se.cosmomedia.spineshowcase`. The repo keeps a placeholder for that package; the real `google-services.json` stays local under skip-worktree, as the push app's did.
 
 ## Decisions
 - `UserSecretsId` stays `maui-spine-push-sample-server`, so the keys on the Mac follow the rename.

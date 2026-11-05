@@ -970,9 +970,10 @@
 		<SpinePushNotificationsImages Condition="$(RuntimeIdentifier.Contains('simulator'))">true</SpinePushNotificationsImages>
 		<SpineWidgetsPush Condition="$(RuntimeIdentifier.Contains('simulator'))">true</SpineWidgetsPush>
 	</PropertyGroup>
-	<!-- Firebase project maui-spine-push-sample. Android gets a token once the project has an Android app for
-	     se.cosmomedia.spineshowcase and its google-services.json replaces this one; until then the Push notifications
-	     page says there is none. -->
+	<!-- The repo has a placeholder, so the Showcase builds straight after a clone; Firebase refuses it and Android
+	     gets no token, which the Push notifications page says. The owner's file (Firebase project
+	     spine-showcase-56b63, app se.cosmomedia.spineshowcase) replaces it locally under
+	     git update-index skip-worktree. -->
 	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
 		<GoogleServicesJson Include="Platforms\Android\google-services.json" />
 	</ItemGroup>
