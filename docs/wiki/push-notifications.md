@@ -13,22 +13,24 @@ It covers iOS, Android, Mac Catalyst and Windows. On Mac Catalyst remote push ne
 > **Windows is written but not yet run.** The Windows client was built and compiled from a Mac, without a Windows machine, an Entra registration or WNS credentials. What remains to verify is tracked in #501.
 
 <p align="center">
-  <img src="images/push-sample-home.png" width="220" alt="The push sample's home page: status, installation id, token, tags">
+  <img src="images/push-sample-home.png" width="220" alt="The push sample's former home page: status, installation id, token, tags">
   <img src="images/local-notification-banner.png" width="300" alt="A local notification banner on the home screen">
 </p>
-<p align="center"><sub>The sample app, and a local notification it scheduled arriving 15 seconds later</sub></p>
+<p align="center"><sub>The former push sample, now the Showcase's Push notifications page, and a local notification it scheduled arriving 15 seconds later</sub></p>
 
 ---
 
 ## Run the sample first
 
-`samples/MauiSpinePushNotificationsSampleApp` is the shortest path to seeing this work. It shows the whole client
-API on six pages — status and tokens, tags, a form that asks the server to send, a log of everything
-the handler received, a Live Activity, and local notifications — and `samples/MauiSpinePushNotificationsSampleApp.Server` is a Minimal
-API on `Plugin.Maui.Spine.Server` with an in-memory register.
+The Showcase (`samples/MauiSpineSampleApp`) is the shortest path to seeing this work. Its **Push notifications** page
+shows status and tokens, tags, a send from the app itself, buttons and replies, a log of everything the handler
+received and a widget a push rebuilds; **Local notifications** plans notifications with no server; **Live
+Activities** has an activity the server updates and one on a broadcast channel; **Background tasks** has a task a
+push starts. `samples/MauiSpineSampleApp.Server` is a Minimal API on `Plugin.Maui.Spine.Server` with an in-memory
+register, the same server the Showcase signs in to.
 
 ```bash
-cd samples/MauiSpinePushNotificationsSampleApp.Server && dotnet run     # then run the app
+cd samples/MauiSpineSampleApp.Server && dotnet run     # then run the Showcase
 adb reverse tcp:5100 tcp:5100                              # Android only, once per device
 ```
 

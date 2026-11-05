@@ -301,15 +301,14 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | A guard of the app's own on a page and on commands | `Guards/ConfirmGuard.cs`, `GuardsPage` |
 | Liquid Glass buttons (iOS 26) | `MainPage` → `GlassPage` (second item in the list) |
 
-### Push sample
+### Push in the Showcase
 
-`samples/MauiSpinePushNotificationsSampleApp` and its `…​.Server` show Spine.PushNotifications end to end: permission, tags, a
-form that asks the server to send, and a log of everything the handler received. Start the server
-with `dotnet run`, then the app.
+The Showcase's Push notifications and Local notifications pages, with `samples/MauiSpineSampleApp.Server`, show
+Spine.PushNotifications end to end: permission, tags, a send from the app itself, buttons and replies, and a log of
+everything the handler received. Start the server with `dotnet run`, then the Showcase.
 
 Outside the repo you need an App ID with Push Notifications ticked and an APNs `.p8` for Apple, and a
-Firebase project's `google-services.json` for Android — the checked-in one is a placeholder so the
-sample builds. See [Push (client)](docs/wiki/push-notifications.md).
+Firebase project's `google-services.json` for Android, with an Android app for the Showcase's package. See [Push (client)](docs/wiki/push-notifications.md).
 
 ### Run the sample
 

@@ -15,7 +15,7 @@ public partial class AIClientPageViewModel : SampleViewModel
     {
         var services = IPlatformApplication.Current!.Services;
 
-        // Declared in MauiProgram with UseSpineAI: the device first, then the push sample server's "Assistant".
+        // Declared in MauiProgram with UseSpineAI: the device first, then the Showcase server's "Assistant".
         _assistant = services.GetRequiredKeyedService<IChatClient>("Assistant");
         _serverAssistant = services.GetRequiredKeyedService<IChatClient>("ServerAssistant");
         _usage = services.GetRequiredService<IAIUsage>();

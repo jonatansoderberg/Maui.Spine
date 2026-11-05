@@ -160,4 +160,4 @@ After the call, typing goes on in the same list, and the next typed turn carries
 
 ## Sample
 
-The Showcase's **Chat** page talks to a demo client in the sample that needs no server. It looks the race up with a tool call, then streams markdown with a table and code. Its Options (the "…" menu) move typed turns to Spine.AI's Assistant or the push sample server's, and the microphone starts a call with the server's realtime Voice feature in the same conversation, with an avatar that follows it. The call's options (the avatar, hanging up after goodbye, the screen's edge, the server's address) are in the same sheet.
+The Showcase's **Chat** page talks to a demo client in the sample that needs no server. It looks the race up with a tool call, then streams markdown with a table and code. Its Options (the "…" menu) move typed turns to Spine.AI's Assistant or the Showcase server's, and the microphone starts a call with the server's realtime Voice feature in the same conversation, with an avatar that follows it. The call's options (the avatar, hanging up after goodbye, the screen's edge, the server's address) are in the same sheet.

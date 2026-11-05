@@ -132,7 +132,7 @@
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
 		<PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
-		<!-- The push sample server's AI providers: one line each in Program.cs. -->
+		<!-- The Showcase server's AI providers: one line each in Program.cs. -->
 		<PackageVersion Include="Anthropic" Version="12.55.0" />
 		<PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
 		<!-- The Showcase's on-device model (AppleIntelligenceChatClient): the last build for .NET 10 (Q24). -->

@@ -1,3 +1,4 @@
+using MauiSpineSampleApp.Widgets;
 using MauiSpineSampleApp.Widgets.Hockey;
 using Plugin.Maui.Spine.Common;
 
@@ -20,6 +21,27 @@ public partial class WidgetsPageViewModel : SampleViewModel
 
     [ObservableProperty]
     public partial string Refreshed { get; set; } = "Not refreshed yet";
+
+    [ObservableProperty]
+    public partial string ServerRefreshed { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string PictureRefreshed { get; set; } = "";
+
+    /// <summary>Asks the platform to reload the remote widget, which fetches from the server again.</summary>
+    [RelayCommand]
+    private async Task RefreshRemote()
+    {
+        await _widgets.RefreshAsync(RemoteWidget.Kind);
+        ServerRefreshed = $"Asked to reload at {DateTime.Now:HH:mm:ss}";
+    }
+
+    [RelayCommand]
+    private async Task RefreshPicture()
+    {
+        await _widgets.RefreshAsync(PictureWidget.Kind);
+        PictureRefreshed = $"Built again at {DateTime.Now:HH:mm:ss}";
+    }
 
     [RelayCommand]
     private async Task RefreshWidgets()

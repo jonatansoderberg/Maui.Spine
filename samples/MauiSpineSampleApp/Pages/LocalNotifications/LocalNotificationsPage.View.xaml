@@ -1,0 +1,60 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.LocalNotifications.LocalNotificationsPage"
+    x:TypeArguments="LocalNotificationsPageViewModel"
+    x:DataType="LocalNotificationsPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.PushNotifications">
+
+        <Example Title="A plan, not a queue"
+                 Summary="Notifications the device shows by itself, with no server. SyncAsync takes the whole plan: what is in it is scheduled, everything else is cancelled. Plan three, then plan just one, and the other two are gone, so an app that rebuilds its plan from its data never leaves a stale reminder behind.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding Planned}" FontSize="14" Text.FontFeatures="TabularFigures" />
+                <Button Text="Plan three" Command="{Binding PlanThreeCommand}" />
+                <Button Text="Plan just one" Command="{Binding PlanOneCommand}" />
+                <Button Text="Cancel all" Command="{Binding CancelAllCommand}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                await _local.SyncAsync(
+                [
+                    new LocalNotification
+                    {
+                        Id = "match:42",
+                        At = match.Start.AddMinutes(-15),
+                        Title = "Owls – Foxes",
+                        Body = "Face-off in 15 minutes.",
+                        Route = "match/42",
+                    },
+                ]);
+
+                var pending = await _local.PendingAsync();
+            </Example.Code>
+        </Example>
+
+        <Example Title="Buttons, a picture and a sound"
+                 Summary="A local notification can carry what a push carries: the buttons of a category, a picture from the app's files and a sound of its own. Opening it reaches the same handler as a push, with the same route, so both kinds land on the same page.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Plan with buttons and a picture" Command="{Binding PlanRichCommand}" />
+                <Label Text="{Binding RichResult}" FontSize="14" />
+            </VerticalStackLayout>
+            <Example.Code>
+                new LocalNotification
+                {
+                    Id = "reminder",
+                    At = DateTimeOffset.Now.AddSeconds(15),
+                    Title = "Spine local",
+                    Category = "sample",                                         // the buttons
+                    Image = await PackageFiles.CachedPathAsync("picture.png"),   // a file on the device
+                    Sound = "ding.wav",                                           // Apple
+                    Channel = "chime",                                            // Android: the channel's sound
+                }
+
+                // The handler can tell them apart if it needs to
+                if (message.IsLocal) …
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

@@ -344,15 +344,15 @@ With `a.LinkPushNotifications = true` and `Plugin.Maui.Spine.PushNotifications` 
 
 ## Sample
 
-The Showcase's Sign-in page runs against the push sample server's `/auth` on `http://localhost:5100`, whose email codes are written to its log. It shows:
+The Showcase's Sign-in page runs against the Showcase server's `/auth` on `http://localhost:5100`, whose email codes are written to its log. It shows:
 - signing in and out;
 - a `[RequiresSignIn]` page (Members);
 - a `[RequiresSignIn]` command that calls `/sample/me` through a client with `AddSpineAuthentication()`;
 - deleting the account.
 
-Passkeys are offered only in a build with `-p:SpinePasskeyDomain=spine-showcase-e41ddd.azurewebsites.net`, against the push sample server in Azure (`-p:SpineSampleServer=https://spine-showcase-e41ddd.azurewebsites.net/`), whose association file names the Showcase. The Sign-in page then has "Add a passkey".
+Passkeys are offered only in a build with `-p:SpinePasskeyDomain=spine-showcase-e41ddd.azurewebsites.net`, against the Showcase server in Azure (`-p:SpineSampleServer=https://spine-showcase-e41ddd.azurewebsites.net/`), whose association file names the Showcase. The Sign-in page then has "Add a passkey".
 
-Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, which adds the entitlement; a profile for the Showcase's App ID must then have the capability, as `Spine Showcase Development` does. The simulator needs an Apple ID signed in under Settings. Google is offered only in a build with `-p:SpineGoogleServerClientId=<the Web client's id>`, because it needs a Google Cloud project: the push sample server reads `Auth:Google:WebClientId` and `Auth:Google:WebClientSecret`, and the Android client needs the debug key's SHA-1. Without Sign in with Apple, that build sets `AppleNotRequired`. The Showcase's callback scheme is `se.cosmomedia.spineshowcase`.
+Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, which adds the entitlement; a profile for the Showcase's App ID must then have the capability, as `Spine Showcase Development` does. The simulator needs an Apple ID signed in under Settings. Google is offered only in a build with `-p:SpineGoogleServerClientId=<the Web client's id>`, because it needs a Google Cloud project: the Showcase server reads `Auth:Google:WebClientId` and `Auth:Google:WebClientSecret`, and the Android client needs the debug key's SHA-1. Without Sign in with Apple, that build sets `AppleNotRequired`. The Showcase's callback scheme is `se.cosmomedia.spineshowcase`.
 
 ## Not verified yet
 
@@ -362,5 +362,5 @@ Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true
 - Sign in with Microsoft on Android, Windows (WAM) and Mac Catalyst, and with Microsoft Authenticator installed.
 - Sign in with Google's Credential Manager on Android. The broker ran against the real Google in the iOS simulator: the sign-in, the code traded at Google, the picture, the names and the verified email.
 - The push link with a real push token.
-- Passkeys (#522) ran on the owner's iPhone and in the iPhone 17 simulator against the push sample server in Azure: a new account with a passkey, sign-out, sign-in with "Sign in with a passkey", and on the iPhone sign-in through AutoFill's suggestion above the email field. Not run yet: "Add a passkey" to an account and removing one on a device, and Mac Catalyst.
-- Linking (#575) ran in the iOS simulator against the push sample server: a password account, Apple linked from the Sign-in page and unlinked, the last login refused, and after an unlink a new Apple sign-in through "Is this your first time here?" and "I've signed in before" with the password, ending with one account with both. Linking Google and Microsoft from the app ran only in tests, through the sheet's path and the browser broker.
+- Passkeys (#522) ran on the owner's iPhone and in the iPhone 17 simulator against the Showcase server in Azure: a new account with a passkey, sign-out, sign-in with "Sign in with a passkey", and on the iPhone sign-in through AutoFill's suggestion above the email field. Not run yet: "Add a passkey" to an account and removing one on a device, and Mac Catalyst.
+- Linking (#575) ran in the iOS simulator against the Showcase server: a password account, Apple linked from the Sign-in page and unlinked, the last login refused, and after an unlink a new Apple sign-in through "Is this your first time here?" and "I've signed in before" with the password, ending with one account with both. Linking Google and Microsoft from the app ran only in tests, through the sheet's path and the browser broker.

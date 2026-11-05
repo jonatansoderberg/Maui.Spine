@@ -1,0 +1,154 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Push.PushPage"
+    x:TypeArguments="PushPageViewModel"
+    x:DataType="PushPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.PushNotifications, Plugin.Maui.Spine.Server">
+
+        <Example Title="This installation"
+                 Summary="One registration per installation with the Showcase server's /push register: APNs on Apple, Firebase on Android. Spine asks for permission when the app says so, keeps the token fresh and registers again only when something changed. Signed in on the Sign-in page, the device is registered as yours, and the server in Azure sends only to your own devices.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding Status}" FontSize="15" FontAttributes="Bold" />
+                <Label Text="{Binding Installation}" FontSize="13" LineBreakMode="CharacterWrap" Text.FontFeatures="TabularFigures">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding CopyTokenCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <Label Text="{Binding Hint}" IsVisible="{Binding HasHint}" FontSize="14" Opacity="0.7" />
+                <Button Text="Ask for permission" Command="{Binding RequestPermissionCommand}" />
+                <Button Text="Register again" Command="{Binding RegisterCommand}" />
+                <Button Text="Unregister" Command="{Binding UnregisterCommand}" />
+                <Button Text="Open settings" Command="{Binding OpenSettingsCommand}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                builder.UseSpinePushNotifications(o =&gt;
+                {
+                    o.Backend = new Uri("https://api.example.com/push/");
+                    o.Permission = PushPermission.WhenAsked;
+                    o.AddChannel("news", "News");
+                    o.UseHandler&lt;MyPushHandler&gt;();
+                });
+
+                var status = await _push.RequestPermissionAsync();
+                await _push.RefreshAsync(force: true);   // the server lost the row
+            </Example.Code>
+        </Example>
+
+        <Example Title="Tags"
+                 Summary="What this installation subscribes to. The server sends to a tag expression rather than to a list of devices, so a topic is a tag here and a match there. Tags are kept on the device too, and sent again with the next registration when the server could not take them.">
+            <VerticalStackLayout Spacing="10">
+                <SpineSection>
+                    <SpineRow Title="kind:news">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding News}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                    <SpineRow Title="kind:alerts">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding Alerts}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                    <SpineRow Title="team:red">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding TeamRed}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                    <SpineRow Title="team:blue">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding TeamBlue}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                </SpineSection>
+                <Button Text="Save tags" Command="{Binding SaveTagsCommand}" />
+                <Label Text="{Binding TagsResult}" FontSize="14" />
+            </VerticalStackLayout>
+            <Example.Code>
+                var result = await _push.SetTagsAsync(["kind:news", "team:red"]);
+
+                // On the server
+                await _sender.SendAsync(PushTarget.Tags("kind:news &amp;&amp; !team:blue"), notification, ct);
+            </Example.Code>
+        </Example>
+
+        <Example Title="Send to yourself"
+                 Summary="The Showcase server's POST /send pushes to this device, or to a tag expression, so the whole round trip is in the app. A push that arrives in the foreground is not shown: the Showcase's handler answers None and writes a line in the log. Turn on the wait in Try options and put the app in the background to see the notification."
+                 OptionsCommand="{Binding ShowSendOptionsCommand}">
+            <VerticalStackLayout Spacing="10">
+                <Entry Text="{Binding NotificationTitle}" Placeholder="Title" />
+                <Entry Text="{Binding Body}" Placeholder="Text" />
+                <Button Text="Send" Command="{Binding SendCommand}" />
+                <Label Text="{Binding SendResult}" FontSize="14" />
+            </VerticalStackLayout>
+            <Example.Code>
+                await _sender.SendAsync(PushTarget.Installation(id), new PushNotification
+                {
+                    Title = "Hello from the server",
+                    Body = "This came over push.",
+                    Route = "log",
+                    Channel = "news",
+                    Image = new Uri("https://example.com/picture.jpg"),
+                    Priority = PushPriority.High,
+                }, ct);
+            </Example.Code>
+        </Example>
+
+        <Example Title="Buttons and replies"
+                 Summary="A category names the buttons a notification shows. A button opens the app, does its work without opening it, or takes a reply; the handler hears which. Send one, put the app in the background within five seconds, then long-press the notification.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Send one with buttons" Command="{Binding SendWithButtonsCommand}" />
+                <Label Text="{Binding ButtonsResult}" FontSize="14" />
+            </VerticalStackLayout>
+            <Example.Code>
+                o.AddCategory("sample",
+                    new PushAction("open", "Open the log"),
+                    new PushAction("ack", "Acknowledge") { OpensApp = false },
+                    new PushAction("reply", "Reply") { Reply = "Write something" });
+
+                // The handler: a button that did not open the app, or a reply
+                public Task OnActionAsync(PushMessage message, string action, string? text) =&gt; …
+            </Example.Code>
+        </Example>
+
+        <Example Title="What the handler saw"
+                 Summary="Every message reaches one handler, in the foreground, in the background or from a cold start, and it answers what to show. Opening a notification reaches it too, with the route the message carried; the Showcase's route log opens the push log.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding Latest}" FontSize="13" Text.FontFeatures="TabularFigures" />
+                <Button Text="Open the log" Command="{Binding OpenLogCommand}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                public sealed class MyPushHandler(INavigationService navigation) : IPushNotificationHandler
+                {
+                    public Task&lt;PushPresentation&gt; OnReceivedAsync(PushMessage message, PushContext context) =&gt;
+                        Task.FromResult(context.IsForeground ? PushPresentation.None : PushPresentation.Banner);
+
+                    public async Task OnOpenedAsync(PushMessage message, string? action)
+                    {
+                        if (message.Route is "log") await navigation.ShowAsync&lt;PushLogPage&gt;();
+                    }
+                }
+            </Example.Code>
+        </Example>
+
+        <Example Title="A widget a push rebuilds"
+                 Summary="Add the Spine push widget. A silent push carries the text and the handler stores it; a widget push only says rebuild, and the widget draws what the app has. Pushes can be dropped or arrive out of order, so the widget renders from the app's own state, never from the last payload. Its Acknowledge button changes the widget without opening the app.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding WidgetShows}" FontSize="15" />
+                <Button Text="Send the text (silent push)" Command="{Binding SendWidgetTextCommand}" />
+                <Button Text="Rebuild the widget (widget push)" Command="{Binding SendWidgetRebuildCommand}" />
+                <Label Text="{Binding WidgetResult}" FontSize="14" />
+            </VerticalStackLayout>
+            <Example.Code>
+                // The handler, for a silent push
+                content.Set(message.Data["widget.title"], message.Data["widget.body"], context.ReceivedAt);
+                _ = widgets.RefreshAsync("push", context.Deadline);
+
+                // On the server: just rebuild
+                await _sender.RefreshWidgetsAsync(target, "push", ct);
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

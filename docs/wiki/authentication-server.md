@@ -244,7 +244,7 @@ Server.AI's default caller is the authenticated user's `sub`, so a signed-in use
 
 ## Sample
 
-The push sample server (`samples/MauiSpinePushNotificationsSampleApp.Server`) turns on Sign in with Apple for the Showcase's bundle id, plus email and password. The browser sign-in turns on when user secrets hold `Auth:Apple:ServicesId` (with `TeamId`, `KeyId` and `PrivateKey`) or `Auth:Google:WebClientId` and `WebClientSecret`. It returns to `se.cosmomedia.spineshowcase:` or a loopback address, at `http://localhost:5100/auth` unless `Auth:PublicUrl` says otherwise. The codes are written to its log by `LogEmailSender`. It also maps a protected `GET /sample/me`, and its push register takes the user from the token. `send.http` has the steps. Without `Auth:SigningKey` in user secrets, the sample makes a signing key at startup, so every session ends with a restart, just as the in-memory users do.
+The Showcase server (`samples/MauiSpineSampleApp.Server`) turns on Sign in with Apple for the Showcase's bundle id, plus email and password. The browser sign-in turns on when user secrets hold `Auth:Apple:ServicesId` (with `TeamId`, `KeyId` and `PrivateKey`) or `Auth:Google:WebClientId` and `WebClientSecret`. It returns to `se.cosmomedia.spineshowcase:` or a loopback address, at `http://localhost:5100/auth` unless `Auth:PublicUrl` says otherwise. The codes are written to its log by `LogEmailSender`. It also maps a protected `GET /sample/me`, and its push register takes the user from the token. `send.http` has the steps. Without `Auth:SigningKey` in user secrets, the sample makes a signing key at startup, so every session ends with a restart, just as the in-memory users do.
 
 ## Not verified yet
 

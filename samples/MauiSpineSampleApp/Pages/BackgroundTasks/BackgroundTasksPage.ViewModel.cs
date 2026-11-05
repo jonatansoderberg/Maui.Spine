@@ -1,15 +1,21 @@
 using MauiSpineSampleApp.BackgroundTasks;
+using MauiSpineSampleApp.Push;
 using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.PushNotifications;
 
 namespace MauiSpineSampleApp.Pages.BackgroundTasks;
 
 public partial class BackgroundTasksPageViewModel : SampleViewModel
 {
     private readonly IBackgroundTasks _tasks;
+    private readonly IPushNotificationService _push;
+    private readonly PushServer _server;
 
-    public BackgroundTasksPageViewModel(IBackgroundTasks tasks)
+    public BackgroundTasksPageViewModel(IBackgroundTasks tasks, IPushNotificationService push, PushServer server)
     {
         _tasks = tasks;
+        _push = push;
+        _server = server;
         Tasks = [.. tasks.Names.Select(name => new BackgroundTaskRow(name, tasks))];
         foreach (var row in Tasks) row.Update();
         Platform = !tasks.RunsWhileClosed
@@ -40,8 +46,25 @@ public partial class BackgroundTasksPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial int SyncRuns { get; set; }
 
+    [ObservableProperty]
+    public partial string PushResult { get; set; } = "";
+
     [RelayCommand]
     private Task Run(BackgroundTaskRow row) => _tasks.RequestAsync(row.Name);
+
+    /// <summary>A silent push that names the task: it runs in the push's time, then the widgets it names are rebuilt.</summary>
+    [RelayCommand]
+    private async Task StartByPush()
+    {
+        PushResult = "Sending…";
+        PushResult = await _server.SendAsync(new
+        {
+            kind = "silent",
+            targetKind = "installation",
+            target = await _push.GetInstallationIdAsync(),
+            data = new Dictionary<string, string> { [PushKeys.Task] = SampleSyncTask.Name },
+        });
+    }
 }
 
 /// <summary>One task's status, as <see cref="IBackgroundTasks.StatusOf"/> reports it.</summary>

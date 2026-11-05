@@ -30,7 +30,7 @@ public partial class ChatPageViewModel : SampleViewModel
     {
         var services = IPlatformApplication.Current!.Services;
 
-        // Typed turns go to the chosen model: the in-app demo, Spine.AI's Assistant (the device first, then the push sample
+        // Typed turns go to the chosen model: the in-app demo, Spine.AI's Assistant (the device first, then the Showcase
         // server) or the server's alone. The server's Assistant has two functions: get_my_bookings runs there with the
         // signed-in user, and show_time runs on the phone or on the server, as this chat's options say.
         IChatClient demo = new DemoChatClient();
@@ -38,7 +38,7 @@ public partial class ChatPageViewModel : SampleViewModel
         var server = services.GetRequiredKeyedService<IChatClient>("ServerAssistant");
         Client = demo;
 
-        // Spoken turns go to one of the push sample server's realtime features, or to Claude through a voice pipeline (the
+        // Spoken turns go to one of the Showcase server's realtime features, or to Claude through a voice pipeline (the
         // phone or the server writes the user down and reads the answer), in the same conversation: the microphone
         // connects a session that is given the turns so far and adds its own to Messages.
         _voiceOptions = services.GetRequiredService<SpineVoiceOptions>();
@@ -69,8 +69,8 @@ public partial class ChatPageViewModel : SampleViewModel
 
         var model = new ChoiceGroup("Model for typed turns", [
             new Choice("Demo", "Canned answers in the app, with a tool-call card.", () => Use(demo, "Demo answers in the app")),
-            new Choice("Assistant", "Spine.AI's Assistant: Apple Intelligence on the device when it has it, else the push sample server.", () => Use(assistant, "Spine.AI's Assistant: the device first, then the server")),
-            new Choice("Server", "The push sample server's Assistant. Ask \"Vilka bokningar har jag?\" signed in and signed out, or \"Vad är klockan?\".", () => Use(server, "The server's Assistant: ask about your bookings or the time")),
+            new Choice("Assistant", "Spine.AI's Assistant: Apple Intelligence on the device when it has it, else the Showcase server.", () => Use(assistant, "Spine.AI's Assistant: the device first, then the server")),
+            new Choice("Server", "The Showcase server's Assistant. Ask \"Vilka bokningar har jag?\" signed in and signed out, or \"Vad är klockan?\".", () => Use(server, "The server's Assistant: ask about your bookings or the time")),
         ]);
         model.Select(0);
         Use(demo, "Demo answers in the app");
@@ -113,7 +113,7 @@ public partial class ChatPageViewModel : SampleViewModel
             avatars,
             new ToggleOption("End on goodbye", "Say or type goodbye (\"tack, hej då\") and the conversation ends once the answer has been said: a call hangs up (IVoiceSession.EndsOnGoodbye), a typed chat shows \"Conversation ended\" and the next message starts anew (ChatView.EndsOnIntent). Every model, Claude's included: end_conversation is built into Spine.", () => EndsOnIntent, value => EndsOnIntent = value),
             new ToggleOption("Glow the screen's edge", "During a call the window's edge glows with the answer's level (Spine.Controls.Highlight).", () => Edge, value => Edge = value),
-            new TextOption("Server", "The push sample server's AI prefix for calls; on a phone, the Mac's address on the network or the Azure one.", () => Server, value => Server = value, Microsoft.Maui.Keyboard.Url),
+            new TextOption("Server", "The Showcase server's AI prefix for calls; on a phone, the Mac's address on the network or the Azure one.", () => Server, value => Server = value, Microsoft.Maui.Keyboard.Url),
         ];
 
         // The header bar has one trailing slot; the chat's menu takes it from the base class's theme menu.
@@ -179,7 +179,7 @@ public partial class ChatPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial bool IsTalking { get; set; }
 
-    /// <summary>The push sample server's AI prefix for calls; on a phone, the Mac's address on the network.</summary>
+    /// <summary>The Showcase server's AI prefix for calls; on a phone, the Mac's address on the network.</summary>
     [ObservableProperty]
     public partial string Server { get; set; }
 

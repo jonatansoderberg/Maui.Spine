@@ -119,7 +119,7 @@ public partial class AssistantPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial AvatarChoice Avatar { get; set; }
 
-    /// <summary>The push sample server's AI prefix; on a phone, the Mac's address on the network.</summary>
+    /// <summary>The Showcase server's AI prefix; on a phone, the Mac's address on the network.</summary>
     [ObservableProperty]
     public partial string Server { get; set; }
 

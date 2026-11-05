@@ -1,15 +1,17 @@
-﻿using ObjCRuntime;
+﻿using Plugin.Maui.Spine.PushNotifications;
 using UIKit;
 
 namespace MauiSpineSampleApp;
 
 public class Program
 {
-    // This is the main entry point of the application.
     static void Main(string[] args)
     {
-        // if you want to use a different Application Delegate class from "AppDelegate"
-        // you can specify it here.
+        // Spine.PushNotifications adds the remote-notification delegate methods to the AppDelegate class here,
+        // because UIKit reads which callbacks the delegate implements when UIApplication.Main assigns
+        // it. See docs/wiki/push-notifications.md.
+        SpinePushNotifications.Install();
+
         UIApplication.Main(args, null, typeof(AppDelegate));
     }
 }

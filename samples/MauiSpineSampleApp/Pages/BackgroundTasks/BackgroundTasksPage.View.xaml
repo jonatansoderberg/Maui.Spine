@@ -5,7 +5,7 @@
     x:TypeArguments="BackgroundTasksPageViewModel"
     x:DataType="BackgroundTasksPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.BackgroundTasks, Plugin.Maui.Spine.Widgets">
+    <SampleLayout Packages="Plugin.Maui.Spine.BackgroundTasks, Plugin.Maui.Spine.Widgets, Plugin.Maui.Spine.PushNotifications">
 
         <Example Title="A task the system runs"
                  Summary="A class with [BackgroundTask] is found at startup like a page or a widget. Spine books it with the platform's scheduler: BGTaskScheduler on iOS, JobScheduler on Android. After a run that completed, the widgets it names are built again, so the sample widget's Built time moves even while the app is closed.">
@@ -47,6 +47,21 @@
 
                 var status = _tasks.StatusOf("standings");
                 // status.LastCompleted, status.LastOutcome, status.LastError, status.NextDue
+            </Example.Code>
+        </Example>
+
+        <Example Title="Started by a push"
+                 Summary="A silent push or a widget push with spine.task in its data runs that task in the push's own time, the few seconds the system gives the app, and then rebuilds the widgets the task names. The button asks the Showcase server to send one to this device for sample-sync; the count above goes up, also with the app in the background.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Run sample-sync from a push" Command="{Binding StartByPushCommand}" />
+                <Label Text="{Binding PushResult}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                // On the server
+                await _sender.SendSilentAsync(target, new Dictionary&lt;string, string&gt;
+                {
+                    [PushKeys.Task] = "standings",   // "spine.task"
+                }, ct);
             </Example.Code>
         </Example>
 

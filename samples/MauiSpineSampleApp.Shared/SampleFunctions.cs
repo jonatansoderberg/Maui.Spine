@@ -7,7 +7,7 @@ using Plugin.Maui.Spine.AI;
 namespace MauiSpineSampleApp.Shared;
 
 /// <summary>
-/// The Showcase's AI functions. The push sample server runs <see cref="GetMyBookings"/> with the signed-in user; the app
+/// The Showcase's AI functions. The Showcase server runs <see cref="GetMyBookings"/> with the signed-in user; the app
 /// runs <see cref="ShowTime"/>, which the server also has, so a chat or a voice session can choose the side.
 /// </summary>
 public static class SampleFunctions

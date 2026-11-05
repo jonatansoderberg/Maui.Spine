@@ -103,6 +103,44 @@
             </Example.Code>
         </Example>
 
+        <Example Title="Fetched from the server"
+                 Summary="Add the Spine remote widget. The platform fetches its timeline from the Showcase server at every reload, in the widget extension on iOS and in a receiver on Android, so it changes while the app is closed. What the app builds is only the fallback, and it says so: the server's answer has the gradient, the fallback does not.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Reload the remote widget" Command="{Binding RefreshRemoteCommand}" />
+                <Label Text="{Binding ServerRefreshed}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                [Widget("remote")]
+                public sealed class RemoteWidget : IWidgetProvider
+                {
+                    public Task&lt;WidgetTimeline&gt; BuildTimelineAsync(WidgetContext context, CancellationToken ct) =&gt;
+                        Task.FromResult(WidgetTimeline.Single(fallback)
+                            .RemoteSource(new Uri("https://api.example.com/widget/remote"))
+                            .Refresh(TimeSpan.FromMinutes(15)));
+                }
+
+                // On the server: the same tree, as JSON
+                app.MapGet("/widget/remote", () =&gt; Results.Text(timeline.ToJson(), "application/json"));
+            </Example.Code>
+        </Example>
+
+        <Example Title="On a picture"
+                 Summary="Add the Spine picture widget. The picture fills the surface, a gradient shows wherever it runs out, and the text sits on the system's accent, which follows the wallpaper on Android and the app's accent on iOS. The picture is stored once where the widget extension can read it.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Build the picture widget again" Command="{Binding RefreshPictureCommand}" />
+                <Label Text="{Binding PictureRefreshed}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                await _widgets.StorePackageAssetAsync("picture.png", cancellationToken: ct);
+
+                WidgetTimeline.Single(W.VStack(4, W.Spacer(),
+                        W.HStack(W.Text("Spine picture").Headline().Color(WidgetColor.OnAccent))
+                            .Background(WidgetColor.Accent).Padding(6).CornerRadius(8)))
+                    .Background(new WidgetGradient([green, mint], WidgetGradientDirection.Diagonal))
+                    .BackgroundImage("picture.png");
+            </Example.Code>
+        </Example>
+
     </SampleLayout>
 
 </SpinePage>

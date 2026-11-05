@@ -141,4 +141,4 @@ Works in ASP.NET Core Minimal APIs and in Azure Functions isolated workers (the 
 
 - Client: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/push-notifications.md
 - Server: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/push-notifications-server.md
-- Sample app and server: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpinePushNotificationsSampleApp
+- Sample: the Showcase's `Pages/Push` and `Pages/LocalNotifications` (https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp) and its server, `samples/MauiSpineSampleApp.Server`
