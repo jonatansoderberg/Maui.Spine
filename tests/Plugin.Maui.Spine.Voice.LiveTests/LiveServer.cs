@@ -11,7 +11,7 @@ using Plugin.Maui.Spine.Server.AI;
 namespace Plugin.Maui.Spine.Voice.LiveTests;
 
 /// <summary>
-/// The push sample server's AI features, hosted in the test on a free port with the keys from the environment: typed
+/// The Showcase server's AI features, hosted in the test on a free port with the keys from the environment: typed
 /// chat (Assistant), Realtime (Voice), GPT-Live (VoiceLive), and a Claude pipeline (Claude, Transcribe, Read).
 /// </summary>
 internal sealed class LiveServer : IAsyncDisposable

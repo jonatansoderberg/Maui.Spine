@@ -2,11 +2,8 @@
   <Project Path="samples/MauiSpineSampleApp/MauiSpineSampleApp.csproj">
     <Deploy />
   </Project>
+  <Project Path="samples/MauiSpineSampleApp.Server/MauiSpineSampleApp.Server.csproj" />
   <Project Path="samples/MauiSpineSampleApp.Shared/MauiSpineSampleApp.Shared.csproj" />
-  <Project Path="samples/MauiSpinePushNotificationsSampleApp/MauiSpinePushNotificationsSampleApp.csproj">
-    <Deploy />
-  </Project>
-  <Project Path="samples/MauiSpinePushNotificationsSampleApp.Server/MauiSpinePushNotificationsSampleApp.Server.csproj" />
   <Project Path="samples/SpineAvatarLab/SpineAvatarLab.csproj">
     <Deploy />
   </Project>

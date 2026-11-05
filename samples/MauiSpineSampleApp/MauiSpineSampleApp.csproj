@@ -808,6 +808,33 @@
     <Compile Include="Pages\SvgIcons\SvgIconSetPage.ViewModel.cs">
       <DependentUpon>SvgIconSetPage.cs</DependentUpon>
     </Compile>
+
+    <MauiXaml Update="Pages\Push\PushPage.View.xaml">
+      <DependentUpon>PushPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Push\PushPage.ViewModel.cs">
+      <DependentUpon>PushPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Push\PushLogPage.View.xaml">
+      <DependentUpon>PushLogPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Push\PushLogPage.ViewModel.cs">
+      <DependentUpon>PushLogPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\LocalNotifications\LocalNotificationsPage.View.xaml">
+      <DependentUpon>LocalNotificationsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\LocalNotifications\LocalNotificationsPage.ViewModel.cs">
+      <DependentUpon>LocalNotificationsPage.cs</DependentUpon>
+    </Compile>
 	</ItemGroup>
 
   
@@ -834,6 +861,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Chat\Plugin.Maui.Spine.Controls.Chat.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.PushNotifications\Plugin.Maui.Spine.PushNotifications.csproj" />
 		<!-- The layout files' generator, as Plugin.Maui.Spine.Common's package brings it (Widgets\Layouts\Reading.layout.xml). -->
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Layouts.Generator\Plugin.Maui.Spine.Layouts.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
@@ -866,6 +894,9 @@
 	<ItemGroup>
 		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" />
 		<SpineWidget Include="score" DisplayName="Live score" Description="The game while it is on, then the next game and the latest results." Families="Small,Medium,AccessoryCircular,AccessoryRectangular,AccessoryInline" />
+		<SpineWidget Include="push" DisplayName="Spine push" Description="What the last silent push said, rebuilt when the server sends a widget push." Families="Small,Medium" />
+		<SpineWidget Include="remote" DisplayName="Spine remote" Description="Fetches its own content from the Showcase server, even when the app is not running." Families="Small,Medium" />
+		<SpineWidget Include="picture" DisplayName="Spine picture" Description="A widget on a picture, with a gradient where the picture runs out." Families="Small,Medium" />
 	</ItemGroup>
 	<!-- Controls: Control Center on iOS 18, Quick Settings tiles on Android; the providers are the [Control] classes in Widgets\Hockey\. -->
 	<ItemGroup>
@@ -892,8 +923,8 @@
 	<PropertyGroup Condition="'$(SpineSignInWithApple)' == 'true'">
 		<DefineConstants>$(DefineConstants);SPINE_SIGN_IN_WITH_APPLE</DefineConstants>
 	</PropertyGroup>
-	<!-- The push sample server the Showcase signs in to and calls: this computer's by default, or the one in Azure for a
-	     phone, -p:SpineSampleServer=https://… (samples/MauiSpinePushNotificationsSampleApp.Server/README.md). -->
+	<!-- The Showcase server the app signs in to and calls: this computer's by default, or the one in Azure for a
+	     phone, -p:SpineSampleServer=https://… (samples/MauiSpineSampleApp.Server/README.md). -->
 	<PropertyGroup>
 		<SpineSampleServer Condition="'$(SpineSampleServer)' == ''">http://localhost:5100/</SpineSampleServer>
 	</PropertyGroup>
@@ -903,7 +934,7 @@
 
 	<!-- A browser sign-in (Google through the server's broker off Android, Apple on Android and Windows) returns to the
 	     app's scheme; the Android callback activity's intent filter comes from this. Google needs a Google Cloud project,
-	     so it is on only in a build with -p:SpineGoogleServerClientId=<the Web client's id>, the id the push sample
+	     so it is on only in a build with -p:SpineGoogleServerClientId=<the Web client's id>, the id the Showcase
 	     server has as Auth:Google:WebClientId. -->
 	<PropertyGroup>
 		<SpineAuthenticationCallbackScheme>se.cosmomedia.spineshowcase</SpineAuthenticationCallbackScheme>
@@ -915,19 +946,38 @@
 		<AssemblyMetadata Include="SpineGoogleServerClientId" Value="$(SpineGoogleServerClientId)" />
 	</ItemGroup>
 	<!-- Passkeys belong to the server's domain, and the App ID needs Associated Domains, so they are on only in a build
-	     with -p:SpinePasskeyDomain=<the server's host>, the Auth:Passkeys:RelyingPartyId of the push sample server
+	     with -p:SpinePasskeyDomain=<the server's host>, the Auth:Passkeys:RelyingPartyId of the Showcase server
 	     (spine-showcase-e41ddd.azurewebsites.net in Azure). -->
 	<PropertyGroup Condition="'$(SpinePasskeyDomain)' != ''">
 		<DefineConstants>$(DefineConstants);SPINE_PASSKEYS</DefineConstants>
 	</PropertyGroup>
 	<!-- Sign in with Microsoft needs an Entra app registration, so it is on only in a build with
-	     -p:SpineMicrosoftClientId=<its Application (client) id>, the id the push sample server has as Auth:Microsoft:ClientId. -->
+	     -p:SpineMicrosoftClientId=<its Application (client) id>, the id the Showcase server has as Auth:Microsoft:ClientId. -->
 	<PropertyGroup Condition="'$(SpineMicrosoftClientId)' != ''">
 		<DefineConstants>$(DefineConstants);SPINE_SIGN_IN_WITH_MICROSOFT</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup Condition="'$(SpineMicrosoftClientId)' != ''">
 		<AssemblyMetadata Include="SpineMicrosoftClientId" Value="$(SpineMicrosoftClientId)" />
 	</ItemGroup>
+	<!-- Push notifications (the Push notifications and Local notifications pages). -->
+	<PropertyGroup>
+		<!-- WNS needs the installed Windows App Runtime, which a self-contained app does not use; the Showcase stays
+		     self-contained and has local notifications only on Windows. -->
+		<SpinePushNotificationsRemote Condition="'$(SpinePushNotificationsRemote)' == '' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">false</SpinePushNotificationsRemote>
+		<!-- Pictures in pushed notifications and iOS 26's widget push: simulator builds only, since a device build needs
+		     App IDs for the extensions (<ApplicationId>.SpinePushNotificationService) and Push Notifications on the widget
+		     extension's. The widget push also makes the widget extension iOS 26+, which the simulator is. -->
+		<SpinePushNotificationsImages Condition="$(RuntimeIdentifier.Contains('simulator'))">true</SpinePushNotificationsImages>
+		<SpineWidgetsPush Condition="$(RuntimeIdentifier.Contains('simulator'))">true</SpineWidgetsPush>
+	</PropertyGroup>
+	<!-- The repo has a placeholder, so the Showcase builds straight after a clone; Firebase refuses it and Android
+	     gets no token, which the Push notifications page says. The owner's file (Firebase project
+	     spine-showcase-56b63, app se.cosmomedia.spineshowcase) replaces it locally under
+	     git update-index skip-worktree. -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<GoogleServicesJson Include="Platforms\Android\google-services.json" />
+	</ItemGroup>
+	<Import Project="..\..\src\Plugin.Maui.Spine.PushNotifications\build\Plugin.Maui.Spine.PushNotifications.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.BackgroundTasks\build\Plugin.Maui.Spine.BackgroundTasks.targets" />
 

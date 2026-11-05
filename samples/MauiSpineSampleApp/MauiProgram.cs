@@ -6,6 +6,8 @@ using Plugin.Maui.Spine.Authentication;
 using Plugin.Maui.Spine.Biometrics;
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
+using Plugin.Maui.Spine.PushNotifications;
+using Plugin.Maui.Spine.PushNotifications.Extensions;
 using Plugin.Maui.Spine.Svg;
 using Plugin.Maui.Spine.Voice;
 using Plugin.Maui.Spine.Widgets.Extensions;
@@ -39,7 +41,7 @@ public static class MauiProgram
                 options.Haptics.TabSwitch = Haptic.Selection;
                 options.Haptics.SheetDetent = Haptic.Selection;
                 options.Haptics.DismissBlocked = Haptic.Warning;
-                // The Sign-in page: the push sample server's /auth. Apple needs the capability, so it is on only in a build
+                // The Sign-in page: the Showcase server's /auth. Apple needs the capability, so it is on only in a build
                 // with SpineSignInWithApple=true; the device registers for push as the signed-in user.
                 options.AddAuthentication(a =>
                 {
@@ -95,6 +97,31 @@ public static class MauiProgram
                     _ => WindowBackdrop.None,
                 };
             })
+            // The Push notifications page: the Showcase server's /push register. LinkPushNotifications above sends the
+            // signed-in user with it, so the server in Azure reaches only that user's devices.
+            .UseSpinePushNotifications(options =>
+            {
+                options.Backend = new Uri(SampleServer, "push/");
+
+                // The Push notifications page's button asks, not the launch: the Showcase is about the API.
+                options.Permission = PushPermission.WhenAsked;
+
+                options.AddChannel("news", "News");
+                options.AddChannel("alerts", "Important", PushChannelImportance.High);
+
+                // Android's sound belongs to the channel, fixed when the channel is created, so the
+                // Showcase's own sound gets a channel of its own.
+                options.AddChannel("chime", "With sound", PushChannelImportance.High, sound: "ding");
+
+                // The three shapes a button can take: one that opens the app, one that does its work
+                // without it, and a reply.
+                options.AddCategory("sample",
+                    new PushAction("open", "Open the log"),
+                    new PushAction("ack", "Acknowledge") { OpensApp = false },
+                    new PushAction("reply", "Reply") { Reply = "Write something" });
+
+                options.UseHandler<MauiSpineSampleApp.Push.ShowcasePushHandler>();
+            })
             // The crest on the SVG Icons page has its own colours; its red gets an exact dark tone,
             // the rest the automatic one where an image turns AdjustColorsForDark on.
             .UseEmbeddedSvgImages(options => options.DarkColors[Color.FromArgb("#D32F2F")] = Color.FromArgb("#C0605C"))
@@ -115,9 +142,9 @@ public static class MauiProgram
         // Files the sample server hands out without sign-in (Kairo for the Avatars page).
         builder.Services.AddHttpClient("SampleServer", c => c.BaseAddress = SampleServer);
 
-        // The AI client page: the push sample server with its demo provider (samples/MauiSpinePushNotificationsSampleApp.Server).
+        // The AI client page: the Showcase server with its demo provider (samples/MauiSpineSampleApp.Server).
         // Android reaches it on localhost through adb reverse tcp:5100 tcp:5100.
-        // The Voice chat page: the push sample server's realtime Voice feature. A phone sets the Mac's address on the page.
+        // The Voice chat page: the Showcase server's realtime Voice feature. A phone sets the Mac's address on the page.
         // Both send the Sign-in page's user, so the server's functions (get_my_bookings) know who is asking.
         builder.UseSpineVoice(o =>
         {
@@ -172,6 +199,11 @@ public static class MauiProgram
         // The Guards page's own guard: a confirmation before a page opens or a command runs.
         builder.Services.AddSpineGuard<MauiSpineSampleApp.Pages.Guards.ConfirmAttribute, MauiSpineSampleApp.Pages.Guards.ConfirmGuard>();
 
+        builder.Services.AddSingleton<MauiSpineSampleApp.Push.PushLog>();
+        builder.Services.AddSingleton<MauiSpineSampleApp.Push.PushServer>();
+        builder.Services.AddSingleton<MauiSpineSampleApp.Widgets.PushWidgetContent>();
+        builder.Services.AddSingleton(new MauiSpineSampleApp.Widgets.RemoteWidgetSource(new Uri(SampleServer, "widget/remote")));
+
         // The live-score demo's one game, shared by the Widgets and Live Activities pages and the widget.
         builder.Services.AddSingleton<MauiSpineSampleApp.Widgets.Hockey.LiveScore>();
 
@@ -182,7 +214,15 @@ public static class MauiProgram
         builder.Logging.AddProvider(new StdoutLoggerProvider("Plugin.Maui.Spine.Voice"));
         builder.Logging.AddFilter("Plugin.Maui.Spine.Voice", LogLevel.Debug);
 
-        return builder.Build();
+        var app = builder.Build();
+
+        // Subscribed as soon as the service exists: an activity that ended while the app was not running is
+        // reported as the app launches, before any page could be listening.
+        var log = app.Services.GetRequiredService<MauiSpineSampleApp.Push.PushLog>();
+        app.Services.GetRequiredService<Plugin.Maui.Spine.Common.ILiveActivityService>().ActivityEnded +=
+            activity => log.Note("live activity", $"{activity.Kind} ended outside the app");
+
+        return app;
     }
 
     // A value the build put in the assembly (-p:SpineGoogleServerClientId=…, -p:SpineMicrosoftClientId=…).
@@ -190,8 +230,8 @@ public static class MauiProgram
         typeof(MauiProgram).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
             .Cast<System.Reflection.AssemblyMetadataAttribute>().First(m => m.Key == key).Value!;
 
-    // The push sample server: on this computer by default (a simulator, or Android through adb reverse), or the one in
-    // Azure with -p:SpineSampleServer=https://… (a phone; samples/MauiSpinePushNotificationsSampleApp.Server/README.md).
+    // The Showcase server: on this computer by default (a simulator, or Android through adb reverse), or the one in
+    // Azure with -p:SpineSampleServer=https://… (a phone; samples/MauiSpineSampleApp.Server/README.md).
     private static readonly Uri SampleServer = new(BuildSetting("SpineSampleServer").TrimEnd('/') + "/");
 
     /// <summary>The signed-in user's <c>Authorization</c> header for the sample server, or none when signed out.</summary>

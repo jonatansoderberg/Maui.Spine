@@ -105,7 +105,7 @@ Seen on the owner's iPhone 16 Pro against `gpt-realtime` on 2026-10-15:
 - **Push-to-talk** mutes and unmutes the input; GPT-Live decides itself when to answer. `IsMuted` tells GPT-Live too, and while the engine sends nothing (muted, or `HalfWhileSpeaking`) the session sends silence, since GPT-Live listens to a continuous stream.
 - **Hanging up on goodbye** works as with Realtime, but only the backend can call `end_conversation`, and the voice reaches it by delegating: the delegation policy tells it to delegate a goodbye. Turning `EndsOnGoodbye` on or off mid-call is told to the voice with `session.instructions.append`, since its instructions are otherwise fixed at the start. The voice talks while the backend works, so what it said before the hang-up may be the goodbye or only "one moment": the backend's answer asks it to say a goodbye only if it has not. If the voice says nothing more, the call ends 3 s after the hang-up when it had spoken since the user's last words, and 8 s after when it had not.
 
-Seen against the push sample server on the Mac on 2026-10-20, with Swedish speech (macOS's Alva) streamed at real time through the real `VoiceSession`:
+Seen against the Showcase server on the Mac on 2026-10-20, with Swedish speech (macOS's Alva) streamed at real time through the real `VoiceSession`:
 - "Hej! Vad är klockan just nu?": the voice said "Jag kollar det", the backend (`gpt-6-luna`) called `show_time` in the app, and the voice said "Klockan är 12:34".
 - "Tack, hej då!": the backend called `end_conversation`, the voice said "Hej då!", and the session ended with `Goodbye`.
 - 23 s of session cost $0.019 for the voice and $0.0003 for the backend. The relay recorded both and gave back the rest of the minute it had reserved.
@@ -274,7 +274,7 @@ edge.Intensity = () => voice.UpdateFrame().OutputLevel;
 
 `tests/Plugin.Maui.Spine.Voice.LiveTests` runs every session kind against the real models, as the app runs it. The user asks "Vad är klockan?", which only the app's `show_time` knows, then says goodbye, and the session must end on its own. The kinds covered are typed chat through the server (with ChatView's `end_conversation`), Realtime, GPT-Live through the relay, and a Claude pipeline.
 
-- The server is the push sample's AI features, hosted in the test.
+- The server is the Showcase server's AI features, hosted in the test.
 - The questions are spoken by OpenAI's voice and fed in real time through an audio engine without a device.
 - The keys come from the environment, never from a file. Without them the tests are skipped. A run costs a few cents:
 

@@ -1,0 +1,25 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:push="clr-namespace:MauiSpineSampleApp.Push"
+    x:Class="MauiSpineSampleApp.Pages.Push.PushLogPage"
+    x:TypeArguments="PushLogPageViewModel"
+    x:DataType="PushLogPageViewModel">
+
+    <CollectionView ItemsSource="{Binding Entries}" SafeArea.PageMargin="True">
+        <CollectionView.EmptyView>
+            <Label Text="Nothing has arrived yet. Send something from the Push notifications page, or run xcrun simctl push."
+                   FontSize="15" Opacity="0.7" Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,20" />
+        </CollectionView.EmptyView>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="push:PushLogEntry">
+                <VerticalStackLayout Padding="0,8">
+                    <Label Text="{Binding Summary}" FontAttributes="Bold" FontSize="14" Text.FontFeatures="TabularFigures" />
+                    <Label Text="{Binding Detail}" FontSize="12" Opacity="0.7" />
+                </VerticalStackLayout>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+
+</SpinePage>

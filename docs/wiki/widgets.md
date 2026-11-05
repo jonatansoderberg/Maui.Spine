@@ -402,7 +402,7 @@ WidgetTimeline.Single(tree)
     .BackgroundImage("cover.png");   // stored with IWidgetService.StoreAssetAsync
 ```
 
-The push sample's *Spine bild* widget is one, and its remote widget gets a gradient from the server.
+The Showcase's *Spine picture* widget is one, and its remote widget gets a gradient from the server.
 
 An entry can carry a surface of its own, a `WidgetSurface`, which the platform switches to at the entry's date together with its tree — a holiday picture from midnight, another color once an event has started — without the app running:
 
@@ -565,7 +565,7 @@ Three things to know before relying on it:
 - **Let the fallback say so.** The entries the app built are shown whenever the fetch fails — a server that is down, a timeout after 15 seconds, an answer that is not a timeline document — and a fallback that looks like the real thing reads as a widget that works. The failure is logged: `[SpineWidgets] remote source for <kind> failed` in the device log on iOS, `SpineWidgets` in logcat on Android.
 - **The platform does the fetching, not the app.** On iOS that is the widget extension, which on a physical device must reach the server over the network — `localhost` is the phone itself. On Android it is a receiver in the app's own process, so an emulator or a phone on a cable reaches a server on your machine through `adb reverse`.
 
-`samples/MauiSpinePushNotificationsSampleApp` has a widget that does exactly this: `remote` fetches from the sample server's `/widget/remote`, which answers "Från servern" and its own clock, and falls back to "From the app" when the server is not running.
+The Showcase has a widget that does exactly this: `remote` fetches from the Showcase server's `/widget/remote`, which answers "From the server" and its own clock, and falls back to "From the app" when the server is not running.
 
 ### Reloading by push
 
@@ -1119,7 +1119,7 @@ There is no fix from inside the layout. `.fixedSize` was tried in Spine's render
 
 **So put the ticking where there is room.** A `W.Timer` or `W.Relative` belongs on the lock screen or in the expanded presentation. Give the compact and minimal regions a plain `W.Text` — a value, a stamp, a symbol — and the island sizes to it. Apple's own guidance points the same way: keep each compact region to roughly 44 pt, which is a glance, not a sentence. See [Human Interface Guidelines: Live Activities](https://developer.apple.com/design/human-interface-guidelines/live-activities) for what each presentation is meant to carry.
 
-`samples/MauiSpinePushNotificationsSampleApp` is laid out this way.
+The Showcase's server activity (`Pages/LiveActivities`) is laid out this way.
 
 Live Activities have a different model: the app updates the content directly, as often as it likes while it runs, and timer text is system-drawn there too. That is why a countdown in the Dynamic Island never needs a reload.
 
@@ -1383,4 +1383,4 @@ What Spine widgets cannot do, and what to do instead.
 - [Human Interface Guidelines: Live Activities](https://developer.apple.com/design/human-interface-guidelines/live-activities) — what each presentation is for, and how much they can carry
 - [Apple Developer Forums: `.timer` text expands too much in a Live Activity](https://developer.apple.com/forums/thread/723316) — the width behaviour described above
 - [Spine.Widgets proposal](../proposals/spine-widgets.md) — the architecture, the platform survey, and the spike this grew out of
-- Samples: `samples/MauiSpineSampleApp/Widgets/` (`SampleWidget.cs`, `CardWidget.cs`) and `samples/MauiSpinePushNotificationsSampleApp/Widgets/`
+- Samples: `samples/MauiSpineSampleApp/Widgets/` (`SampleWidget.cs`, `CardWidget.cs`, `PushWidget.cs`, `RemoteWidget.cs`, `PictureWidget.cs`)

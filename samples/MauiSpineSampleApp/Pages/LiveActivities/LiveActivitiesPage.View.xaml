@@ -5,7 +5,7 @@
     x:TypeArguments="LiveActivitiesPageViewModel"
     x:DataType="LiveActivitiesPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.Widgets">
+    <SampleLayout Packages="Plugin.Maui.Spine.Widgets, Plugin.Maui.Spine.PushNotifications">
 
         <Example Title="A live score"
                  Summary="A game between two made-up teams on the lock screen and in the Dynamic Island. Start it, then play the game from here: every tap hands the activity a new layout, and the widget on the Widgets page follows. Before face-off the system counts down by itself; at face-off the app, while it is open, turns it into the scoreboard.">
@@ -94,6 +94,44 @@
                     Body: "P2 · 07:19 · Shots 14–9 · (2)–1 Okafor 06:02",
                     Chip: "2–1",
                     Icon: "team-owls-badge.png"),
+            </Example.Code>
+        </Example>
+
+        <Example Title="Updated from the server"
+                 Summary="The activity has a push token of its own, and the server updates it through that, while the app is closed. Start one here, put the app away and ask the Showcase server for an update; the time under the text counts from each update by itself. Android follows the same call through Firebase.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding ServerState}" FontSize="15" FontAttributes="Bold" />
+                <Label Text="{Binding ServerAddress}" FontSize="13" LineBreakMode="MiddleTruncation" />
+                <Button Text="Start" Command="{Binding StartServerActivityCommand}" IsEnabled="{Binding CanStartServer}" />
+                <Button Text="Update from the server" Command="{Binding UpdateFromServerCommand}" IsEnabled="{Binding IsServerRunning}" />
+                <Button Text="End" Command="{Binding EndServerActivityCommand}" IsEnabled="{Binding IsServerRunning}" />
+                <Label Text="{Binding ServerResult}" FontSize="14" />
+            </VerticalStackLayout>
+            <Example.Code>
+                var activity = await _activities.StartAsync("server", layout, staleAt);
+                var token = await activity.GetPushTokenAsync();   // registered with the device
+
+                // On the server
+                await _sender.UpdateLiveActivityAsync(target, "server", layout, LiveActivityEvent.Update,
+                    new LiveActivityOptions { StaleAt = DateTimeOffset.UtcNow.AddMinutes(10) }, ct);
+            </Example.Code>
+        </Example>
+
+        <Example Title="One push to every device"
+                 Summary="Started on the server's broadcast channel, the activity has no token of its own: the channel is its address, and one push to it updates every activity that follows it, however many devices. iOS 18 follows the APNs channel, Android the channel's Firebase topic. The server in Azure sends no broadcasts, since they reach everyone.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Start on the channel" Command="{Binding StartOnChannelCommand}" IsEnabled="{Binding CanStartServer}" />
+                <Button Text="Broadcast from the server" Command="{Binding BroadcastCommand}" IsEnabled="{Binding IsServerRunning}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                // On the server, once
+                var channel = await _channels.CreateAsync(PushChannelStorage.MostRecent, ApnsEnvironment.Production, ct);
+
+                // In the app
+                await _activities.StartAsync("server", layout, staleAt, channel);
+
+                // On the server, for everyone at once
+                await _sender.BroadcastLiveActivityAsync(channel, "server", layout, LiveActivityEvent.Update, options, ApnsEnvironment.Production, ct);
             </Example.Code>
         </Example>
 

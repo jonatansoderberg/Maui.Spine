@@ -262,4 +262,4 @@ public sealed class GoalAlertsControl(ISettings _settings) : IControlProvider
 - Widgets and Live Activities: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/widgets.md (see "Best practice", "Limits" and "Testing")
 - Layout files: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/widget-layout-files.md
 - Server-side push for activities and widgets: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/push-notifications-server.md
-- Samples: `samples/MauiSpineSampleApp/Widgets/SampleWidget.cs`, `samples/MauiSpinePushNotificationsSampleApp/Widgets/` in https://github.com/jonatansoderberg/Maui.Spine
+- Samples: `samples/MauiSpineSampleApp/Widgets/` (`SampleWidget.cs`, `PushWidget.cs`, `RemoteWidget.cs`, `PictureWidget.cs`) in https://github.com/jonatansoderberg/Maui.Spine

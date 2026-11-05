@@ -183,9 +183,9 @@ The lookups go to `AssetsBackend` when it is set, for images served by another s
 
 ## Sample
 
-The Showcase's **AI client** page runs against the push sample server from [AI on the server](ai-server.md):
+The Showcase's **AI client** page runs against the Showcase server from [AI on the server](ai-server.md):
 
-1. Start it: `dotnet run` in `samples/MauiSpinePushNotificationsSampleApp.Server`.
+1. Start it: `dotnet run` in `samples/MauiSpineSampleApp.Server`.
 2. On Android, run `adb reverse tcp:5100 tcp:5100`. The page uses `http://localhost:5100/ai` everywhere.
 
 The **Generated images** page shows postcards from the messaging sample's API (`samples/SpineMessagingSample.*`) at `http://localhost:5240/ai`. Start it with an OpenAI key (see [Generated assets](ai-assets.md#sample)), and on Android run `adb reverse tcp:5240 tcp:5240`.
