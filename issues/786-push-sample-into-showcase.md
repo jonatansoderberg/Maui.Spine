@@ -24,6 +24,7 @@ Placement (owner's choice): two new pages, Push notifications and Local notifica
 - Azure: `Push__Apple__BundleId` on `spine-showcase-e41ddd` is now `se.cosmomedia.spineshowcase` (the other push keys were already there).
 - Simulator: the old Spine Push app uninstalled.
 - Firebase: a project of its own, Spine Showcase (`spine-showcase-56b63`, no Analytics or Gemini), with the Android app `se.cosmomedia.spineshowcase`. The repo keeps a placeholder for that package; the real `google-services.json` stays local under skip-worktree, as the push app's did.
+- FCM: the server's `Push:Fcm:ServiceAccount` (user secrets and Azure `Push__Fcm__ServiceAccount`) is the Spine Showcase project's Admin SDK service account.
 
 ## Decisions
 - `UserSecretsId` stays `maui-spine-push-sample-server`, so the keys on the Mac follow the rename.
