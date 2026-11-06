@@ -82,6 +82,19 @@ public partial class HeroCollectionView
         set => SetValue(HeaderMinHeightProperty, value);
     }
 
+    private static readonly BindablePropertyKey HeaderHeightPropertyKey =
+        BindableProperty.CreateReadOnly(nameof(HeaderHeight), typeof(double), typeof(HeroCollectionView), 230.0);
+
+    /// <summary>
+    /// The header's height as shown, where its bottom edge is: <see cref="HeaderMaxHeight"/> while expanded,
+    /// <see cref="HeaderMinHeight"/> once collapsed, and more while the list is pulled past its top. Follow
+    /// it to move a view of <see cref="HeaderTopContent"/> with the header, such as a button that joins the
+    /// top row as the header collapses.
+    /// </summary>
+    public static readonly BindableProperty HeaderHeightProperty = HeaderHeightPropertyKey.BindableProperty;
+
+    public double HeaderHeight => (double)GetValue(HeaderHeightProperty);
+
     /// <summary>
     /// What the header image does as the header collapses: stay centred in what is left showing,
     /// or slide up with the header so that its bottom edge remains.

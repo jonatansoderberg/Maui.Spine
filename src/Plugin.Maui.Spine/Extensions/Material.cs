@@ -291,6 +291,11 @@ public static class Material
 /// Catalyst 26, surfaces within <see cref="Spacing"/> of each other merge, and pull apart as they move
 /// away, as the system's own bar buttons do. Everywhere else an ordinary <see cref="ContentView"/>.
 /// </summary>
+/// <remarks>
+/// A container that spans more than its buttons, such as a header whose buttons move, sets
+/// <c>InputTransparent="True"</c> and <c>CascadeInputTransparent="False"</c> on iOS and Mac Catalyst:
+/// a touch between the buttons then reaches what is behind, and the buttons still take theirs.
+/// </remarks>
 /// <example>
 /// <code>
 /// &lt;MaterialContainer Spacing="16"&gt;

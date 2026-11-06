@@ -115,6 +115,40 @@ public static partial class SpineExtensions
 /// <summary>The glass container effect of a <see cref="MaterialContainer"/>.</summary>
 internal sealed class MaterialContainerView() : UIVisualEffectView((UIVisualEffect?)null);
 
+/// <summary>Gives a <see cref="MaterialContainer"/> a view that can let touches through its empty space.</summary>
+internal sealed class MaterialContainerHandler : ContentViewHandler
+{
+    protected override Microsoft.Maui.Platform.ContentView CreatePlatformView() =>
+        new MaterialContainerPlatformView { CrossPlatformLayout = VirtualView };
+}
+
+/// <summary>
+/// With <c>InputTransparent</c> on and <c>CascadeInputTransparent</c> off, touches that land between the
+/// glass surfaces reach what is behind the container, while the surfaces still take theirs, as a layout's
+/// children do. MAUI turns user interaction off on an input-transparent content view, which would also
+/// turn it off for everything inside.
+/// </summary>
+internal sealed class MaterialContainerPlatformView : Microsoft.Maui.Platform.ContentView
+{
+    private bool _interactive = true;
+
+    public override bool UserInteractionEnabled
+    {
+        get => base.UserInteractionEnabled;
+        set
+        {
+            base.UserInteractionEnabled = true;
+            _interactive = value;
+        }
+    }
+
+    public override UIView? HitTest(CGPoint point, UIEvent? uievent)
+    {
+        var hit = base.HitTest(point, uievent);
+        return !_interactive && (hit == this || hit is MaterialContainerView || hit?.Superview is MaterialContainerView) ? null : hit;
+    }
+}
+
 /// <summary>
 /// The material behind a view's content: one effect view at the back of the platform view, as large
 /// as it, clipped to the view's shape and, for the header bar, faded out at the bottom.

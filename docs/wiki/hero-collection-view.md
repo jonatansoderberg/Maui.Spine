@@ -90,6 +90,14 @@ The header supports several content slots for customisation:
 
 A built-in title label is always present. Control its appearance with `HeaderTitle`, `HeaderTitleColor`, `HeaderTitleFontFamily`, and `HeaderTitleFontSize`.
 
+### A button that moves with the header
+
+`HeaderHeight` (read-only) is the header's height as shown: `HeaderMaxHeight` while open, `HeaderMinHeight` once collapsed, more while the list is pulled past its top. A view of `HeaderTopContent` that follows it can travel with the header's bottom edge and join the top row as the header collapses. The Showcase's start page does this with its filter button: laid out beside the settings button, it is moved down by `HeaderHeight - HeaderMinHeight`, so it sits on the title's line while the header is open, and slides in beside settings at the end of the collapse. On iOS 26 the two are in a [`MaterialContainer`](materials.md#glass-that-merges) and their glass melts together; the filter button has no glass of its own until it is close (`samples/MauiSpineSampleApp/Pages/MainPage.cs`).
+
+### Back to the top
+
+`ScrollToTop(animate)` scrolls the list back under the open header, for when its items have changed so much that the old position means nothing, such as a new filter. iOS, Mac Catalyst and Android; not on Windows yet.
+
 ---
 
 ## Adaptive overlay
@@ -134,6 +142,7 @@ Interactive elements (buttons, etc.) inside the header are automatically exclude
 |---|---|---|---|
 | `HeaderMaxHeight` | `double` | `230` | Fully expanded header height |
 | `HeaderMinHeight` | `double` | `42` | Fully collapsed header height |
+| `HeaderHeight` | `double` | read-only | The header's height as shown, from `HeaderMinHeight` to `HeaderMaxHeight` and beyond while pulled |
 | `HeaderImageCollapse` | `HeroImageCollapse` | `Center` | What the image does as the header collapses: `Center` keeps it centred in the part still showing, `Slide` moves it up with the header so its bottom edge remains |
 | `HeaderScrollBarInset` | `double` | `0` | Inset applied to the scroll bar to avoid overlap with the header |
 
