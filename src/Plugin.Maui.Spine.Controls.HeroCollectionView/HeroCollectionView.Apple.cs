@@ -21,6 +21,12 @@ public partial class HeroCollectionView
         return Math.Max(0, scrollView.ContentOffset.Y - maxOffset);
     }
 
+    partial void ScrollToTopPartial(bool animate)
+    {
+        _nativeScrollView ??= Handler?.PlatformView is UIView view ? view as UIScrollView ?? FindScrollView(view) : null;
+        _nativeScrollView?.SetContentOffset(new CoreGraphics.CGPoint(0, -_nativeScrollView.AdjustedContentInset.Top), animate);
+    }
+
     private static UIScrollView? FindScrollView(UIView view)
     {
         foreach (var subview in view.Subviews)

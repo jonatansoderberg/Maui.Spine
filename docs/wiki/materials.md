@@ -111,6 +111,8 @@ A `MaterialContainer` holds glass surfaces that belong together. On iOS and Mac 
 </MaterialContainer>
 ```
 
+A container that spans more than its buttons, such as a header whose buttons move, sets `InputTransparent="True"` and `CascadeInputTransparent="False"`: on iOS and Mac Catalyst a touch between the buttons then reaches what is behind (the list under a header), and the buttons still take theirs, as a layout's children do. MAUI on its own turns touches off for everything inside an input-transparent `ContentView`.
+
 <p align="center">
   <img src="images/materials-container-ios.png" width="600" alt="Two glass buttons apart, and merged when they come within the container's spacing">
 </p>

@@ -20,6 +20,16 @@ public partial class HeroCollectionView
         }
     }
 
+    partial void ScrollToTopPartial(bool animate)
+    {
+        if (Handler?.PlatformView is not RecyclerView rv) return;
+
+        if (animate)
+            rv.SmoothScrollToPosition(0);
+        else
+            rv.ScrollToPosition(0);
+    }
+
     private void OnTopEdgePulled(double pull)
     {
         _topPull = pull;

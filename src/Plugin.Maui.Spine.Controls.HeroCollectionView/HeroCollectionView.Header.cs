@@ -117,6 +117,7 @@ public partial class HeroCollectionView
         if (_headerTopActionsLayout != null) _headerTopActionsLayout.HeightRequest = value;
         if (_headerBottomActionsLayout != null) _headerBottomActionsLayout.HeightRequest = value;
         if (_headerBorder is { TranslationY: 0 }) _currentHeight = value;
+        UpdateHeaderHeight();
     }
 
     private void OnHeaderImageCollapseChanged(HeroImageCollapse value)

@@ -86,6 +86,13 @@ public partial class HeroCollectionView : CollectionView
     partial void TeardownDragRegion();
     partial void OnHandlerChangedPartial();
     partial void UpdateWindowButtonClearance();
+    partial void ScrollToTopPartial(bool animate);
+
+    /// <summary>
+    /// Scrolls the list back to its top, under the expanded header: after the items change so much that
+    /// the old position means nothing, such as a new filter. Not on Windows yet.
+    /// </summary>
+    public void ScrollToTop(bool animate = true) => ScrollToTopPartial(animate);
 
     protected override void OnHandlerChanged()
     {

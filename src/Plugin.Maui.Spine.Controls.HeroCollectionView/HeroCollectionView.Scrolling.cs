@@ -65,6 +65,7 @@ public partial class HeroCollectionView
                 }
 
                 ResetHeader();
+                UpdateHeaderHeight();
                 ScheduleDragRegionUpdate();
                 UpdateWindowButtonClearance();
             }
@@ -143,9 +144,13 @@ public partial class HeroCollectionView
         ApplyImageOffset();
         if (_headerBottomActionsLayout != null) _headerBottomActionsLayout.TranslationY = translation;
         if (_overlayView != null && opacityChanged) _overlayView.Opacity = t;
+        UpdateHeaderHeight();
         ScheduleDragRegionUpdate();
         UpdateWindowButtonClearance();
     }
+
+    private void UpdateHeaderHeight() =>
+        SetValue(HeaderHeightPropertyKey, (_currentHeight >= 0 ? _currentHeight : _maxHeight) + _stretch);
 
     // The border clips the image, which moves back down by half the collapse so its middle stays
     // in the middle of what is left showing.
@@ -165,6 +170,7 @@ public partial class HeroCollectionView
         double scale = (_maxHeight + stretch) / _maxHeight;
         _headerBorder!.Scale = scale;
         if (_headerBottomActionsLayout != null) _headerBottomActionsLayout.TranslationY = stretch;
+        UpdateHeaderHeight();
 
         if (_titleLabel == null) return;
 

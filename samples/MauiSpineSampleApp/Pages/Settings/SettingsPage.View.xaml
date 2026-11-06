@@ -4,11 +4,31 @@
     x:Class="MauiSpineSampleApp.Pages.Settings.SettingsPage"
     x:TypeArguments="SettingsPageViewModel"
     x:DataType="SettingsPageViewModel"
+    xmlns:settings="clr-namespace:MauiSpineSampleApp.Pages.Settings"
     BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}">
 
     <ScrollView>
         <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Margin="0,12,0,24"
                              Spacing="28" MaximumWidthRequest="640">
+            <SpineSection Header="Display">
+                <SpineRow Icon="theme.svg" IconBackground="#007AFF" Title="Appearance" Menu="{Binding ThemeMenu}" />
+                <SpineRow Icon="palette.svg" IconBackground="#007AFF" Title="Accent" Value="{Binding AccentName}" />
+                <!-- The accents as swatches, one tap to pick: a ring round the one in use. -->
+                <FlexLayout Padding="16,10,16,14" Direction="Row" JustifyContent="SpaceBetween" AlignItems="Center"
+                            BindableLayout.ItemsSource="{Binding Accents}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="settings:AccentSwatch">
+                            <Grid WidthRequest="30" HeightRequest="30"
+                                  Tap.Command="{PageCommand PickAccent}" Tap.CommandParameter="{Binding .}"
+                                  SemanticProperties.Description="{Binding Description}">
+                                <Ellipse Stroke="{Binding Fill}" StrokeThickness="2" IsVisible="{Binding IsSelected}" />
+                                <Ellipse Fill="{Binding Fill}" Margin="4" />
+                            </Grid>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </FlexLayout>
+            </SpineSection>
+
             <SpineSection Header="About">
                 <SpineRow Icon="info.svg" IconBackground="#8E8E93" Title="About Spine Showcase"
                           Command="{Binding OpenAboutCommand}" />

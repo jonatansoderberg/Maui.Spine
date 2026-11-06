@@ -79,6 +79,7 @@ A section has a header when it has more than one row or when its row doesn't say
 | switches something on or off | a `Switch` as `Accessory`, no `Command`: a tap anywhere flips it |
 | picks one of a few options (theme, unit, language) | `Menu` with a `MenuPicker`; the pick is the row's value |
 | picks one of many options, or options with explanations | `Command` to a page of `IsSelected` rows |
+| picks a colour (an accent) | a row with the colour's name as `Value`, and under it a row of swatches, one tap to pick, a ring round the one in use; a menu shows only names |
 | shows something that works (a saved key, a linked account) | `Status="Ok"`, `Command` to manage it, no chevron |
 | shows something that needs the user (a missing key, an expired sign-in) | `Status="NeedsAttention"`, `Command` to fix it; `ShowChevron="True"` when the fix is a page |
 | leaves the app (a web page, another app, mail) | `Command`, the `ExternalLink.svg` icon, or `Mail.svg` for mail |
@@ -150,4 +151,4 @@ A release build can pin the build id with `-p:BuildId=<n>`. The widget and notif
 
 ## Sample
 
-The Showcase's settings page (the gear beside the theme button on its start page) is the About section on its own: an About sheet from `Resources/Raw/about.md`, feedback as an issue on GitHub (the Showcase is open source, so it has no mail address to write to) and the version with the day of its build. Its **Rows** page has a section of menu rows, status marks and a destructive row.
+The Showcase's settings page (the gear on its start page) has a Display section with the appearance as a menu row and the accent as swatches, and the About section: an About sheet from `Resources/Raw/about.md`, feedback as an issue on GitHub (the Showcase is open source, so it has no mail address to write to) and the version with the day of its build. Its **Rows** page has a section of menu rows, status marks and a destructive row.
