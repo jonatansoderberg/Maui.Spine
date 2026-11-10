@@ -17,7 +17,7 @@ A pushed tag still releases the version it names, which is how a prerelease is m
 The `Release` workflow (`.github/workflows/release.yml`) then:
 
 1. Checks out the whole history (the revision is the commit count) and works out the version.
-2. Builds every package project and the tests on `windows-latest` with the SDK and workload set pinned in `global.json`.
+2. Builds every package project and the tests on `windows-latest` with the newest .NET 10 SDK at or above the one in `global.json` (`rollForward: latestFeature`) and that SDK's newest workload set.
 3. Runs the tests.
 4. Packs with `-p:Version=<version>` into `artifacts/packages/`, symbols as `.snupkg`.
 5. Prints the `lib/`, `build/`, `buildTransitive/` and `native/` entries of every package, so the log shows that each one carries all four target frameworks and its build assets.
