@@ -25,6 +25,12 @@ internal sealed partial class SearchField : ContentView
 #else
         _bar = new SearchBar { VerticalOptions = LayoutOptions.Center };
 #endif
+#if WINDOWS
+        // The platform's own search box, whatever the app's implicit SearchBar style says: the MAUI
+        // template's makes it transparent and 44 tall, a bare line of placeholder text that does not
+        // read as a field, and taller than the title bar it goes in.
+        _bar.Style = new Style(typeof(SearchBar));
+#endif
         // The platform's own search field text: 17 points on Apple, Material 3's body large on Android.
 #if ANDROID
         _bar.FontSize = 16;
@@ -66,6 +72,12 @@ internal sealed partial class SearchField : ContentView
     /// keyboard going away after the search key; elsewhere it ends with the focus.
     /// </summary>
     internal bool OutlastsFocus { get; init; }
+
+    /// <summary>
+    /// The field's height in a bar that is not much taller than it (Windows' 32-point title bar), or
+    /// 0 for the platform's own. Set before the field has a handler.
+    /// </summary>
+    internal double CompactHeight { get; init; }
 
     /// <summary>
     /// How wide a region has to be for the field to go at the trailing end of its bar: narrower, as

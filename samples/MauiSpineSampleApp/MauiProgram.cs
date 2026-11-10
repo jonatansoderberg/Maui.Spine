@@ -33,7 +33,7 @@ public static class MauiProgram
             .UseSpine(options =>
             {
                 options.AddAssembly(typeof(MauiProgram).Assembly); //On Android, Assembly.GetEntryAssembly() returns null 
-                options.AppTitle = "My Maui App";
+                options.AppTitle = "Spine Showcase";
                 options.Shortcuts.UseHandler<ShortcutHandler>();
                 options.Theme.UseTokens<LightTokens, DarkTokens>();
                 options.RegionDefaults.IsTitleBarVisible = false;

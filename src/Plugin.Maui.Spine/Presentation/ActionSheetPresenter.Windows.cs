@@ -10,14 +10,18 @@ using SolidColorBrush = Microsoft.UI.Xaml.Media.SolidColorBrush;
 
 namespace Plugin.Maui.Spine.Presentation;
 
-/// <remarks>A <c>MenuFlyout</c> at the anchor, or in the middle of the window; a click outside it cancels.</remarks>
+/// <remarks>
+/// A <c>MenuFlyout</c> at the anchor; without one, where the pointer is, as a menu opened by a click
+/// is on Windows, or in the middle of the window when the pointer is outside it. A click outside it cancels.
+/// </remarks>
 internal static partial class ActionSheetPresenter
 {
     private static partial Task<MenuAction?> ShowPlatformAsync(IServiceProvider services, ActionSheet sheet, IReadOnlyList<MenuAction> actions, View? anchor)
     {
+        var window = Application.Current?.Windows.FirstOrDefault()?.Handler?.PlatformView as Microsoft.UI.Xaml.Window;
         var source = anchor?.Handler?.PlatformView as FrameworkElement;
         var target = source
-            ?? (Application.Current?.Windows.FirstOrDefault()?.Handler?.PlatformView as Microsoft.UI.Xaml.Window)?.Content as FrameworkElement
+            ?? window?.Content as FrameworkElement
             ?? throw new InvalidOperationException("ShowActionsAsync found no window to show the action sheet in.");
 
         var done = new TaskCompletionSource<MenuAction?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -51,9 +55,21 @@ internal static partial class ActionSheetPresenter
         if (source is not null)
             flyout.ShowAt(source);
         else
-            flyout.ShowAt(target, new FlyoutShowOptions { Position = new(target.ActualWidth / 2, target.ActualHeight / 2) });
+            flyout.ShowAt(target, new FlyoutShowOptions { Position = PointerPosition(window, target) ?? new(target.ActualWidth / 2, target.ActualHeight / 2) });
 
         return done.Task;
+    }
+
+    // The pointer in the window's content, in its points; null when it is outside.
+    private static global::Windows.Foundation.Point? PointerPosition(Microsoft.UI.Xaml.Window? window, FrameworkElement content)
+    {
+        if (window is null || content.XamlRoot is not { } root || !NativeMethods.GetCursorPos(out var point)
+            || !NativeMethods.ScreenToClient(WinRT.Interop.WindowNative.GetWindowHandle(window), ref point))
+            return null;
+
+        var x = point.X / root.RasterizationScale;
+        var y = point.Y / root.RasterizationScale;
+        return x >= 0 && y >= 0 && x < content.ActualWidth && y < content.ActualHeight ? new(x, y) : null;
     }
 }
 #endif

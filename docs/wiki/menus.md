@@ -40,7 +40,9 @@ var menu = new MenuItems
 ```
 
 `KeepsMenuOpen` makes a row a toggle: the pick flips `IsChecked` and the menu stays open on
-iOS 16+ and Windows. Android closes the menu on every pick, so a toggle there is a tap and a reopen.
+iOS 16+. Android and Windows close the menu on every pick, so a toggle there is a tap and a reopen.
+(WinUI's `MenuFlyout` cannot be kept open after a pick: cancelling the close it starts leaves the
+menu on screen but deaf to clicks and Esc.)
 
 `IsVisible = false` leaves a row out of the menu. `IsEnabled = false` keeps it, dimmed. A context
 menu shows only what applies, so it hides rows rather than dimming them, for example "Follow"
@@ -233,7 +235,7 @@ Action sheets:
 | iOS, iPadOS | `UIAlertController`, `ActionSheet` style | Icons as template images through the `UIAlertAction` `image` key. Destructive rows red, a Cancel row last. On iOS 26 a sheet without an anchor floats in the middle of the screen, and one with an anchor grows out of it, without the Cancel row. On iPad a popover at the anchor or centred. The sheet follows the app's Light or Dark choice. VoiceOver reads the title, message and rows; an icon adds nothing. |
 | Mac Catalyst | `UIAlertController`, `ActionSheet` style | macOS presents it as an alert with the icons and a Cancel row; the anchor is not used. |
 | Android | Material `BottomSheetDialog` | The M3 drag handle, the title and message, then one 56 dp row per action with a 24 dp icon; destructive rows in `colorError`, disabled rows dimmed. No Cancel row: a swipe down, the scrim or Back cancels. TalkBack hears the title when the sheet opens, the title as a heading and each row as a button. Long lists scroll. |
-| Windows | `MenuFlyout` | At the anchor, or in the middle of the window. The title and message are dimmed rows over a separator. A click outside cancels. |
+| Windows | `MenuFlyout` | At the anchor; without one, at the pointer, as a menu a click opens, or in the middle of the window when the pointer is outside it. The title and message are dimmed rows over a separator. A click outside cancels. |
 
 Icons are the same SVG names as everywhere else in Spine (`Plugin.Maui.Spine.Svg.Icons` or the
 app's own embedded SVGs), rendered as template images so the menu tints them.

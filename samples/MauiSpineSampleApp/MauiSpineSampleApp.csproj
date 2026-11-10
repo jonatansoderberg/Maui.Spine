@@ -38,6 +38,13 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
+	<!-- Windows names an unpackaged app after its file's description and product name, not ApplicationTitle: the
+	     header of its notifications, Settings > Notifications, Task Manager. -->
+	<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+		<AssemblyTitle>$(ApplicationTitle)</AssemblyTitle>
+		<Product>$(ApplicationTitle)</Product>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<!-- App Icon -->
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\spinelogo.png" ForegroundScale="0.8" Color="#FFFFFF" />

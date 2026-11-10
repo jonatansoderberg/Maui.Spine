@@ -278,16 +278,16 @@ public sealed class SpineOptions
     /// </summary>
     public sealed class WindowsPlatformOptions
     {
-        /// <summary>Initial window width in pixels. Used as the default size on first run.</summary>
+        /// <summary>Initial window width in effective pixels (points, scaled with the display). Used as the default size on first run.</summary>
         public int InitialWidth { get; set; } = 500;
 
-        /// <summary>Initial window height in pixels. Used as the default size on first run.</summary>
+        /// <summary>Initial window height in effective pixels (points, scaled with the display). Used as the default size on first run.</summary>
         public int InitialHeight { get; set; } = 800;
 
-        /// <summary>Minimum window width in pixels. 0 means no minimum.</summary>
+        /// <summary>Minimum window width in effective pixels. 0 means no minimum.</summary>
         public int MinWidth { get; set; } = 0;
 
-        /// <summary>Minimum window height in pixels. 0 means no minimum.</summary>
+        /// <summary>Minimum window height in effective pixels. 0 means no minimum.</summary>
         public int MinHeight { get; set; } = 0;
 
         /// <summary>When false the window is hidden from the taskbar and Alt+Tab switcher.</summary>

@@ -31,7 +31,7 @@ Placement (owner's choice): two new pages, Push notifications and Local notifica
 - The push app's `sample` widget becomes `push`: the Showcase has its own `sample`.
 - `StampTask` is dropped: a push names the Showcase's `sample-sync` in `spine.task` instead.
 - No gate on iOS device builds: the App ID has Push Notifications since 2026-11-05 and the development profile carries `aps-environment`.
-- Remote push is off on Windows (`SpinePushNotificationsRemote=false`): WNS needs a framework-dependent Windows App SDK, which would change how the Showcase ships on Windows. Local notifications still work there.
+- Remote push is off on Windows (`SpinePushNotificationsRemote=false`): WNS needs a framework-dependent Windows App SDK, which would change how the Showcase ships on Windows. (Local notifications do not work there either: they need package identity, and the Showcase is unpackaged. Found in #501.)
 
 ## Verified
 - iOS simulator (iPhone 17, iOS 26.4): the list rows, the Push notifications page (permission prompt, status), the Widgets page's new buttons, `xcrun simctl push` in the foreground (logged, answered None) and opened from the background (route `log` opens the Push log).

@@ -124,6 +124,10 @@ On Windows, the header area automatically acts as a window drag region when `Ena
 
 Interactive elements (buttons, etc.) inside the header are automatically excluded from the drag region. Use `IsInteractiveElementOverride` to mark additional elements that should receive pointer input instead of initiating a drag.
 
+The header drags the window only while it is in the window: a page pushed over the hero's page takes it out, and the header gives the region back until its page shows again.
+
+In a Spine app the header registers only its drag region, and Spine decides what takes clicks in it: every button, field or other control that is on top there, the header bar's buttons over the photo included (see [Page actions → Desktop (Windows)](page-actions.md#desktop-windows)). `IsInteractiveElementOverride` then has no effect.
+
 ---
 
 ## Property reference — Header image & title

@@ -256,4 +256,12 @@ public partial class HeroCollectionView
     /// Typically wired up once by <c>SpineApplication</c> — you do not need to set this manually.
     /// </summary>
     public static Action<Color>? CaptionButtonColorRequested { get; set; }
+
+    /// <summary>
+    /// Set by a host that keeps the window's passthrough regions itself — <c>SpineApplication</c> on
+    /// Windows, which makes every control on top of a caption region clickable, its header bar's
+    /// included. The header then registers only its caption region and calls this after each change.
+    /// When <see langword="null"/>, the header also registers its own interactive children as passthrough.
+    /// </summary>
+    public static Action? HostPassthroughRequested { get; set; }
 }

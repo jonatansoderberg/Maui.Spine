@@ -424,6 +424,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     static void OnIsTitleBarVisibleChanged(BindableObject bindable, object oldValue, object newValue)
     {
         var view = (HeaderBarView)bindable;
+        view.UpdatePrimaryActionVisibility();
         view.UpdateSecondaryActionVisibility();
         foreach (var more in view._moreTrailing)
             view.UpdateMoreTrailingVisibility(more);
@@ -459,7 +460,10 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     void UpdatePrimaryActionVisibility()
     {
         UpdateActionWidth(_primaryPageActionView);
-        bool shouldShow = IsBackButtonVisible && _primaryPageActionView.Action is { IsVisible: true };
+        // The window's title bar shows a region page's leading action (Back) when it is visible; a second one here would repeat it.
+        bool shouldShow = IsBackButtonVisible
+            && !(IsWindowsDesktop() && IsTitleBarVisible && Presentation is NavigationPresentation.Region)
+            && _primaryPageActionView.Action is { IsVisible: true };
         _ = AnimateVisibility(_primaryPageActionView, shouldShow);
     }
 
@@ -810,6 +814,20 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
     readonly Dictionary<View, int> _visibilityVersions = [];
 
+    // An animation runs on the animation manager of the window the view is in. A view that is in none
+    // yet (a title bar's action set before the title bar is shown) takes its end state at once;
+    // FadeToAsync would throw, unobserved, from the discarded task.
+    static bool CanAnimate(Element view)
+    {
+        for (Element? element = view; element is not null; element = element.Parent)
+        {
+            if (element.Handler?.MauiContext is not null)
+                return true;
+        }
+
+        return false;
+    }
+
     // A navigation bar item fades and grows in, and fades and shrinks out. Liquid Glass cannot fade
     // through its alpha (it turns flat grey), so glass materializes and dissolves instead.
     async Task AnimateVisibility(View? target, bool show, bool scales = true)
@@ -831,6 +849,13 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
             target.IsVisible = true;
             PublishActionSlots();
+
+            if (!CanAnimate(target))
+            {
+                target.Opacity = 1;
+                target.Scale = 1;
+                return;
+            }
 
 #if IOS || MACCATALYST
             if (GlassAppearance.Applies(target))
@@ -887,6 +912,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             }
             else
 #endif
+            if (CanAnimate(target))
             {
                 await Task.WhenAll(
                     target.FadeToAsync(0, outDuration, PageActionView.TransitionEasing),
