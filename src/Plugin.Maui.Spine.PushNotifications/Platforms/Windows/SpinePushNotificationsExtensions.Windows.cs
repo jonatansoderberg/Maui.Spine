@@ -117,13 +117,23 @@ public static partial class SpinePushNotificationsExtensions
             }
 
             AppNotificationManager.Default.NotificationInvoked += (_, args) => Invoked(options, args.Argument, args.UserInput);
-            AppNotificationManager.Default.Register();
+
+            // An unpackaged app's notifications are otherwise named after its .exe file (MauiSpineSampleApp), not
+            // its title; the app's name (AssemblyTitle) and MAUI's app icon next to the .exe name them instead.
+            if (AppInfo.Current.PackagingModel == AppPackagingModel.Unpackaged
+                && Directory.EnumerateFiles(AppContext.BaseDirectory, "*.ico").FirstOrDefault() is { } icon
+                && !string.IsNullOrWhiteSpace(AppInfo.Current.Name))
+                AppNotificationManager.Default.Register(AppInfo.Current.Name, new Uri(icon));
+            else
+                AppNotificationManager.Default.Register();
         }
         catch (Exception e)
         {
+            var hint = WindowsPushPlatform.RuntimeHint(e.HResult);
             Logger?.LogError(e,
-                "Spine.PushNotifications: AppNotificationManager.Register() failed (HRESULT 0x{HResult:X8}); tapped notifications will not reach the handler. " +
-                "A packaged app needs the toast activator in Package.appxmanifest — see the wiki's Windows section.", e.HResult);
+                "Spine.PushNotifications: AppNotificationManager.Register() failed (HRESULT 0x{HResult:X8}); tapped notifications will not reach the handler." +
+                (hint.Length > 0 ? "{Hint}" : " A packaged app needs the toast activator in Package.appxmanifest — see the wiki's Windows section.{Hint}"),
+                e.HResult, hint);
         }
     }
 
@@ -171,9 +181,33 @@ public static partial class SpinePushNotificationsExtensions
         // should navigate once the first page is up.
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            // A toast tapped while the app is behind other windows does not bring it forward by itself.
-            (Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Handler?.PlatformView as Microsoft.UI.Xaml.Window)?.Activate();
+            BringForward(Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Handler?.PlatformView as Microsoft.UI.Xaml.Window);
             OpenedAsync(Services(), message, action).SafeFireAndForget();
         });
     }
+
+    // A toast tapped while the app is minimised or behind other windows does not bring it forward by
+    // itself, and Activate() alone neither restores a minimised window nor takes the foreground. The
+    // tap gives the app the right to take it.
+    private static void BringForward(Microsoft.UI.Xaml.Window? window)
+    {
+        if (window is null)
+            return;
+
+        var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        if (Microsoft.UI.Windowing.AppWindow.GetFromWindowId(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd)) is { } appWindow)
+        {
+            if (!appWindow.IsVisible)
+                appWindow.Show();
+            if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized } presenter)
+                presenter.Restore();
+        }
+
+        window.Activate();
+        SetForegroundWindow(hWnd);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 }

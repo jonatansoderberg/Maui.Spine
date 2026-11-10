@@ -86,6 +86,10 @@ public partial class HeroCollectionView
         _headerBorder.SizeChanged += OnDragRegionInvalidated;
         _headerBorder.Loaded += OnDragRegionInvalidated;
 
+        // A page pushed over this one takes it out of the window; its header must stop dragging the
+        // window there, and drag it again when the page comes back.
+        this.Unloaded += OnUnloadedReleaseDragRegion;
+
         if (_headerTopActionsLayout != null)
             _headerTopActionsLayout.SizeChanged += OnDragRegionInvalidated;
         if (_headerBottomActionsLayout != null)
@@ -102,6 +106,17 @@ public partial class HeroCollectionView
         }
 
         ScheduleDragRegionUpdate();
+    }
+
+    private void OnUnloadedReleaseDragRegion(object? sender, EventArgs e)
+    {
+        TeardownDragRegion();
+
+        if (EnableHeaderAsDragRegionOnWindows && !_dragSetupDeferred)
+        {
+            _dragSetupDeferred = true;
+            this.Loaded += OnLoadedRetrySetup;
+        }
     }
 
     private void OnLoadedRetrySetup(object? sender, EventArgs e)
@@ -123,6 +138,7 @@ public partial class HeroCollectionView
 
         if (!_dragRegionHooked) return;
         _dragRegionHooked = false;
+        this.Unloaded -= OnUnloadedReleaseDragRegion;
 
         if (_headerBorder != null)
         {
@@ -144,9 +160,12 @@ public partial class HeroCollectionView
         try
         {
             _nonClientPointerSource?.ClearRegionRects(NonClientRegionKind.Caption);
-            _nonClientPointerSource?.ClearRegionRects(NonClientRegionKind.Passthrough);
+            if (HostPassthroughRequested is null)
+                _nonClientPointerSource?.ClearRegionRects(NonClientRegionKind.Passthrough);
         }
         catch { /* window may already be torn down */ }
+
+        HostPassthroughRequested?.Invoke();
 
         _dragAppWindow = null;
         _dragWinUIWindow = null;
@@ -204,6 +223,27 @@ public partial class HeroCollectionView
         var captionRect = ToScaledRect(new Rect(visibleLeft, visibleTop, headerWidth, visibleHeight), scale);
         var captionRects = new[] { captionRect };
 
+        if (HostPassthroughRequested is { } host)
+        {
+            if (RectArraysEqual(_lastCaptionRects, captionRects))
+                return;
+
+            _lastCaptionRects = captionRects;
+            _lastPassthroughRects = [];
+
+            try
+            {
+                _nonClientPointerSource.SetRegionRects(NonClientRegionKind.Caption, captionRects);
+            }
+            catch
+            {
+                // Window may already be torn down.
+            }
+
+            host();
+            return;
+        }
+
         // Build passthrough rects from interactive children (buttons, entries, etc.).
         _excludeRectBuffer.Clear();
         CollectInteractiveElementBounds(_headerTopActionsLayout, visibleLeft, visibleTop, _excludeRectBuffer);
@@ -250,6 +290,17 @@ public partial class HeroCollectionView
 
         try
         {
+            // With a host keeping the passthrough regions, only the caption region is the header's.
+            if (HostPassthroughRequested is { } host)
+            {
+                if (!RectArraysEqual(_nonClientPointerSource.GetRegionRects(NonClientRegionKind.Caption), _lastCaptionRects))
+                {
+                    _nonClientPointerSource.SetRegionRects(NonClientRegionKind.Caption, _lastCaptionRects);
+                    host();
+                }
+                return;
+            }
+
             var currentPassthrough = _nonClientPointerSource.GetRegionRects(NonClientRegionKind.Passthrough);
             if (!RectArraysEqual(currentPassthrough, _lastPassthroughRects))
             {

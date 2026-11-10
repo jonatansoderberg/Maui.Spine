@@ -18,9 +18,18 @@ public partial class SpineApplication<TNavigable>
     /// <summary>The title bar's height, which the field keeps so the bar does not grow with it (see <see cref="SetTitleBarVisibilityAsync"/>).</summary>
     private const double TitleBarSearchHeight = 32;
 
+    /// <summary>Narrower than this, the field goes in the row below the header bar instead, until the title bar has the room.</summary>
+    private const double TitleBarSearchMinWidth = 200;
+
     private SearchField? _titleBarSearch;
     private IView? _appTitleBarContent;
     private ViewModelBase? _replacedTitleBarReported;
+
+    // How wide the title bar must be for the field of _titleBarSearchMeasured to have its minimum
+    // width; 0 while it fits. Learnt from the field's width the one time it is too narrow.
+    private double _titleBarSearchNeedsWidth;
+    private ViewModelBase? _titleBarSearchMeasured;
+    private bool _titleBarSubtitleHidden;
 
     private void InitializeTitleBarSearch()
     {
@@ -34,15 +43,25 @@ public partial class SpineApplication<TNavigable>
             HeightRequest = TitleBarSearchHeight,
             MaximumWidthRequest = TitleBarSearchMaxWidth,
             VerticalOptions = LayoutOptions.Center,
+            CompactHeight = TitleBarSearchHeight - 4,
         };
 
         _titleBar.PropertyChanged += OnTitleBarPropertyChanged;
+        _titleBarSearch.SizeChanged += OnTitleBarSearchSizeChanged;
+        if (_titleBarWindow is not null)
+            _titleBarWindow.SizeChanged += OnTitleBarWindowSizeChanged;
     }
 
     private void DetachTitleBarSearch()
     {
         if (_titleBar is not null)
             _titleBar.PropertyChanged -= OnTitleBarPropertyChanged;
+
+        if (_titleBarWindow is not null)
+            _titleBarWindow.SizeChanged -= OnTitleBarWindowSizeChanged;
+
+        if (_titleBarSearch is not null)
+            _titleBarSearch.SizeChanged -= OnTitleBarSearchSizeChanged;
 
         if (_titleBarSearch is not null)
             _titleBarSearch.Search = null;
@@ -53,6 +72,9 @@ public partial class SpineApplication<TNavigable>
         _titleBarSearch = null;
         _appTitleBarContent = null;
         _replacedTitleBarReported = null;
+        _titleBarSearchMeasured = null;
+        _titleBarSearchNeedsWidth = 0;
+        _titleBarSubtitleHidden = false;
     }
 
     private void UpdateTitleBarSearch()
@@ -63,11 +85,18 @@ public partial class SpineApplication<TNavigable>
         var page = _titleBarPage;
         var host = _titleBarHost;
 
-        // The page resolves to the title bar only while the window shows Spine's title bar; with the
-        // app's own, its field goes in the row below the header bar.
+        // Another page has its own title and actions, so its own room for the field.
+        if (!ReferenceEquals(page, _titleBarSearchMeasured))
+        {
+            _titleBarSearchMeasured = page;
+            _titleBarSearchNeedsWidth = 0;
+        }
+
+        // The page resolves to the title bar only while the window shows Spine's title bar and that
+        // has room for the field; with the app's own, or too narrow, it goes in the row below the header bar.
         var owned = ReferenceEquals(_titleBarWindow?.TitleBar, _titleBar);
         if (page is not null)
-            page.IsInWindowTitleBar = owned;
+            page.IsInWindowTitleBar = owned && _titleBarSearchNeedsWidth <= 0;
 
         if (owned)
             _replacedTitleBarReported = null;
@@ -85,6 +114,7 @@ public partial class SpineApplication<TNavigable>
             if (ReferenceEquals(_titleBar.Content, _titleBarSearch))
                 _titleBar.Content = _appTitleBarContent;
             _appTitleBarContent = null;
+            ShowTitleBarSubtitle(true);
             return;
         }
 
@@ -95,6 +125,46 @@ public partial class SpineApplication<TNavigable>
         }
 
         _titleBarSearch.Search = search;
+        ShowTitleBarSubtitle(false);
+    }
+
+    // The subtitle is the page's title, which the header bar shows right under it; while the field
+    // is in the title bar, it gives the field its room.
+    private void ShowTitleBarSubtitle(bool show)
+    {
+        if (_titleBar is null || _titleBarSubtitleHidden == !show)
+            return;
+
+        _titleBarSubtitleHidden = !show;
+        if (show)
+            _titleBar.SetBinding(TitleBar.SubtitleProperty, "CurrentRegionViewModel.Title");
+        else
+        {
+            _titleBar.RemoveBinding(TitleBar.SubtitleProperty);
+            _titleBar.Subtitle = null;
+        }
+    }
+
+    // The field in the title bar gets what the title and the actions leave. Too narrow, it learns how
+    // much wider the window has to be, and goes in the row below the header bar until it is. (The
+    // window's width: MAUI lays the title bar out in WinUI, and its own Width stays unset.)
+    private void OnTitleBarSearchSizeChanged(object? sender, EventArgs e)
+    {
+        if (_titleBar is not { } titleBar || _titleBarWindow is not { Width: > 0 } window || _titleBarSearch is not { Width: >= 0 } field
+            || !ReferenceEquals(titleBar.Content, field) || field.Width >= TitleBarSearchMinWidth)
+            return;
+
+        _titleBarSearchNeedsWidth = window.Width + TitleBarSearchMinWidth - field.Width;
+        titleBar.Dispatcher.Dispatch(UpdateTitleBarSearch);
+    }
+
+    private void OnTitleBarWindowSizeChanged(object? sender, EventArgs e)
+    {
+        if (_titleBar is null || _titleBarWindow is not { } window || _titleBarSearchNeedsWidth <= 0 || window.Width < _titleBarSearchNeedsWidth)
+            return;
+
+        _titleBarSearchNeedsWidth = 0;
+        _titleBar.Dispatcher.Dispatch(UpdateTitleBarSearch);
     }
 
     // Once per page: the page asks for the title bar, but the app has put its own TitleBar on the

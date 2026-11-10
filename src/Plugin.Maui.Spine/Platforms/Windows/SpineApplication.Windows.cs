@@ -215,6 +215,10 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         try
         {
+            // Hidden, the title bar is only transparent: its buttons would still take the clicks meant
+            // for the header bar that has moved up under it.
+            _titleBar.InputTransparent = !isVisible;
+
             if (isVisible)
             {
                 if (Math.Abs(hostPage.Padding.Top - 0) < 0.1 && _titleBar.Opacity >= 0.99)
@@ -240,6 +244,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         finally
         {
             _isTitleBarAnimating = false;
+            ScheduleNonClientUpdate();
         }
 
         // A tab switch or host swap during the animation was dropped by the guard above.
@@ -287,10 +292,13 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         // --- System backdrop ---
         ApplyWindowBackdrop(winuiWindow, windowsOptions.Backdrop);
+        ApplyWindowBackground(winuiWindow, windowsOptions.Backdrop);
 
         var hWnd = winuiWindow.GetWindowHandle();
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
+        HookNonClientRegions(winuiWindow, windowId);
+        mauiWindow.Destroying += (_, _) => UnhookNonClientRegions();
 
         // --- Window manager (WinUIEx) ---
         _windowManager = WinUIEx.WindowManager.Get(winuiWindow);
@@ -310,7 +318,10 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         }
 
         // --- Size & position ---
-        _appWindow.Resize(new SizeInt32(windowsOptions.InitialWidth, windowsOptions.InitialHeight));
+        // The options are effective pixels, as MinWidth and MinHeight are; AppWindow sizes in the display's pixels.
+        var dpiScale = NativeMethods.GetDpiForWindow(hWnd) / 96.0;
+        if (dpiScale <= 0) dpiScale = 1;
+        _appWindow.Resize(new SizeInt32((int)Math.Round(windowsOptions.InitialWidth * dpiScale), (int)Math.Round(windowsOptions.InitialHeight * dpiScale)));
         _appWindow.Move(CalculateStartupPosition(_appWindow, windowsOptions.StartupPosition));
 
         if (windowsOptions.PersistWindowPosition)
@@ -462,6 +473,12 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             ?.GetProperty("CaptionButtonColorRequested",
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
             ?.SetValue(null, (Action<Color>)ApplyCaptionButtonColor);
+
+        // A hero header then sets only its caption region, and Spine the passthrough regions in it.
+        controlsType
+            ?.GetProperty("HostPassthroughRequested",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            ?.SetValue(null, (Action)ScheduleNonClientUpdate);
     }
 
     private void ApplyCaptionButtonColor(Color mauiColor)
@@ -585,14 +602,37 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         };
     }
 
-    private static void ApplyHostBackgroundForBackdrop(ISpineHost host)
+    private void ApplyHostBackgroundForBackdrop(ISpineHost host)
     {
         // When a system backdrop is active the host page's background colour (set by the
         // app's ContentPage style) would paint over the entire window, hiding the effect.
         // Clearing it to Transparent lets the Mica / Acrylic material show through. Without a
         // backdrop the page is left alone: a local null would also override the app's style.
         if (_services.GetRequiredService<SpineOptions>().Windows.Backdrop is not WindowBackdrop.None)
+        {
             host.HostPage.BackgroundColor = Colors.Transparent;
+            return;
+        }
+
+        // Without a backdrop nothing is behind the transparent title bar; it takes the page's colour,
+        // and follows it through a theme change.
+        _titleBar?.SetBinding(VisualElement.BackgroundColorProperty, new Binding(nameof(VisualElement.BackgroundColor), source: host.HostPage));
+    }
+
+    // Without a backdrop the window's content is transparent over nothing, which draws black: behind
+    // the title bar, and behind a page without a background of its own. The theme's page colour instead.
+    private static void ApplyWindowBackground(WinUIWindow window, WindowBackdrop backdrop)
+    {
+        if (backdrop is not WindowBackdrop.None
+            || !Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("ApplicationPageBackgroundThemeBrush", out var brush)
+            || brush is not Microsoft.UI.Xaml.Media.Brush pageBrush)
+            return;
+
+        switch (window.Content)
+        {
+            case Microsoft.UI.Xaml.Controls.Panel panel: panel.Background ??= pageBrush; break;
+            case Microsoft.UI.Xaml.Controls.Control control: control.Background ??= pageBrush; break;
+        }
     }
 
     private void ConfigureWindowsTitleBar(bool isTitleBarVisible)
@@ -721,4 +761,22 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetCursorPos(out POINT point);
+
+    [DllImport("user32.dll")]
+    internal static extern uint GetDpiForWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ScreenToClient(IntPtr hWnd, ref POINT point);
 }

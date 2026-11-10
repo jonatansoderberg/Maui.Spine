@@ -109,6 +109,18 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
     public Task FollowChannelsAsync(IReadOnlySet<string> channels) => Task.CompletedTask;
 
     /// <summary>
+    /// What a "class not registered" (REGDB_E_CLASSNOTREG) means for an unpackaged app: the Windows App
+    /// Runtime's push and notification servers are in its Singleton package, which only the runtime's own
+    /// installer adds. The framework package a Store app brings along is enough to start, not for push.
+    /// Empty otherwise.
+    /// </summary>
+    internal static string RuntimeHint(int hresult) =>
+        hresult == unchecked((int)0x80040154) && AppInfo.Current.PackagingModel == AppPackagingModel.Unpackaged
+            ? " The Windows App Runtime's push service is not installed on this machine: an unpackaged app needs the runtime installed with its own " +
+              "installer (WindowsAppRuntimeInstall, or winget install Microsoft.WindowsAppRuntime.1.8), which adds its Singleton package."
+            : "";
+
+    /// <summary>
     /// Subscribes to raw pushes and registers with the Windows App SDK. The handler goes first: the SDK
     /// throws "Must register event handlers before calling Register()" otherwise.
     /// </summary>
@@ -129,7 +141,7 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
         }
         catch (Exception e)
         {
-            Logger?.LogError(e, "Spine.PushNotifications: PushNotificationManager.Register() failed (HRESULT 0x{HResult:X8}); this app gets no raw pushes.", e.HResult);
+            Logger?.LogError(e, "Spine.PushNotifications: PushNotificationManager.Register() failed (HRESULT 0x{HResult:X8}); this app gets no raw pushes.{Hint}", e.HResult, RuntimeHint(e.HResult));
         }
         finally
         {
@@ -180,11 +192,14 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
 
             if (result.Status != PushNotificationChannelStatus.CompletedSuccess || result.Channel is not { } channel)
             {
+                var hresult = result.ExtendedError?.HResult ?? 0;
                 Logger?.LogWarning(
-                    "Spine.PushNotifications: WNS gave no channel ({Status}, HRESULT 0x{HResult:X8}: {Error}). Check that Windows.RemoteId ({RemoteId}) " +
-                    "is the Object ID of the Entra app's service principal (Managed application in local directory), that the registration is multitenant, " +
-                    "and for a packaged app that Microsoft has mapped its package family name.",
-                    result.Status, result.ExtendedError?.HResult ?? 0, result.ExtendedError?.Message, remoteId);
+                    RuntimeHint(hresult) is { Length: > 0 } hint
+                        ? "Spine.PushNotifications: WNS gave no channel ({Status}, HRESULT 0x{HResult:X8}: {Error})." + hint
+                        : "Spine.PushNotifications: WNS gave no channel ({Status}, HRESULT 0x{HResult:X8}: {Error}). Check that Windows.RemoteId ({RemoteId}) " +
+                          "is the Object ID of the Entra app's service principal (Managed application in local directory), that the registration is multitenant, " +
+                          "and for a packaged app that Microsoft has mapped its package family name.",
+                    result.Status, hresult, result.ExtendedError?.Message, remoteId);
                 return;
             }
 

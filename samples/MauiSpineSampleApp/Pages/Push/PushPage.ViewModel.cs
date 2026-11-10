@@ -327,7 +327,7 @@ public partial class PushPageViewModel : SampleViewModel
     private string TokenHint()
     {
         if (_push.Status == PushStatus.Unsupported)
-            return "The Showcase has no remote push on this platform (Windows). Local notifications still work.";
+            return "The Showcase has no push on Windows: it runs unpackaged and self-contained, and WNS needs the installed Windows App Runtime. Local notifications need an MSIX package as well.";
         if (_push.Token is not null) return "";
 
         if (DeviceInfo.Current.Platform == DevicePlatform.Android)

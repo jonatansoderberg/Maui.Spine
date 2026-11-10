@@ -520,6 +520,25 @@ it; the fix is one property, after which the machine needs the
 <WindowsAppSDKSelfContained Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">false</WindowsAppSDKSelfContained>
 ```
 
+**The runtime from its installer.** Push and tapped notifications in an unpackaged app run in the
+runtime's Singleton package, which only the runtime's own installer adds (`WindowsAppRuntimeInstall`,
+or `winget install Microsoft.WindowsAppRuntime.1.8`). The framework package a Store app brings along is
+enough for the app to start, and `Register()` then fails with `0x80040154` (class not registered); the
+log says so and names the installer. When winget says the runtime is already installed (it sees the
+framework package), add `--force`.
+
+**The name and icon in notifications.** Windows names an unpackaged app's notifications after its
+`.exe` file (`MyApp.exe`, not the app's title). Spine registers them with `AppInfo.Current.Name` (the
+`AssemblyTitle`) and the `.ico` MAUI puts next to the `.exe`, so set `AssemblyTitle` (and `Product`, for
+Task Manager) on the Windows target:
+
+```xml
+<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <AssemblyTitle>$(ApplicationTitle)</AssemblyTitle>
+    <Product>$(ApplicationTitle)</Product>
+</PropertyGroup>
+```
+
 **Not elevated.** An app run as administrator gets no push; `Status` is `Unsupported` and the log says
 why.
 

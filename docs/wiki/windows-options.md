@@ -38,10 +38,10 @@ builder.UseSpine(options =>
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `InitialWidth` | `int` | `500` | Initial window width in pixels |
-| `InitialHeight` | `int` | `800` | Initial window height in pixels |
-| `MinWidth` | `int` | `0` | Minimum window width (0 = no minimum) |
-| `MinHeight` | `int` | `0` | Minimum window height (0 = no minimum) |
+| `InitialWidth` | `int` | `500` | Initial window width in effective pixels (scaled with the display, as MAUI's sizes are) |
+| `InitialHeight` | `int` | `800` | Initial window height in effective pixels |
+| `MinWidth` | `int` | `0` | Minimum window width in effective pixels (0 = no minimum) |
+| `MinHeight` | `int` | `0` | Minimum window height in effective pixels (0 = no minimum) |
 | `PersistWindowPosition` | `bool` | `false` | Save and restore position/size across sessions |
 | `StartupPosition` | `WindowStartupPosition` | `Center` | Where the window opens on first run |
 

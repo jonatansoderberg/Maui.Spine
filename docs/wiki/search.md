@@ -81,7 +81,7 @@ Without the attribute, set `Search = new PageSearch { Placeholder = "…", Submi
 | iPhone | A row below the header bar | A row below the header bar |
 | iPad and Mac Catalyst | At the trailing end of the header bar, left of the trailing action; a row below the bar when the window is narrower than 600 points (Split View, a small window) | A row below the header bar |
 | Android | A Material 3 capsule in a row below the header bar | The same |
-| Windows | In the window's title bar, centred, while the page shows it (`IsTitleBarVisible`); a row below the header bar otherwise | A row below the header bar |
+| Windows | In the window's title bar, centred, while the page shows it (`IsTitleBarVisible`) and it has 200 points for the field; a row below the header bar otherwise | A row below the header bar |
 | A sheet, anywhere | A row below the sheet's header bar | The same |
 
 - **The row is part of the header.** It moves with the page in a push or a pop, the way the title does. Under a floating header (`Overlay`, a large title, or a scroll edge background) content scrolls under the row as well as the bar: `SafeAreaInsets.Top` and the scroll inset include it, and the scroll edge effect or solid background reaches below it.
@@ -92,8 +92,12 @@ Without the attribute, set `Search = new PageSearch { Placeholder = "…", Submi
 
 ### In Windows' title bar
 
-On Windows a region page that shows the window's title bar (`IsTitleBarVisible`, the default on the desktop) has its field in the middle of the title bar, `TitleBar.Content`, where File Explorer and Settings put search, and no row below the header bar. It is the same field as the row's, MAUI's `SearchBar` (an `AutoSuggestBox`), up to 360 points wide and as tall as the title bar (32), so text, the search key and `IsActive` behave as everywhere else; the search follows the focus.
+On Windows a region page that shows the window's title bar (`IsTitleBarVisible`, the default on the desktop) has its field in the middle of the title bar, `TitleBar.Content`, where File Explorer and Settings put search, and no row below the header bar. It is the same field as the row's, MAUI's `SearchBar` (an `AutoSuggestBox`), up to 360 points wide and 28 tall in the 32-point title bar, so text, the search key and `IsActive` behave as everywhere else; the search follows the focus.
 
+- **It looks like Windows' own search box** everywhere, the row included: Spine gives its `SearchBar` an empty style of its own, so an app's implicit `SearchBar` style (the MAUI template's is transparent and 44 tall) does not reach it.
+- **The subtitle gives way.** While the field is in the title bar, the title bar shows no subtitle: it is the page's title, which the header bar shows right under it.
+- **Too narrow, it goes in the row.** When the title bar leaves the field less than 200 points, the field goes in the row below the header bar until the window is wide enough, keeping its text.
+- **Esc ends the search**, as in a Mac or iPad field: the focus leaves the field and the text stays.
 - **It follows the page.** Spine swaps the field on every navigation and tab switch, and takes it away while a sheet is open (the sheet's own field is in its row) and on a page without search, `Top` or a hidden title bar.
 - **The app's own content comes back.** Whatever the app has put in `TitleBar.Content` is kept while a searching page shows and put back when none does; content the app sets meanwhile is what comes back.
 - **Only the page the title bar shows.** That is the current page of the root region (the selected tab's); a page anywhere else, a sheet or a lightbox, keeps its row.
@@ -102,7 +106,7 @@ On Windows a region page that shows the window's title bar (`IsTitleBarVisible`,
 
 > **Behaviour change.** `SearchInTitleBar` is on by default. A Windows page with `[PageSearch]` and the desktop defaults (title bar shown, header bar hidden) showed no field before, because the row needs a header bar; it now shows one in the title bar. A page that shows both bars has its field move from the row to the title bar. Set `options.Windows.SearchInTitleBar = false` to keep the earlier layout.
 
-The title bar field has been compiled but not yet run on Windows; [#501](https://github.com/jonatansoderberg/Maui.Spine/issues/501) tracks the check.
+The title bar field has been run on Windows 11 (#501); the app's own `TitleBar.Content`, a replaced title bar and tab apps are still to be checked there ([#501](https://github.com/jonatansoderberg/Maui.Spine/issues/501)).
 
 <img src="images/search-mac.png" width="482" alt="The search field at the trailing end of the header bar on Mac Catalyst, left of the theme button">
 
