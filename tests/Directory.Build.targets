@@ -1,0 +1,11 @@
+<Project>
+
+	<!-- The release builds the tests with the packages' -p:Version, major.yyMMdd.revision, and an assembly version part
+	     stops at 65535 (CS7034): as src/Directory.Build.targets does for the packages, the assembly version carries the
+	     major alone and the file version splits the date, 0.261031.812 → 0.26.1031.812. -->
+	<PropertyGroup Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(Version)', '^\d+\.\d{6}\.\d+'))">
+		<AssemblyVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(Version)', '^(\d+)\..*$', '$1.0.0.0'))</AssemblyVersion>
+		<FileVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(Version)', '^(\d+)\.(\d\d)0*(\d+)\.(\d+).*$', '$1.$2.$3.$4'))</FileVersion>
+	</PropertyGroup>
+
+</Project>
