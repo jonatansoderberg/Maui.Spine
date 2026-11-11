@@ -159,7 +159,7 @@ internal sealed class SpineAuth : ISpineAuth
         {
             return SignInResult.Failure(_options.Passkeys is null
                 ? "Passkeys are not set up: reference Plugin.Maui.Spine.Authentication.Passkeys and add a.AddPasskeys()."
-                : "This device has no passkeys (iOS and Mac Catalyst 16 or later; Android #601, Windows #602).");
+                : "This device has no passkeys (iOS and Mac Catalyst 16 or later, Windows 10 1903 or later; Android #601).");
         }
 
         try

@@ -5,10 +5,11 @@ public static class SpinePasskeyExtensions
 {
     /// <summary>
     /// Passkeys through the platform's own sheet: "Sign in with a passkey" and "Create account with a passkey" in the
-    /// sign-in sheet, passkeys offered by AutoFill in its email field, and <c>LinkAsync("passkey")</c> to add one to the
-    /// signed-in account. On iOS and Mac Catalyst 16 or later; elsewhere the sheet leaves them out (Android #601,
-    /// Windows #602). The server configures <c>Passkeys(p =&gt; p.RelyingPartyId = …)</c>, and the project sets
-    /// <c>&lt;SpinePasskeyDomain&gt;</c> to the same domain.
+    /// sign-in sheet, passkeys offered by AutoFill in its email field (iOS), and <c>LinkAsync("passkey")</c> to add one
+    /// to the signed-in account. On iOS and Mac Catalyst 16 or later and on Windows 10 1903 or later (Windows Hello, a
+    /// phone or a security key); elsewhere the sheet leaves them out (Android #601). The server configures
+    /// <c>Passkeys(p =&gt; p.RelyingPartyId = …)</c>, and an iOS or Mac project sets <c>&lt;SpinePasskeyDomain&gt;</c> to
+    /// the same domain; Windows needs no association.
     /// </summary>
     /// <param name="options">The sign-in options.</param>
     /// <param name="configure">Changes what the sheet offers.</param>
@@ -29,8 +30,13 @@ public static class SpinePasskeyExtensions
         var passkeys = new SpinePasskeySignInOptions();
         configure?.Invoke(passkeys);
 
+#if WINDOWS
+        return options.AddPasskeyCeremony(new PasskeyProvider(
+            WindowsPasskeys.IsSupported, SupportsAutoFill: false, passkeys.AllowSignUp, _ => new WindowsPasskeys()));
+#else
         return options.AddPasskeyCeremony(new PasskeyProvider(
             ApplePasskeys.IsSupported, ApplePasskeys.SupportsAutoFill, passkeys.AllowSignUp, _ => new ApplePasskeys()));
+#endif
     }
 }
 
