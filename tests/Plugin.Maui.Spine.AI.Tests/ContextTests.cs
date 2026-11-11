@@ -32,7 +32,8 @@ public sealed class ContextTests
         var user = await context.GetUserAsync();
         Assert.Equal(("Anna", "anna@example.com"), (user?.DisplayName, user?.Email));
         Assert.Equal(("conv-1", "call_1"), (context.ConversationId, context.CallId));
-        Assert.Equal(TimeZoneInfo.Local, context.GetTimeZone());
+        // Windows: the context carries the IANA id, so its zone is the local one under another Id.
+        Assert.True(TimeZoneInfo.Local.HasSameRules(context.GetTimeZone()));
         Assert.False(string.IsNullOrEmpty(context.TimeZone));
     }
 
