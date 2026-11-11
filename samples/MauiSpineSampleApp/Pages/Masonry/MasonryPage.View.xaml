@@ -1,0 +1,75 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Masonry.MasonryPage"
+    x:TypeArguments="MasonryPageViewModel"
+    x:DataType="MasonryPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine">
+
+        <Example Title="Cards in columns"
+                 Summary="As many columns as fit at the narrowest column width, at most the set number; each card goes to the column that is shortest at that moment, so cards of different heights leave no holes. Make the window narrower or wider and the cards move between one, two and three columns. Drag a card to a new place: Reorder works on the layout as on a list."
+                 OptionsCommand="{Binding ShowOptionsCommand}">
+            <VerticalStackLayout Spacing="12">
+                <MasonryLayout x:Name="Masonry"
+                               MinColumnWidth="{Binding MinColumnWidth}"
+                               MaxColumns="{Binding MaxColumns}"
+                               Spacing="{Binding Spacing}"
+                               BindableLayout.ItemsSource="{Binding Cards}"
+                               Reorder.Mode="LongPress"
+                               Reorder.Command="{Binding MovedCommand}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="MasonryCard">
+                            <Border Padding="14" StrokeThickness="0" StrokeShape="RoundRectangle 14"
+                                    BackgroundColor="{AppThemeBinding Light=#F2F2F7, Dark=#2C2C2E}">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="{Binding Tag}" FontSize="11" FontAttributes="Bold" CharacterSpacing="1"
+                                           TextColor="{Binding Accent}" />
+                                    <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" />
+                                    <Label Text="{Binding Body}" FontSize="14" Opacity="0.7" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </MasonryLayout>
+                <Label Text="{Binding LastMove}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;ScrollView&gt;
+                    &lt;MasonryLayout x:Name="Cards"
+                                   MinColumnWidth="320"
+                                   MaxColumns="3"
+                                   Spacing="16"
+                                   Padding="16"
+                                   BindableLayout.ItemsSource="{Binding Cards}"
+                                   Reorder.Mode="LongPress"
+                                   Reorder.Command="{Binding SaveOrderCommand}"&gt;
+                        &lt;BindableLayout.ItemTemplate&gt;
+                            &lt;DataTemplate x:DataType="Card"&gt;
+                                &lt;Border Padding="16" StrokeShape="RoundRectangle 16"&gt;
+                                    &lt;Label Text="{Binding Text}" /&gt;
+                                &lt;/Border&gt;
+                            &lt;/DataTemplate&gt;
+                        &lt;/BindableLayout.ItemTemplate&gt;
+                    &lt;/MasonryLayout&gt;
+                &lt;/ScrollView&gt;
+
+                // A window for one, two or three columns on the desktop:
+                // the page passes Cards.WidthFor to its view model.
+                public override IReadOnlyList&lt;WindowSize&gt; SuggestWindowSizes(Size screen)
+                {
+                    var sizes = new List&lt;WindowSize&gt;();
+                    for (var columns = 1; columns &lt;= 3; columns++)
+                    {
+                        var width = WidthFor(columns);
+                        if (width &gt; screen.Width || WindowHeightFor(width) is not { } height) break;
+                        sizes.Add(new(columns == 1 ? "One column" : $"{columns} columns",
+                            new Size(width, Math.Min(screen.Height, height))));
+                    }
+                    return sizes;
+                }
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>
