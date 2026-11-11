@@ -148,6 +148,13 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
             // A failed Register() still lets the channel request run, which logs its own reason.
             _registered = true;
         }
+
+        // Without a network WNS fails at once (ERROR_NO_NETWORK) instead of retrying, and nothing else asks again
+        // until the next launch or foreground.
+        Connectivity.Current.ConnectivityChanged += (_, e) =>
+        {
+            if (e.NetworkAccess == NetworkAccess.Internet) ChannelAsync().SafeFireAndForget();
+        };
     }
 
     /// <summary>
@@ -193,6 +200,13 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
             if (result.Status != PushNotificationChannelStatus.CompletedSuccess || result.Channel is not { } channel)
             {
                 var hresult = result.ExtendedError?.HResult ?? 0;
+                if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+                {
+                    Logger?.LogInformation("Spine.PushNotifications: WNS gave no channel without a network ({Status}, HRESULT 0x{HResult:X8}); the app asks again when the network is back.",
+                        result.Status, hresult);
+                    return;
+                }
+
                 Logger?.LogWarning(
                     RuntimeHint(hresult) is { Length: > 0 } hint
                         ? "Spine.PushNotifications: WNS gave no channel ({Status}, HRESULT 0x{HResult:X8}: {Error})." + hint

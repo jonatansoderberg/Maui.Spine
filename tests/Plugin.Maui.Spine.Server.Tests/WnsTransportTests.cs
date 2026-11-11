@@ -189,6 +189,18 @@ public class WnsTransportTests
         Assert.Equal($"{(int)code} described (msg 3F2A)", delivery.Reason);
     }
 
+    [Fact]
+    public async Task A_bare_403_says_to_check_the_remote_id()
+    {
+        var (transport, _, _) = NewTransport(_ => new HttpResponseMessage(HttpStatusCode.Forbidden));
+        using var _t = transport;
+
+        var delivery = (await transport.SendAsync([Installation("pc")], Toast)).Single();
+
+        Assert.Equal(PushStatus.Failed, delivery.Status);
+        Assert.Equal($"403 {WnsTransport.ForbiddenHint}", delivery.Reason);
+    }
+
     [Theory]
     [InlineData("https://evil.example.com/?token=x")]
     [InlineData("https://notify.windows.com.evil.example.com/?token=x")]

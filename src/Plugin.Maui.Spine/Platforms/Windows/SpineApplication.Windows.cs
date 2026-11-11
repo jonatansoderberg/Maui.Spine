@@ -184,6 +184,10 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             if (page is not null)
                 page.PropertyChanged += OnTitleBarPagePropertyChanged;
         }
+
+        // Full screen, Windows draws no title bar (MAUI collapses it), so its Back and its field would be gone.
+        if (page is not null)
+            page.IsWindowTitleBarHidden = _appWindow?.Presenter.Kind is AppWindowPresenterKind.FullScreen;
     }
 
     private void OnTitleBarHostActiveRegionChanged() => MainThread.BeginInvokeOnMainThread(UpdateTitleBar);
@@ -208,7 +212,8 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         if (_isTitleBarAnimating || _titleBar is null || _titleBarHost is not { } host || _titleBarPage is not { } page)
             return;
 
-        var isVisible = page.IsTitleBarVisible;
+        // A collapsed title bar takes no room, so the host page has nothing to slide away either.
+        var isVisible = page.IsTitleBarVisible || page.IsWindowTitleBarHidden;
         var hostPage = host.HostPage;
 
         _isTitleBarAnimating = true;
@@ -217,7 +222,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         {
             // Hidden, the title bar is only transparent: its buttons would still take the clicks meant
             // for the header bar that has moved up under it.
-            _titleBar.InputTransparent = !isVisible;
+            _titleBar.InputTransparent = !page.ShowsTitleBar;
 
             if (isVisible)
             {
@@ -248,7 +253,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         }
 
         // A tab switch or host swap during the animation was dropped by the guard above.
-        if (_titleBarPage is { } now && (now.IsTitleBarVisible != isVisible || !ReferenceEquals(_titleBarHost, host)))
+        if (_titleBarPage is { } now && ((now.IsTitleBarVisible || now.IsWindowTitleBarHidden) != isVisible || !ReferenceEquals(_titleBarHost, host)))
             await SetTitleBarVisibilityAsync();
     }
 
@@ -299,6 +304,10 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         _appWindow = AppWindow.GetFromWindowId(windowId);
         HookNonClientRegions(winuiWindow, windowId);
         mauiWindow.Destroying += (_, _) => UnhookNonClientRegions();
+        _appWindow.Changed += (_, e) =>
+        {
+            if (e.DidPresenterChange) MainThread.BeginInvokeOnMainThread(UpdateTitleBar);
+        };
 
         // --- Window manager (WinUIEx) ---
         _windowManager = WinUIEx.WindowManager.Get(winuiWindow);

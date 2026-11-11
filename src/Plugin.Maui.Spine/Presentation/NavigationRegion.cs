@@ -524,7 +524,6 @@ public sealed partial class NavigationRegion : ContentView
             var header = ViewModel.HeaderRegionViewModel;
             _frameActionView?.SetBinding(HeaderBarView.IsHeaderBarVisibleProperty, new Binding("IsHeaderBarVisible", source: header));
             _frameActionView?.SetBinding(HeaderBarView.IsBackButtonVisibleProperty, new Binding("IsBackButtonVisible", source: header));
-            _frameActionView?.SetBinding(HeaderBarView.IsTitleBarVisibleProperty, new Binding("IsTitleBarVisible", source: header));
             _frameActionView?.SetBinding(HeaderBarView.ForegroundProperty, new Binding(nameof(ViewModelBase.HeaderBarForeground), source: header));
             _frameActionView?.SetBinding(HeaderBarView.GlassProperty, new Binding(nameof(ViewModelBase.HeaderBarGlass), source: header));
             WatchHeaderPage(header);
@@ -610,13 +609,14 @@ public sealed partial class NavigationRegion : ContentView
     {
         if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.ScrollEdgeProgress)
             or nameof(ViewModelBase.EffectiveHeaderBarBackground) or nameof(ViewModelBase.SearchLayout)
-            or nameof(ViewModelBase.SearchProgress))
+            or nameof(ViewModelBase.SearchProgress) or nameof(ViewModelBase.ShowsTitleBar))
             ApplyHeaderPage();
     }
 
     private void ApplyHeaderPage()
     {
         var page = _watchedHeaderPage;
+        _frameActionView.IsTitleBarVisible = page?.ShowsTitleBar ?? false;
         _frameActionView.OverContent = page?.HeaderBarMode == HeaderBarMode.Overlay;
         _frameActionView.Search = page is { SearchLayout: SearchLayout.Trailing } ? page.Search : null;
         _frameActionView.SearchProgress = page?.SearchProgress ?? 0;
