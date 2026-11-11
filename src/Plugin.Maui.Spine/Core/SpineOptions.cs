@@ -358,9 +358,10 @@ public sealed class SpineOptions
         /// The system backdrop material applied to the app window.
         /// <see cref="WindowBackdrop.Mica"/> and <see cref="WindowBackdrop.Acrylic"/> adapt
         /// automatically to the current light/dark theme.
-        /// Defaults to <see cref="WindowBackdrop.Mica"/>.
+        /// <see langword="null"/> (default) takes <see cref="DesktopOptions.Backdrop"/>, and without that
+        /// <see cref="WindowBackdrop.Mica"/>.
         /// </summary>
-        public WindowBackdrop Backdrop { get; set; } = WindowBackdrop.Mica;
+        public WindowBackdrop? Backdrop { get; set; }
 
         /// <summary>
         /// The backdrop material applied to the bottom sheet surface on Windows.
@@ -394,6 +395,27 @@ public sealed class SpineOptions
 
     /// <summary>Windows-specific window chrome and behaviour settings.</summary>
     public WindowsPlatformOptions Windows { get; } = new WindowsPlatformOptions();
+
+    /// <summary>Settings that apply to the app's window on every desktop: Windows and Mac Catalyst.</summary>
+    public sealed class DesktopOptions
+    {
+        /// <summary>
+        /// The window's backdrop on Windows and on the Mac, unless the platform's own option
+        /// (<see cref="WindowsPlatformOptions.Backdrop"/>, <see cref="MacOSPlatformOptions.Backdrop"/>) is set.
+        /// <see langword="null"/> (default) leaves each platform its own default: Mica on Windows, an opaque
+        /// window on the Mac.
+        /// </summary>
+        public WindowBackdrop? Backdrop { get; set; }
+    }
+
+    /// <summary>Settings that apply to the app's window on every desktop: Windows and Mac Catalyst.</summary>
+    public DesktopOptions Desktop { get; } = new DesktopOptions();
+
+    /// <summary>The backdrop Windows applies: its own option, the desktop's, or Mica.</summary>
+    internal WindowBackdrop WindowsBackdrop => Windows.Backdrop ?? Desktop.Backdrop ?? WindowBackdrop.Mica;
+
+    /// <summary>The backdrop the Mac applies: its own option, the desktop's, or none (an opaque window).</summary>
+    internal WindowBackdrop MacBackdrop => MacOS.Backdrop ?? Desktop.Backdrop ?? WindowBackdrop.None;
 
     /// <summary>
     /// Android-specific layout settings for Spine.
@@ -455,9 +477,10 @@ public sealed class SpineOptions
         /// AppKit uses under a window's content. As with <see cref="WindowsPlatformOptions.Backdrop"/>, the host page's
         /// background is cleared and pages show the material where they have no background of their own; cards and rows
         /// keep theirs. A page with no opaque background moves over the material during navigation, not on a colour.
-        /// Defaults to <see cref="WindowBackdrop.None"/>: an opaque window. Reduce Transparency keeps it opaque.
+        /// <see langword="null"/> (default) takes <see cref="DesktopOptions.Backdrop"/>, and without that
+        /// <see cref="WindowBackdrop.None"/>: an opaque window. Reduce Transparency keeps it opaque.
         /// </summary>
-        public WindowBackdrop Backdrop { get; set; } = WindowBackdrop.None;
+        public WindowBackdrop? Backdrop { get; set; }
 
         /// <summary>
         /// Puts a region page's header bar in the window's title bar row, beside the close, minimise and zoom

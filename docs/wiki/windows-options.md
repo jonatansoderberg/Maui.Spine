@@ -115,8 +115,15 @@ Spine supports Windows system backdrop materials (Mica and Acrylic) that adapt a
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `Backdrop` | `WindowBackdrop` | `Mica` | System backdrop for the main app window |
+| `Backdrop` | `WindowBackdrop?` | `null` | System backdrop for the main app window. `null` takes `options.Desktop.Backdrop`, and without that `Mica` |
 | `BottomSheetBackdrop` | `WindowBackdrop` | `None` | System backdrop for the bottom sheet surface |
+
+An app for both desktops sets the backdrop once, for Windows and the Mac, with `options.Desktop.Backdrop`; the platform's own option, when set, wins over it:
+
+```csharp
+options.Desktop.Backdrop = WindowBackdrop.Acrylic;  // Windows and Mac Catalyst
+options.Windows.Backdrop = WindowBackdrop.Mica;      // ...except Windows
+```
 
 ### `WindowBackdrop` values
 
@@ -147,10 +154,12 @@ By default, only one instance of the app is allowed to run. A second launch acti
 
 When `IsTitleBarVisible = true` (the default on desktop), Spine renders a custom `TitleBar` control that:
 
-- Displays `SpineOptions.AppTitle` as the window title
+- Displays `SpineOptions.AppTitle` as the window title, and gives it to the window itself (taskbar, Alt+Tab) when the app hasn't set `Window.Title`
 - Shows the current page's `Title` (from the ViewModel) as the subtitle
-- Hosts page-action buttons from the active page's `PageActions` collection
+- Hosts the active page's `PageActions`: the leading one (back) before the title, and every trailing one after it, the first at the edge by the caption buttons, as the header bar orders them
+- Keeps to the caption buttons' row: 32 points high, each action 46 × 32 like minimise, maximise and close, with their hover and press shades
 - Holds the search field of a page with `[PageSearch]` in its centre, `TitleBar.Content` (see [Search](search.md#in-windows-title-bar))
+- Passes its binding context, the root region (`CurrentRegionViewModel`, `PrimaryPageAction`, …), on to what is in `LeadingContent`, `Content` and `TrailingContent`, as an inherited context: a view with a binding context of its own keeps it. MAUI's `TitleBar` doesn't pass it on itself
 
 | Property | Type | Default | Description |
 |---|---|---|---|
@@ -173,3 +182,5 @@ options.RegionDefaults.IsTitleBarVisible  = false;
 options.RegionDefaults.IsHeaderBarVisible = true;
 options.RegionDefaults.TitlePlacement     = TitlePlacement.HeaderBar;
 ```
+
+The header bar then moves up into the title bar's row, beside the caption buttons: one row with the page's title in the app's `HeaderBarTitle` style and every page action, as a Mac window with `options.MacOS.UnifiedTitleBar` has. That is the way to give a Mac app's one-row header the same look on Windows; its buttons take clicks there, since Spine keeps the window's passthrough regions itself.
