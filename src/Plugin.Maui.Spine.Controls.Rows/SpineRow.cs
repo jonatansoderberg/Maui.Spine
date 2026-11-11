@@ -291,6 +291,9 @@ public class SpineRow : ContentView
         _accessory = new ContentView { VerticalOptions = LayoutOptions.Center };
 
         _statusGlyph = new Image { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
+        // The mark's own size, without the canvas' margin: a glyph larger than the mark relied on the
+        // mark clipping it, which WinUI doesn't do; it widened the mark's slot and cut the circle in half.
+        SvgImageSource.SetPadding(_statusGlyph, new Thickness(0));
         _status = new Border
         {
             StrokeThickness = 0,
@@ -682,8 +685,7 @@ public class SpineRow : ContentView
         SvgImageSource.SetLineWidthScale(_menuGlyph, style.GlyphLineWidthScale * 1.25);
 
         _status.WidthRequest = _status.HeightRequest = style.StatusSize;
-        // Larger than the mark, which clips it: the glyph draws with a margin of its own.
-        _statusGlyph.WidthRequest = _statusGlyph.HeightRequest = style.StatusSize * 1.5;
+        _statusGlyph.WidthRequest = _statusGlyph.HeightRequest = style.StatusSize;
         _status.BackgroundColor = Status == SpineRowStatus.Ok ? style.StatusOkColor : style.StatusAttentionColor;
         SvgImageSource.SetTintColor(_statusGlyph, style.StatusGlyphColor!);
         // A heavier stroke than the chevron's: the glyph is small and white on a fill.

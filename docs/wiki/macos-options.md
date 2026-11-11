@@ -22,7 +22,7 @@ builder.UseSpine(options =>
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `Backdrop` | `WindowBackdrop` | `None` | The window's material: `None` (opaque), `Acrylic` (the desktop blurred behind the window, clearly translucent, like System Settings' sidebar) or `Mica` (AppKit's subtler under-window material). See [A translucent window](#a-translucent-window) |
+| `Backdrop` | `WindowBackdrop?` | `null` | The window's material: `None` (opaque), `Acrylic` (the desktop blurred behind the window, clearly translucent, like System Settings' sidebar) or `Mica` (AppKit's subtler under-window material). `null` takes `options.Desktop.Backdrop`, and without that `None`. See [A translucent window](#a-translucent-window) |
 | `UnifiedTitleBar` | `bool` | `false` | Puts a region page's header bar in the title bar row, after the window buttons. See [One row: the header bar in the title bar](#one-row-the-header-bar-in-the-title-bar) |
 | `FitWindowToContent` | `bool` | `false` | Once at launch, when the first page's content does not fit, the window takes the size the page suggests for its width. See [Window sizes from the content](#window-sizes-from-the-content) |
 | (page) `SuggestWindowSizes` | `ViewModelBase` override | none | Window sizes offered when the header bar is right-clicked. See [Window sizes from the content](#window-sizes-from-the-content) |
@@ -39,7 +39,7 @@ An app that lives in the menu bar also sets `LSUIElement` to `true` in `Platform
 
 ## A translucent window
 
-`options.MacOS.Backdrop = WindowBackdrop.Acrylic` is the Mac counterpart of [`Windows.Backdrop`](windows-options.md). Spine:
+`options.MacOS.Backdrop = WindowBackdrop.Acrylic` is the Mac counterpart of [`Windows.Backdrop`](windows-options.md). An app for both desktops sets it once with `options.Desktop.Backdrop`, which both use unless their own option is set. Spine:
 
 - puts an `NSVisualEffectView` behind UIKit's content and makes the window non-opaque. It stays translucent when the window has no focus, since a dashboard is often read without clicking into it;
 - clears the host page's background, as on Windows. Pages are views inside the host page, so they show the material wherever they have no background of their own. Cards, sections and rows keep theirs;

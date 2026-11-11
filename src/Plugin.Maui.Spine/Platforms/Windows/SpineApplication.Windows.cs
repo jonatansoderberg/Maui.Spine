@@ -34,6 +34,13 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
     private bool _isTitleBarAnimating;
     private PageActionView? _secondaryPageActionView;
     private PageActionView? _primaryPageActionView;
+    // The secondary action and, inward from it, the page's further trailing actions.
+    private HorizontalStackLayout? _titleBarTrailing;
+    private readonly List<PageActionView> _moreTitleBarActionViews = [];
+
+    // Windows 11's caption buttons: the title bar's height, and the width of each of its buttons.
+    private const double CaptionHeight = 32;
+    private const double CaptionButtonWidth = 46;
 
     private WinUIEx.WindowManager? _windowManager;
     private AppWindow? _appWindow;
@@ -68,28 +75,34 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         _primaryPageActionView = new PageActionView
         {
-            IconWidth = 46,
-            HeightRequest = 32,
+            IconWidth = CaptionButtonWidth,
+            HeightRequest = CaptionHeight,
             HorizontalOptions = LayoutOptions.Start,
             VerticalOptions = LayoutOptions.Center,
             HideDisabled = false
         };
 
-        _secondaryPageActionView = new PageActionView
+        _secondaryPageActionView = NewTitleBarActionView();
+        _moreTitleBarActionViews.Clear();
+        _titleBarTrailing = new HorizontalStackLayout
         {
-            IconWidth = 46,
-            HeightRequest = 32,
             HorizontalOptions = LayoutOptions.End,
-            VerticalOptions = LayoutOptions.Center
+            VerticalOptions = LayoutOptions.Center,
+            Children = { _secondaryPageActionView },
         };
 
+        // The title and the actions keep to the caption buttons' row: MAUI's title bar would grow
+        // with its content and move them below the caption buttons' centre line.
         _titleBar = new TitleBar
         {
-            TrailingContent = _secondaryPageActionView,
+            TrailingContent = _titleBarTrailing,
             LeadingContent = _primaryPageActionView,
-            BackgroundColor = Colors.Transparent
+            BackgroundColor = Colors.Transparent,
+            HeightRequest = CaptionHeight,
+            MinimumHeightRequest = CaptionHeight,
         };
         _titleBar.SetBinding(TitleBar.SubtitleProperty, "CurrentRegionViewModel.Title");
+        _titleBar.PropertyChanged += OnTitleBarContentChanged;
 
         window.TitleBar = _titleBar;
         _titleBarWindow = window;
@@ -131,9 +144,66 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             _primaryPageActionView.Action = _titleBarRegion?.PrimaryPageAction;
         if (_secondaryPageActionView is not null)
             _secondaryPageActionView.Action = _titleBarRegion?.SecondaryPageAction;
+        SyncMoreTitleBarActions(_titleBarRegion?.MoreSecondaryPageActions ?? []);
 
         SetTitleBarVisibilityAsync().SafeFireAndForget();
         UpdateTitleBarSearch();
+    }
+
+    private PageActionView NewTitleBarActionView() => new()
+    {
+        IconWidth = CaptionButtonWidth,
+        HeightRequest = CaptionHeight,
+        HorizontalOptions = LayoutOptions.End,
+        VerticalOptions = LayoutOptions.Center
+    };
+
+    // One view per further trailing action, innermost first, left of the secondary action, as the
+    // header bar has them (HeaderBarView.SyncMoreTrailing). A view whose action stays keeps its place.
+    private void SyncMoreTitleBarActions(IReadOnlyList<PageAction> actions)
+    {
+        if (_titleBarTrailing is null || _secondaryPageActionView is null)
+            return;
+
+        var views = actions
+            .Select(a => _moreTitleBarActionViews.FirstOrDefault(v => ReferenceEquals(v.Action, a)) ?? NewMoreTitleBarActionView(a))
+            .ToList();
+        foreach (var gone in _moreTitleBarActionViews.Except(views))
+            gone.Action = null;
+        _moreTitleBarActionViews.Clear();
+        _moreTitleBarActionViews.AddRange(views);
+
+        IView[] desired = [.. Enumerable.Reverse(views), _secondaryPageActionView];
+        if (_titleBarTrailing.Children.SequenceEqual(desired))
+            return;
+        _titleBarTrailing.Children.Clear();
+        foreach (var view in desired)
+            _titleBarTrailing.Children.Add(view);
+    }
+
+    private PageActionView NewMoreTitleBarActionView(PageAction action)
+    {
+        var view = NewTitleBarActionView();
+        view.Action = action;
+        return view;
+    }
+
+    // MAUI doesn't pass the title bar's binding context (the root region) on to its content, so what
+    // an app or Spine puts in it would bind to nothing. Inherited, so a context of its own still wins.
+    private void InheritTitleBarBindingContext()
+    {
+        if (_titleBar is null)
+            return;
+        foreach (var content in new[] { _titleBar.LeadingContent, _titleBar.Content, _titleBar.TrailingContent })
+            if (content is BindableObject bindable)
+                BindableObject.SetInheritedBindingContext(bindable, _titleBar.BindingContext);
+    }
+
+    private void OnTitleBarContentChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(TitleBar.LeadingContent) or nameof(TitleBar.Content) or nameof(TitleBar.TrailingContent)
+            or nameof(BindableObject.BindingContext))
+            InheritTitleBarBindingContext();
     }
 
     // Follows the installed host (a host swap, or a new window), its root region (a tab switch)
@@ -193,7 +263,8 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         if (e.PropertyName is nameof(NavigationRegionViewModel.CurrentRegionViewModel)
             or nameof(NavigationRegionViewModel.HeaderRegionViewModel)
             or nameof(NavigationRegionViewModel.PrimaryPageAction)
-            or nameof(NavigationRegionViewModel.SecondaryPageAction))
+            or nameof(NavigationRegionViewModel.SecondaryPageAction)
+            or nameof(NavigationRegionViewModel.MoreSecondaryPageActions))
             UpdateTitleBar();
     }
 
@@ -290,9 +361,15 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         _winuiWindow = winuiWindow;
 
+        // The drawn title bar gives the window no name of its own; the taskbar, Alt+Tab and Task View
+        // read this one.
+        if (string.IsNullOrEmpty(mauiWindow.Title) && !string.IsNullOrEmpty(appTitle))
+            mauiWindow.Title = appTitle;
+
         // --- System backdrop ---
-        ApplyWindowBackdrop(winuiWindow, windowsOptions.Backdrop);
-        ApplyWindowBackground(winuiWindow, windowsOptions.Backdrop);
+        var backdrop = _services.GetRequiredService<SpineOptions>().WindowsBackdrop;
+        ApplyWindowBackdrop(winuiWindow, backdrop);
+        ApplyWindowBackground(winuiWindow, backdrop);
 
         var hWnd = winuiWindow.GetWindowHandle();
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
@@ -608,7 +685,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         // app's ContentPage style) would paint over the entire window, hiding the effect.
         // Clearing it to Transparent lets the Mica / Acrylic material show through. Without a
         // backdrop the page is left alone: a local null would also override the app's style.
-        if (_services.GetRequiredService<SpineOptions>().Windows.Backdrop is not WindowBackdrop.None)
+        if (_services.GetRequiredService<SpineOptions>().WindowsBackdrop is not WindowBackdrop.None)
         {
             host.HostPage.BackgroundColor = Colors.Transparent;
             return;

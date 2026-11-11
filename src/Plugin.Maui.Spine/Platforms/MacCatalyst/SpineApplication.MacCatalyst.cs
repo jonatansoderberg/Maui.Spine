@@ -26,7 +26,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         // As on Windows with Mica or Acrylic: the host page's background (the app's ContentPage style) would paint over
         // the backdrop, so it is cleared; Spine's pages are views inside it and show the material where they have no
         // background of their own. Without a backdrop the page is left alone.
-        if (MacBackdrop.Applies(_services.GetRequiredService<SpineOptions>().MacOS.Backdrop) && window.Page is { } host)
+        if (MacBackdrop.Applies(_services.GetRequiredService<SpineOptions>().MacBackdrop) && window.Page is { } host)
             host.BackgroundColor = Colors.Transparent;
 
         // Enable fullSizeContentView so UIWindow covers the full NSWindow frame (including
@@ -57,7 +57,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                 AdoptNSWindow(nsObj);
                 provider.MacWindow = nsObj.Handle;
                 MacBackdrop.Apply(nsObj.Handle, window.Handler?.PlatformView as UIKit.UIWindow,
-                    _services.GetRequiredService<SpineOptions>().MacOS.Backdrop);
+                    _services.GetRequiredService<SpineOptions>().MacBackdrop);
 
                 if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
 
