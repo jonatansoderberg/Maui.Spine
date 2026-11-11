@@ -40,3 +40,12 @@ Found in AIDash Connect on Windows (Spine 0.261111.1530) with the header bar in 
 - Windows, AIDash Connect with this branch's `Plugin.Maui.Spine.dll`: the header icons' `Image` at y = 0 in the 32-point
   row, on the caption buttons' line on screen; the title at x = 16, flush with the cards' edge.
 - Not verified: the Mac (the compact buttons now 34 points high instead of 44, glyph size unchanged), Android.
+
+## Follow-up: the actions as wide as the caption buttons, touching
+
+- **Symptom:** hovering from an action to minimise, the hover shades differed: the action's was 48 points wide, the
+  caption buttons' 46, and the actions had 8 points between them where the caption buttons touch.
+- **Change:** `HeaderBarConstants.RegionButtonWidth` is 46 on Windows (was 48), and a region page's trailing actions on
+  Windows have no gap (`HeaderBarView.UpdateTrailingGroup`). A region page's header bar on Windows is either in the
+  caption row or has its actions in the title bar, beside the caption buttons either way.
+- **Verified:** AIDash Connect at 150 %: refresh, device, settings and minimise 46 points apart, the user confirmed.

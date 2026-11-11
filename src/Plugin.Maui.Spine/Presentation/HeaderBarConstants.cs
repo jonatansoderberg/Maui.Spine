@@ -203,9 +203,10 @@ public static class HeaderBarConstants
     /// <summary>Padding inside a header bar button in a sheet.</summary>
     public const double SheetButtonPadding = 0;
 
-    // Region presentation button size (width differs on desktop)
+    // A region page's header bar on Windows is in the caption row, beside minimise, maximise and close, or its actions
+    // are in the title bar beside them: as wide as a caption button, so the hover shades match.
     /// <summary>Width of a header bar button on a region page.</summary>
-    public const double RegionButtonWidth = 48;
+    public const double RegionButtonWidth = 46;
     /// <summary>Padding inside a header bar button on a region page.</summary>
     public const double RegionButtonPadding = 0;
 

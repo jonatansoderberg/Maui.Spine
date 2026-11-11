@@ -575,8 +575,11 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         _trailingGroup.StrokeShape = new RoundRectangle { CornerRadius = ButtonHeight / 2 };
 
         // Transient glass buttons have no shape at rest, so the gap between their circles read as a wide gap
-        // between bare icons; they touch instead, as the buttons in one group of a UINavigationBar do.
-        _trailing.Spacing = grouped || PageActionView.UseGlassHeaderActions && Glass == HeaderBarGlass.Transient
+        // between bare icons; they touch instead, as the buttons in one group of a UINavigationBar do. On Windows a
+        // region page's actions touch as the caption buttons beside them do.
+        _trailing.Spacing = grouped
+            || PageActionView.UseGlassHeaderActions && Glass == HeaderBarGlass.Transient
+            || IsWindowsDesktop() && Presentation is NavigationPresentation.Region
             ? 0
             : HeaderBarConstants.TitleActionGap;
     }
