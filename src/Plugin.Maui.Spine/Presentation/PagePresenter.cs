@@ -17,6 +17,13 @@ internal sealed partial class PagePresenter : Grid
     /// <summary>Breathing room between the title and whatever sits next to it.</summary>
     internal const double TitleEdgePadding = 8;
 
+    /// <summary>
+    /// What the title keeps free on a side of the bar with no action: the page margin with glass buttons and on Windows,
+    /// so a left-aligned title lines up with the page's content, otherwise <see cref="TitleEdgePadding"/>.
+    /// </summary>
+    internal static double EmptySideInset =>
+        PageActionView.UseGlassHeaderActions || OperatingSystem.IsWindows() ? HeaderBarConstants.PageMargin : TitleEdgePadding;
+
     private Label? _titleLabel;
     private readonly TitleSlotLayout _titleBar;
 
@@ -673,7 +680,7 @@ internal sealed class TitleSlotLayout : Layout, ILayoutManager
         nameof(Slots),
         typeof(Thickness),
         typeof(TitleSlotLayout),
-        new Thickness(PagePresenter.TitleEdgePadding, 0, PagePresenter.TitleEdgePadding, 0),
+        new Thickness(PagePresenter.EmptySideInset, 0, PagePresenter.EmptySideInset, 0),
         propertyChanged: (bindable, _, _) => ((TitleSlotLayout)bindable).InvalidateMeasure());
 
     private Size _natural;
@@ -761,12 +768,13 @@ internal class ActionsToTitleSlotsConverter : IMultiValueConverter
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         => new Thickness(Reserve(values, 0), 0, Reserve(values, 1), 0);
 
-    // With glass buttons a side without an action keeps the page margin, so a left-aligned title starts where the
-    // page's content and the buttons' edges do, as a UINavigationBar's does.
+    // With glass buttons, and on Windows, a side without an action keeps the page margin, so a left-aligned title
+    // starts where the page's content and the buttons' edges do, as a UINavigationBar's does and as a WinUI title bar's
+    // title, 16 points in, does.
     private static double Reserve(object[] values, int index) =>
         values.Length > index && values[index] is double slot && slot > 0
             ? slot + HeaderBarConstants.TitleActionGap
-            : PageActionView.UseGlassHeaderActions ? HeaderBarConstants.PageMargin : PagePresenter.TitleEdgePadding;
+            : PagePresenter.EmptySideInset;
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
     {
