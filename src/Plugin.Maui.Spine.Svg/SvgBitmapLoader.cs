@@ -97,8 +97,26 @@ public static class SvgBitmapLoader
     }
 
     // Every platform decodes the bitmap back to its point size with its own SvgBitmapImageSourceService
-    // (on Windows a BitmapImage with DecodePixelType.Logical).
-    private static float ScreenScale => (float)DeviceDisplay.MainDisplayInfo.Density;
+    // (on Windows a BitmapImage with DecodePixelType.Logical). Windows reports a density of 0 until the app's
+    // window is active, which made every bitmap 0 × 0 pixels and the first icon throw during startup; the system's
+    // DPI is there before any window. Anything else that is not a positive scale draws at 1×.
+    private static float ScreenScale
+    {
+        get
+        {
+#if WINDOWS
+            if (GetDpiForSystem() is var dpi and > 0)
+                return dpi / 96f;
+#endif
+            var density = (float)DeviceDisplay.MainDisplayInfo.Density;
+            return density > 0 && float.IsFinite(density) ? density : 1f;
+        }
+    }
+
+#if WINDOWS
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForSystem();
+#endif
 
     /// <summary>
     /// Loads an embedded SVG resource and returns a MAUI <see cref="ImageSource"/> rendered at
@@ -153,7 +171,8 @@ public static class SvgBitmapLoader
                .GetManifestResourceStream(resourceName)
             ?? throw new FileNotFoundException(resourceName);
 
-        return SvgRasterizer.RenderPng(stream, (int)Math.Round(width), (int)Math.Round(height),
+        // At least one pixel: Skia makes no image of an empty bitmap, and the encode would throw.
+        return SvgRasterizer.RenderPng(stream, Math.Max(1, (int)Math.Round(width)), Math.Max(1, (int)Math.Round(height)),
             new SKColor((byte)(tint.Red * 255), (byte)(tint.Green * 255), (byte)(tint.Blue * 255), (byte)(tint.Alpha * 255)),
             adjustColorsForDark ? DarkPalette : null, lineWidthScale,
             (float)padding.Left, (float)padding.Top, (float)padding.Right, (float)padding.Bottom, roundLineEnds);

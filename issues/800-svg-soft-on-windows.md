@@ -35,3 +35,14 @@ have.
   its laid-out size; a `RenderTargetBitmap` of the window next to one with the released 0.261111.1530 shows the header
   glyphs and the logos sharp instead of soft.
 - Not verified: a 100 % or 150 % display, a second display with another scale.
+
+## Follow-up: the first icon threw before the window was active (0.261111.1536)
+
+- **Symptom:** AIDash Connect on 0.261111.1536 started without a window: `SvgRasterizer.RenderPng` threw a
+  `NullReferenceException` from `SvgImageSourceBehavior.UpdateImage` during startup.
+- **Cause:** `DeviceDisplay.MainDisplayInfo.Density` is 0 on Windows until the app's window is active, so the bitmap was
+  0 × 0 pixels, `SKImage.FromBitmap` gave no image and the encode threw. Windows used a fixed 1 before #800.
+- **Fix:** `ScreenScale` takes `GetDpiForSystem() / 96` on Windows, which exists before any window, and falls back to 1
+  for any scale that is not positive; `RenderSvgToPng` never asks for less than 1 × 1 pixels.
+- **Verified:** AIDash Connect with the fixed `Plugin.Maui.Spine.Svg.dll` starts with its window, logs nothing, and its
+  SVGs are sharp at 150 %.
