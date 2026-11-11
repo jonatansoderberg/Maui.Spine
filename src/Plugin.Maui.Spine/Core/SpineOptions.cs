@@ -364,6 +364,14 @@ public sealed class SpineOptions
         public WindowBackdrop? Backdrop { get; set; }
 
         /// <summary>
+        /// At launch, when the first page's content does not fit the window, the window takes the size the page
+        /// suggests for its width (<see cref="ViewModelBase.SuggestWindowSizes"/>): the widest suggestion that is no
+        /// wider than the window, or the narrowest. It happens once; after that the size is the user's.
+        /// <see langword="null"/> (default) takes <see cref="DesktopOptions.FitWindowToContent"/>, and without that false.
+        /// </summary>
+        public bool? FitWindowToContent { get; set; }
+
+        /// <summary>
         /// The backdrop material applied to the bottom sheet surface on Windows.
         /// <see cref="WindowBackdrop.Acrylic"/> gives a translucent frosted-glass look;
         /// <see cref="WindowBackdrop.None"/> (default) uses a solid theme-appropriate background.
@@ -406,6 +414,14 @@ public sealed class SpineOptions
         /// window on the Mac.
         /// </summary>
         public WindowBackdrop? Backdrop { get; set; }
+
+        /// <summary>
+        /// At launch, when the first page's content does not fit the window, the window takes the size the page
+        /// suggests (<see cref="ViewModelBase.SuggestWindowSizes"/>), on Windows and on the Mac, unless the platform's
+        /// own option says otherwise (<see cref="WindowsPlatformOptions.FitWindowToContent"/>; on the Mac
+        /// <see cref="MacOSPlatformOptions.FitWindowToContent"/> can only turn it on). <see langword="null"/> (default) is false.
+        /// </summary>
+        public bool? FitWindowToContent { get; set; }
     }
 
     /// <summary>Settings that apply to the app's window on every desktop: Windows and Mac Catalyst.</summary>
@@ -416,6 +432,12 @@ public sealed class SpineOptions
 
     /// <summary>The backdrop the Mac applies: its own option, the desktop's, or none (an opaque window).</summary>
     internal WindowBackdrop MacBackdrop => MacOS.Backdrop ?? Desktop.Backdrop ?? WindowBackdrop.None;
+
+    /// <summary>Whether the window fits the first page's content at launch on Windows: the platform, the desktop, false.</summary>
+    internal bool WindowsFitWindowToContent => Windows.FitWindowToContent ?? Desktop.FitWindowToContent ?? false;
+
+    /// <summary>The same on the Mac.</summary>
+    internal bool MacFitWindowToContent => MacOS.FitWindowToContent || Desktop.FitWindowToContent == true;
 
     /// <summary>
     /// Android-specific layout settings for Spine.
@@ -494,7 +516,8 @@ public sealed class SpineOptions
         /// <summary>
         /// At launch, when the first page's content does not fit the window, the window takes the size the page
         /// suggests for its width (<see cref="ViewModelBase.SuggestWindowSizes"/>): the widest suggestion that is no
-        /// wider than the window, or the narrowest. It happens once; after that the size is the user's. Defaults to false.
+        /// wider than the window, or the narrowest. It happens once; after that the size is the user's. Defaults to false;
+        /// <see cref="DesktopOptions.FitWindowToContent"/> turns it on for both desktops.
         /// </summary>
         public bool FitWindowToContent { get; set; }
 

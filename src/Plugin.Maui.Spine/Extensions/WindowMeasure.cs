@@ -27,6 +27,13 @@ internal static partial class WindowMeasure
         if (view.Handler?.PlatformView is UIKit.UIView { Window: { } window })
             return new Size((double)window.Bounds.Width, (double)window.Bounds.Height);
         return null;
+#elif WINDOWS
+        // The client area, which is what a suggested size gives the window (WindowSizeMenu): MAUI's Window size on Windows
+        // is the outer frame, invisible resize borders included, which measured the content a few points narrower (one
+        // column fewer in a masonry layout); the root page is shorter by the title bar row MAUI keeps.
+        return (view.Window?.Handler?.PlatformView as Microsoft.UI.Xaml.Window)?.Content?.XamlRoot?.Size is { Width: > 0, Height: > 0 } client
+            ? new Size(client.Width, client.Height)
+            : null;
 #else
         return view.Window is { } window ? new Size(window.Width, window.Height) : null;
 #endif

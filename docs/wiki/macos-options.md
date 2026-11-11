@@ -91,8 +91,10 @@ public override IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) =>
 
 ### Fitting the window
 
-- `options.MacOS.FitWindowToContent = true`: once, at launch, when the first page's content does not fit, the window takes the suggestion for its width (the widest no wider than the window, or the narrowest). After that the size is the user's.
+- `options.MacOS.FitWindowToContent = true` (or `options.Desktop.FitWindowToContent = true` for Windows as well): once, at launch, when the first page's content does not fit, the window takes the suggestion for its width (the widest no wider than the window, or the narrowest). After that the size is the user's.
 - `FitWindowToContent()` on the page view model does it now, smaller or larger: after the content changed, for example when the user hid an item.
+
+Windows offers the same sizes in the window's system menu ([Windows options](windows-options.md#window-sizes-from-the-content)); the choice of size for a width is shared.
 
 ---
 

@@ -38,20 +38,16 @@ internal sealed class WindowSizeMenu(Func<ViewModelBase?> page, SystemInsetsProv
 
     static bool s_fitted;
 
-    /// <summary>
-    /// The suggestion for the window's width: the widest no wider than it, or the narrowest. False when the page had no
-    /// suggestions (yet).
-    /// </summary>
+    /// <summary>The page's suggestion for the window's width (<see cref="WindowSize.ForWidth"/>). False when it had none (yet).</summary>
     bool Fit(UIWindow window, ViewModelBase vm, bool onlyGrow)
     {
         var (frame, visible, scale) = Geometry(window);
         if (scale <= 0) return false;
         var sizes = vm.SuggestWindowSizes(new Size((double)visible.Width * scale, (double)visible.Height * scale));
         if (sizes.Count == 0) return false;
-        var width = (double)frame.Width * scale;
-        var height = (double)frame.Height * scale;
-        var size = sizes.Where(s => s.Size.Width <= width + 2).MaxBy(s => s.Size.Width) ?? sizes.MinBy(s => s.Size.Width)!;
-        if (onlyGrow ? size.Size.Height > height + 2 : Math.Abs(size.Size.Height - height) > 2 || Math.Abs(size.Size.Width - width) > 2)
+        var current = new Size((double)frame.Width * scale, (double)frame.Height * scale);
+        var size = WindowSize.ForWidth(sizes, current.Width);
+        if (size.Changes(current, onlyGrow))
             Resize(window, size.Size);
         return true;
     }
@@ -91,8 +87,7 @@ internal sealed class WindowSizeMenu(Func<ViewModelBase?> page, SystemInsetsProv
         var items = sizes.Select(s =>
         {
             var action = UIAction.Create(s.Title, s.SystemImage is { } name ? UIImage.GetSystemImage(name) : null, null, _ => Resize(window, s.Size));
-            action.State = Math.Abs(current.Width - s.Size.Width) < 2 && Math.Abs(current.Height - s.Size.Height) < 2
-                ? UIMenuElementState.On : UIMenuElementState.Off;
+            action.State = s.Matches(current) ? UIMenuElementState.On : UIMenuElementState.Off;
             return (UIMenuElement)action;
         }).ToArray();
         return UIContextMenuConfiguration.Create(null, null, _ => UIMenu.Create(items));
