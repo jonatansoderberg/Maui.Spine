@@ -416,6 +416,12 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             _windowManager.PersistenceId = Application.Current?.GetType().Assembly.GetName().Name ?? "SpineMainWindow";
         }
 
+        // --- Window sizes from the content ---
+        // The page the header shows offers sizes for its content in the window's system menu (right-click on the title
+        // row, Alt+Space), as a right-click on the header bar does on the Mac, and can fit the window to it.
+        WindowSizeMenu.Attach(hWnd, _appWindow, _windowManager, () => _titleBarPage,
+            _services.GetRequiredService<SpineOptions>().WindowsFitWindowToContent, mauiWindow.Dispatcher);
+
         // --- Title bar button overlays ---
         bool dark = Application.Current?.RequestedTheme == AppTheme.Dark;
 

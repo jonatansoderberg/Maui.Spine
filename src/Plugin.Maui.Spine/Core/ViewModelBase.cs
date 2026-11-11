@@ -752,7 +752,8 @@ public abstract partial class ViewModelBase : ObservableObject
     public virtual Task<bool> OnCloseRequestedAsync() => Task.FromResult(true);
 
     /// <summary>
-    /// Window sizes that fit this page's content, offered when the header bar is right-clicked on the Mac: one
+    /// Window sizes that fit this page's content, offered when the header bar is right-clicked on the Mac and in the
+    /// window's system menu on Windows (a right-click on the title row, Alt+Space): one
     /// column of cards, two, the whole list without scrolling. Asked each time the menu opens, so they follow the
     /// content. <paramref name="screen"/> is the room the screen leaves, in the app's points. None by default, and
     /// then right-clicking does nothing.
@@ -761,7 +762,8 @@ public abstract partial class ViewModelBase : ObservableObject
 
     /// <summary>
     /// Gives the window the size this page suggests for its width (<see cref="SuggestWindowSizes"/>), smaller or
-    /// larger: after the content changed, for example when an item was hidden. Mac only; elsewhere it does nothing.
+    /// larger: after the content changed, for example when an item was hidden. On the Mac and Windows; elsewhere it does
+    /// nothing.
     /// </summary>
     protected void FitWindowToContent() => WindowFitter?.Invoke(this);
 

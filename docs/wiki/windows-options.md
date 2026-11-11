@@ -140,6 +140,22 @@ options.Windows.BottomSheetBackdrop = WindowBackdrop.Acrylic;  // sheet surface
 
 ---
 
+## Window sizes from the content
+
+A page that suggests window sizes for its content (`SuggestWindowSizes` on its view model, see [macOS options](macos-options.md#window-sizes-from-the-content)) has them in the window's own system menu: right-click the title row (the header bar in the caption row, or Spine's title bar), or press Alt+Space. They sit above Close, after a separator, and the size the window has is checked.
+
+- A size is the window's client area in the app's points, as `WindowHeightFor(width)` measures it: the page's `ScrollView` content at that width, with what lies around it.
+- Choosing one restores a maximised window, gives it that client size, and keeps its top left corner on the screen it is on. A size taller than the screen's work area is cut to it, and the page scrolls.
+- The items are rebuilt each time the menu opens, so they follow the content; with no sizes the menu has only Windows' own items.
+- `options.Windows.FitWindowToContent = true` (or `options.Desktop.FitWindowToContent = true` for both desktops): once at launch, when the first page's content does not fit, the window takes the suggestion for its width. A maximised window is left alone.
+- `FitWindowToContent()` on the page view model fits it now, smaller or larger, as on the Mac.
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `FitWindowToContent` | `bool?` | `null` | Fit the window to the first page's suggestion at launch. `null` takes `options.Desktop.FitWindowToContent`, and without that false |
+
+---
+
 ## Single-instance enforcement
 
 | Property | Type | Default | Description |
