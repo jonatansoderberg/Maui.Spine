@@ -43,19 +43,23 @@ public sealed class MasonryLayout : Layout, ILayoutManager
 
     readonly List<Rect> _frames = [];
     double _measuredWidth;
+    int _measuredColumns;
+    // The column each item was measured into, -1 for a collapsed one.
+    readonly List<int> _columnOf = [];
 
     protected override ILayoutManager CreateLayoutManager() => this;
 
     Size ILayoutManager.Measure(double widthConstraint, double heightConstraint)
     {
         var width = _measuredWidth = double.IsInfinity(widthConstraint) ? MinColumnWidth : widthConstraint;
-        var inner = width - Padding.HorizontalThickness;
-        var columns = Math.Clamp((int)((inner + Spacing) / (MinColumnWidth + Spacing)), 1, Math.Max(1, MaxColumns));
-        var columnWidth = (inner - Spacing * (columns - 1)) / columns;
+        var columns = _measuredColumns = ColumnsFor(width);
+        var columnWidth = ColumnWidth(width, columns);
         var heights = new double[columns];
 
         _frames.Clear();
         _frames.AddRange(Enumerable.Repeat(Rect.Zero, Count));
+        _columnOf.Clear();
+        _columnOf.AddRange(Enumerable.Repeat(-1, Count));
         for (var index = 0; index < Count; index++)
         {
             var child = this[index];
@@ -65,15 +69,47 @@ public sealed class MasonryLayout : Layout, ILayoutManager
             var column = Array.IndexOf(heights, heights.Min());
             var top = heights[column] > 0 ? heights[column] + Spacing : 0;
             _frames[index] = new Rect(Padding.Left + column * (columnWidth + Spacing), Padding.Top + top, columnWidth, size.Height);
+            _columnOf[index] = column;
             heights[column] = top + size.Height;
         }
         return new Size(width, heights.Max() + Padding.VerticalThickness);
     }
 
+    int ColumnsFor(double width) =>
+        Math.Clamp((int)((width - Padding.HorizontalThickness + Spacing) / (MinColumnWidth + Spacing)), 1, Math.Max(1, MaxColumns));
+
+    double ColumnWidth(double width, int columns) =>
+        (width - Padding.HorizontalThickness - Spacing * (columns - 1)) / columns;
+
+    // The measured items, in the columns they were measured in, over another width with as many columns: each keeps its
+    // place and height, its column takes the new column width. Nothing is measured.
+    void Spread(double width)
+    {
+        var columnWidth = ColumnWidth(width, _measuredColumns);
+        for (var i = 0; i < _frames.Count && i < _columnOf.Count; i++)
+        {
+            if (_columnOf[i] < 0)
+                continue;
+            var frame = _frames[i];
+            _frames[i] = new Rect(Padding.Left + _columnOf[i] * (columnWidth + Spacing), frame.Y, columnWidth, frame.Height);
+        }
+        _measuredWidth = width;
+    }
+
     Size ILayoutManager.ArrangeChildren(Rect bounds)
     {
-        if (Math.Abs(bounds.Width - _measuredWidth) > 0.5)
-            ((ILayoutManager)this).Measure(bounds.Width, bounds.Height);
+        // Arranged at another width than it was measured at. With as many columns there, the measured items are only
+        // spread over it: measuring them again in the arrange pass, as this did, gave them another size whenever the
+        // platform rounded the width to its pixels (a pixel or two at 150 %), the next measure pass gave the old one back,
+        // and WinUI gave up with a layout cycle while the window was resized. Another number of columns is measured again;
+        // that width is far enough from the measured one not to flip back.
+        if (Math.Abs(bounds.Width - _measuredWidth) > 0.01)
+        {
+            if (ColumnsFor(bounds.Width) != _measuredColumns)
+                ((ILayoutManager)this).Measure(bounds.Width, bounds.Height);
+            else
+                Spread(bounds.Width);
+        }
         for (var i = 0; i < Count && i < _frames.Count; i++)
             this[i].Arrange(_frames[i].Offset(bounds.X, bounds.Y));
         return bounds.Size;
