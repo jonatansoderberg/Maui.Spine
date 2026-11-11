@@ -7,10 +7,12 @@
 		<UseMaui>true</UseMaui>
 		<SingleProject>true</SingleProject>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<!-- webauthn.dll's structs, through LibraryImport. -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Passkeys for Spine sign-in: sign in, sign up and add a passkey to an account through the platform's own passkey sheet, and passkeys offered by AutoFill in the email field. iOS and Mac Catalyst 16 or later; the Spine server checks them (Passkeys(...) in Plugin.Maui.Spine.Server.Authentication).</Description>
+		<Description>Passkeys for Spine sign-in: sign in, sign up and add a passkey to an account through the platform's own passkey sheet, and passkeys offered by AutoFill in the email field (iOS). iOS and Mac Catalyst 16 or later, and Windows 10 1903 or later (Windows Hello, through webauthn.dll); the Spine server checks them (Passkeys(...) in Plugin.Maui.Spine.Server.Authentication).</Description>
 		<SpineIcon>authentication.png</SpineIcon>
 		<PackageTags>$(PackageTags);authentication;sign-in;passkeys;webauthn;fido2</PackageTags>
 	</PropertyGroup>

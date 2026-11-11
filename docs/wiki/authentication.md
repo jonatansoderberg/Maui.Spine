@@ -173,7 +173,8 @@ What the sheet offers:
 
 The same through `ISpineAuth`: `SignInAsync("passkey")`, `SignUpWithPasskeyAsync(displayName, email)`, and `SignInWithPasskeyAutoFillAsync(cancellationToken)` for an app's own sign-in page, started when its username field shows and cancelled when the page goes. That field needs the `Username` text content type (the sheet sets it on iOS).
 
-- **Platforms:** iOS and Mac Catalyst 16 or later. Android (#601) and Windows (#602) are not there yet; the sheet leaves passkeys out there, and the methods answer `Failed`.
+- **Platforms:** iOS and Mac Catalyst 16 or later, and Windows 10 1903 or later (WebAuthn API v1). Android (#601) is not there yet; there, and on older Windows, the sheet leaves passkeys out and the methods answer `Failed`.
+- **Windows** asks `webauthn.dll` over the app's window: Windows Hello (PIN, face or fingerprint), a phone through the QR code (the phone's passkey, over Bluetooth), or a security key. A desktop app may ask for any domain's passkeys, so Windows has no association file and `SpinePasskeyDomain` does nothing there; Windows' dialog names the domain. The app writes `clientDataJSON` itself with `https://<RelyingPartyId>` as the origin, the one the server accepts from iOS and macOS, so the server needs nothing for Windows. Without a TPM, Windows Hello keeps the passkey in software, behind the PIN. There is no AutoFill.
 - **The simulator** needs a signed build (`CodesignKey` and a profile for the App ID) so the app has an application identifier, and Face ID enrolled (Features ▸ Face ID ▸ Enrolled). Without the identifier iOS answers error 1004.
 
 ## Without a Spine server

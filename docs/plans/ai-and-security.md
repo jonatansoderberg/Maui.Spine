@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-30 (step 4.1b, the Android audio engine, in review as #562: the engine runs in the Google TV emulator; the microphone foreground service is left for a follow-up)
+**Last updated:** 2026-11-11 (step 5.4c, passkeys on Windows, in review as #602: verified against the Azure server with Windows Hello and a phone through the QR code)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -58,7 +58,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Authentication.Google` | New | #521 | [authentication](../proposals/spine-authentication.md) | Done (#565) |
 | `Plugin.Maui.Spine.Authentication.Microsoft` | New | #564 | [authentication](../proposals/spine-authentication.md) | Done (#570) |
 | `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 done (#554) |
-| `Plugin.Maui.Spine.Authentication.Passkeys` and passkeys in `Server.Authentication` | New | #522, #601, #602 | [authentication, Passkeys](../proposals/spine-authentication.md) | #522 (iOS, Mac Catalyst and the server) done (#608), #611 the passkeys' details; #601 Android and #602 Windows wait |
+| `Plugin.Maui.Spine.Authentication.Passkeys` and passkeys in `Server.Authentication` | New | #522, #601, #602 | [authentication, Passkeys](../proposals/spine-authentication.md) | #522 (iOS, Mac Catalyst and the server) done (#608), #611 the passkeys' details; #602 Windows in review; #601 Android waits |
 | AI avatars and character visuals | Separate control library, specified by the owner | — | — | Outside this plan |
 | On-device `IChatClient`, Android and Windows | Spike outside the repo | #514 | [ai §9](../proposals/spine-ai.md) | Proposal |
 
@@ -163,7 +163,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.3b | `Authentication.Microsoft`: MSAL with the broker (Authenticator, Company Portal, WAM); MSAL's ID token to the Spine server (`AddMicrosoft`), or MSAL's own access token without one (`UseMicrosoft`) | #564 | 5.3a | Done | #570 | Split from #521 by the owner on 2026-10-15, with both modes. The mode without a server is generalized in the core (`IDirectSignIn`), shared with `UseIdentityProvider`; Mac Catalyst runs MSAL's net8.0 build with a custom web UI over Spine's browser layer (Decisions). |
 | 5.4a | Passkeys on the server (Fido2NetLib, `Passkeys(...)`, the association files) and in the app on iOS and Mac Catalyst (`Authentication.Passkeys`): sign-in, sign-up, "Add a passkey", AutoFill in the sheet's email field | #522 | 5.5 | Done | #608 | Split by the owner on 2026-10-17 (Decisions). The relying party is the Azure sample server. |
 | 5.4b | Passkeys on Android: Credential Manager's `CreatePublicKeyCredentialRequest` and `GetPublicKeyCredentialOption`, `assetlinks.json` from `AndroidApps` | #601 | 5.4a | Waiting | | The server side is ready: `AndroidApps` adds the `android:apk-key-hash:` origins. |
-| 5.4c | Passkeys on Windows: WebAuthn through `webauthn.dll` | #602 | 5.4a | Waiting | | |
+| 5.4c | Passkeys on Windows: WebAuthn through `webauthn.dll` | #602 | 5.4a | In review | | The server needs nothing: the app writes `clientDataJSON` with `https://<RelyingPartyId>` as the origin. |
 | 5.5 | Account linking: one account with several providers, `Logins` with their details, link and unlink, and a pending identity before a new account (`AskBeforeNewAccount`) with "Is this your first time here?" in the sheet; the sheet's provider buttons in one shape with each brand's logo | #575 | 5.3b | Done | #576 | Asked for by the owner on 2026-10-16 (Decisions). Also `Password`, `AccountLink` and `Merge` in the icon set, and Spine.Svg draws Figma's conic gradients and alpha masks (Google's G). |
 | 5.5b | Email and password added to a signed-in user: `POST /auth/link/password`, `ISpineAuth.AddPasswordAsync`, `IUserResolver.ChangeEmailAsync`. A user who removed the password, or signed in with Apple only, had no way back (gap G21 in the glucose app's plan) | — | 5.5 | In review | | The email may replace the account's, unverified; `RequireVerifiedEmail` sends a code first. Also nothing left behind: a deleted account's refresh tokens and token families go (`ISpineAuthStore.ForgetUserAsync`), and `PruneAsync` removes revoked and spent families |
 
@@ -577,6 +577,12 @@ Newest last. Each entry is dated and says who decided.
 
 - **2026-10-27, owner (step 4.8):** Functions are wired up on the device and on the server in every session, every session ends on the user's intent, functions are exposed the same way, and they get the user's context. A typed chat that ends shows "Conversation ended" and the next message starts anew; a function the feature does not list is refused everywhere; an on-device model gets the feature's server functions; time zone and locale go with every AI request. GPT-Live delegates only with a "Delegation policy" in OpenAI's form (`<|SpawnThinking|>`), which the relay writes from the session's tools.
 
+- **2026-11-11, owner (#602):** Passkeys on Windows through Spine's own P/Invoke against `webauthn.dll`, not `DSInternals.Win32.WebAuthn`. Without WebAuthn API v1 (Windows 10 1809) the sheet leaves passkeys out; without Windows Hello set up they stay, because Windows' dialog offers a phone or a security key. Verified against the Azure server.
+- **2026-11-11, Claude (#602):**
+  - **The origin is `https://<rp id>`, written by the app.** `webauthn.dll` takes `clientDataJSON` from its caller, so the app writes it with the origin the server already accepts from iOS and macOS. **Why:** Windows has no association file to tie an app to a domain; any desktop app may ask for any RP id, and Windows' dialog names the domain.
+  - **API v1's structs only** (make-credential options v3, get-assertion options v4), the results read up to the fields their version has. **Why:** v1 already has resident key, user verification, the exclude list and the cancellation id; newer fields (PRF, large blobs, JSON extensions) are nothing the server asks for.
+  - **The call runs off the UI thread and is cancelled by id.** It blocks until Windows' dialog closes; the token calls `WebAuthNCancelCurrentOperation`. `NTE_USER_CANCELLED` is `Canceled`, `NTE_EXISTS` (an excluded passkey on this device) an error that says so.
+
 ## Open questions
 
 New questions go here, with their answers in [Decisions](#decisions).
@@ -672,6 +678,8 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 ---
 
 ## Plan history
+
+- **2026-11-11:** #602 (passkeys on Windows, step 5.4c) in review: `webauthn.dll` through Spine's own P/Invoke, verified by the owner in the Showcase on Windows against the Azure server (a new passkey in Windows Hello, sign-in with it, sign-in with a phone's passkey through the QR code, a closed dialog, and a second passkey on the same PC refused). Android (#601) is the last platform.
 
 - **2026-10-17:** #616 merged (PR #617). #596 in review (PR #599, master merged in): an unverified email reaches the app with `SpineUser.EmailVerified` false (the owner's answer to the open question from #564).
 

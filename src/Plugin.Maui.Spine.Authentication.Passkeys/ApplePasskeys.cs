@@ -190,9 +190,9 @@ internal sealed class ApplePasskeys : IPasskeyCeremony
     public static bool SupportsAutoFill => false;
 
     public Task<string?> CreateAsync(string options, CancellationToken cancellationToken) =>
-        throw new PlatformNotSupportedException("Spine's passkeys are on iOS and Mac Catalyst so far; Android is #601 and Windows #602.");
+        throw new PlatformNotSupportedException("Spine's passkeys are on iOS, Mac Catalyst and Windows so far; Android is #601.");
 
     public Task<string?> GetAsync(string options, bool autoFill, CancellationToken cancellationToken) =>
-        throw new PlatformNotSupportedException("Spine's passkeys are on iOS and Mac Catalyst so far; Android is #601 and Windows #602.");
+        throw new PlatformNotSupportedException("Spine's passkeys are on iOS, Mac Catalyst and Windows so far; Android is #601.");
 #endif
 }
