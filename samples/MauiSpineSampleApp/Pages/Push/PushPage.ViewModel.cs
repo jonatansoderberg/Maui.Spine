@@ -27,6 +27,10 @@ public partial class PushPageViewModel : SampleViewModel
         // The handler and the widget write to the log from anywhere; the page follows it while it shows.
         NotifyCollectionChangedEventHandler changed = (_, _) => MainThread.BeginInvokeOnMainThread(ShowLog);
         WhileVisible(() => { _log.Entries.CollectionChanged += changed; ShowLog(); }, () => _log.Entries.CollectionChanged -= changed);
+
+        // A registration can also happen without the page: a new token, a foreground, the network coming back.
+        Action<PushRegistrationStatus> registered = _ => MainThread.BeginInvokeOnMainThread(async () => await RefreshAsync());
+        WhileVisible(() => _push.RegistrationChanged += registered, () => _push.RegistrationChanged -= registered);
     }
 
     // This installation

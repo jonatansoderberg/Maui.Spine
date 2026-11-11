@@ -97,6 +97,7 @@ On Windows a region page that shows the window's title bar (`IsTitleBarVisible`,
 - **It looks like Windows' own search box** everywhere, the row included: Spine gives its `SearchBar` an empty style of its own, so an app's implicit `SearchBar` style (the MAUI template's is transparent and 44 tall) does not reach it.
 - **The subtitle gives way.** While the field is in the title bar, the title bar shows no subtitle: it is the page's title, which the header bar shows right under it.
 - **Too narrow, it goes in the row.** When the title bar leaves the field less than 200 points, the field goes in the row below the header bar until the window is wide enough, keeping its text.
+- **Full screen, the header bar has it all.** A full-screen window (`ToggleFullscreen`) has no title bar, so the field goes in the row and the header bar shows the page's Back and trailing actions again, until the window leaves full screen.
 - **Esc ends the search**, as in a Mac or iPad field: the focus leaves the field and the text stays.
 - **It follows the page.** Spine swaps the field on every navigation and tab switch, and takes it away while a sheet is open (the sheet's own field is in its row) and on a page without search, `Top` or a hidden title bar.
 - **The app's own content comes back.** Whatever the app has put in `TitleBar.Content` is kept while a searching page shows and put back when none does; content the app sets meanwhile is what comes back.
@@ -106,7 +107,7 @@ On Windows a region page that shows the window's title bar (`IsTitleBarVisible`,
 
 > **Behaviour change.** `SearchInTitleBar` is on by default. A Windows page with `[PageSearch]` and the desktop defaults (title bar shown, header bar hidden) showed no field before, because the row needs a header bar; it now shows one in the title bar. A page that shows both bars has its field move from the row to the title bar. Set `options.Windows.SearchInTitleBar = false` to keep the earlier layout.
 
-The title bar field has been run on Windows 11 (#501); the app's own `TitleBar.Content`, a replaced title bar and tab apps are still to be checked there ([#501](https://github.com/jonatansoderberg/Maui.Spine/issues/501)).
+The title bar field has been run on Windows 11 with the mouse and keyboard, the app's own `TitleBar.Content`, a replaced title bar, tab apps, the tray and full screen ([#501](https://github.com/jonatansoderberg/Maui.Spine/issues/501)). Narrator and display scales other than 200 % are still to be checked.
 
 <img src="images/search-mac.png" width="482" alt="The search field at the trailing end of the header bar on Mac Catalyst, left of the theme button">
 

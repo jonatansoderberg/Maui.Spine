@@ -288,6 +288,6 @@ private async Task SaveAsync() => await _dataService.SaveAsync();
 
 ## Desktop (Windows)
 
-On Windows, when the native title bar is shown (`IsTitleBarVisible = true`), page actions are rendered inside the title bar chrome using `TitleBar.LeadingContent` and `TitleBar.TrailingContent`. The same `PageActions` collection drives both header bar and title bar contexts, including changes made while the page shows — no extra code needed.
+On Windows, when the native title bar is shown (`IsTitleBarVisible = true`), page actions are rendered inside the title bar chrome using `TitleBar.LeadingContent` and `TitleBar.TrailingContent`. The same `PageActions` collection drives both header bar and title bar contexts, including changes made while the page shows — no extra code needed. A full-screen window (`ToggleFullscreen`) has no title bar, so its actions are in the header bar until the window leaves full screen.
 
 A page that hides the title bar has its header bar in the title bar's place, beside the caption buttons. The empty parts of the header bar then drag the window, as the title bar's do, and its buttons and search field take clicks. Spine keeps the window's passthrough regions for this: after each layout, every control that is on top in a drag region (the title bar's band, or a [hero header](hero-collection-view.md#windows-drag-region)) takes clicks, and the rest of the region drags. A hidden title bar takes no input.

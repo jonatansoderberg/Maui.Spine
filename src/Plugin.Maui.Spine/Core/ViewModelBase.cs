@@ -233,7 +233,35 @@ public abstract partial class ViewModelBase : ObservableObject
     }
 
     // On Windows the field goes in the title bar while the page shows it, and in the row otherwise.
-    partial void OnIsTitleBarVisibleChanged(bool value) => OnSearchLayoutChanged();
+    partial void OnIsTitleBarVisibleChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowsTitleBar));
+        OnSearchLayoutChanged();
+    }
+
+    /// <summary>
+    /// Whether the window that shows the page draws no title bar: it is full screen. Set on Windows
+    /// for the page the title bar shows, from scratch each time it shows it, as <see cref="IsInWindowTitleBar"/> is.
+    /// </summary>
+    internal bool IsWindowTitleBarHidden
+    {
+        get;
+        set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+            OnPropertyChanged(nameof(ShowsTitleBar));
+            OnSearchLayoutChanged();
+        }
+    }
+
+    /// <summary>
+    /// Whether the window's title bar is on screen with the page: the page asks for it and the window
+    /// draws one. Otherwise the header bar keeps the page's actions and its search field.
+    /// </summary>
+    internal bool ShowsTitleBar => IsTitleBarVisible && !IsWindowTitleBarHidden;
 
     private void OnSearchPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -347,7 +375,7 @@ public abstract partial class ViewModelBase : ObservableObject
                 search.Placement,
                 InSheet,
                 headerBar: IsHeaderBarVisible,
-                titleBarShown: IsTitleBarVisible && Lightbox is null,
+                titleBarShown: ShowsTitleBar && Lightbox is null,
                 titleBarHostsPage: inTitleBar,
                 trailing: Presentation.SearchField.FitsTrailing(IsCompactWidth))
             : Presentation.SearchLayout.None;

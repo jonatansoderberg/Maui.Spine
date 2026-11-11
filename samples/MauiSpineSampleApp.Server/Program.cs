@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Threading.RateLimiting;
+using System.Xml.Linq;
 using Anthropic;
 using MauiSpineSampleApp.Server;
 using MauiSpineSampleApp.Shared;
@@ -302,6 +303,8 @@ app.MapPost("/send", async (SendRequest request, HttpRequest http, IPushSender s
             Route = request.Route,
             Channel = request.Channel,
             Category = request.Category,
+            CollapseId = request.CollapseId,
+            Windows = request.Category == "sample" ? SampleButtons : null,
             Image = request.Image is { Length: > 0 } image ? new Uri(image) : null,
             Priority = request.HighPriority ? PushPriority.High : PushPriority.Normal,
             Data = request.Data ?? new Dictionary<string, string>(),
@@ -444,6 +447,27 @@ app.Run();
 static string Shorten(string handle) =>
     handle.Length <= 16 ? handle : $"{handle[..8]}…{handle[^8..]}";
 
+// The Showcase's "sample" buttons on a Windows toast. WNS draws a pushed toast from this XML and knows nothing of the
+// categories the app declared, so the buttons are written here: each repeats the toast's launch with its own id, and
+// a reply's field is spine.reply.<button id>.
+static void SampleButtons(XElement toast)
+{
+    var launch = toast.Attribute("launch")!.Value;
+    var reply = Button("Reply", "reply", "background");
+    reply.Add(new XAttribute("hint-inputId", "spine.reply.reply"));
+
+    toast.Add(new XElement("actions",
+        new XElement("input", new XAttribute("id", "spine.reply.reply"), new XAttribute("type", "text"), new XAttribute("placeHolderContent", "Write something")),
+        Button("Open the log", "open", "foreground"),
+        Button("Acknowledge", "ack", "background"),
+        reply));
+
+    XElement Button(string content, string id, string activation) => new("action",
+        new XAttribute("content", content),
+        new XAttribute("arguments", $"{launch};spine.action={id}"),
+        new XAttribute("activationType", activation));
+}
+
 /// <summary>
 /// The layout the sample updates its Live Activity with; the same C# the app would build.
 /// </summary>
@@ -492,6 +516,10 @@ internal sealed record PictureRequest(string Prompt);
 /// <param name="ActivityKind">Which Live Activity to update.</param>
 /// <param name="Data">Extra values handed to the app's handler.</param>
 /// <param name="DelaySeconds">Seconds to wait before sending, so the caller can background the app first. 1-60.</param>
+/// <param name="Category">The buttons, by the category the app added.</param>
+/// <param name="Image">A picture for the notification.</param>
+/// <param name="BroadcastChannel">The channel a broadcast or a channel-started Live Activity follows.</param>
+/// <param name="CollapseId">A notification with the same id replaces the one shown.</param>
 internal sealed record SendRequest(
     string? Kind,
     string? TargetKind,
@@ -507,4 +535,5 @@ internal sealed record SendRequest(
     int? DelaySeconds,
     string? Category = null,
     string? Image = null,
-    string? BroadcastChannel = null);
+    string? BroadcastChannel = null,
+    string? CollapseId = null);

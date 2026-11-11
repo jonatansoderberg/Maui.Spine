@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/501
 **Branch:** issue/501-windows-verify-and-finish-437-480-and-233-on-a-win
-**Status:** In Progress
+**Status:** Completed (what needs a person or another machine is listed under "not done" and left open in #501's closing comment)
 
 ## Plan
 
@@ -85,9 +85,16 @@ The checklists are the issue body and its seven comments (PR #502/#437, #503/#48
   - `Backdrop = Acrylic`: title bar and field readable. `Backdrop = None`: the title bar was black, its buttons and the field's box invisible (finding 10, fixed).
   - Tabs (`Main page`, `Search` as `[NavigableTab]`, Windows' `NavigationView` tabs under the title bar): the field follows the selected tab and leaves on the other. `SetRootAsync<SettingsPage>` (tab host → plain host): the title bar hides with Settings, its page action ("Tabs") shows in the header bar, no field. `SetRootAsync<MainPage>` back: tabs, title bar and actions return; the Search tab's field is back and filters ("up": 2 of 38).
 
+### #480, second round (2026-11-11, owner's "verify the rest now"; real mouse input and screen captures from the harness)
+- Full screen (temporary flag file read by the Showcase, calling `ToggleFullscreen`): the title bar went and took Back, the palette button and the field with it (finding 18, fixed). Now: on Search, Back, the field (in the row) and the palette button are in the header bar; Settings (title bar hidden) is not cut off at the top; leaving full screen gives the window back at its size, the field in the title bar or the row as before (finding 20, fixed).
+- Two changes in quick succession: Search, then Back 119 ms after the click (inside the title bar's 100 ms slide and the push): the start page ends with the title bar hidden and the hero at the top.
+- Dragging the empty title bar moved the window by exactly the drag (−200, −100). Double-click maximised it (the field 360 wide, centred in the title bar); double-click again restored it and the field went back to the row.
+- Readable over the window's material, maximised, Light and Dark, active and inactive (inactive only the title and caption buttons dim). The VM has no GPU, so Mica draws as a flat colour here.
+- Back from Search: from the first frame (50 ms) to 600 ms the start page is in its final state, title bar gone, no band and no search row.
+- Tray: "ma" typed in the field, Close (hides to the tray), a click on the tray icon in the overflow: the window comes back with "ma" and its filter (6 of 38).
+
 ### #480 not done yet
-- Fullscreen (the Showcase has no button for it), two changes in quick succession, the back transition's look.
-- Restoring from the tray icon itself (the activation path is checked through the second launch), Narrator, dragging and double-clicking the title bar, readability over Mica (judgement).
+- Narrator (the field's automation name is "Search towns", which is what it reads; Narrator itself was not run). Display scales other than 200 %.
 
 ### #233 (2026-11-10, unpackaged Showcase, local `MauiSpineSampleApp.Server`)
 - The owner made the machine's WNS secret ("Windows dev", one year) with a script from the session: `az login` with a device code, then tenant, client id and the secret into the server's user secrets, the secret never shown.
@@ -101,13 +108,25 @@ The checklists are the issue body and its seven comments (PR #502/#437, #503/#48
 - WNS toast with the app closed: shown for an unpackaged app; tapped, the app starts (`----AppNotificationActivated: -Embedding`), the activation is `AppNotification`, the window shows and the push log opens ("opened route: log").
 - The notifications' name was "MauiSpineSampleApp" (finding 13, fixed: "Spine Showcase", confirmed by the owner).
 
+### #233, second round (2026-11-11)
+- Server buttons (the sample server now writes them for `Category = "sample"`, finding 14): Acknowledge → `OnActionAsync` "ack" with the app staying down; Reply → `reply: "Hello world"`; Open the log → `OnOpenedAsync` with route `log` and action `open`, the window forward. Confirmed by the owner and the log.
+- `CollapseId`: "Collapse 2" replaced "Collapse 1" in the Notification Center (owner). WNS accepted the 16-character `X-WNS-Tag`.
+- A channel WNS does not know: "404 Invalid channel URL" → `Invalid` → the installation is removed. A real 410 cannot be had on demand; it takes the same path (`StatusFor`).
+- Renewal: after a restart the same installation id and channel. The app does not register again when the in-memory server lost its data (by design; "Register again" does it).
+- Wrong remote id (`11111111-…`): the channel comes without an error and the app registers; every send fails with a bare 403 (finding 15).
+- Settings → notifications off: the Push page says "Denied, not registered", the log "permission Denied"; the server keeps the installation, as on the other platforms. On again: Authorized.
+- Offline, automated with scripts that wait for the owner to pull the network: with a channel the machine already has, it comes back at once offline. Without one, WNS fails at once with `0x800704C6` (ERROR_NO_NETWORK), no `InProgressRetry`, so the 10 s wait never applies; nothing asked again (finding 16, fixed). After the fix: registered 4 s after the network came back, and a send reached it.
+- Running as administrator (owner): the Push page says "No push on this platform".
+
 ### #233 not done yet
-- Server buttons (`ack` in the background, `open`), a reply, `CollapseId` replacing a toast, a 410 removing the installation, a wrong remote id's HRESULT, offline and the 10 s timeout, renewal after restart, Settings switch → `Denied`, running elevated.
-- The MSIX path (PFN mapping, activators, packaged local notifications).
+- The MSIX path: the PFN mapping mail to Microsoft (the owner's), the activators, packaged local notifications, push to a closed packaged app. Not attempted.
+
+### #437, second round (2026-11-11)
+- Pressed, with the real mouse: the item's background changes and the icon keeps the text's colour, on plain items in Dark and on the red "Reset", which takes the template's pressed colour, as its text does (the pre-existing behaviour #437 described).
 
 ### #437 not done yet
 - Windows (system) theme switch: changing the system setting is the owner's. Unwritable cache folder: optional, not done.
-- Left open for eyes and hands: hover/pressed colours, 125/150 %, per-monitor rebuild, multi-colour SVGs.
+- Hover: a pointer moved by `SetCursorPos` gave no pointer-over state in the captures, so hover is unchecked. 125/150 %, per-monitor rebuild (one monitor), multi-colour SVGs in a menu (no sample menu has one).
 
 ## Findings (not in the #501 lists)
 
@@ -124,6 +143,13 @@ The checklists are the issue body and its seven comments (PR #502/#437, #503/#48
 11. **"Class not registered" with only the runtime's framework package.** Push and tapped notifications in an unpackaged app need the Windows App Runtime's Singleton package, which only its installer adds. Not a Spine bug; the log now names the cause and the installer (`WindowsPushPlatform.RuntimeHint`), and the wiki says so.
 12. **A tapped toast did not bring the window forward.** `Window.Activate()` neither restores a minimised window nor takes the foreground. Fixed: `BringForward` shows a hidden window, restores a minimised one, activates it and calls `SetForegroundWindow`. Verified by the owner.
 13. **An unpackaged app's notifications are named after its .exe.** "MauiSpineSampleApp", in the toast's header and in Settings; a copy in another folder got a new registration with the same name, so it is the file name, not a cache. Fixed: Spine registers with `AppInfo.Current.Name` (the `AssemblyTitle`) and the `.ico` next to the `.exe` (`Register(displayName, iconUri)`); the Showcase sets `AssemblyTitle`/`Product` from `ApplicationTitle` on Windows. The Push page's "Local notifications still work" on Windows was wrong too, and #786's changelog with it.
+14. **No buttons on a pushed Windows toast.** WNS draws it from the server's XML and knows nothing of the categories the app declared, so `Category = "sample"` gave none. By design; the sample server now writes the Showcase's three buttons into the toast (`SampleButtons`), and the wiki says how a reply's field is named.
+15. **A wrong `RemoteId` shows only on the server.** WNS gives a channel for any id, so the app registers; sends fail with a bare 403. The transport's reason now says to check the remote id against the service principal's Object ID.
+16. **Offline, the channel was never asked for again.** WNS fails at once without a network (`0x800704C6`), and nothing asked again until the next launch or foreground. The Windows platform now asks again when the network comes back, and logs the cause instead of the RemoteId warning.
+17. **The Push page missed a registration made without it** (the network back, a new token): it now refreshes on `RegistrationChanged` while it shows.
+18. **Full screen hid the title bar's actions and field.** Windows draws no title bar for a full-screen window, and MAUI collapses it; the header bar still hid Back and its trailing actions for it, and the field went in it. Fixed: the page's `ShowsTitleBar` is false while the window is full screen.
+19. **`GetRegionRects` returns null in full screen**, which threw in the passthrough update (logged, once). Fixed.
+20. **After full screen the field stayed in a too narrow title bar.** The field came back at the width it had when it left, raised no `SizeChanged`, and the learnt width had been cleared while the window was full screen. Fixed: the learnt width is kept.
 
 ## Changes
 
@@ -148,6 +174,14 @@ The checklists are the issue body and its seven comments (PR #502/#437, #503/#48
 - Finding 9: `UpdateNonClientRegions` catches and logs everything (`Plugin.Maui.Spine.Windows`) and clips the rectangles.
 - Findings 11–13 (`Plugin.Maui.Spine.PushNotifications`, Windows): `WindowsPushPlatform.RuntimeHint` names the missing runtime for `0x80040154` in the `Register()` and channel logs; `BringForward` brings the window up for a tapped toast; `RegisterToasts` registers an unpackaged app with `AppInfo.Current.Name` and its `.ico`. The Showcase sets `AssemblyTitle`/`Product` on Windows, and its Push page no longer says local notifications work there. `push-notifications.md`: the runtime's installer, and the name and icon.
 - Owner's finding (2026-11-10): "Race actions" opened its sheet far from the button. Without an anchor, `ActionSheetPresenter.Windows` opened the flyout in the middle of the window. It now opens at the pointer when the pointer is in the window, as a menu a click opens does on Windows, and in the middle otherwise (`GetCursorPos`/`ScreenToClient` in `NativeMethods`). Verified with the mouse: the click at (1542, 1189) put the menu's first row at (1552, 1199); before, it was at x 1772. `menus.md`'s platform table says so.
+
+- Finding 14: the sample server's `/send` gives a `Category = "sample"` toast the Showcase's buttons on Windows (`SampleButtons`: Open the log, Acknowledge, Reply with its field `spine.reply.reply`), and passes `CollapseId` on. `push-notifications.md`: a reply's field id.
+- Finding 15: `WnsTransport` gives a bare 403 the reason `ForbiddenHint` (check the remote id); test `A_bare_403_says_to_check_the_remote_id`. `push-notifications.md` says a wrong `RemoteId` shows only there.
+- Finding 16: `WindowsPushPlatform` asks for the channel again when `Connectivity` reports the internet back, and logs a failure without a network as that, not as a RemoteId problem. `push-notifications.md`: offline behaviour.
+- Finding 17: the Showcase's Push page refreshes on `RegistrationChanged` while it shows.
+- Finding 18: `ViewModelBase.IsWindowTitleBarHidden` (set on Windows from the `AppWindow` presenter, re-read on every presenter change) and `ShowsTitleBar`; the header bar, the search layout and the title bar's slide use `ShowsTitleBar`. The header bar gets it from `NavigationRegion.ApplyHeaderPage` (a typed `SetBinding` lambda needs MAUI's binding source generator, which this library does not run: it threw on every navigation). `search.md` and `page-actions.md` say what full screen does.
+- Finding 19: `UpdateNonClientRegions` reads a null region list as empty.
+- Finding 20: `_titleBarSearchNeedsWidth` is kept as the window width the field needs, compared on every window size change, instead of being cleared once the window is wide enough.
 
 ## Decisions
 

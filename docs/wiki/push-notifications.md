@@ -385,6 +385,10 @@ new PushNotification
 }
 ```
 
+A reply on a pushed toast is an `input` before the actions, with the id `spine.reply.<button id>`, and
+the button's `hint-inputId` naming it; the app reads the text from that id. The sample server's
+`SampleButtons` writes all three kinds (`samples/MauiSpineSampleApp.Server/Program.cs`).
+
 ### Pictures
 
 ```csharp
@@ -509,6 +513,10 @@ builder.UseSpinePushNotifications(o =>
 ```
 
 Without `RemoteId` push is `Unsupported` on Windows, and with a backend configured the log says so.
+A wrong `RemoteId` is not caught in the app: WNS hands out a channel for any id, and the app registers
+it. The server's sends to it then fail with `403`, which Spine's reason spells out ("the channel is not
+this Entra app's…"); compare `RemoteId` with the service principal's Object ID of the registration whose
+client id the server uses.
 
 **Not self-contained.** `PushNotificationManager` runs on the Windows App Runtime's shared packages,
 which a self-contained app does not use, so `PushNotificationManager.IsSupported()` is false there —
@@ -547,7 +555,8 @@ reads the activation (a cold start from a toast or from a raw push), and asks WN
 every launch, as Microsoft recommends, since the URI can change. On a foreground it asks again when
 the channel runs out within a day; channels last 30 days. A changed URI is registered with the
 backend like a rotated token. WNS retries a channel request for up to 15 minutes; every retry and a
-failure are logged with the HRESULT. Only one request runs at a time, and launch, foregrounds and
+failure are logged with the HRESULT. Without a network it does not retry but fails at once, and Spine
+asks again as soon as the network is back. A channel the machine already has comes back offline too. Only one request runs at a time, and launch, foregrounds and
 `RequestPermissionAsync` all wait on that one rather than queueing behind it.
 
 Windows never asks the user, so `RequestPermissionAsync` answers with the Settings switch

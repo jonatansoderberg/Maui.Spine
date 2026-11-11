@@ -25,8 +25,9 @@ public partial class SpineApplication<TNavigable>
     private IView? _appTitleBarContent;
     private ViewModelBase? _replacedTitleBarReported;
 
-    // How wide the title bar must be for the field of _titleBarSearchMeasured to have its minimum
-    // width; 0 while it fits. Learnt from the field's width the one time it is too narrow.
+    // How wide the window must be for the field of _titleBarSearchMeasured to have its minimum
+    // width; 0 until it is too narrow once. Kept, not cleared when the window is wide enough: a
+    // field that comes back at the width it left with (after full screen) raises no SizeChanged.
     private double _titleBarSearchNeedsWidth;
     private ViewModelBase? _titleBarSearchMeasured;
     private bool _titleBarSubtitleHidden;
@@ -96,7 +97,7 @@ public partial class SpineApplication<TNavigable>
         // has room for the field; with the app's own, or too narrow, it goes in the row below the header bar.
         var owned = ReferenceEquals(_titleBarWindow?.TitleBar, _titleBar);
         if (page is not null)
-            page.IsInWindowTitleBar = owned && _titleBarSearchNeedsWidth <= 0;
+            page.IsInWindowTitleBar = owned && (_titleBarWindow?.Width ?? 0) >= _titleBarSearchNeedsWidth;
 
         if (owned)
             _replacedTitleBarReported = null;
@@ -160,10 +161,9 @@ public partial class SpineApplication<TNavigable>
 
     private void OnTitleBarWindowSizeChanged(object? sender, EventArgs e)
     {
-        if (_titleBar is null || _titleBarWindow is not { } window || _titleBarSearchNeedsWidth <= 0 || window.Width < _titleBarSearchNeedsWidth)
+        if (_titleBar is null || _titleBarSearchNeedsWidth <= 0)
             return;
 
-        _titleBarSearchNeedsWidth = 0;
         _titleBar.Dispatcher.Dispatch(UpdateTitleBarSearch);
     }
 

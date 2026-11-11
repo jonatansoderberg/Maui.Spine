@@ -88,7 +88,7 @@ public partial class SpineApplication<TNavigable>
 
             // A control that gave its caption region back (a hero header leaving) leaves none; the
             // title bar's band drags the window again until MAUI's title bar sets it on its next layout.
-            var captions = source.GetRegionRects(NonClientRegionKind.Caption);
+            var captions = source.GetRegionRects(NonClientRegionKind.Caption) ?? [];
             if (captions.Length == 0 && band.Height > 0)
             {
                 captions = [ToPhysical(band, scale)];
@@ -119,7 +119,8 @@ public partial class SpineApplication<TNavigable>
 
             passthrough.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));
 
-            if (!source.GetRegionRects(NonClientRegionKind.Passthrough).SequenceEqual(passthrough))
+            // Null rather than empty while the window is full screen, as the captions above may be.
+            if (!(source.GetRegionRects(NonClientRegionKind.Passthrough) ?? []).SequenceEqual(passthrough))
                 source.SetRegionRects(NonClientRegionKind.Passthrough, [.. passthrough]);
         }
         catch (Exception e)

@@ -247,9 +247,14 @@ public sealed class WnsTransport : IPushTransport, IDisposable
         _ => PushStatus.Failed,
     };
 
+    // WNS answers a channel another app's identity asked for with a bare 403. The app gets that channel without an
+    // error whatever RemoteId it passes, so a wrong RemoteId shows up only here.
+    internal const string ForbiddenHint = "the channel is not this Entra app's: check that the app's Windows.RemoteId is the Object ID of the service principal of the app registration in ClientId";
+
     private static string Reason(HttpResponseMessage response)
     {
-        var description = Header(response, "X-WNS-Error-Description") ?? Header(response, "X-WNS-Status");
+        var description = Header(response, "X-WNS-Error-Description") ?? Header(response, "X-WNS-Status")
+            ?? (response.StatusCode == HttpStatusCode.Forbidden ? ForbiddenHint : null);
         var id = Header(response, "X-WNS-Msg-ID");
         return $"{(int)response.StatusCode}{(description is null ? "" : $" {description}")}{(id is null ? "" : $" (msg {id})")}";
     }
