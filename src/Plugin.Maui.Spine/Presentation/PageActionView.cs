@@ -431,6 +431,11 @@ internal sealed class PageActionView : ContentView
                 BorderWidth = 0,
                 BorderColor = Colors.Transparent,
                 CornerRadius = DeviceInfo.Platform == DevicePlatform.Android ? 24 : 0,
+                // The button is the slot's size. MAUI's template style gives every ImageButton a 44-point minimum,
+                // which in Windows' 32-point row made the button taller than the row, top-aligned, its glyph 6 points
+                // below the caption buttons'.
+                MinimumHeightRequest = 0,
+                MinimumWidthRequest = 0,
             };
             _imageButton.ApplyCommonVisualStates(owner.HideDisabled);
 
