@@ -33,7 +33,7 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     /// <summary>Size of the filled shape behind the icon when the row has an <see cref="SpineRow.IconBackground"/>.</summary>
     public double IconBadgeSize { get; set; } = IsAndroid ? 40 : 30;
 
-    /// <summary>Size of the icon on its badge. Larger than the badge: the icon set draws with a margin, which the badge clips.</summary>
+    /// <summary>Size of the icon on its badge. It may be larger than the badge: the icon set draws with a margin, and the row gives up that margin rather than draw outside the badge.</summary>
     public double IconBadgeGlyphSize { get; set; } = IsAndroid ? 32 : 34;
 
     /// <summary>Corner radius of the badge: a rounded square on iOS and Windows, a circle on Android.</summary>

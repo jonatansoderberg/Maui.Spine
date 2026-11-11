@@ -240,6 +240,7 @@ public class SpineRow : ContentView
     static readonly bool IsAndroid = DeviceInfo.Platform == DevicePlatform.Android;
     const string MenuGlyph = "spinerowmenu.svg";
     const string AttentionGlyph = "spinerowexclamation.svg";
+    static readonly double DefaultSvgPadding = ((Thickness)SvgImageSource.PaddingProperty.DefaultValue).Left;
 
     readonly Grid _grid;
     readonly Border _iconBadge;
@@ -638,7 +639,12 @@ public class SpineRow : ContentView
             _iconBadge.BackgroundColor = badge;
             _iconBadge.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = style.IconBadgeCornerRadius };
             _iconBadge.WidthRequest = _iconBadge.HeightRequest = style.IconBadgeSize;
-            _icon.WidthRequest = _icon.HeightRequest = style.IconBadgeGlyphSize;
+            // A glyph larger than the badge relied on the badge clipping it, which WinUI doesn't do: it
+            // sized the badge's shape to the glyph and cut its corners off. The glyph keeps to the badge
+            // and gives up as much of the canvas' margin, so it draws as large as before.
+            var overflow = Math.Max(0, (style.IconBadgeGlyphSize - style.IconBadgeSize) / 2);
+            _icon.WidthRequest = _icon.HeightRequest = style.IconBadgeGlyphSize - 2 * overflow;
+            SvgImageSource.SetPadding(_icon, new Thickness(DefaultSvgPadding - overflow));
             SvgImageSource.SetTintColor(_icon, style.IconBadgeGlyphColor!);
         }
         else
@@ -646,6 +652,7 @@ public class SpineRow : ContentView
             _iconBadge.BackgroundColor = Colors.Transparent;
             _iconBadge.WidthRequest = _iconBadge.HeightRequest = style.IconSize;
             _icon.WidthRequest = _icon.HeightRequest = style.IconSize;
+            _icon.ClearValue(SvgImageSource.PaddingProperty);
             SvgImageSource.SetTintColor(_icon, style.IconColor!);
         }
 
