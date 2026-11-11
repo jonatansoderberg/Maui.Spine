@@ -96,10 +96,9 @@ public static class SvgBitmapLoader
         return new SvgBitmapImageSource(svgName, lazyImage.Value, scale);
     }
 
-    // A WinUI BitmapImage decoded from a stream shows its own pixels, so Windows stays at 1× until
-    // DecodePixelType.Logical can be verified there.
-    private static float ScreenScale =>
-        OperatingSystem.IsWindows() ? 1f : (float)DeviceDisplay.MainDisplayInfo.Density;
+    // Every platform decodes the bitmap back to its point size with its own SvgBitmapImageSourceService
+    // (on Windows a BitmapImage with DecodePixelType.Logical).
+    private static float ScreenScale => (float)DeviceDisplay.MainDisplayInfo.Density;
 
     /// <summary>
     /// Loads an embedded SVG resource and returns a MAUI <see cref="ImageSource"/> rendered at

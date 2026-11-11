@@ -42,7 +42,7 @@ public static class MauiAppBuilderExtensions
         // here, off the main thread, rather than when the first icon on the first page asks.
         _ = Task.Run(SvgBitmapLoader.WarmUp);
 
-#if IOS || MACCATALYST || ANDROID
+#if IOS || MACCATALYST || ANDROID || WINDOWS
         builder.ConfigureImageSources(static services =>
             services.AddService<SvgBitmapImageSource, SvgBitmapImageSourceService>());
 #endif
