@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/804
 **Branch:** issue/windows-window-sizes
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -47,5 +47,6 @@
 - Windows, AIDash Connect at 150 %: the system menu has "One column", "2 columns", "3 columns" above Close; three and
   two columns fit the cards with the page margin below the last; one column fills the work area down to the taskbar and
   scrolls (confirmed by the user that the menu works).
-- Not verified: dragging a card (the test pointer landed in another window), touch, the Mac build of the shared
+- Dragging a card with the mouse: confirmed by the user in AIDash Connect.
+- Not verified: touch, the Mac build of the shared
   `WindowSize` helpers.
