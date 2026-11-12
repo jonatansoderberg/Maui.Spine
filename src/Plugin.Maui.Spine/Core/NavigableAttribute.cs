@@ -212,6 +212,7 @@ public sealed class NavigableRegionAttribute : NavigableAttribute
         IsTitleBarVisible = source.IsTitleBarVisibleSet ? source.IsTitleBarVisible : defaults.IsTitleBarVisible;
         SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
         ScrollInset = source.ScrollInsetSet ? source.ScrollInset : defaults.ScrollInset;
+        HidesTabBar = source.HidesTabBarSet ? source.HidesTabBar : defaults.HidesTabBar;
         ScrollsUnderBottomBar = LeavesBottomToSpine(source.SafeAreaEdgesSet, source.ScrollInsetSet, defaults,
             defaults.SafeAreaEdges, defaults.ScrollInset);
     }
@@ -225,6 +226,17 @@ public sealed class NavigableRegionAttribute : NavigableAttribute
     /// </summary>
     public bool IsTitleBarVisible { get => field; set { field = value; _isTitleBarVisibleSet = true; } }
     internal bool IsTitleBarVisibleSet => _isTitleBarVisibleSet;
+
+    private bool _hidesTabBarSet;
+    /// <summary>
+    /// Whether the tab bar goes away while this page is pushed in a tab's stack, as UIKit's
+    /// <c>hidesBottomBarWhenPushed</c>: it slides out as the page comes in and back as the page
+    /// leaves. For a page such as Settings that is a place of its own rather than part of the tab.
+    /// Outside the tab host it does nothing. When not set the value is inherited from
+    /// <see cref="SpineOptions.RegionDefaultsConfig.HidesTabBar"/>.
+    /// </summary>
+    public bool HidesTabBar { get => field; set { field = value; _hidesTabBarSet = true; } }
+    internal bool HidesTabBarSet => _hidesTabBarSet;
 
     private bool _safeAreaEdgesSet;
     /// <summary>

@@ -89,6 +89,9 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     public partial bool KeyboardAvoidance { get; set; }
 
+    /// <summary>Whether the tab bar goes away while this page is pushed in a tab's stack. Set from <see cref="NavigableRegionAttribute.HidesTabBar"/>.</summary>
+    public bool HidesTabBar { get; internal set; }
+
     /// <summary>Controls whether Spine's in-page header bar is shown for this page.</summary>
     [ObservableProperty]
     public partial bool IsHeaderBarVisible { get; set; }
