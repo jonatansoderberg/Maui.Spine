@@ -49,7 +49,7 @@ XAML namespaces: `Tap` and `Semantic` are in `Plugin.Maui.Spine.Extensions` (ass
 | Property | |
 |---|---|
 | `Icon` | Short name of an embedded SVG, tinted with the accent (`SpineTheme.GetAccent`) |
-| `IconBackground` | A fill behind the icon, which turns white: a 30-point rounded square on iOS and Windows, a 40 dp circle on Android |
+| `IconBackground` | A fill behind the icon, which turns white: a 30-point rounded square on iOS and the Mac, a 40 dp circle on Android. Windows draws no badge (`ShowIconBadges`): a 20-point glyph in the text colour, as its Settings |
 | `Title`, `Detail` | Two lines; the detail is smaller and secondary |
 | `DetailMarquee` | Draws the detail with `AnimatedLabel`: text that does not fit scrolls instead of truncating |
 | `Value` | Secondary text: the current choice, or the value of a key/value row |
@@ -57,7 +57,7 @@ XAML namespaces: `Tap` and `Semantic` are in `Plugin.Maui.Spine.Extensions` (ass
 | `IsSelected` | `null` (default) = not a choice; `true` shows a check mark in the accent colour, `false` leaves its place empty |
 | `Accessory` | Any view at the end: a `Switch`, a button, a badge |
 | `Menu` | A `MenuItems` the row opens on a tap with the platform's pop-up menu; the row shows its picker's choice as the value and ends in an up-and-down chevron |
-| `Status` | `None` (default), `Ok` (a white check on green) or `NeedsAttention` (a white "!" on orange), at the end of the row |
+| `Status` | `None` (default), `Ok` (a white check on green) or `NeedsAttention` (a white "!" on orange), at the end of the row. On the Mac and Windows a row with a `Detail` shows it as a dot before the detail instead ("● Connected"), and keeps its chevron |
 | `IsDestructive` | The title in red, no chevron: a row that deletes or removes |
 | `ShowChevron` | `null` (default) = shown when the row has a `Command`, no `Accessory`, `IsSelected`, `Status` or `IsDestructive`; never on Android |
 | `Command`, `CommandParameter` | Run on a tap anywhere on the row (through `Tap.Command`) |
@@ -150,7 +150,7 @@ A group of rows with an optional header and footer, drawn the way the platform's
 
 - **iOS and Mac Catalyst**: a filled group with 26-point corners (10 before iOS 26), no outline, hairline separators from the row's text (after its icon) to 16 points before the group's edge, grey header and footer text.
 - **Android**: no group and no separators (Material 3 lists use spacing), a header in the accent colour.
-- **Windows**: a card with hairline separators.
+- **Windows**: each row a card of its own (`SeparateRows`), 4 points apart (`RowSpacing`), with 4-point corners and a 1-point stroke (`BorderColor`), under a bold header in the text colour lined up with the cards, as in Windows Settings.
 
 ```xml
 <SpinePage BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight},
@@ -181,7 +181,7 @@ Not yet: hiding the separators next to a pressed row, as UIKit does.
 
 ### Styling
 
-Sizes default to each platform's list rows: 52-point rows on iOS 26 as in Settings (44 before) with 17-point titles; the Material 3 list item on Android, 56 dp for one line and 72 dp for two, 16 sp titles and 24 dp icons; 40 and 14 on Windows. Colours follow the theme: title in the label colour, detail and value in the secondary label colour, chevron in the tertiary one, icon in the accent. Override on one row or app-wide; colours left unset stay themed (see [Theming](theming.md) for the style-options chain):
+Sizes default to each platform's list rows: 52-point rows on iOS 26 as in Settings (44 before) with 17-point titles; the Material 3 list item on Android, 56 dp for one line and 72 dp for two, 16 sp titles and 24 dp icons; on Windows the Settings card: 66 points, 14 and 12-point text, a 20-point glyph 20 points before the text, secondary text and chevron in Windows' text colours, and the success and caution colours for the status dot. Colours follow the theme: title in the label colour, detail and value in the secondary label colour, chevron in the tertiary one, icon in the accent. Override on one row or app-wide; colours left unset stay themed (see [Theming](theming.md) for the style-options chain):
 
 ```xml
 <!-- App.xaml -->

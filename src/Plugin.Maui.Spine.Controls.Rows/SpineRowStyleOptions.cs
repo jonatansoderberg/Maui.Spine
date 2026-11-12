@@ -11,7 +11,8 @@ namespace Plugin.Maui.Spine.Controls;
 /// A colour left <see langword="null"/> follows the theme. Sizes default to each platform's own
 /// list rows: on iOS 26 the 52-point rows of Settings (44 before), 17-point text and a 30-point
 /// icon badge; on Android the Material 3 list item, 56 dp for one line and 72 dp for two, 16 and
-/// 14 sp text and a 24 dp icon.
+/// 14 sp text and a 24 dp icon; on Windows the settings card, 14 and 12 point text, a 20-point glyph in the
+/// text colour instead of a badge and the status as a dot before the detail.
 /// </remarks>
 public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
 {
@@ -28,7 +29,27 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     public FontAttributes TitleFontAttributes { get; set; }
 
     /// <summary>Size of the icon when it has no <see cref="SpineRow.IconBackground"/>.</summary>
-    public double IconSize { get; set; } = IsAndroid ? 24 : 28;
+    /// <remarks>The icon set draws inside a margin of 5, so 30 on Windows draws its 20-point glyph.</remarks>
+    public double IconSize { get; set; } = IsAndroid ? 24 : IsWindows ? 30 : 28;
+
+    /// <summary>
+    /// Whether <see cref="SpineRow.IconBackground"/> draws a badge behind the icon. Off on Windows, whose settings draw
+    /// a plain glyph in the text colour (<see cref="IconColor"/>); the background colour is then not used.
+    /// </summary>
+    public bool ShowIconBadges { get; set; } = !IsWindows;
+
+    /// <summary>Space between the icon's square and the text: on Windows 15 after the glyph's own margin, 20 from the glyph as in its settings cards.</summary>
+    public double IconSpacing { get; set; } = IsAndroid ? 16 : IsWindows ? 15 : 12;
+
+    /// <summary>
+    /// Shows <see cref="SpineRow.Status"/> as a small dot before the detail line, the way macOS and Windows mark a
+    /// network or a device as connected, rather than a mark at the end of the row. On by default on the Mac and
+    /// Windows; iOS keeps the mark, and so does a row without a detail.
+    /// </summary>
+    public bool StatusAsDot { get; set; } = IsWindows || DeviceInfo.Platform == DevicePlatform.MacCatalyst;
+
+    /// <summary>Diameter of the status dot (<see cref="StatusAsDot"/>).</summary>
+    public double StatusDotSize { get; set; } = IsWindows ? 7 : 8;
 
     /// <summary>Size of the filled shape behind the icon when the row has an <see cref="SpineRow.IconBackground"/>.</summary>
     public double IconBadgeSize { get; set; } = IsAndroid ? 40 : 30;
@@ -40,10 +61,10 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     public double IconBadgeCornerRadius { get; set; } = IsAndroid ? 20 : 7;
 
     /// <summary>Height of a row with one line of text.</summary>
-    public double MinimumHeight { get; set; } = IsAndroid ? 56 : IsWindows ? 40 : IsModernApple ? 52 : 44;
+    public double MinimumHeight { get; set; } = IsAndroid ? 56 : IsWindows ? 66 : IsModernApple ? 52 : 44;
 
     /// <summary>Height of a row with a second line (a detail, or the value under the title).</summary>
-    public double TwoLineMinimumHeight { get; set; } = IsAndroid ? 72 : IsWindows ? 40 : IsModernApple ? 52 : 44;
+    public double TwoLineMinimumHeight { get; set; } = IsAndroid ? 72 : IsWindows ? 66 : IsModernApple ? 52 : 44;
 
     public Thickness Padding { get; set; } = new(16, 8);
     public double Spacing { get; set; } = IsAndroid ? 16 : 12;
@@ -109,6 +130,16 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
 
         // The system label colours, opaque: secondary for detail and value, tertiary for the chevron.
         TitleColor ??= dark ? Colors.White : Colors.Black;
+        if (IsWindows)
+        {
+            // Windows' text fill colours: secondary text, and glyphs in the text colour; success and caution fills.
+            DetailColor ??= Color.FromArgb(dark ? "#CFCFCF" : "#616161");
+            ChevronColor ??= DetailColor;
+            IconColor ??= TitleColor;
+            StatusOkColor ??= Color.FromArgb(dark ? "#6CCB5F" : "#0F7B0F");
+            StatusAttentionColor ??= Color.FromArgb(dark ? "#FCE100" : "#9D5D00");
+        }
+
         DetailColor ??= Color.FromArgb(dark ? "#98989F" : "#8A8A8E");
         ValueColor ??= DetailColor;
         ChevronColor ??= Color.FromArgb(dark ? "#5A5A5F" : "#C4C4C7");

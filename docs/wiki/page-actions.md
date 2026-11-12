@@ -133,10 +133,10 @@ partial void OnIsLiveChanged(bool value)
 
 ## A status beside the buttons
 
-`IsStatus = true` shows an action as a status instead of a button: a small `Svg` glyph in its `Tint` followed by `Text` in the secondary label colour, with no button shape and no glass. It suits a desk app's header, where there is room for a line such as "Sent 14:05" next to the buttons. A tap runs `Command` when there is one, and `Description` is the tooltip. Change `Text`, `Svg` and `Tint` as the state changes:
+`IsStatus = true` shows an action as a status instead of a button: a small `Svg` glyph in its `Tint` followed by `Text` in the secondary label colour, with no button shape and no glass. It suits a desk app's header, where there is room for a line such as "Sent 14:05" next to the buttons. A tap runs `Command` when there is one, and `Description` is the tooltip. The text is 13 points in the app's default font; `FontSize` and `FontFamily` match it to the app's own small text. Change `Text`, `Svg` and `Tint` as the state changes:
 
 ```csharp
-_sent = new PageAction(null, OpenDeviceCommand) { IsStatus = true, Svg = "Check.svg" };
+_sent = new PageAction(null, OpenDeviceCommand) { IsStatus = true, Svg = "Check.svg", FontFamily = "Inter" };
 
 void ShowSent(DateTimeOffset at, string? error)
 {

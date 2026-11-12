@@ -9,7 +9,7 @@ namespace Plugin.Maui.Spine.Controls;
 /// <summary>
 /// A group of <see cref="SpineRow"/>s with an optional header and footer, drawn the way the
 /// platform's own settings are: an inset group with hairline separators on iOS, plain rows under
-/// an accent-coloured header on Android, a card on Windows.
+/// an accent-coloured header on Android, a card for each row on Windows.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -85,6 +85,9 @@ public class SpineSection : ContentView
     readonly Label _footer = new() { Margin = new Thickness(0, 6, 0, 0) };
     readonly VerticalStackLayout _stack = new();
     readonly List<BoxView> _separators = [];
+    // With SeparateRows (Windows): each row in a card of its own instead of separators.
+    readonly List<Border> _cards = [];
+    bool _separated;
     readonly Border _group;
 
     public SpineSection()
@@ -123,21 +126,54 @@ public class SpineSection : ContentView
     void Rebuild()
     {
         _stack.Clear();
+        foreach (var card in _cards)
+            card.Content = null;
+        _cards.Clear();
         _separators.Clear();
+        _separated = SpineSectionStyleOptions.Resolve(StyleOptions).SeparateRows;
 
         foreach (var row in _rows)
         {
+            if (_separated)
+            {
+                var card = new Border { Padding = 0, Content = row };
+                _cards.Add(card);
+                _stack.Add(card);
+                continue;
+            }
+
             var separator = new BoxView { InputTransparent = true };
             _separators.Add(separator);
             _stack.Add(separator);
             _stack.Add(row);
         }
 
+        PaintCards(SpineSectionStyleOptions.Resolve(StyleOptions));
         UpdateSeparators();
+    }
+
+    void PaintCards(SpineSectionStyleOptions style)
+    {
+        foreach (var card in _cards)
+        {
+            card.BackgroundColor = style.BackgroundColor;
+            // A Color converts to a brush even when null, and WinUI throws on a brush without a colour.
+            card.Stroke = style.BorderColor is { } border ? new SolidColorBrush(border) : null;
+            card.StrokeThickness = style.BorderColor is null ? 0 : 1;
+            if (card.StrokeShape is not RoundRectangle { CornerRadius: var current } || current != new CornerRadius(style.CornerRadius))
+                card.StrokeShape = new RoundRectangle { CornerRadius = style.CornerRadius };
+        }
     }
 
     void UpdateSeparators()
     {
+        if (_separated)
+        {
+            for (var i = 0; i < _cards.Count; i++)
+                _cards[i].IsVisible = _rows[i].IsVisible;
+            return;
+        }
+
         var style = SpineSectionStyleOptions.Resolve(StyleOptions);
         var hairline = 1 / Math.Max(1, DeviceDisplay.Current.MainDisplayInfo.Density);
         var anyVisibleAbove = false;
@@ -185,7 +221,14 @@ public class SpineSection : ContentView
     {
         var style = SpineSectionStyleOptions.Resolve(StyleOptions);
 
-        _group.BackgroundColor = style.BackgroundColor;
+        if (style.SeparateRows != _separated)
+            Rebuild();
+
+        _group.BackgroundColor = _separated ? Colors.Transparent : style.BackgroundColor;
+        _group.Stroke = !_separated && style.BorderColor is { } border ? new SolidColorBrush(border) : null;
+        _group.StrokeThickness = _separated || style.BorderColor is null ? 0 : 1;
+        _stack.Spacing = _separated ? style.RowSpacing : 0;
+        PaintCards(style);
         ApplyShape();
 
         _header.TextColor = style.HeaderColor;

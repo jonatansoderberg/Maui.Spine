@@ -87,7 +87,11 @@ public class SpineRow : ContentView
 
     public static readonly BindableProperty StyleOptionsProperty = BindableProperty.Create(
         nameof(StyleOptions), typeof(SpineRowStyleOptions), typeof(SpineRow), null,
-        propertyChanged: static (b, _, _) => ((SpineRow)b).Repaint());
+        propertyChanged: static (b, _, _) =>
+        {
+            ((SpineRow)b).ApplyContent();
+            ((SpineRow)b).Repaint();
+        });
 
     public static readonly BindableProperty MenuProperty = BindableProperty.Create(
         nameof(Menu), typeof(MenuItems), typeof(SpineRow), null,
@@ -219,6 +223,8 @@ public class SpineRow : ContentView
     /// <summary>
     /// A mark at the end of the row: a green check on what is set up and working, an orange "!" on
     /// what needs the user. A row with a status shows no chevron unless <see cref="ShowChevron"/> asks for one.
+    /// On the Mac and Windows (<see cref="SpineRowStyleOptions.StatusAsDot"/>) it is a small dot before the
+    /// <see cref="Detail"/> instead, as they mark a connected network or device, and the chevron stays.
     /// </summary>
     public SpineRowStatus Status
     {
@@ -252,6 +258,9 @@ public class SpineRow : ContentView
     readonly ContentView _accessory;
     readonly Border _status;
     readonly Image _statusGlyph;
+    // The detail's line: the status dot (SpineRowStyleOptions.StatusAsDot) and the detail.
+    readonly Grid _detailLine;
+    readonly Border _statusDot;
     readonly Image _check;
     readonly Image _chevron;
     readonly Image _menuGlyph;
@@ -275,7 +284,20 @@ public class SpineRow : ContentView
         };
 
         _title = new Label { LineBreakMode = LineBreakMode.TailTruncation, MaxLines = 1 };
-        _text = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 1, Children = { _title } };
+        _statusDot = new Border
+        {
+            StrokeThickness = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
+            VerticalOptions = LayoutOptions.Center,
+            IsVisible = false,
+        };
+        _detailLine = new Grid
+        {
+            ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
+            Children = { _statusDot },
+            IsVisible = false,
+        };
+        _text = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 1, Children = { _title, _detailLine } };
 
         _value = new Label
         {
@@ -365,12 +387,13 @@ public class SpineRow : ContentView
     void BuildDetail()
     {
         if (_detail is not null)
-            _text.Remove(_detail);
+            _detailLine.Remove(_detail);
 
         _detail = DetailMarquee
             ? new AnimatedLabel()
             : new Label { LineBreakMode = LineBreakMode.TailTruncation, MaxLines = 1 };
-        _text.Insert(1, _detail);
+        Grid.SetColumn(_detail, 1);
+        _detailLine.Add(_detail);
 
         ApplyContent();
         Repaint();
@@ -417,8 +440,15 @@ public class SpineRow : ContentView
         _check.IsVisible = IsSelected == true;
         SemanticProperties.SetDescription(_check, SpineStrings.Current["Spine.Row.Selected"]);
 
+        // The status as a dot before the detail (Windows), or as the mark at the end when there is no detail.
+        var hasDetail = !string.IsNullOrEmpty(Detail);
+        var dot = Status != SpineRowStatus.None && hasDetail && SpineRowStyleOptions.Resolve(StyleOptions).StatusAsDot;
+        _statusDot.IsVisible = dot;
+        _status.IsVisible = Status != SpineRowStatus.None && !dot;
+        _detailLine.IsVisible = hasDetail;
+
         _chevron.IsVisible = Menu is null && (ShowChevron
-            ?? (Command is not null && Accessory is null && IsSelected is null && Status == SpineRowStatus.None && !IsDestructive && !IsAndroid));
+            ?? (Command is not null && Accessory is null && IsSelected is null && !_status.IsVisible && !IsDestructive && !IsAndroid));
         _menuGlyph.IsVisible = Menu is not null && !IsAndroid;
 
         if (_menuButton is not null)
@@ -442,7 +472,7 @@ public class SpineRow : ContentView
         {
             var style = SpineRowStyleOptions.Resolve(StyleOptions);
             var icon = !_iconBadge.IsVisible ? 0
-                : (IconBackground is null ? style.IconSize : style.IconBadgeSize) + style.Spacing;
+                : (IconBackground is null || !style.ShowIconBadges ? style.IconSize : style.IconBadgeSize) + style.IconSpacing;
             return style.Padding.Left + icon;
         }
     }
@@ -474,12 +504,13 @@ public class SpineRow : ContentView
 
     void ApplyStatus()
     {
-        _status.IsVisible = Status != SpineRowStatus.None;
-        if (_status.IsVisible)
+        if (Status != SpineRowStatus.None)
         {
             var ok = Status == SpineRowStatus.Ok;
             SvgImageSource.SetSvg(_statusGlyph, ok ? "check.svg" : AttentionGlyph);
-            SemanticProperties.SetDescription(_status, SpineStrings.Current[ok ? "Spine.Row.StatusOk" : "Spine.Row.StatusNeedsAttention"]);
+            var description = SpineStrings.Current[ok ? "Spine.Row.StatusOk" : "Spine.Row.StatusNeedsAttention"];
+            SemanticProperties.SetDescription(_status, description);
+            SemanticProperties.SetDescription(_statusDot, description);
         }
 
         ApplyContent();
@@ -515,8 +546,7 @@ public class SpineRow : ContentView
 
         // A screen reader reaches the menu through that button; a merged row would hide it with the
         // rest of its parts, so the parts are hidden instead and the button reads the row.
-        View[] parts = [_iconBadge, _text, _value, _accessory, _status, _check, _chevron, _menuGlyph];
-        if (Menu is null)
+        View[] parts = [_iconBadge, _text, _value, _accessory, _status, _check, _chevron, _menuGlyph];        if (Menu is null)
         {
             foreach (var part in parts)
                 part.ClearValue(AutomationProperties.ExcludedWithChildrenProperty);
@@ -620,7 +650,7 @@ public class SpineRow : ContentView
         // Spacing as margins rather than ColumnSpacing: the grid would keep the spacing of an
         // empty column, and a row without a chevron would end short of its padding.
         _grid.ColumnSpacing = 0;
-        _iconBadge.Margin = new Thickness(0, 0, style.Spacing, 0);
+        _iconBadge.Margin = new Thickness(0, 0, style.IconSpacing, 0);
         _value.Margin = new Thickness(style.Spacing, 0, 0, 0);
         _accessory.Margin = new Thickness(style.Spacing, 0, 0, 0);
         _check.Margin = new Thickness(style.Spacing - 4, 0, -4, 0);
@@ -634,7 +664,7 @@ public class SpineRow : ContentView
         _grid.Opacity = IsEnabled ? 1 : style.DisabledOpacity;
         ApplyHeight();
 
-        if (IconBackground is { } badge)
+        if (IconBackground is { } badge && style.ShowIconBadges)
         {
             _iconBadge.BackgroundColor = badge;
             _iconBadge.StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = style.IconBadgeCornerRadius };
@@ -694,6 +724,9 @@ public class SpineRow : ContentView
         _status.WidthRequest = _status.HeightRequest = style.StatusSize;
         _statusGlyph.WidthRequest = _statusGlyph.HeightRequest = style.StatusSize;
         _status.BackgroundColor = Status == SpineRowStatus.Ok ? style.StatusOkColor : style.StatusAttentionColor;
+        _statusDot.BackgroundColor = _status.BackgroundColor;
+        _statusDot.WidthRequest = _statusDot.HeightRequest = style.StatusDotSize;
+        _statusDot.Margin = new Thickness(0, 0, Math.Round(style.StatusDotSize * 0.9), 0);
         SvgImageSource.SetTintColor(_statusGlyph, style.StatusGlyphColor!);
         // A heavier stroke than the chevron's: the glyph is small and white on a fill.
         SvgImageSource.SetLineWidthScale(_statusGlyph, style.GlyphLineWidthScale * 1.75);
