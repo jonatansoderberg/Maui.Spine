@@ -18,7 +18,7 @@ internal sealed class WindowSizeMenu
     const uint MF_BYCOMMAND = 0x0, MF_STRING = 0x0, MF_CHECKED = 0x8, MF_SEPARATOR = 0x800;
     const uint SC_CLOSE = 0xF060;
     // System command ids below SC_SIZE's range, with the low four bits clear: Windows uses those itself.
-    const uint FirstId = 0x1000, IdStep = 0x10, SeparatorId = 0x1FF0;
+    const uint FirstId = 0x1000, IdStep = 0x10, SeparatorId = 0x1FF0, CommandSeparatorId = 0x1FE0;
     const int MaxItems = 16;
 
     readonly IntPtr _hwnd;
@@ -111,7 +111,10 @@ internal sealed class WindowSizeMenu
         for (var i = 0; i < _added; i++)
             DeleteMenu(menu, FirstId + (uint)i * IdStep, MF_BYCOMMAND);
         if (_added > 0)
+        {
             DeleteMenu(menu, SeparatorId, MF_BYCOMMAND);
+            DeleteMenu(menu, CommandSeparatorId, MF_BYCOMMAND);
+        }
         _added = 0;
         _shown = [];
 
@@ -121,11 +124,14 @@ internal sealed class WindowSizeMenu
         if (sizes.Count == 0)
             return;
 
-        // Above Close, after Windows' own separator: the sizes, then a separator of their own.
-        _shown = sizes.Take(MaxItems).ToList();
+        // Above Close, after Windows' own separator: the sizes, the current one checked; the commands
+        // (WindowSize.IsCommand) unchecked behind a separator; then a separator of their own.
+        _shown = sizes.Where(s => !s.IsCommand).Concat(sizes.Where(s => s.IsCommand)).Take(MaxItems).ToList();
         for (var i = 0; i < _shown.Count; i++)
         {
-            var current = !IsMaximized && _shown[i].Matches(g.Client);
+            if (_shown[i].IsCommand && i > 0 && !_shown[i - 1].IsCommand)
+                InsertMenu(menu, SC_CLOSE, MF_BYCOMMAND | MF_SEPARATOR, CommandSeparatorId, null);
+            var current = !_shown[i].IsCommand && !IsMaximized && _shown[i].Matches(g.Client);
             InsertMenu(menu, SC_CLOSE, MF_BYCOMMAND | MF_STRING | (current ? MF_CHECKED : 0), FirstId + (uint)i * IdStep, _shown[i].Title);
         }
         InsertMenu(menu, SC_CLOSE, MF_BYCOMMAND | MF_SEPARATOR, SeparatorId, null);

@@ -15,11 +15,26 @@ public sealed record WindowSize(string Title, Size Size, string? SystemImage = n
     const double Slack = 2;
 
     /// <summary>
+    /// A command such as "Fit to content" rather than a size to pick: it is never checked, it comes after the sizes behind
+    /// a separator, and the window's own fitting (<see cref="ViewModelBase.FitWindowToContent"/>, at launch) leaves it out.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// sizes.Add(new WindowSize("Fit to content", current.Size, "arrow.down.right.and.arrow.up.left") { IsCommand = true });
+    /// </code>
+    /// </example>
+    public bool IsCommand { get; init; }
+
+    /// <summary>
     /// The suggestion for a window <paramref name="width"/> points wide: the widest no wider than it, or the narrowest.
     /// Both platforms fit the window with it (at launch and for <see cref="ViewModelBase.FitWindowToContent"/>).
     /// </summary>
-    internal static WindowSize ForWidth(IReadOnlyList<WindowSize> sizes, double width) =>
-        sizes.Where(s => s.Size.Width <= width + Slack).MaxBy(s => s.Size.Width) ?? sizes.MinBy(s => s.Size.Width)!;
+    internal static WindowSize ForWidth(IReadOnlyList<WindowSize> sizes, double width)
+    {
+        // The sizes to pick from; commands only when the page offers nothing else.
+        var choices = sizes.Where(s => !s.IsCommand).ToList() is { Count: > 0 } picked ? picked : sizes.ToList();
+        return choices.Where(s => s.Size.Width <= width + Slack).MaxBy(s => s.Size.Width) ?? choices.MinBy(s => s.Size.Width)!;
+    }
 
     /// <summary>
     /// Whether a window of size <paramref name="current"/> should take this size: at launch only to grow taller

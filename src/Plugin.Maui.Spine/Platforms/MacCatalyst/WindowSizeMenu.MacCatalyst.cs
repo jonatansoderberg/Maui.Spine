@@ -84,13 +84,20 @@ internal sealed class WindowSizeMenu(Func<ViewModelBase?> page, SystemInsetsProv
         if (sizes.Count == 0) return null;
 
         var current = new Size((double)frame.Width * scale, (double)frame.Height * scale);
-        var items = sizes.Select(s =>
+        UIAction Item(WindowSize s) =>
+            UIAction.Create(s.Title, s.SystemImage is { } name ? UIImage.GetSystemImage(name) : null, null, _ => Resize(window, s.Size));
+
+        // The sizes, the current one checked; commands (WindowSize.IsCommand) unchecked after a separator.
+        var items = sizes.Where(s => !s.IsCommand).Select(s =>
         {
-            var action = UIAction.Create(s.Title, s.SystemImage is { } name ? UIImage.GetSystemImage(name) : null, null, _ => Resize(window, s.Size));
+            var action = Item(s);
             action.State = s.Matches(current) ? UIMenuElementState.On : UIMenuElementState.Off;
             return (UIMenuElement)action;
-        }).ToArray();
-        return UIContextMenuConfiguration.Create(null, null, _ => UIMenu.Create(items));
+        }).ToList();
+        var commands = sizes.Where(s => s.IsCommand).Select(s => (UIMenuElement)Item(s)).ToArray();
+        if (commands.Length > 0)
+            items.Add(UIMenu.Create(string.Empty, null, UIMenuIdentifier.None, UIMenuOptions.DisplayInline, commands));
+        return UIContextMenuConfiguration.Create(null, null, _ => UIMenu.Create([.. items]));
     }
 
     // AppKit's frame and the screen's visible frame, and how many UIKit points an AppKit point is: an app scaled to
