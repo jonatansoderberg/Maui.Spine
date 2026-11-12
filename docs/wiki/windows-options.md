@@ -70,6 +70,10 @@ builder.UseSpine(options =>
 | `IsMinimizable` | `bool` | `true` | Whether the minimize button is shown |
 | `IsAlwaysOnTop` | `bool` | `false` | Keep the window above all other windows |
 
+The window opens without a visible focus. WinUI would give the first tab stop, usually the header bar's first button,
+keyboard focus with its focus rectangle. Spine gives that first focus to the window's root view instead, which draws
+none. Tab then goes to the first button with its rectangle, as in Windows' own apps.
+
 ---
 
 ## Taskbar and tray
