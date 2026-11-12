@@ -65,6 +65,18 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     /// </summary>
     public bool ShowSwitchState { get; set; } = IsWindows;
 
+    /// <summary>
+    /// Shows a <see cref="SpineRow.Menu"/> row's choice in a combo box (<see cref="DropDownColor"/>, a chevron pointing down)
+    /// instead of the value and the up-and-down chevron, as Windows Settings does. On by default on Windows.
+    /// </summary>
+    public bool MenuAsDropDown { get; set; } = IsWindows;
+
+    /// <summary>Fill of the combo box (<see cref="MenuAsDropDown"/>): Windows' ControlFillColorDefault.</summary>
+    public Color? DropDownColor { get; set; }
+
+    /// <summary>Stroke of the combo box: Windows' ControlStrokeColorDefault.</summary>
+    public Color? DropDownBorderColor { get; set; }
+
     /// <summary>Diameter of the status dot (<see cref="StatusAsDot"/>).</summary>
     public double StatusDotSize { get; set; } = IsWindows ? 7 : 8;
 
@@ -138,6 +150,8 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
         StatusOkColor ??= source.StatusOkColor;
         StatusAttentionColor ??= source.StatusAttentionColor;
         StatusGlyphColor ??= source.StatusGlyphColor;
+        DropDownColor ??= source.DropDownColor;
+        DropDownBorderColor ??= source.DropDownBorderColor;
     }
 
     protected override void ApplyThemeDefaults(AppTheme theme)
@@ -167,5 +181,7 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
         StatusOkColor ??= Color.FromArgb(dark ? "#30D158" : "#34C759");
         StatusAttentionColor ??= Color.FromArgb(dark ? "#FF9F0A" : "#FF9500");
         StatusGlyphColor ??= Colors.White;
+        DropDownColor ??= Color.FromArgb(dark ? "#0FFFFFFF" : "#B3FFFFFF");
+        DropDownBorderColor ??= Color.FromArgb(dark ? "#12FFFFFF" : "#0F000000");
     }
 }

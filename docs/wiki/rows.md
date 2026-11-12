@@ -60,6 +60,7 @@ XAML namespaces: `Tap` and `Semantic` are in `Plugin.Maui.Spine.Extensions` (ass
 | `Status` | `None` (default), `Ok` (a white check on green) or `NeedsAttention` (a white "!" on orange), at the end of the row. On the Mac and Windows a row with a `Detail` shows it as a dot before the detail instead ("● Connected"), and keeps its chevron |
 | `IsDestructive` | The title in red, no chevron: a row that deletes or removes |
 | `Accessory` on Windows | A `Switch` gets "On" or "Off" before it, as in Windows Settings (`ShowSwitchState` in `SpineRowStyleOptions`) |
+| `Menu` on Windows | The choice shows in a combo box, as in Windows Settings (`MenuAsDropDown`) |
 | `ShowChevron` | `null` (default) = shown when the row has a `Command`, no `Accessory`, `IsSelected`, `Status` or `IsDestructive`; never on Android |
 | `Command`, `CommandParameter` | Run on a tap anywhere on the row (through `Tap.Command`) |
 | `StyleOptions` | `SpineRowStyleOptions`: fonts, sizes, padding, colours |
