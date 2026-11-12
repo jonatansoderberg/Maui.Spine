@@ -9,9 +9,13 @@ namespace Plugin.Maui.Spine.Svg;
 /// <summary>
 /// Decodes an <see cref="SvgBitmapImageSource"/> at its own scale. MAUI's stream service gives WinUI a
 /// <see cref="BitmapImage"/> that shows one pixel per point, so the bitmap had to be rendered at 1× and the display
-/// stretched it: every SVG icon was soft on a 150 % or 200 % screen. Decoding to the icon's size in logical pixels
-/// keeps the bitmap's own pixels and lays it out at its point size, as on iOS and Android.
+/// stretched it: every SVG icon was soft on a 150 % or 200 % screen. The bitmap is decoded to its own pixels; the
+/// view's point size (the SVG is rendered for it) lays it out, one bitmap pixel per screen pixel.
 /// </summary>
+/// <remarks>
+/// Not <see cref="DecodePixelType.Logical"/>: a bitmap decoded before it is in a window gets scale 1, so a 39-pixel
+/// icon at 150 % was decoded to 26 pixels and stretched back up, as soft as before.
+/// </remarks>
 internal sealed class SvgBitmapImageSourceService : ImageSourceService, IImageSourceService<SvgBitmapImageSource>
 {
     // MAUI's image source factory instantiates services with Activator.CreateInstance, which needs
@@ -31,9 +35,9 @@ internal sealed class SvgBitmapImageSourceService : ImageSourceService, IImageSo
 
         var bitmap = new BitmapImage
         {
-            DecodePixelType = DecodePixelType.Logical,
-            DecodePixelWidth = Math.Max(1, (int)Math.Round(pixelWidth / source.Scale)),
-            DecodePixelHeight = Math.Max(1, (int)Math.Round(pixelHeight / source.Scale)),
+            DecodePixelType = DecodePixelType.Physical,
+            DecodePixelWidth = pixelWidth,
+            DecodePixelHeight = pixelHeight,
         };
         stream.Position = 0;
         await bitmap.SetSourceAsync(stream.AsRandomAccessStream());

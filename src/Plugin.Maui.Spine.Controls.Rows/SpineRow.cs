@@ -688,6 +688,10 @@ public class SpineRow : ContentView
                 SvgImageSource.SetPadding(_icon, new Thickness(padding));
             else
                 _icon.ClearValue(SvgImageSource.PaddingProperty);
+            if (style.IconLineWidthScale is { } scale)
+                SvgImageSource.SetLineWidthScale(_icon, scale);
+            else
+                _icon.ClearValue(SvgImageSource.LineWidthScaleProperty);
             SvgImageSource.SetTintColor(_icon, style.IconColor!);
         }
 

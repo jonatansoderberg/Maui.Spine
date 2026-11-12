@@ -38,6 +38,12 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     public double? IconPadding { get; set; } = IsWindows ? 1 : null;
 
     /// <summary>
+    /// Stroke of the icon when it has no badge, relative to the glyph's own. <see langword="null"/> = as drawn; 1.5 on
+    /// Windows, whose Settings icons are drawn heavier, so they read white rather than grey.
+    /// </summary>
+    public double? IconLineWidthScale { get; set; } = IsWindows ? 1.25 : null;
+
+    /// <summary>
     /// Whether <see cref="SpineRow.IconBackground"/> draws a badge behind the icon. Off on Windows, whose settings draw
     /// a plain glyph in the text colour (<see cref="IconColor"/>); the background colour is then not used.
     /// </summary>
