@@ -12,6 +12,8 @@ public static partial class SpineExtensions
     static void ConfigureScrollInsets()
     {
         ScrollViewHandler.Mapper.AppendToMapping(SafeArea.MapperKey, ApplyScrollInset);
+        // How far a page shorter than the screen scrolls depends on how tall its content is.
+        ScrollViewHandler.Mapper.AppendToMapping(nameof(IScrollView.ContentSize), ApplyScrollInset);
         CollectionViewHandler.Mapper.AppendToMapping(SafeArea.MapperKey, ApplyScrollInset);
         CollectionViewHandler2.Mapper.AppendToMapping(SafeArea.MapperKey, ApplyScrollInset);
 
@@ -31,13 +33,24 @@ public static partial class SpineExtensions
 
         var inset = SafeArea.GetResolvedInset(view);
         var edgeInsets = new UIEdgeInsets((nfloat)inset.Top, (nfloat)inset.Left, (nfloat)inset.Bottom, (nfloat)inset.Right);
+        var contentInsets = edgeInsets;
+
+        // MAUI arranges a ScrollView's content at least as tall as the ScrollView, so a page shorter
+        // than the screen would still scroll the whole bottom inset, into empty space under its last
+        // row. It scrolls only as far as its content needs to come clear of the bar.
+        if (inset.Bottom > 0 && view is ScrollView { Orientation: not ScrollOrientation.Horizontal, Content: IView content } scrolling)
+        {
+            var used = content.DesiredSize.Height + scrolling.Padding.VerticalThickness;
+            var stretched = Math.Max(0, scrollView.Frame.Height - used);
+            contentInsets.Bottom = (nfloat)Math.Max(0, inset.Bottom - stretched);
+        }
 
         // UIKit keeps the content offset when the inset changes, so a view that was resting at
         // its top would now rest inset points too high, its first rows under the bar the inset
         // was meant to clear. Keep a resting view at its (new) top.
         var atTop = scrollView.ContentOffset.Y <= -scrollView.AdjustedContentInset.Top + 0.5;
 
-        scrollView.ContentInset = edgeInsets;
+        scrollView.ContentInset = contentInsets;
 
         if (atTop)
             scrollView.ContentOffset = new CoreGraphics.CGPoint(scrollView.ContentOffset.X, -scrollView.AdjustedContentInset.Top);

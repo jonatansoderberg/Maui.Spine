@@ -1,5 +1,4 @@
 #if IOS || MACCATALYST
-using AsyncAwaitBestPractices;
 using Foundation;
 using Microsoft.Maui.Platform;
 using Plugin.Maui.Spine.Svg;
@@ -120,6 +119,12 @@ public partial class SpineTabbedHostPage
     /// template image, so the bar tints it. The loader renders for the screen density and the
     /// image source carries the scale.
     /// </summary>
+    /// <remarks>
+    /// An item that gets its image after the bar built its views keeps the title-only layout: on
+    /// iOS 26 the label of every tab not yet selected sat below the others, with a second label
+    /// behind the selected one, until the tab was opened. So the images are set at once, not after
+    /// an asynchronous load, and the bar is then made to build its items again.
+    /// </remarks>
     private void ApplyTabBarItemImages(UITabBarController controller)
     {
         if (controller.ViewControllers is not { } controllers)
@@ -133,28 +138,32 @@ public partial class SpineTabbedHostPage
                 continue;
 
             var resolved = svgResources.Resolve(icon) ?? icon;
-            if (SvgBitmapLoader.LoadFromEmbedded(resolved, 25, 25, Colors.Black) is not SvgBitmapImageSource source)
-                continue;
-
-            LoadTabImageAsync(controllers[i], source).SafeFireAndForget();
+            if (SvgBitmapLoader.LoadFromEmbedded(resolved, 25, 25, Colors.Black) is SvgBitmapImageSource source &&
+                TabImage(source) is { } image)
+            {
+                controllers[i].TabBarItem.Image = image;
+            }
         }
+
+        // The bar has built its item views by now, each tab still without an image: the tabs not
+        // yet selected keep a title-only layout. Handing it the same controllers again rebuilds
+        // them with their images, before the bar is on screen.
+        var selected = controller.SelectedIndex;
+        controller.SetViewControllers(controllers, false);
+        controller.SelectedIndex = selected;
     }
 
-    private static async Task LoadTabImageAsync(UIViewController controller, SvgBitmapImageSource source)
+    /// <summary>The rendered bitmap as a template image. The PNG is already in memory, so its stream is read without waiting.</summary>
+    private static UIImage? TabImage(SvgBitmapImageSource source)
     {
-        using var stream = await ((IStreamImageSource)source).GetStreamAsync(CancellationToken.None);
+        using var stream = ((IStreamImageSource)source).GetStreamAsync(CancellationToken.None).GetAwaiter().GetResult();
         if (stream is null)
-            return;
+            return null;
 
         using var data = NSData.FromStream(stream);
-        if (data is null)
-            return;
-
-        var image = UIImage.LoadFromData(data, source.Scale)?
-            .ImageWithRenderingMode(UIImageRenderingMode.AlwaysTemplate);
-
-        if (image is not null)
-            MainThread.BeginInvokeOnMainThread(() => controller.TabBarItem.Image = image);
+        return data is null
+            ? null
+            : UIImage.LoadFromData(data, source.Scale)?.ImageWithRenderingMode(UIImageRenderingMode.AlwaysTemplate);
     }
 
     private void ApplyStyle(UITabBarController controller)
