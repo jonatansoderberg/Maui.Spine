@@ -72,3 +72,10 @@ in the header and on the cards are unchanged.
 
 With sharp glyphs the icons' stroke (`IconLineWidthScale`, new, 1.25 on Windows) matches Settings': about 300 inked
 pixels per 20-point icon with the same mean brightness (209), where the soft icons had no pixel brighter than `#D9D9D9`.
+
+## Follow-up: "On" / "Off" before a switch
+
+Windows Settings writes the state before a toggle. `SpineRowStyleOptions.ShowSwitchState` (on by default on Windows)
+puts "On" or "Off" (`Spine.Row.On` / `Spine.Row.Off`, Swedish "På" / "Av") in the value's place, in the title's font
+and colour, and follows the switch's `Toggled`. A row with a `Value` keeps its value. The label is left out of the
+merged description: the switch reads its own state.

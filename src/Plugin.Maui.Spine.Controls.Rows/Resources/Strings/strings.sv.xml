@@ -5,4 +5,6 @@
   <s key="Spine.Row.HidePassword">Dölj lösenord</s>
   <s key="Spine.Row.StatusOk">OK</s>
   <s key="Spine.Row.StatusNeedsAttention">Behöver åtgärdas</s>
+  <s key="Spine.Row.On">På</s>
+  <s key="Spine.Row.Off">Av</s>
 </strings>

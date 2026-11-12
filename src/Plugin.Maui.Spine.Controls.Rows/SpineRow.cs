@@ -255,6 +255,9 @@ public class SpineRow : ContentView
     readonly VerticalStackLayout _text;
     readonly Label _title;
     readonly Label _value;
+    // "On" or "Off" before a switch accessory, as Windows Settings (SpineRowStyleOptions.ShowSwitchState).
+    readonly Label _switchState;
+    Switch? _watchedSwitch;
     readonly Label _valueBelow;
     readonly ContentView _accessory;
     readonly Border _status;
@@ -308,6 +311,10 @@ public class SpineRow : ContentView
             MaxLines = 1,
         };
 
+        // The switch reads its own state; the row's merged description doesn't need it twice.
+        _switchState = new Label { VerticalOptions = LayoutOptions.Center, MaxLines = 1, IsVisible = false };
+        AutomationProperties.SetExcludedWithChildren(_switchState, true);
+
         // Under the title on Android: a preference's summary.
         _valueBelow = new Label { LineBreakMode = LineBreakMode.TailTruncation, MaxLines = 1 };
         _text.Add(_valueBelow);
@@ -356,11 +363,12 @@ public class SpineRow : ContentView
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
             ],
-            Children = { _iconBadge, _text, _value, _accessory, _status, _check, _chevron, _menuGlyph },
+            Children = { _iconBadge, _text, _value, _switchState, _accessory, _status, _check, _chevron, _menuGlyph },
         };
 
         Grid.SetColumn(_text, 1);
         Grid.SetColumn(_value, 2);
+        Grid.SetColumn(_switchState, 2);
         Grid.SetColumn(_accessory, 3);
         Grid.SetColumn(_status, 4);
         Grid.SetColumn(_check, 5);
@@ -435,6 +443,11 @@ public class SpineRow : ContentView
 
         _value.Text = value;
         _value.IsVisible = hasValue && !below;
+
+        // Windows Settings: "On" / "Off" before a switch, in the value's place when the row has no value.
+        _switchState.IsVisible = _watchedSwitch is not null && !_value.IsVisible && SpineRowStyleOptions.Resolve(StyleOptions).ShowSwitchState;
+        if (_switchState.IsVisible)
+            _switchState.Text = SpineStrings.Current[_watchedSwitch!.IsToggled ? "Spine.Row.On" : "Spine.Row.Off"];
         _valueBelow.Text = value;
         _valueBelow.IsVisible = hasValue && below;
 
@@ -480,10 +493,18 @@ public class SpineRow : ContentView
 
     void ApplyAccessory()
     {
+        if (_watchedSwitch is not null)
+            _watchedSwitch.Toggled -= OnSwitchToggled;
+        _watchedSwitch = Accessory as Switch;
+        if (_watchedSwitch is not null)
+            _watchedSwitch.Toggled += OnSwitchToggled;
+
         _accessory.Content = Accessory;
         _accessory.IsVisible = Accessory is not null;
         ApplyCommand();
     }
+
+    void OnSwitchToggled(object? sender, ToggledEventArgs e) => ApplyContent();
 
     void ApplyCommand()
     {
@@ -653,6 +674,7 @@ public class SpineRow : ContentView
         _grid.ColumnSpacing = 0;
         _iconBadge.Margin = new Thickness(0, 0, style.IconSpacing, 0);
         _value.Margin = new Thickness(style.Spacing, 0, 0, 0);
+        _switchState.Margin = new Thickness(style.Spacing, 0, 0, 0);
         _accessory.Margin = new Thickness(style.Spacing, 0, 0, 0);
         _check.Margin = new Thickness(style.Spacing - 4, 0, -4, 0);
         // The glyph's own margin, taken back so the chevron sits at the row's padding.
@@ -718,6 +740,10 @@ public class SpineRow : ContentView
         _value.TextColor = style.ValueColor;
         _value.FontSize = style.ValueFontSize;
         _value.FontFamily = style.FontFamily;
+
+        _switchState.TextColor = style.TitleColor;
+        _switchState.FontSize = style.TitleFontSize;
+        _switchState.FontFamily = style.FontFamily;
 
         _valueBelow.TextColor = style.DetailColor;
         _valueBelow.FontSize = style.DetailFontSize;

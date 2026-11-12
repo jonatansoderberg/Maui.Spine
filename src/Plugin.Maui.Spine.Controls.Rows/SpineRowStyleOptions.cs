@@ -59,6 +59,12 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     /// </summary>
     public bool StatusAsDot { get; set; } = IsWindows || DeviceInfo.Platform == DevicePlatform.MacCatalyst;
 
+    /// <summary>
+    /// Writes "On" or "Off" (<c>Spine.Row.On</c> / <c>Spine.Row.Off</c>) before a <see cref="Switch"/> accessory, in the
+    /// title's font, as Windows Settings does. On by default on Windows; a row with a <see cref="SpineRow.Value"/> keeps it.
+    /// </summary>
+    public bool ShowSwitchState { get; set; } = IsWindows;
+
     /// <summary>Diameter of the status dot (<see cref="StatusAsDot"/>).</summary>
     public double StatusDotSize { get; set; } = IsWindows ? 7 : 8;
 

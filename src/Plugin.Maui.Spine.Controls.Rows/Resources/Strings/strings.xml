@@ -5,4 +5,6 @@
   <s key="Spine.Row.HidePassword">Hide password</s>
   <s key="Spine.Row.StatusOk">OK</s>
   <s key="Spine.Row.StatusNeedsAttention">Needs attention</s>
+  <s key="Spine.Row.On">On</s>
+  <s key="Spine.Row.Off">Off</s>
 </strings>
