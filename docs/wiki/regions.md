@@ -337,7 +337,8 @@ A page whose `ScrollView` or `CollectionView` reaches its bottom edge scrolls un
 Android's gesture bar, the floating tab bar inside the tab host — by default, as a list does under a navigation
 controller: nothing to set on the page. Spine leaves `Bottom` out of the page's `SafeAreaEdges` and gives that scroll
 view `SafeArea.ScrollInset="Bottom"`, so the content runs to the screen's edge while scrolling and the last row still
-comes clear of the bar. Without it the content stops above the bar and is cut off there.
+comes clear of the bar. A page shorter than the screen scrolls only as far as its last row needs to clear the bar, not the whole
+inset into empty space (on iOS and Mac Catalyst, where MAUI makes the content at least as tall as the `ScrollView`). Without it the content stops above the bar and is cut off there.
 
 "Reaches the bottom edge" means every container between the page and the scroll view holds only that branch, or is a
 grid in which it spans to the last row (a list with a floating button over it). A page with a footer under its list,

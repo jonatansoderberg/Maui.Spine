@@ -96,6 +96,19 @@ Tab roots receive `OnAppearingAsync`/`OnDisappearingAsync` on tab switches, not 
 
 ---
 
+### Hiding the tab bar on a pushed page
+
+A page that is a place of its own rather than part of the tab, such as Settings, can take the tab bar away while it shows, as UIKit's `hidesBottomBarWhenPushed`:
+
+```csharp
+[NavigableRegion(Title = "Inställningar", HidesTabBar = true)]
+public partial class SettingsPage { public SettingsPage() => InitializeComponent(); }
+```
+
+The bar slides out as the page is pushed and back as it is popped or swiped away; a page pushed on top of it that also hides the bar keeps it away. `options.RegionDefaults.HidesTabBar` sets it for every region page. Outside the tab host it does nothing.
+
+---
+
 ## Badges
 
 `ITabBadgeService` is injectable anywhere and renders through the native badge APIs:

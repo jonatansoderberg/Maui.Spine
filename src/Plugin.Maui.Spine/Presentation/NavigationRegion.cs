@@ -550,6 +550,11 @@ public sealed partial class NavigationRegion : ContentView
             WatchCurrentPage(ViewModel.CurrentRegionViewModel);
             ApplyCompactWidth(ViewModel.CurrentRegionViewModel);
 
+            // A page swapped in without a transition (a stack set or emptied at once) still decides
+            // whether the tab bar shows; a transition or a back-swipe decides it as it ends.
+            if (!_transitioning && !_isDragging)
+                CoverTabBar(FrontCoversTabBar);
+
 #if ANDROID
             SearchChanged?.Invoke();
 #endif
@@ -846,14 +851,19 @@ public sealed partial class NavigationRegion : ContentView
         _transitioning = true;
 
         // A lightbox arriving brings its toolbar, which fades in with the rest of its chrome, and
-        // takes the tab bar away; one leaving gives it back as it goes.
+        // takes the tab bar away; one leaving gives it back as it goes. A page that hides the tab
+        // bar does the same, unless the page under it hides it too.
         if (push && FrontIsLightbox)
         {
             UpdateLightboxToolbar();
             _lightboxToolbar.Opacity = 0;
             CoverTabBar(true);
         }
-        else if (!push && FrontIsLightbox)
+        else if (push && FrontHidesTabBar)
+        {
+            CoverTabBar(true);
+        }
+        else if (!push && (FrontIsLightbox || FrontHidesTabBar) && !HidesTabBar(ViewModel.BackView))
         {
             GiveBackTabBarEarly();
         }
@@ -878,7 +888,7 @@ public sealed partial class NavigationRegion : ContentView
         {
             commit();
             UpdateLightboxToolbar();
-            CoverTabBar(FrontIsLightbox);
+            CoverTabBar(FrontCoversTabBar);
             SetChrome(1);
 
             // A lightbox closed with its chrome hidden took the status bar with it.
@@ -1017,6 +1027,14 @@ public sealed partial class NavigationRegion : ContentView
 
     /// <summary>Whether the front page is a lightbox, which shows no edge back-swipe and sits on black.</summary>
     private bool FrontIsLightbox => IsLightbox(ViewModel.FrontView);
+
+    /// <summary>Whether the front page was pushed with <see cref="NavigableRegionAttribute.HidesTabBar"/>.</summary>
+    private bool FrontHidesTabBar => HidesTabBar(ViewModel.FrontView);
+
+    /// <summary>Whether the tab bar stays away for the front page: a lightbox, or a page that hides it.</summary>
+    private bool FrontCoversTabBar => FrontIsLightbox || FrontHidesTabBar;
+
+    private static bool HidesTabBar(Element? page) => (page as PagePresenter)?.Content?.BindingContext is ViewModelBase { HidesTabBar: true };
 
     /// <summary>The dim at rest: none, or under a lightbox, black.</summary>
     private double RestingDim => FrontIsLightbox ? 1 : 0;
@@ -1288,6 +1306,7 @@ public sealed partial class NavigationRegion : ContentView
                         // lets go of the layer.
                         LiftFront(false);
                         await vm.CompleteInteractiveBackAsync();
+                        CoverTabBar(FrontCoversTabBar);
                     }
                     else
                     {
@@ -1314,6 +1333,7 @@ public sealed partial class NavigationRegion : ContentView
                     LiftFront(false);
                     _contentHostFront.TranslationX = 0;
                     await vm.CompleteInteractiveBackAsync();
+                    CoverTabBar(FrontCoversTabBar);
                 }
                 else
                 {
@@ -1428,7 +1448,7 @@ public sealed partial class NavigationRegion : ContentView
 
                     LiftFront(false);
                     await vm.CompleteInteractiveBackAsync();
-                    CoverTabBar(FrontIsLightbox);
+                    CoverTabBar(FrontCoversTabBar);
                     StatusBar.SetHidden(false);
 
                     // The page under it shows its own header, which comes in as the lightbox's went.

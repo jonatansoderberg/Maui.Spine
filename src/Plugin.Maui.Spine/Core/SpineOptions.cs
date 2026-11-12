@@ -197,6 +197,12 @@ public sealed class SpineOptions
         /// Defaults to <see cref="SafeAreaEdges.None"/>.
         /// </summary>
         public SafeAreaEdges ScrollInset { get; set; } = SafeAreaEdges.None;
+
+        /// <summary>
+        /// Default for <see cref="NavigableRegionAttribute.HidesTabBar"/>: whether a page pushed in a tab's
+        /// stack takes the tab bar away while it shows. Defaults to <see langword="false"/>.
+        /// </summary>
+        public bool HidesTabBar { get; set; }
     }
 
     /// <summary>
