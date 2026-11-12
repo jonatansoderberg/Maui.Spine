@@ -36,13 +36,15 @@ public static partial class SpineExtensions
         var contentInsets = edgeInsets;
 
         // MAUI arranges a ScrollView's content at least as tall as the ScrollView, so a page shorter
-        // than the screen would still scroll the whole bottom inset, into empty space under its last
-        // row. It scrolls only as far as its content needs to come clear of the bar.
-        if (inset.Bottom > 0 && view is ScrollView { Orientation: not ScrollOrientation.Horizontal, Content: IView content } scrolling)
+        // than the screen would still scroll by the top and bottom insets, under the header bar and
+        // into empty space under its last row. It scrolls only as far as its content needs to come
+        // clear of the bars, and not at all when it fits: the bottom inset may go below zero, down to
+        // minus the top one, which takes back the range the top inset adds.
+        if (inset.Top + inset.Bottom > 0 && view is ScrollView { Orientation: not ScrollOrientation.Horizontal, Content: IView content } scrolling)
         {
             var used = content.DesiredSize.Height + scrolling.Padding.VerticalThickness;
-            var stretched = Math.Max(0, scrollView.Frame.Height - used);
-            contentInsets.Bottom = (nfloat)Math.Max(0, inset.Bottom - stretched);
+            var arranged = Math.Max(used, scrollView.Frame.Height);
+            contentInsets.Bottom = (nfloat)Math.Max(-inset.Top, used + inset.Bottom - arranged);
         }
 
         // Content that grows or shrinks maps here again. An unchanged inset leaves the scroll view
