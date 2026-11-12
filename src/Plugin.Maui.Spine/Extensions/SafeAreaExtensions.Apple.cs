@@ -45,17 +45,28 @@ public static partial class SpineExtensions
             contentInsets.Bottom = (nfloat)Math.Max(0, inset.Bottom - stretched);
         }
 
-        // UIKit keeps the content offset when the inset changes, so a view that was resting at
-        // its top would now rest inset points too high, its first rows under the bar the inset
-        // was meant to clear. Keep a resting view at its (new) top.
-        var atTop = scrollView.ContentOffset.Y <= -scrollView.AdjustedContentInset.Top + 0.5;
+        // Content that grows or shrinks maps here again. An unchanged inset leaves the scroll view
+        // alone: setting it again, or moving the offset, undoes a running pull-to-refresh's offset
+        // and leaves the page scrolled under the header bar once the refresh ends.
+        if (scrollView.ContentInset != contentInsets)
+        {
+            // UIKit keeps the content offset when the inset changes, so a view that was resting at
+            // its top would now rest inset points too high, its first rows under the bar the inset
+            // was meant to clear. Keep a resting view at its (new) top.
+            var atTop = scrollView.ContentInset.Top != contentInsets.Top &&
+                scrollView.ContentOffset.Y <= -scrollView.AdjustedContentInset.Top + 0.5;
 
-        scrollView.ContentInset = contentInsets;
+            scrollView.ContentInset = contentInsets;
 
-        if (atTop)
-            scrollView.ContentOffset = new CoreGraphics.CGPoint(scrollView.ContentOffset.X, -scrollView.AdjustedContentInset.Top);
-        scrollView.VerticalScrollIndicatorInsets = edgeInsets;
-        scrollView.HorizontalScrollIndicatorInsets = edgeInsets;
+            if (atTop)
+                scrollView.ContentOffset = new CoreGraphics.CGPoint(scrollView.ContentOffset.X, -scrollView.AdjustedContentInset.Top);
+        }
+
+        if (scrollView.VerticalScrollIndicatorInsets != edgeInsets)
+        {
+            scrollView.VerticalScrollIndicatorInsets = edgeInsets;
+            scrollView.HorizontalScrollIndicatorInsets = edgeInsets;
+        }
 
         if (scrollView is UICollectionView collectionView)
             ApplyPageMargin(collectionView, SafeArea.PageMarginOf(view));
