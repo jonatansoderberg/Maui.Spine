@@ -86,6 +86,7 @@ public override IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) =>
 - A size is the whole window, title bar row included, in the app's points (UIKit's, which an app scaled to match iPad has larger than AppKit's).
 - Choosing one resizes the window with AppKit's animation, keeping its top left corner and staying on the screen. The size the window has is checked.
 - A right-click on a button stays the button's. With no sizes, right-clicking does nothing.
+- `IsCommand = true` makes an item a command rather than a size to pick, such as "Fit to content" (the size for the window's current number of columns): it comes after the sizes behind a separator, is never checked, and the window's own fitting leaves it out.
 - Leave a few points of slack over a layout's breakpoint: a window exactly at the width three columns need can lay out two.
 - `WindowHeightFor(width)` on the page view model measures the height for you: the page's `ScrollView` content at that width, with the header bar's (and the title bar row's) inset, in UIKit's points. It returns null before the page is laid out. Measuring by hand goes wrong easily: MAUI's `Window.Height` is in AppKit's points on a scaled Mac, and a scroll view's frame under the unified title bar reads lower than it is drawn.
 

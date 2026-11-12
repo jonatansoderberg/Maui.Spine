@@ -142,7 +142,7 @@ options.Windows.BottomSheetBackdrop = WindowBackdrop.Acrylic;  // sheet surface
 
 ## Window sizes from the content
 
-A page that suggests window sizes for its content (`SuggestWindowSizes` on its view model, see [macOS options](macos-options.md#window-sizes-from-the-content)) has them in the window's own system menu: right-click the title row (the header bar in the caption row, or Spine's title bar), or press Alt+Space. They sit above Close, after a separator, and the size the window has is checked.
+A page that suggests window sizes for its content (`SuggestWindowSizes` on its view model, see [macOS options](macos-options.md#window-sizes-from-the-content)) has them in the window's own system menu: right-click the title row (the header bar in the caption row, or Spine's title bar), or press Alt+Space. They sit above Close, after a separator, and the size the window has is checked. Commands (`WindowSize.IsCommand`, such as "Fit to content") come after the sizes behind a separator of their own, unchecked.
 
 - A size is the window's client area in the app's points, as `WindowHeightFor(width)` measures it: the page's `ScrollView` content at that width, with what lies around it.
 - Choosing one restores a maximised window, gives it that client size, and keeps its top left corner on the screen it is on. A size taller than the screen's work area is cut to it, and the page scrolls.
