@@ -77,13 +77,15 @@ public class SpineSectionStyleOptions : SpineStyleOptions<SpineSectionStyleOptio
         bool dark = theme == AppTheme.Dark;
         var secondary = Color.FromArgb(dark ? "#8D8D93" : "#6D6D72");
 
-        // secondarySystemGroupedBackground and opaqueSeparator on Apple; a card on Windows.
+        // secondarySystemGroupedBackground and opaqueSeparator on Apple. Windows' card fill
+        // (CardBackgroundFillColorDefault) is translucent, so the window's Mica shows through it as in Settings. Its
+        // stroke (CardStrokeColorDefault, 10 % black) lies outside WinUI's fill but over MAUI's, where 10 % only
+        // cancels the fill; 20 % and 9 % give the same dark edge on Mica.
         BackgroundColor ??= IsAndroid ? Colors.Transparent
-            : IsWindows ? Color.FromArgb(dark ? "#2B2B2B" : "#FBFBFB")
+            : IsWindows ? Color.FromArgb(dark ? "#0DFFFFFF" : "#B3FFFFFF")
             : Color.FromArgb(dark ? "#1C1C1E" : "#FFFFFF");
-        // Windows' card stroke: a shade darker than the card.
         if (IsWindows)
-            BorderColor ??= Color.FromArgb(dark ? "#1D1D1D" : "#E5E5E5");
+            BorderColor ??= Color.FromArgb(dark ? "#33000000" : "#17000000");
         SeparatorColor ??= Color.FromArgb(dark ? "#38383A" : "#C6C6C8");
         HeaderColor ??= IsAndroid ? SpineTheme.GetAccent(theme) ?? secondary
             : IsWindows ? (dark ? Colors.White : Colors.Black)

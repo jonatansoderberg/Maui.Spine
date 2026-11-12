@@ -29,8 +29,19 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     public FontAttributes TitleFontAttributes { get; set; }
 
     /// <summary>Size of the icon when it has no <see cref="SpineRow.IconBackground"/>.</summary>
-    /// <remarks>The icon set draws inside a margin of 5, so 30 on Windows draws its 20-point glyph.</remarks>
-    public double IconSize { get; set; } = IsAndroid ? 24 : IsWindows ? 30 : 28;
+    public double IconSize { get; set; } = IsAndroid ? 24 : IsWindows ? 26 : 28;
+
+    /// <summary>
+    /// Margin of the SVG inside the icon's square when it has no badge. <see langword="null"/> = the canvas' own (5);
+    /// 1 on Windows (in a 26-point square), so the glyph is as large as the 20-point icons of its Settings.
+    /// </summary>
+    public double? IconPadding { get; set; } = IsWindows ? 1 : null;
+
+    /// <summary>
+    /// Stroke of the icon when it has no badge, relative to the glyph's own. <see langword="null"/> = as drawn; 1.5 on
+    /// Windows, whose Settings icons are drawn heavier, so they read white rather than grey.
+    /// </summary>
+    public double? IconLineWidthScale { get; set; } = IsWindows ? 1.25 : null;
 
     /// <summary>
     /// Whether <see cref="SpineRow.IconBackground"/> draws a badge behind the icon. Off on Windows, whose settings draw
@@ -38,7 +49,7 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     /// </summary>
     public bool ShowIconBadges { get; set; } = !IsWindows;
 
-    /// <summary>Space between the icon's square and the text: on Windows 15 after the glyph's own margin, 20 from the glyph as in its settings cards.</summary>
+    /// <summary>Space between the icon's square and the text: on Windows 15, so the text starts 60 points into the card as in its Settings.</summary>
     public double IconSpacing { get; set; } = IsAndroid ? 16 : IsWindows ? 15 : 12;
 
     /// <summary>
@@ -47,6 +58,12 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     /// Windows; iOS keeps the mark, and so does a row without a detail.
     /// </summary>
     public bool StatusAsDot { get; set; } = IsWindows || DeviceInfo.Platform == DevicePlatform.MacCatalyst;
+
+    /// <summary>
+    /// Writes "On" or "Off" (<c>Spine.Row.On</c> / <c>Spine.Row.Off</c>) before a <see cref="Switch"/> accessory, in the
+    /// title's font, as Windows Settings does. On by default on Windows; a row with a <see cref="SpineRow.Value"/> keeps it.
+    /// </summary>
+    public bool ShowSwitchState { get; set; } = IsWindows;
 
     /// <summary>Diameter of the status dot (<see cref="StatusAsDot"/>).</summary>
     public double StatusDotSize { get; set; } = IsWindows ? 7 : 8;
@@ -61,10 +78,10 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     public double IconBadgeCornerRadius { get; set; } = IsAndroid ? 20 : 7;
 
     /// <summary>Height of a row with one line of text.</summary>
-    public double MinimumHeight { get; set; } = IsAndroid ? 56 : IsWindows ? 66 : IsModernApple ? 52 : 44;
+    public double MinimumHeight { get; set; } = IsAndroid ? 56 : IsWindows ? 69 : IsModernApple ? 52 : 44;
 
     /// <summary>Height of a row with a second line (a detail, or the value under the title).</summary>
-    public double TwoLineMinimumHeight { get; set; } = IsAndroid ? 72 : IsWindows ? 66 : IsModernApple ? 52 : 44;
+    public double TwoLineMinimumHeight { get; set; } = IsAndroid ? 72 : IsWindows ? 69 : IsModernApple ? 52 : 44;
 
     public Thickness Padding { get; set; } = new(16, 8);
     public double Spacing { get; set; } = IsAndroid ? 16 : 12;
@@ -73,7 +90,7 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     /// Stroke of the chevron and the check mark, relative to the glyph's own. Heavier than an icon,
     /// like the system's <c>chevron.forward</c>.
     /// </summary>
-    public double GlyphLineWidthScale { get; set; } = 1.6;
+    public double GlyphLineWidthScale { get; set; } = IsWindows ? 2 : 1.6;
 
     /// <summary>Opacity of a disabled row's content.</summary>
     public double DisabledOpacity { get; set; } = 0.4;
@@ -134,7 +151,7 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
         {
             // Windows' text fill colours: secondary text, and glyphs in the text colour; success and caution fills.
             DetailColor ??= Color.FromArgb(dark ? "#CFCFCF" : "#616161");
-            ChevronColor ??= DetailColor;
+            ChevronColor ??= TitleColor;
             IconColor ??= TitleColor;
             StatusOkColor ??= Color.FromArgb(dark ? "#6CCB5F" : "#0F7B0F");
             StatusAttentionColor ??= Color.FromArgb(dark ? "#FCE100" : "#9D5D00");
