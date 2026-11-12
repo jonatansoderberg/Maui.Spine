@@ -385,7 +385,7 @@ internal sealed class PageActionView : ContentView
         // A status (PageAction.IsStatus): a small glyph and secondary text, no button
         readonly HorizontalStackLayout _status;
         readonly Image _statusIcon = new() { WidthRequest = StatusGlyphSize, HeightRequest = StatusGlyphSize, VerticalOptions = LayoutOptions.Center };
-        readonly Label _statusText = new() { FontSize = 15, VerticalOptions = LayoutOptions.Center, LineBreakMode = LineBreakMode.NoWrap };
+        readonly Label _statusText = new() { FontSize = 13, VerticalOptions = LayoutOptions.Center, LineBreakMode = LineBreakMode.NoWrap };
         const double StatusGlyphSize = 13;
         string? _currentSvg;
         PageAction? _action;
@@ -534,6 +534,8 @@ internal sealed class PageActionView : ContentView
             _status.IsVisible = true;
             _status.Opacity = action.IsEnabled ? 1 : 0.4;
             _statusText.Text = action.Text ?? string.Empty;
+            _statusText.FontSize = action.FontSize > 0 ? action.FontSize : 13;
+            _statusText.FontFamily = action.FontFamily;
             ToolTipProperties.SetText(_status, action.Description);
             SemanticProperties.SetDescription(_status, action.Description ?? action.Text);
             ApplyStatusColors();

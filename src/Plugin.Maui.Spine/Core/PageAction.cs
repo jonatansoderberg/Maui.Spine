@@ -263,6 +263,17 @@ public sealed partial class PageAction : ObservableObject
     public partial bool IsStatus { get; set; }
 
     /// <summary>
+    /// Font of a status's <see cref="Text"/> (<see cref="IsStatus"/>), so it can match the app's own small text.
+    /// <see langword="null"/> = the app's default font.
+    /// </summary>
+    [ObservableProperty]
+    public partial string? FontFamily { get; set; }
+
+    /// <summary>Size of a status's <see cref="Text"/> (<see cref="IsStatus"/>): 13 points, the secondary text of a toolbar.</summary>
+    [ObservableProperty]
+    public partial double FontSize { get; set; } = 13;
+
+    /// <summary>
     /// Short text shown in a small pill over the button, such as a count. <see langword="null"/> hides the pill.
     /// </summary>
     [ObservableProperty]
