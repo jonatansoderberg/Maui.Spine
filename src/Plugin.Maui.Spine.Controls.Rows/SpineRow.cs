@@ -268,6 +268,10 @@ public class SpineRow : ContentView
     readonly Image _check;
     readonly Image _chevron;
     readonly Image _menuGlyph;
+    // A menu's value in a combo box, as Windows Settings (SpineRowStyleOptions.MenuAsDropDown).
+    readonly Border _dropDown;
+    readonly Label _dropDownText;
+    readonly Image _dropDownGlyph;
     View? _detail;
     Command? _toggle;
     Button? _menuButton;
@@ -351,6 +355,21 @@ public class SpineRow : ContentView
         _menuGlyph = new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 34, HeightRequest = 34 };
         SvgImageSource.SetSvg(_menuGlyph, MenuGlyph);
 
+        // The header bar's back glyph turned to point down: the combo box's chevron.
+        _dropDownText = new Label { VerticalOptions = LayoutOptions.Center, MaxLines = 1, LineBreakMode = LineBreakMode.TailTruncation, Margin = new Thickness(12, 0, 4, 1) };
+        _dropDownGlyph = new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 20, HeightRequest = 20, Rotation = -90, Margin = new Thickness(0, 0, 10, 0) };
+        SvgImageSource.SetSvg(_dropDownGlyph, Presentation.HeaderBarConstants.BackGlyph);
+        _dropDown = new Border
+        {
+            VerticalOptions = LayoutOptions.Center,
+            HeightRequest = 32,
+            Padding = 0,
+            IsVisible = false,
+            InputTransparent = true,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+            Content = new HorizontalStackLayout { Children = { _dropDownText, _dropDownGlyph } },
+        };
+
         _grid = new Grid
         {
             ColumnDefinitions =
@@ -363,12 +382,13 @@ public class SpineRow : ContentView
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
             ],
-            Children = { _iconBadge, _text, _value, _switchState, _accessory, _status, _check, _chevron, _menuGlyph },
+            Children = { _iconBadge, _text, _value, _switchState, _dropDown, _accessory, _status, _check, _chevron, _menuGlyph },
         };
 
         Grid.SetColumn(_text, 1);
         Grid.SetColumn(_value, 2);
         Grid.SetColumn(_switchState, 2);
+        Grid.SetColumn(_dropDown, 2);
         Grid.SetColumn(_accessory, 3);
         Grid.SetColumn(_status, 4);
         Grid.SetColumn(_check, 5);
@@ -442,7 +462,11 @@ public class SpineRow : ContentView
             || (ValuePlacement == SpineRowValuePlacement.Auto && IsAndroid);
 
         _value.Text = value;
-        _value.IsVisible = hasValue && !below;
+        // Windows Settings shows a menu's choice in a combo box rather than as a value with a chevron.
+        var dropDown = Menu is not null && !IsAndroid && SpineRowStyleOptions.Resolve(StyleOptions).MenuAsDropDown;
+        _value.IsVisible = hasValue && !below && !dropDown;
+        _dropDown.IsVisible = dropDown;
+        _dropDownText.Text = value;
 
         // Windows Settings: "On" / "Off" before a switch, in the value's place when the row has no value.
         _switchState.IsVisible = _watchedSwitch is not null && !_value.IsVisible && SpineRowStyleOptions.Resolve(StyleOptions).ShowSwitchState;
@@ -463,7 +487,7 @@ public class SpineRow : ContentView
 
         _chevron.IsVisible = Menu is null && (ShowChevron
             ?? (Command is not null && Accessory is null && IsSelected is null && !_status.IsVisible && !IsDestructive && !IsAndroid));
-        _menuGlyph.IsVisible = Menu is not null && !IsAndroid;
+        _menuGlyph.IsVisible = Menu is not null && !IsAndroid && !_dropDown.IsVisible;
 
         if (_menuButton is not null)
             SemanticProperties.SetDescription(_menuButton, string.Join(", ", new[] { Title, Detail, value }.Where(s => !string.IsNullOrEmpty(s))));
@@ -501,6 +525,7 @@ public class SpineRow : ContentView
 
         _accessory.Content = Accessory;
         _accessory.IsVisible = Accessory is not null;
+        _accessory.Margin = new Thickness(Accessory is null ? 0 : SpineRowStyleOptions.Resolve(StyleOptions).Spacing, 0, 0, 0);
         ApplyCommand();
     }
 
@@ -568,7 +593,8 @@ public class SpineRow : ContentView
 
         // A screen reader reaches the menu through that button; a merged row would hide it with the
         // rest of its parts, so the parts are hidden instead and the button reads the row.
-        View[] parts = [_iconBadge, _text, _value, _accessory, _status, _check, _chevron, _menuGlyph];        if (Menu is null)
+        View[] parts = [_iconBadge, _text, _value, _dropDown, _accessory, _status, _check, _chevron, _menuGlyph];
+        if (Menu is null)
         {
             foreach (var part in parts)
                 part.ClearValue(AutomationProperties.ExcludedWithChildrenProperty);
@@ -675,7 +701,8 @@ public class SpineRow : ContentView
         _iconBadge.Margin = new Thickness(0, 0, style.IconSpacing, 0);
         _value.Margin = new Thickness(style.Spacing, 0, 0, 0);
         _switchState.Margin = new Thickness(style.Spacing, 0, 0, 0);
-        _accessory.Margin = new Thickness(style.Spacing, 0, 0, 0);
+        // Only with an accessory: an empty one kept its margin in the grid on Windows, 12 points before the edge.
+        _accessory.Margin = new Thickness(Accessory is null ? 0 : style.Spacing, 0, 0, 0);
         _check.Margin = new Thickness(style.Spacing - 4, 0, -4, 0);
         // The glyph's own margin, taken back so the chevron sits at the row's padding.
         // Windows Settings keeps its chevron 22 points from the card's edge, further in than iOS.
@@ -755,6 +782,16 @@ public class SpineRow : ContentView
         SvgImageSource.SetLineWidthScale(_check, style.GlyphLineWidthScale);
         SvgImageSource.SetTintColor(_menuGlyph, style.ValueColor!);
         SvgImageSource.SetLineWidthScale(_menuGlyph, style.GlyphLineWidthScale * 1.25);
+
+        _dropDown.BackgroundColor = style.DropDownColor;
+        _dropDown.Stroke = style.DropDownBorderColor is { } dropDownBorder ? new SolidColorBrush(dropDownBorder) : null;
+        _dropDown.StrokeThickness = style.DropDownBorderColor is null ? 0 : 1;
+        _dropDown.Margin = new Thickness(style.Spacing, 0, 0, 0);
+        _dropDownText.TextColor = style.TitleColor;
+        _dropDownText.FontSize = style.TitleFontSize;
+        _dropDownText.FontFamily = style.FontFamily;
+        SvgImageSource.SetTintColor(_dropDownGlyph, style.TitleColor!);
+        SvgImageSource.SetLineWidthScale(_dropDownGlyph, style.GlyphLineWidthScale);
 
         _status.WidthRequest = _status.HeightRequest = style.StatusSize;
         _statusGlyph.WidthRequest = _statusGlyph.HeightRequest = style.StatusSize;

@@ -79,3 +79,16 @@ Windows Settings writes the state before a toggle. `SpineRowStyleOptions.ShowSwi
 puts "On" or "Off" (`Spine.Row.On` / `Spine.Row.Off`, Swedish "På" / "Av") in the value's place, in the title's font
 and colour, and follows the switch's `Toggled`. A row with a `Value` keeps its value. The label is left out of the
 merged description: the switch reads its own state.
+
+## Follow-up: menu rows as a combo box
+
+Windows Settings shows a choice from a list ("Choose your mode: Dark") as a combo box inside the card, not as a value
+with an up-and-down chevron. `SpineRowStyleOptions.MenuAsDropDown` (on by default on Windows) shows a `Menu` row's
+choice in a 32-point box with 4-point corners, Windows' control fill and stroke (`DropDownColor`,
+`DropDownBorderColor`), the title's font, 12 points of padding and the back glyph turned to point down. The row's
+menu button still opens the menu from anywhere on the row.
+
+Measured against Settings → Personalization → Colors at 150 %: the box ends 16 points from the card's edge, as the
+switches do, with the chevron about 20 points inside it. That also fixed a 12-point gap after every right-hand value
+on Windows: an empty accessory kept its margin in the grid, so values and the version number stopped short of the
+edge. The accessory now has a margin only when there is one.
