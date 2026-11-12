@@ -657,6 +657,15 @@
       <DependentUpon>MarqueePage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Masonry\MasonryPage.View.xaml">
+      <DependentUpon>MasonryPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Masonry\MasonryPage.ViewModel.cs">
+      <DependentUpon>MasonryPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\DataGrid\DataGridPage.View.xaml">
       <DependentUpon>DataGridPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
