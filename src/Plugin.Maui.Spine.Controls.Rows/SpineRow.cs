@@ -89,8 +89,8 @@ public class SpineRow : ContentView
         nameof(StyleOptions), typeof(SpineRowStyleOptions), typeof(SpineRow), null,
         propertyChanged: static (b, _, _) =>
         {
-            ((SpineRow)b).ApplyContent();
             ((SpineRow)b).Repaint();
+            ((SpineRow)b).ApplyContent();
         });
 
     public static readonly BindableProperty MenuProperty = BindableProperty.Create(
@@ -137,7 +137,8 @@ public class SpineRow : ContentView
 
     /// <summary>
     /// Draws the detail with <see cref="AnimatedLabel"/>, which scrolls text that does not fit instead
-    /// of truncating it. Needs SkiaSharp: <c>UseSpine()</c> registers it, or <c>UseAnimatedLabel()</c> without Spine.
+    /// of truncating it. The detail is a plain label until its text is wider than its room, so rows whose text fits
+    /// cost no Skia canvas. Needs SkiaSharp: <c>UseSpine()</c> registers it, or <c>UseAnimatedLabel()</c> without Spine.
     /// </summary>
     public bool DetailMarquee
     {
@@ -249,126 +250,48 @@ public class SpineRow : ContentView
     const string AttentionGlyph = "spinerowexclamation.svg";
     static readonly double DefaultSvgPadding = ((Thickness)SvgImageSource.PaddingProperty.DefaultValue).Left;
 
+    // The title and its column are always there; every other part is made the first time the row needs it, and only
+    // hidden after that. A settings page of sixty rows made about a thousand platform views for parts most rows never
+    // show (a status mark, a check, a chevron, a menu glyph, a combo box), which took seconds on Windows.
     readonly Grid _grid;
-    readonly Border _iconBadge;
-    readonly Image _icon;
     readonly VerticalStackLayout _text;
     readonly Label _title;
-    readonly Label _value;
+    Border? _iconBadge;
+    Image? _icon;
+    Label? _value;
     // "On" or "Off" before a switch accessory, as Windows Settings (SpineRowStyleOptions.ShowSwitchState).
-    readonly Label _switchState;
+    Label? _switchState;
     Switch? _watchedSwitch;
-    readonly Label _valueBelow;
-    readonly ContentView _accessory;
-    readonly Border _status;
-    readonly Image _statusGlyph;
+    // Under the title on Android: a preference's summary.
+    Label? _valueBelow;
+    ContentView? _accessory;
+    Border? _status;
+    Image? _statusGlyph;
     // The detail's line: the status dot (SpineRowStyleOptions.StatusAsDot) and the detail.
-    readonly Grid _detailLine;
-    readonly Border _statusDot;
-    readonly Image _check;
-    readonly Image _chevron;
-    readonly Image _menuGlyph;
+    Grid? _detailLine;
+    Border? _statusDot;
+    Image? _check;
+    Image? _chevron;
+    Image? _menuGlyph;
     // A menu's value in a combo box, as Windows Settings (SpineRowStyleOptions.MenuAsDropDown).
-    readonly Border _dropDown;
-    readonly Label _dropDownText;
-    readonly Image _dropDownGlyph;
+    Border? _dropDown;
+    Label? _dropDownText;
+    Image? _dropDownGlyph;
     View? _detail;
     Command? _toggle;
     Button? _menuButton;
     MenuItems? _watchedMenu;
     MenuPicker? _picker;
     MenuAction? _picked;
+    // The style of the last Repaint, for parts made after it.
+    SpineRowStyleOptions? _style;
 
     static SpineRow() => RowsStrings.EnsureRegistered();
 
     public SpineRow()
     {
-        _icon = new Image { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
-        _iconBadge = new Border
-        {
-            StrokeThickness = 0,
-            VerticalOptions = LayoutOptions.Center,
-            Content = _icon,
-        };
-
         _title = new Label { LineBreakMode = LineBreakMode.TailTruncation, MaxLines = 1 };
-        _statusDot = new Border
-        {
-            StrokeThickness = 0,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
-            VerticalOptions = LayoutOptions.Center,
-            IsVisible = false,
-        };
-        _detailLine = new Grid
-        {
-            ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)],
-            Children = { _statusDot },
-            IsVisible = false,
-        };
-        _text = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 1, Children = { _title, _detailLine } };
-
-        _value = new Label
-        {
-            VerticalOptions = LayoutOptions.Center,
-            HorizontalTextAlignment = TextAlignment.End,
-            LineBreakMode = LineBreakMode.TailTruncation,
-            MaxLines = 1,
-        };
-
-        // The switch reads its own state; the row's merged description doesn't need it twice.
-        _switchState = new Label { VerticalOptions = LayoutOptions.Center, MaxLines = 1, IsVisible = false };
-        AutomationProperties.SetExcludedWithChildren(_switchState, true);
-
-        // Under the title on Android: a preference's summary.
-        _valueBelow = new Label { LineBreakMode = LineBreakMode.TailTruncation, MaxLines = 1 };
-        _text.Add(_valueBelow);
-
-        _accessory = new ContentView { VerticalOptions = LayoutOptions.Center };
-
-        _statusGlyph = new Image { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
-        // The mark's own size, without the canvas' margin: a glyph larger than the mark relied on the
-        // mark clipping it, which WinUI doesn't do; it widened the mark's slot and cut the circle in half.
-        SvgImageSource.SetPadding(_statusGlyph, new Thickness(0));
-        _status = new Border
-        {
-            StrokeThickness = 0,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
-            VerticalOptions = LayoutOptions.Center,
-            IsVisible = false,
-            Content = _statusGlyph,
-        };
-
-        _check = new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 30, HeightRequest = 30 };
-        SvgImageSource.SetSvg(_check, "check.svg");
-
-        // The header bar's own back glyph, mirrored, so the two chevrons are one shape.
-        _chevron = new Image
-        {
-            VerticalOptions = LayoutOptions.Center,
-            WidthRequest = 28,
-            HeightRequest = 28,
-            Rotation = 180,
-        };
-        SvgImageSource.SetSvg(_chevron, Presentation.HeaderBarConstants.BackGlyph);
-
-        // chevron.up.chevron.down, which says a tap opens a menu rather than a page.
-        _menuGlyph = new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 34, HeightRequest = 34 };
-        SvgImageSource.SetSvg(_menuGlyph, MenuGlyph);
-
-        // The header bar's back glyph turned to point down: the combo box's chevron.
-        _dropDownText = new Label { VerticalOptions = LayoutOptions.Center, MaxLines = 1, LineBreakMode = LineBreakMode.TailTruncation, Margin = new Thickness(12, 0, 4, 1) };
-        _dropDownGlyph = new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 20, HeightRequest = 20, Rotation = -90, Margin = new Thickness(0, 0, 10, 0) };
-        SvgImageSource.SetSvg(_dropDownGlyph, Presentation.HeaderBarConstants.BackGlyph);
-        _dropDown = new Border
-        {
-            VerticalOptions = LayoutOptions.Center,
-            HeightRequest = 32,
-            Padding = 0,
-            IsVisible = false,
-            InputTransparent = true,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
-            Content = new HorizontalStackLayout { Children = { _dropDownText, _dropDownGlyph } },
-        };
+        _text = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 1, Children = { _title } };
 
         _grid = new Grid
         {
@@ -382,18 +305,9 @@ public class SpineRow : ContentView
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
             ],
-            Children = { _iconBadge, _text, _value, _switchState, _dropDown, _accessory, _status, _check, _chevron, _menuGlyph },
+            Children = { _text },
         };
-
         Grid.SetColumn(_text, 1);
-        Grid.SetColumn(_value, 2);
-        Grid.SetColumn(_switchState, 2);
-        Grid.SetColumn(_dropDown, 2);
-        Grid.SetColumn(_accessory, 3);
-        Grid.SetColumn(_status, 4);
-        Grid.SetColumn(_check, 5);
-        Grid.SetColumn(_chevron, 6);
-        Grid.SetColumn(_menuGlyph, 6);
 
         Content = _grid;
         Semantic.SetMerge(this, true);
@@ -403,40 +317,250 @@ public class SpineRow : ContentView
         SpineTheme.Track(this, Repaint);
     }
 
+    SpineRowStyleOptions RowStyle => _style ??= SpineRowStyleOptions.Resolve(StyleOptions);
+
+    // A part joins the grid under the menu's button, which takes the taps over the whole row, and like the other parts
+    // is hidden from a screen reader while the button reads the row.
+    T AddPart<T>(T part, int column) where T : View
+    {
+        Grid.SetColumn(part, column);
+        if (_menuButton is not null)
+        {
+            _grid.Insert(_grid.IndexOf(_menuButton), part);
+            AutomationProperties.SetExcludedWithChildren(part, true);
+        }
+        else
+        {
+            _grid.Add(part);
+        }
+
+        return part;
+    }
+
+    Border MakeIconBadge()
+    {
+        if (_iconBadge is not null)
+            return _iconBadge;
+        _icon = new Image { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
+        _iconBadge = AddPart(new Border { StrokeThickness = 0, VerticalOptions = LayoutOptions.Center, Content = _icon }, 0);
+        PaintIcon(RowStyle);
+        return _iconBadge;
+    }
+
+    Grid DetailLineView()
+    {
+        if (_detailLine is not null)
+            return _detailLine;
+        _detailLine = new Grid { ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)] };
+        _text.Insert(1, _detailLine);
+        return _detailLine;
+    }
+
+    Border MakeStatusDot()
+    {
+        if (_statusDot is not null)
+            return _statusDot;
+        _statusDot = new Border { StrokeThickness = 0, StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(), VerticalOptions = LayoutOptions.Center };
+        DetailLineView().Insert(0, _statusDot);
+        PaintStatus(RowStyle);
+        return _statusDot;
+    }
+
+    Label MakeValue()
+    {
+        if (_value is not null)
+            return _value;
+        _value = AddPart(new Label
+        {
+            VerticalOptions = LayoutOptions.Center,
+            HorizontalTextAlignment = TextAlignment.End,
+            LineBreakMode = LineBreakMode.TailTruncation,
+            MaxLines = 1,
+        }, 2);
+        PaintValue(RowStyle);
+        return _value;
+    }
+
+    Label MakeValueBelow()
+    {
+        if (_valueBelow is not null)
+            return _valueBelow;
+        _valueBelow = new Label { LineBreakMode = LineBreakMode.TailTruncation, MaxLines = 1 };
+        _text.Add(_valueBelow);
+        PaintValue(RowStyle);
+        return _valueBelow;
+    }
+
+    Label MakeSwitchState()
+    {
+        if (_switchState is not null)
+            return _switchState;
+        // The switch reads its own state; the row's merged description doesn't need it twice.
+        _switchState = AddPart(new Label { VerticalOptions = LayoutOptions.Center, MaxLines = 1 }, 2);
+        AutomationProperties.SetExcludedWithChildren(_switchState, true);
+        PaintValue(RowStyle);
+        return _switchState;
+    }
+
+    Border MakeDropDown()
+    {
+        if (_dropDown is not null)
+            return _dropDown;
+        // The header bar's back glyph turned to point down: the combo box's chevron.
+        _dropDownText = new Label { VerticalOptions = LayoutOptions.Center, MaxLines = 1, LineBreakMode = LineBreakMode.TailTruncation, Margin = new Thickness(12, 0, 4, 1) };
+        _dropDownGlyph = new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 20, HeightRequest = 20, Rotation = -90, Margin = new Thickness(0, 0, 10, 0) };
+        _dropDown = AddPart(new Border
+        {
+            VerticalOptions = LayoutOptions.Center,
+            HeightRequest = 32,
+            Padding = 0,
+            InputTransparent = true,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+            Content = new HorizontalStackLayout { Children = { _dropDownText, _dropDownGlyph } },
+        }, 2);
+        PaintDropDown(RowStyle);
+        SvgImageSource.SetSvg(_dropDownGlyph, Presentation.HeaderBarConstants.BackGlyph);
+        return _dropDown;
+    }
+
+    ContentView MakeAccessory()
+    {
+        if (_accessory is not null)
+            return _accessory;
+        _accessory = AddPart(new ContentView { VerticalOptions = LayoutOptions.Center }, 3);
+        return _accessory;
+    }
+
+    Border MakeStatusMark()
+    {
+        if (_status is not null)
+            return _status;
+        _statusGlyph = new Image { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
+        // The mark's own size, without the canvas' margin: a glyph larger than the mark relied on the
+        // mark clipping it, which WinUI doesn't do; it widened the mark's slot and cut the circle in half.
+        SvgImageSource.SetPadding(_statusGlyph, new Thickness(0));
+        _status = AddPart(new Border
+        {
+            StrokeThickness = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
+            VerticalOptions = LayoutOptions.Center,
+            Content = _statusGlyph,
+        }, 4);
+        PaintStatus(RowStyle);
+        return _status;
+    }
+
+    Image MakeCheck()
+    {
+        if (_check is not null)
+            return _check;
+        _check = AddPart(new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 30, HeightRequest = 30 }, 5);
+        SemanticProperties.SetDescription(_check, SpineStrings.Current["Spine.Row.Selected"]);
+        PaintGlyphs(RowStyle);
+        SvgImageSource.SetSvg(_check, "check.svg");
+        return _check;
+    }
+
+    Image MakeChevron()
+    {
+        if (_chevron is not null)
+            return _chevron;
+        // The header bar's own back glyph, mirrored, so the two chevrons are one shape.
+        _chevron = AddPart(new Image
+        {
+            VerticalOptions = LayoutOptions.Center,
+            WidthRequest = 28,
+            HeightRequest = 28,
+            Rotation = FlowDirection == FlowDirection.RightToLeft ? 0 : 180,
+        }, 6);
+        PaintGlyphs(RowStyle);
+        SvgImageSource.SetSvg(_chevron, Presentation.HeaderBarConstants.BackGlyph);
+        return _chevron;
+    }
+
+    Image MakeMenuGlyph()
+    {
+        if (_menuGlyph is not null)
+            return _menuGlyph;
+        // chevron.up.chevron.down, which says a tap opens a menu rather than a page.
+        _menuGlyph = AddPart(new Image { VerticalOptions = LayoutOptions.Center, WidthRequest = 34, HeightRequest = 34 }, 6);
+        PaintGlyphs(RowStyle);
+        SvgImageSource.SetSvg(_menuGlyph, MenuGlyph);
+        return _menuGlyph;
+    }
+
+    // Shows a part when it is wanted, making it first; hides it when it was made before.
+    static void Show<T>(ref T? part, bool shown, Func<T> make) where T : View
+    {
+        if (shown)
+            (part ?? make()).IsVisible = true;
+        else if (part is not null)
+            part.IsVisible = false;
+    }
+
     protected override void OnPropertyChanged(string? propertyName = null)
     {
         base.OnPropertyChanged(propertyName);
 
         if (propertyName == IsEnabledProperty.PropertyName)
-            _grid.Opacity = IsEnabled ? 1 : SpineRowStyleOptions.Resolve(StyleOptions).DisabledOpacity;
-        else if (propertyName == FlowDirectionProperty.PropertyName)
+            _grid.Opacity = IsEnabled ? 1 : RowStyle.DisabledOpacity;
+        else if (propertyName == FlowDirectionProperty.PropertyName && _chevron is not null)
             _chevron.Rotation = FlowDirection == FlowDirection.RightToLeft ? 0 : 180;
     }
 
     void BuildDetail()
     {
         if (_detail is not null)
-            _detailLine.Remove(_detail);
+        {
+            _detail.SizeChanged -= OnDetailSizeChanged;
+            DetailLineView().Remove(_detail);
+        }
 
-        _detail = DetailMarquee
+        // A marquee is a Skia canvas of its own, costly on Windows: the detail is a label until its text does not fit.
+        _detail = DetailMarquee && _detailOverflows
             ? new AnimatedLabel()
             : new Label { LineBreakMode = LineBreakMode.TailTruncation, MaxLines = 1 };
+        if (_detail is Label)
+            _detail.SizeChanged += OnDetailSizeChanged;
         Grid.SetColumn(_detail, 1);
-        _detailLine.Add(_detail);
+        DetailLineView().Add(_detail);
 
         ApplyContent();
         Repaint();
     }
 
+    // The detail's text was wider than its room: it scrolls (DetailMarquee) from then on.
+    bool _detailOverflows;
+
+    void OnDetailSizeChanged(object? sender, EventArgs e) => CheckDetailOverflow();
+
+    // After layout, when the label has its width: the text's own width against it.
+    void CheckDetailOverflow()
+    {
+        if (!DetailMarquee || _detailOverflows || _detail is not Label { Width: > 0, Handler: not null } label || string.IsNullOrEmpty(label.Text))
+            return;
+
+        var needed = label.Measure(double.PositiveInfinity, double.PositiveInfinity).Width;
+        if (needed <= label.Width + 1)
+            return;
+
+        _detailOverflows = true;
+        // Not inside the layout pass that reported the size.
+        Dispatcher.Dispatch(BuildDetail);
+    }
+
     void ApplyContent()
     {
-        _iconBadge.IsVisible = !string.IsNullOrEmpty(Icon);
-        if (_iconBadge.IsVisible)
-            SvgImageSource.SetSvg(_icon, Icon!);
+        var style = RowStyle;
+
+        Show(ref _iconBadge, !string.IsNullOrEmpty(Icon), MakeIconBadge);
+        if (_iconBadge is { IsVisible: true })
+            SvgImageSource.SetSvg(_icon!, Icon!);
 
         _title.Text = Title;
 
-        if (!string.IsNullOrEmpty(Detail) && _detail is null)
+        var hasDetail = !string.IsNullOrEmpty(Detail);
+        if (hasDetail && _detail is null)
         {
             BuildDetail();
             return;
@@ -445,12 +569,16 @@ public class SpineRow : ContentView
         switch (_detail)
         {
             case Label label:
+                var changed = label.Text != Detail;
                 label.Text = Detail;
-                label.IsVisible = !string.IsNullOrEmpty(Detail);
+                label.IsVisible = hasDetail;
+                // A longer text in the same room may no longer fit.
+                if (changed && DetailMarquee && label.Width > 0)
+                    Dispatcher.Dispatch(CheckDetailOverflow);
                 break;
             case AnimatedLabel marquee:
                 marquee.Text = Detail ?? string.Empty;
-                marquee.IsVisible = !string.IsNullOrEmpty(Detail);
+                marquee.IsVisible = hasDetail;
                 // The canvas has no text a screen reader can see; the merged row reads this.
                 SemanticProperties.SetDescription(marquee, Detail);
                 break;
@@ -461,33 +589,38 @@ public class SpineRow : ContentView
         var below = ValuePlacement == SpineRowValuePlacement.Below
             || (ValuePlacement == SpineRowValuePlacement.Auto && IsAndroid);
 
-        _value.Text = value;
         // Windows Settings shows a menu's choice in a combo box rather than as a value with a chevron.
-        var dropDown = Menu is not null && !IsAndroid && SpineRowStyleOptions.Resolve(StyleOptions).MenuAsDropDown;
-        _value.IsVisible = hasValue && !below && !dropDown;
-        _dropDown.IsVisible = dropDown;
-        _dropDownText.Text = value;
+        var dropDown = Menu is not null && !IsAndroid && style.MenuAsDropDown;
+        var valueShown = hasValue && !below && !dropDown;
+        Show(ref _value, valueShown, MakeValue);
+        if (_value is not null)
+            _value.Text = value;
+        Show(ref _dropDown, dropDown, MakeDropDown);
+        if (_dropDownText is not null)
+            _dropDownText.Text = value;
 
         // Windows Settings: "On" / "Off" before a switch, in the value's place when the row has no value.
-        _switchState.IsVisible = _watchedSwitch is not null && !_value.IsVisible && SpineRowStyleOptions.Resolve(StyleOptions).ShowSwitchState;
-        if (_switchState.IsVisible)
+        Show(ref _switchState, _watchedSwitch is not null && !valueShown && style.ShowSwitchState, MakeSwitchState);
+        if (_switchState is { IsVisible: true })
             _switchState.Text = SpineStrings.Current[_watchedSwitch!.IsToggled ? "Spine.Row.On" : "Spine.Row.Off"];
-        _valueBelow.Text = value;
-        _valueBelow.IsVisible = hasValue && below;
 
-        _check.IsVisible = IsSelected == true;
-        SemanticProperties.SetDescription(_check, SpineStrings.Current["Spine.Row.Selected"]);
+        Show(ref _valueBelow, hasValue && below, MakeValueBelow);
+        if (_valueBelow is not null)
+            _valueBelow.Text = value;
 
-        // The status as a dot before the detail (Windows), or as the mark at the end when there is no detail.
-        var hasDetail = !string.IsNullOrEmpty(Detail);
-        var dot = Status != SpineRowStatus.None && hasDetail && SpineRowStyleOptions.Resolve(StyleOptions).StatusAsDot;
-        _statusDot.IsVisible = dot;
-        _status.IsVisible = Status != SpineRowStatus.None && !dot;
-        _detailLine.IsVisible = hasDetail;
+        Show(ref _check, IsSelected == true, MakeCheck);
 
-        _chevron.IsVisible = Menu is null && (ShowChevron
-            ?? (Command is not null && Accessory is null && IsSelected is null && !_status.IsVisible && !IsDestructive && !IsAndroid));
-        _menuGlyph.IsVisible = Menu is not null && !IsAndroid && !_dropDown.IsVisible;
+        // The status as a dot before the detail (the Mac, Windows), or as the mark at the end when there is no detail.
+        var dot = Status != SpineRowStatus.None && hasDetail && style.StatusAsDot;
+        var mark = Status != SpineRowStatus.None && !dot;
+        Show(ref _statusDot, dot, MakeStatusDot);
+        Show(ref _status, mark, MakeStatusMark);
+        if (_detailLine is not null)
+            _detailLine.IsVisible = hasDetail;
+
+        Show(ref _chevron, Menu is null && (ShowChevron
+            ?? (Command is not null && Accessory is null && IsSelected is null && !mark && !IsDestructive && !IsAndroid)), MakeChevron);
+        Show(ref _menuGlyph, Menu is not null && !IsAndroid && !dropDown, MakeMenuGlyph);
 
         if (_menuButton is not null)
             SemanticProperties.SetDescription(_menuButton, string.Join(", ", new[] { Title, Detail, value }.Where(s => !string.IsNullOrEmpty(s))));
@@ -498,8 +631,8 @@ public class SpineRow : ContentView
     // Material 3 list items grow from 56 to 72 dp with a second line; iOS rows keep one height.
     void ApplyHeight()
     {
-        var style = SpineRowStyleOptions.Resolve(StyleOptions);
-        var twoLines = _valueBelow.IsVisible || _detail is VisualElement { IsVisible: true };
+        var style = RowStyle;
+        var twoLines = _valueBelow is { IsVisible: true } || _detail is VisualElement { IsVisible: true };
         _grid.MinimumHeightRequest = twoLines ? style.TwoLineMinimumHeight : style.MinimumHeight;
     }
 
@@ -508,8 +641,8 @@ public class SpineRow : ContentView
     {
         get
         {
-            var style = SpineRowStyleOptions.Resolve(StyleOptions);
-            var icon = !_iconBadge.IsVisible ? 0
+            var style = RowStyle;
+            var icon = _iconBadge is not { IsVisible: true } ? 0
                 : (IconBackground is null || !style.ShowIconBadges ? style.IconSize : style.IconBadgeSize) + style.IconSpacing;
             return style.Padding.Left + icon;
         }
@@ -523,9 +656,15 @@ public class SpineRow : ContentView
         if (_watchedSwitch is not null)
             _watchedSwitch.Toggled += OnSwitchToggled;
 
-        _accessory.Content = Accessory;
-        _accessory.IsVisible = Accessory is not null;
-        _accessory.Margin = new Thickness(Accessory is null ? 0 : SpineRowStyleOptions.Resolve(StyleOptions).Spacing, 0, 0, 0);
+        if (Accessory is not null || _accessory is not null)
+        {
+            var view = MakeAccessory();
+            view.Content = Accessory;
+            view.IsVisible = Accessory is not null;
+            // Only with an accessory: an empty one kept its margin in the grid on Windows, 12 points before the edge.
+            view.Margin = new Thickness(Accessory is null ? 0 : RowStyle.Spacing, 0, 0, 0);
+        }
+
         ApplyCommand();
     }
 
@@ -551,15 +690,6 @@ public class SpineRow : ContentView
 
     void ApplyStatus()
     {
-        if (Status != SpineRowStatus.None)
-        {
-            var ok = Status == SpineRowStatus.Ok;
-            SvgImageSource.SetSvg(_statusGlyph, ok ? "check.svg" : AttentionGlyph);
-            var description = SpineStrings.Current[ok ? "Spine.Row.StatusOk" : "Spine.Row.StatusNeedsAttention"];
-            SemanticProperties.SetDescription(_status, description);
-            SemanticProperties.SetDescription(_statusDot, description);
-        }
-
         ApplyContent();
         Repaint();
     }
@@ -593,18 +723,19 @@ public class SpineRow : ContentView
 
         // A screen reader reaches the menu through that button; a merged row would hide it with the
         // rest of its parts, so the parts are hidden instead and the button reads the row.
-        View[] parts = [_iconBadge, _text, _value, _dropDown, _accessory, _status, _check, _chevron, _menuGlyph];
+        View?[] parts = [_iconBadge, _text, _value, _dropDown, _accessory, _status, _check, _chevron, _menuGlyph];
         if (Menu is null)
         {
             foreach (var part in parts)
-                part.ClearValue(AutomationProperties.ExcludedWithChildrenProperty);
+                part?.ClearValue(AutomationProperties.ExcludedWithChildrenProperty);
             Semantic.SetMerge(this, true);
         }
         else if (old is null)
         {
             Semantic.SetMerge(this, false);
             foreach (var part in parts)
-                AutomationProperties.SetExcludedWithChildren(part, true);
+                if (part is not null)
+                    AutomationProperties.SetExcludedWithChildren(part, true);
         }
 
         WatchMenu();
@@ -690,31 +821,56 @@ public class SpineRow : ContentView
         return null;
     }
 
+    // The row's own parts, then each part that has been made; a part made later is painted when it is made.
     void Repaint()
     {
-        var style = SpineRowStyleOptions.Resolve(StyleOptions);
+        var style = _style = SpineRowStyleOptions.Resolve(StyleOptions);
 
         _grid.Padding = style.Padding;
         // Spacing as margins rather than ColumnSpacing: the grid would keep the spacing of an
         // empty column, and a row without a chevron would end short of its padding.
         _grid.ColumnSpacing = 0;
-        _iconBadge.Margin = new Thickness(0, 0, style.IconSpacing, 0);
-        _value.Margin = new Thickness(style.Spacing, 0, 0, 0);
-        _switchState.Margin = new Thickness(style.Spacing, 0, 0, 0);
-        // Only with an accessory: an empty one kept its margin in the grid on Windows, 12 points before the edge.
-        _accessory.Margin = new Thickness(Accessory is null ? 0 : style.Spacing, 0, 0, 0);
-        _check.Margin = new Thickness(style.Spacing - 4, 0, -4, 0);
-        // The glyph's own margin, taken back so the chevron sits at the row's padding.
-        // Windows Settings keeps its chevron 22 points from the card's edge, further in than iOS.
-        _chevron.Margin = new Thickness(style.Spacing - 6, 0, IsWindows ? -5 : -9, 0);
-        // The glyph is narrow in its square: close to the value, its strokes at the row's padding.
-        _menuGlyph.Margin = new Thickness(-6, 0, -12, 0);
-        _status.Margin = new Thickness(style.Spacing, 0, 0, 0);
+        if (_accessory is not null)
+            // Only with an accessory: an empty one kept its margin in the grid on Windows, 12 points before the edge.
+            _accessory.Margin = new Thickness(Accessory is null ? 0 : style.Spacing, 0, 0, 0);
         if (_menuButton is not null)
             _menuButton.Margin = new Thickness(-style.Padding.Left, -style.Padding.Top, -style.Padding.Right, -style.Padding.Bottom);
         _grid.Opacity = IsEnabled ? 1 : style.DisabledOpacity;
         ApplyHeight();
 
+        _title.TextColor = IsDestructive ? style.DestructiveColor : style.TitleColor;
+        _title.FontSize = style.TitleFontSize;
+        _title.FontFamily = style.FontFamily;
+        _title.FontAttributes = style.TitleFontAttributes;
+
+        switch (_detail)
+        {
+            case Label label:
+                label.TextColor = style.DetailColor;
+                label.FontSize = style.DetailFontSize;
+                label.FontFamily = style.FontFamily;
+                break;
+            case AnimatedLabel marquee:
+                marquee.TextColor = style.DetailColor!;
+                marquee.FontSize = style.DetailFontSize;
+                marquee.FontFamily = style.FontFamily ?? string.Empty;
+                marquee.HeightRequest = Math.Ceiling(style.DetailFontSize * 1.35);
+                break;
+        }
+
+        PaintIcon(style);
+        PaintValue(style);
+        PaintGlyphs(style);
+        PaintDropDown(style);
+        PaintStatus(style);
+    }
+
+    void PaintIcon(SpineRowStyleOptions style)
+    {
+        if (_iconBadge is null || _icon is null)
+            return;
+
+        _iconBadge.Margin = new Thickness(0, 0, style.IconSpacing, 0);
         if (IconBackground is { } badge && style.ShowIconBadges)
         {
             _iconBadge.BackgroundColor = badge;
@@ -743,45 +899,65 @@ public class SpineRow : ContentView
                 _icon.ClearValue(SvgImageSource.LineWidthScaleProperty);
             SvgImageSource.SetTintColor(_icon, style.IconColor!);
         }
+    }
 
-        _title.TextColor = IsDestructive ? style.DestructiveColor : style.TitleColor;
-        _title.FontSize = style.TitleFontSize;
-        _title.FontFamily = style.FontFamily;
-        _title.FontAttributes = style.TitleFontAttributes;
-
-        switch (_detail)
+    void PaintValue(SpineRowStyleOptions style)
+    {
+        if (_value is not null)
         {
-            case Label label:
-                label.TextColor = style.DetailColor;
-                label.FontSize = style.DetailFontSize;
-                label.FontFamily = style.FontFamily;
-                break;
-            case AnimatedLabel marquee:
-                marquee.TextColor = style.DetailColor!;
-                marquee.FontSize = style.DetailFontSize;
-                marquee.FontFamily = style.FontFamily ?? string.Empty;
-                marquee.HeightRequest = Math.Ceiling(style.DetailFontSize * 1.35);
-                break;
+            _value.Margin = new Thickness(style.Spacing, 0, 0, 0);
+            _value.TextColor = style.ValueColor;
+            _value.FontSize = style.ValueFontSize;
+            _value.FontFamily = style.FontFamily;
         }
 
-        _value.TextColor = style.ValueColor;
-        _value.FontSize = style.ValueFontSize;
-        _value.FontFamily = style.FontFamily;
+        if (_switchState is not null)
+        {
+            _switchState.Margin = new Thickness(style.Spacing, 0, 0, 0);
+            _switchState.TextColor = style.TitleColor;
+            _switchState.FontSize = style.TitleFontSize;
+            _switchState.FontFamily = style.FontFamily;
+        }
 
-        _switchState.TextColor = style.TitleColor;
-        _switchState.FontSize = style.TitleFontSize;
-        _switchState.FontFamily = style.FontFamily;
+        if (_valueBelow is not null)
+        {
+            _valueBelow.TextColor = style.DetailColor;
+            _valueBelow.FontSize = style.DetailFontSize;
+            _valueBelow.FontFamily = style.FontFamily;
+        }
+    }
 
-        _valueBelow.TextColor = style.DetailColor;
-        _valueBelow.FontSize = style.DetailFontSize;
-        _valueBelow.FontFamily = style.FontFamily;
+    void PaintGlyphs(SpineRowStyleOptions style)
+    {
+        if (_check is not null)
+        {
+            _check.Margin = new Thickness(style.Spacing - 4, 0, -4, 0);
+            SvgImageSource.SetTintColor(_check, style.CheckColor!);
+            SvgImageSource.SetLineWidthScale(_check, style.GlyphLineWidthScale);
+        }
 
-        SvgImageSource.SetTintColor(_chevron, style.ChevronColor!);
-        SvgImageSource.SetLineWidthScale(_chevron, style.GlyphLineWidthScale);
-        SvgImageSource.SetTintColor(_check, style.CheckColor!);
-        SvgImageSource.SetLineWidthScale(_check, style.GlyphLineWidthScale);
-        SvgImageSource.SetTintColor(_menuGlyph, style.ValueColor!);
-        SvgImageSource.SetLineWidthScale(_menuGlyph, style.GlyphLineWidthScale * 1.25);
+        if (_chevron is not null)
+        {
+            // The glyph's own margin, taken back so the chevron sits at the row's padding.
+            // Windows Settings keeps its chevron 22 points from the card's edge, further in than iOS.
+            _chevron.Margin = new Thickness(style.Spacing - 6, 0, IsWindows ? -5 : -9, 0);
+            SvgImageSource.SetTintColor(_chevron, style.ChevronColor!);
+            SvgImageSource.SetLineWidthScale(_chevron, style.GlyphLineWidthScale);
+        }
+
+        if (_menuGlyph is not null)
+        {
+            // The glyph is narrow in its square: close to the value, its strokes at the row's padding.
+            _menuGlyph.Margin = new Thickness(-6, 0, -12, 0);
+            SvgImageSource.SetTintColor(_menuGlyph, style.ValueColor!);
+            SvgImageSource.SetLineWidthScale(_menuGlyph, style.GlyphLineWidthScale * 1.25);
+        }
+    }
+
+    void PaintDropDown(SpineRowStyleOptions style)
+    {
+        if (_dropDown is null || _dropDownText is null || _dropDownGlyph is null)
+            return;
 
         _dropDown.BackgroundColor = style.DropDownColor;
         _dropDown.Stroke = style.DropDownBorderColor is { } dropDownBorder ? new SolidColorBrush(dropDownBorder) : null;
@@ -792,15 +968,35 @@ public class SpineRow : ContentView
         _dropDownText.FontFamily = style.FontFamily;
         SvgImageSource.SetTintColor(_dropDownGlyph, style.TitleColor!);
         SvgImageSource.SetLineWidthScale(_dropDownGlyph, style.GlyphLineWidthScale);
+    }
 
-        _status.WidthRequest = _status.HeightRequest = style.StatusSize;
-        _statusGlyph.WidthRequest = _statusGlyph.HeightRequest = style.StatusSize;
-        _status.BackgroundColor = Status == SpineRowStatus.Ok ? style.StatusOkColor : style.StatusAttentionColor;
-        _statusDot.BackgroundColor = _status.BackgroundColor;
-        _statusDot.WidthRequest = _statusDot.HeightRequest = style.StatusDotSize;
-        _statusDot.Margin = new Thickness(0, 0, Math.Round(style.StatusDotSize * 0.9), 0);
-        SvgImageSource.SetTintColor(_statusGlyph, style.StatusGlyphColor!);
-        // A heavier stroke than the chevron's: the glyph is small and white on a fill.
-        SvgImageSource.SetLineWidthScale(_statusGlyph, style.GlyphLineWidthScale * 1.75);
+    void PaintStatus(SpineRowStyleOptions style)
+    {
+        var ok = Status == SpineRowStatus.Ok;
+        var fill = ok ? style.StatusOkColor : style.StatusAttentionColor;
+        var description = Status == SpineRowStatus.None ? null
+            : SpineStrings.Current[ok ? "Spine.Row.StatusOk" : "Spine.Row.StatusNeedsAttention"];
+
+        if (_status is not null && _statusGlyph is not null)
+        {
+            _status.Margin = new Thickness(style.Spacing, 0, 0, 0);
+            _status.WidthRequest = _status.HeightRequest = style.StatusSize;
+            _statusGlyph.WidthRequest = _statusGlyph.HeightRequest = style.StatusSize;
+            _status.BackgroundColor = fill;
+            SemanticProperties.SetDescription(_status, description);
+            SvgImageSource.SetTintColor(_statusGlyph, style.StatusGlyphColor!);
+            // A heavier stroke than the chevron's: the glyph is small and white on a fill.
+            SvgImageSource.SetLineWidthScale(_statusGlyph, style.GlyphLineWidthScale * 1.75);
+            if (Status != SpineRowStatus.None)
+                SvgImageSource.SetSvg(_statusGlyph, ok ? "check.svg" : AttentionGlyph);
+        }
+
+        if (_statusDot is not null)
+        {
+            _statusDot.BackgroundColor = fill;
+            _statusDot.WidthRequest = _statusDot.HeightRequest = style.StatusDotSize;
+            _statusDot.Margin = new Thickness(0, 0, Math.Round(style.StatusDotSize * 0.9), 0);
+            SemanticProperties.SetDescription(_statusDot, description);
+        }
     }
 }

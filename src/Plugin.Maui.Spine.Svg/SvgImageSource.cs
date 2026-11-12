@@ -317,16 +317,26 @@ public static class SvgImageSource
             ApplyValues(bindable, behavior);
     }
 
+    // All the values, then one render: each of them used to render on its own, eight renders of combinations
+    // nobody asked for every time one attached property changed.
     private static void ApplyValues(BindableObject bindable, SvgImageSourceBehavior behavior)
     {
-        behavior.Svg = GetSvg(bindable);
-        behavior.TintColor = GetTintColor(bindable);
-        behavior.LightTintColor = GetLightTintColor(bindable);
-        behavior.DarkTintColor = GetDarkTintColor(bindable);
-        behavior.Padding = GetPadding(bindable);
-        behavior.AdjustColorsForDark = GetAdjustColorsForDark(bindable);
-        behavior.LineWidthScale = GetLineWidthScale(bindable);
-        behavior.RoundLineEnds = GetRoundLineEnds(bindable);
+        behavior.Suspended = true;
+        try
+        {
+            behavior.Svg = GetSvg(bindable);
+            behavior.TintColor = GetTintColor(bindable);
+            behavior.LightTintColor = GetLightTintColor(bindable);
+            behavior.DarkTintColor = GetDarkTintColor(bindable);
+            behavior.Padding = GetPadding(bindable);
+            behavior.AdjustColorsForDark = GetAdjustColorsForDark(bindable);
+            behavior.LineWidthScale = GetLineWidthScale(bindable);
+            behavior.RoundLineEnds = GetRoundLineEnds(bindable);
+        }
+        finally
+        {
+            behavior.Suspended = false;
+        }
         behavior.UpdateImage();
     }
 }
