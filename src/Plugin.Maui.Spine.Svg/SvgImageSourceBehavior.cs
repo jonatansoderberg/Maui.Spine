@@ -156,8 +156,33 @@ public class SvgImageSourceBehavior : Behavior<View>
             Application.Current.RequestedThemeChanged += OnRequestedThemeChanged;
 
         _associatedView.SizeChanged += OnViewSizeChanged;
+        _associatedView.HandlerChanged += OnViewHandlerChanged;
 
         UpdateImage();
+    }
+
+    /// <summary>Set while several values change together (SvgImageSource.ApplyValues): one render afterwards.</summary>
+    internal bool Suspended { get; set; }
+
+    // A view without a handler is not in a window yet: its values may still change (a row sets the glyph, then the
+    // colour, the padding and the line width), so it renders once, when the handler comes.
+    private bool _pending;
+
+    // What the view shows now: the same render again (the size the layout gave equals the requested one) would only
+    // make the platform decode the same bitmap again.
+    private string? _shownKey;
+
+    private void OnViewHandlerChanged(object? sender, EventArgs e)
+    {
+        if (_associatedView?.Handler is null)
+        {
+            // Taken out of the window: the next handler gets a new platform view, which has no image yet.
+            _shownKey = null;
+            return;
+        }
+
+        if (_pending)
+            UpdateImage();
     }
 
     /// <inheritdoc/>
@@ -169,7 +194,10 @@ public class SvgImageSourceBehavior : Behavior<View>
             Application.Current.RequestedThemeChanged -= OnRequestedThemeChanged;
 
         if (_associatedView is not null)
+        {
             _associatedView.SizeChanged -= OnViewSizeChanged;
+            _associatedView.HandlerChanged -= OnViewHandlerChanged;
+        }
 
         _associatedView = null;
         _svgRegistry = null;
@@ -196,11 +224,20 @@ public class SvgImageSourceBehavior : Behavior<View>
     /// </remarks>
     public async void UpdateImage()
     {
-        if (_associatedView is null)
+        if (_associatedView is null || Suspended)
             return;
+
+        if (_associatedView.Handler is null)
+        {
+            _pending = true;
+            return;
+        }
+
+        _pending = false;
 
         if (string.IsNullOrWhiteSpace(Svg))
         {
+            _shownKey = null;
             SetSource(null);
             return;
         }
@@ -220,6 +257,13 @@ public class SvgImageSourceBehavior : Behavior<View>
 
         var resourceName = _svgRegistry?.Resolve(Svg) ?? Svg;
         var adjustColors = theme == AppTheme.Dark && (AdjustColorsForDark ?? SvgBitmapLoader.Options.AdjustColorsForDark);
+
+        var key = string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"{resourceName}|{width:F2}x{height:F2}|{tint?.ToArgbHex(true)}|{Padding}|{adjustColors}|{LineWidthScale:F3}|{RoundLineEnds}");
+        if (key == _shownKey)
+            return;
+        _shownKey = key;
+
         var source = SvgBitmapLoader.LoadFromEmbedded(resourceName, width, height, tint, Padding, adjustColors, (float)LineWidthScale, RoundLineEnds);
 
         // Already on the main thread is the common case (attach, size change), and a deferred set
