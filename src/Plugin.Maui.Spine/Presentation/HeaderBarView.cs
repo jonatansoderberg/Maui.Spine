@@ -572,7 +572,11 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         Material.SetPreset(_trailingGroup, !grouped ? MaterialPreset.None
             : Glass == HeaderBarGlass.Clear ? MaterialPreset.GlassClear
             : MaterialPreset.GlassRegular);
-        _trailingGroup.StrokeShape = new RoundRectangle { CornerRadius = ButtonHeight / 2 };
+        // The Border clips its content to its shape. Without glass the group is only a container: a capsule there cut a
+        // lone trailing button's square hover into a circle (Windows sheets: a round X beside a square leading button).
+        _trailingGroup.StrokeShape = PageActionView.UseGlassHeaderActions
+            ? new RoundRectangle { CornerRadius = ButtonHeight / 2 }
+            : new Microsoft.Maui.Controls.Shapes.Rectangle();
 
         // Transient glass buttons have no shape at rest, so the gap between their circles read as a wide gap
         // between bare icons; they touch instead, as the buttons in one group of a UINavigationBar do. On Windows a
