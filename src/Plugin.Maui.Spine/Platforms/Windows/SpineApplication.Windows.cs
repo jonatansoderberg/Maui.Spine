@@ -375,6 +375,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         var backdrop = _services.GetRequiredService<SpineOptions>().WindowsBackdrop;
         ApplyWindowBackdrop(winuiWindow, backdrop);
         ApplyWindowBackground(winuiWindow, backdrop);
+        SuppressInitialFocusVisual(winuiWindow);
 
         var hWnd = winuiWindow.GetWindowHandle();
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
@@ -725,6 +726,72 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             case Microsoft.UI.Xaml.Controls.Panel panel: panel.Background ??= pageBrush; break;
             case Microsoft.UI.Xaml.Controls.Control control: control.Background ??= pageBrush; break;
         }
+    }
+
+    // WinUI gives the first tab stop focus when the window opens, and draws it as keyboard focus: the header bar's
+    // first button opened with a focus rectangle. The window's root takes that first focus instead (a ContentControl
+    // draws no focus visual), as Windows' own apps open; Tab then goes to the first button as before, and the root
+    // leaves the tab order again once it loses focus.
+    private static void SuppressInitialFocusVisual(WinUIWindow window)
+    {
+        // MAUI's window content is a panel (WindowRootViewContainer) around the root view, a ContentControl.
+        var settled = false;
+        Microsoft.UI.Xaml.UIElement? hooked = null;
+
+        void Hook()
+        {
+            if (hooked is not null || window.Content is not { } content)
+                return;
+            hooked = content;
+            content.GotFocus += OnGotFocus;
+        }
+
+        void OnActivated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs e)
+        {
+            if (e.WindowActivationState == Microsoft.UI.Xaml.WindowActivationState.Deactivated)
+                return;
+            window.Activated -= OnActivated;
+            Hook();
+            // The first focus may already have come with the activation.
+            if (window.Content?.XamlRoot is { } xamlRoot)
+                Settle(Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot));
+        }
+
+        void OnGotFocus(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => Settle(e.OriginalSource);
+
+        void Settle(object? source)
+        {
+            if (settled || source is not Microsoft.UI.Xaml.Controls.Control focused)
+                return;
+            settled = true;
+            if (hooked is not null)
+                hooked.GotFocus -= OnGotFocus;
+
+            var root = window.Content as Microsoft.UI.Xaml.Controls.Control
+                ?? (window.Content as Microsoft.UI.Xaml.Controls.Panel)?.Children.OfType<Microsoft.UI.Xaml.Controls.Control>().FirstOrDefault();
+            if (root is null || ReferenceEquals(focused, root) || focused.FocusState is Microsoft.UI.Xaml.FocusState.Pointer)
+                return;
+
+            var wasTabStop = root.IsTabStop;
+            root.IsTabStop = true;
+            if (!root.Focus(Microsoft.UI.Xaml.FocusState.Programmatic))
+            {
+                root.IsTabStop = wasTabStop;
+                return;
+            }
+
+            void OnLostFocus(object s, Microsoft.UI.Xaml.RoutedEventArgs a)
+            {
+                if (!ReferenceEquals(a.OriginalSource, root))
+                    return;
+                root.LostFocus -= OnLostFocus;
+                root.IsTabStop = wasTabStop;
+            }
+            root.LostFocus += OnLostFocus;
+        }
+
+        Hook();
+        window.Activated += OnActivated;
     }
 
     private void ConfigureWindowsTitleBar(bool isTitleBarVisible)
