@@ -451,6 +451,9 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             };
         }
 
+        if (windowsOptions.StartInBackground && windowsOptions.ShowTrayIcon)
+            StartHidden(winuiWindow, hWnd);
+
         // --- Tray icon ---
         if (windowsOptions.ShowTrayIcon)
         {
@@ -551,6 +554,32 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             mauiWindow.Destroying += (_, _) => AppInstance.GetCurrent().Activated -= OnRedirectedActivation;
         }
     }
+
+    // MAUI activates the window right after this, which shows it. Cloaked, the window is shown to Windows but drawn
+    // nowhere; at its first activation it is hidden as CloseToBackground hides it, and uncloaked for the next show.
+    private void StartHidden(WinUIWindow window, IntPtr hWnd)
+    {
+        SetCloak(hWnd, true);
+
+        void OnActivated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs e)
+        {
+            window.Activated -= OnActivated;
+            window.DispatcherQueue.TryEnqueue(() =>
+            {
+                _appWindow?.Hide();
+                SetCloak(hWnd, false);
+            });
+        }
+        window.Activated += OnActivated;
+    }
+
+    private static void SetCloak(IntPtr hWnd, bool cloak)
+    {
+        var value = cloak ? 1 : 0;
+        NativeMethods.DwmSetWindowAttribute(hWnd, DWMWA_CLOAK, ref value, sizeof(int));
+    }
+
+    private const int DWMWA_CLOAK = 13;
 
     private void TryRegisterHeroCollectionViewCaptionButtonIntegration()
     {
@@ -934,6 +963,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern uint GetDpiForWindow(IntPtr hWnd);
+
+    [DllImport("dwmapi.dll")]
+    internal static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

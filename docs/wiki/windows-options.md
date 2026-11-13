@@ -86,6 +86,20 @@ none. Tab then goes to the first button with its rectangle, as in Windows' own a
 | `TrayIconPath` | `string` | `"Resources/Raw/light_theme.ico"` | Path to a pre-built tray icon (relative to app package). Used when `TrayIconSvg` is null |
 | `TrayIconTooltip` | `string` | `""` | Tooltip text when hovering the tray icon |
 | `CloseToBackground` | `bool` | `false` | Hide the window instead of exiting when closed |
+| `StartInBackground` | `bool` | `false` | Start with the window hidden, only the tray icon (needs `ShowTrayIcon`) |
+
+### Starting in the tray
+
+An app started at login should not open its window. Pass an argument from the login entry and set
+`StartInBackground` from it; a start by the user shows the window as before:
+
+```csharp
+// The Run value (HKCU\...\CurrentVersion\Run) is "<exe>" --background
+options.Windows.StartInBackground = Environment.GetCommandLineArgs().Contains("--background");
+```
+
+The window is created as usual, cloaked until its first activation, then hidden as `CloseToBackground` hides it, so it
+never flashes. A click on the tray icon, or starting the app again (single instance), shows it.
 
 ### Tray icon setup
 
