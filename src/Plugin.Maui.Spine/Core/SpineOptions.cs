@@ -306,6 +306,15 @@ public sealed class SpineOptions
         public bool CloseToBackground { get; set; } = false;
 
         /// <summary>
+        /// When true, the app starts with its window hidden, as <see cref="CloseToBackground"/> leaves it: only the
+        /// tray icon shows, and a click on it (or starting the app again) brings the window. Meant for a start at
+        /// login, so set it from the command line the login entry passes, e.g.
+        /// <c>Environment.GetCommandLineArgs().Contains("--background")</c>; a start by the user should show the window.
+        /// Needs <see cref="ShowTrayIcon"/>.
+        /// </summary>
+        public bool StartInBackground { get; set; } = false;
+
+        /// <summary>
         /// When true, window position and size are persisted across sessions using WinUIEx.
         /// <see cref="StartupPosition"/> acts as the fallback for the first run.
         /// </summary>
