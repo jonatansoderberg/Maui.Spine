@@ -79,6 +79,27 @@
 		</PropertyGroup>
 	</Target>
 
+	<!-- Windows: MAUI writes the versions into the app manifest in obj (resizetizer/m/Package.appxmanifest), which is
+	     where AppInfo.VersionString and BuildString come from on Windows, and it regenerates that file only when its
+	     input files change, not when ApplicationDisplayVersion or ApplicationVersion do. An incremental build kept the
+	     first build's version for good. A version that differs from the last build's removes MAUI's stamp, so the
+	     manifest is written again. -->
+	<Target Name="_SpineVersionRefreshAppxManifest"
+	        BeforeTargets="MauiGeneratePackageAppxManifest"
+	        DependsOnTargets="SpineVersionFromGit"
+	        Condition="'$(_MauiManifestStampFile)' != ''">
+		<PropertyGroup>
+			<_SpineAppxVersionFile>$(IntermediateOutputPath)spine-appx-version.txt</_SpineAppxVersionFile>
+			<_SpineAppxVersion>$(ApplicationDisplayVersion) $(ApplicationVersion)</_SpineAppxVersion>
+			<_SpineAppxVersionBefore Condition="Exists('$(_SpineAppxVersionFile)')">$([System.IO.File]::ReadAllText('$(_SpineAppxVersionFile)').Trim())</_SpineAppxVersionBefore>
+		</PropertyGroup>
+		<Delete Files="$(_MauiManifestStampFile)" Condition="'$(_SpineAppxVersionBefore)' != '$(_SpineAppxVersion)'" />
+		<WriteLinesToFile File="$(_SpineAppxVersionFile)" Lines="$(_SpineAppxVersion)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+		<ItemGroup>
+			<FileWrites Include="$(_SpineAppxVersionFile)" />
+		</ItemGroup>
+	</Target>
+
 	<Target Name="_SpineVersionHandOver" BeforeTargets="_RunRidSpecificBuild">
 		<WriteLinesToFile File="$(_SpineVersionHandOver)" Lines="$(VersionDate) $(BuildId)" Overwrite="true" WriteOnlyWhenDifferent="true" />
 	</Target>
