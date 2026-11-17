@@ -53,13 +53,13 @@ internal sealed partial class PagePresenter : Grid
             _contentPresenter.Content = value;
 
             // Update bindings sourced from the page view model
-            _titleLabel?.SetBinding(Label.TextProperty, new Binding("BindingContext.Title", source: Content));
             _titleLabel?.SetBinding(Label.IsVisibleProperty, new Binding("BindingContext.IsHeaderBarVisible", source: Content));
             _titleLabel?.SetBinding(Label.HorizontalTextAlignmentProperty, new Binding("BindingContext.TitleAlignment",
                 source: Content,
                 converter: new TitleAlignmentToTextAlignmentConverter()));
 
             WatchPage(Content?.BindingContext as ViewModelBase);
+            ApplyTitleText();
             WatchFooter(Content as IPageFooterSource);
 
             // The header bar measures its own actions and publishes the result on the region
@@ -224,6 +224,8 @@ internal sealed partial class PagePresenter : Grid
             ApplyCollapse();
         else if (e.PropertyName is nameof(ViewModelBase.HeaderBarScrollSource))
             UpdateSystemScrollEdge();
+        else if (e.PropertyName is nameof(ViewModelBase.FormattedTitle))
+            ApplyTitleText();
         else if (e.PropertyName is nameof(ViewModelBase.SearchProgress))
         {
             ApplySearchRowFrame();
@@ -231,6 +233,40 @@ internal sealed partial class PagePresenter : Grid
             ApplyTitleRowHeight();
             ApplyCollapse();
             RefreshSoftEdge();
+        }
+    }
+
+    // The page's title: its formatted title when it has one, otherwise the plain one, which follows the view model.
+    // A label shows one or the other, and setting its text would take a formatted title away again, so the binding
+    // goes while a formatted title is shown.
+    private void ApplyTitleText()
+    {
+        if (_titleLabel is null)
+            return;
+
+        if (_page?.FormattedTitle is { } formatted)
+        {
+            _titleLabel.RemoveBinding(Label.TextProperty);
+            _titleLabel.FormattedText = formatted;
+            _titleLabel.SetBinding(SemanticProperties.DescriptionProperty, new Binding("BindingContext.Title", source: Content));
+            return;
+        }
+
+        var wasFormatted = _titleLabel.FormattedText is not null;
+        if (wasFormatted)
+            _titleLabel.FormattedText = null;
+        _titleLabel.RemoveBinding(SemanticProperties.DescriptionProperty);
+        _titleLabel.SetBinding(Label.TextProperty, new Binding("BindingContext.Title", source: Content));
+
+        // The presenters are reused from page to page, and a platform label that has shown formatted text keeps
+        // that text's attributes for the plain text that follows: the next page's title came out in the last span's
+        // font. The label's own font, colour and spacing have not changed, so MAUI would not set them again.
+        if (wasFormatted && _titleLabel.Handler is { } handler)
+        {
+            handler.UpdateValue(nameof(ITextStyle.Font));
+            handler.UpdateValue(nameof(ITextStyle.TextColor));
+            handler.UpdateValue(nameof(ITextStyle.CharacterSpacing));
+            handler.UpdateValue(nameof(ILabel.Text));
         }
     }
 
