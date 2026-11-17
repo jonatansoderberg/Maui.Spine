@@ -35,6 +35,14 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     public partial string Title { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The title as formatted text, for a title whose parts differ: a word in another weight or colour. When set, the
+    /// header bar shows it instead of <see cref="Title"/>; a span takes what it does not set (size, colour) from the
+    /// header bar's title style. <see cref="Title"/> stays the page's name: it is what a screen reader reads.
+    /// </summary>
+    [ObservableProperty]
+    public partial FormattedString? FormattedTitle { get; set; }
+
     /// <summary>Controls whether the native window title bar is shown (desktop only).</summary>
     [ObservableProperty]
     public partial bool IsTitleBarVisible { get; set; }
