@@ -520,9 +520,14 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         ActionSlotsChanged?.Invoke();
     }
 
+    // Actions on their way out. Their room is given back when they start to leave, not when the fade ends: the
+    // title of a page coming back then travels to where it will rest, rather than stopping beside a back button
+    // that is going away and moving again once it has gone.
+    readonly HashSet<View> _leaving = [];
+
     double SlotFor(PageActionView view, bool leading)
     {
-        if (!view.IsVisible)
+        if (!view.IsVisible || _leaving.Contains(view))
             return 0;
 
         // The arranged frame is the honest answer: it already carries the side margin, the
@@ -539,7 +544,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     /// <summary>How far the trailing actions reach in from the right edge: the leftmost visible one's left edge.</summary>
     double TrailingSlot()
     {
-        var visible = _trailing.Children.OfType<PageActionView>().Where(v => v.IsVisible).ToList();
+        var visible = _trailing.Children.OfType<PageActionView>().Where(v => v.IsVisible && !_leaving.Contains(v)).ToList();
         if (visible.Count == 0)
             return 0;
         if (Width > 0 && _trailing.Width > 0 && visible.All(v => v.Width > 0))
@@ -824,6 +829,63 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     // An animation runs on the animation manager of the window the view is in. A view that is in none
     // yet (a title bar's action set before the title bar is shown) takes its end state at once;
     // FadeToAsync would throw, unobserved, from the discarded task.
+
+#if IOS || MACCATALYST
+    const string RenderServerAnimationKey = "Spine.HeaderBar.Visibility";
+
+    /// <summary>
+    /// Fades and scales <paramref name="target"/>'s platform view with Core Animation instead of the MAUI animations.
+    /// </summary>
+    /// <remarks>
+    /// A MAUI animation is stepped on the main thread, and so is the continuation of an awaited delay. After a
+    /// click that navigates, the main thread is taken for the better part of a second: by building the page and, in
+    /// an active Mac window, by UIKit's focus system mapping the whole view tree. The page transition is not held up
+    /// by that, as the render server runs it, but an action stepped by MAUI stood still and then jumped to its end
+    /// when the page had long arrived. Handed to Core Animation here, the action keeps time with the page.
+    /// <para>
+    /// The animation is explicit: it only changes what is drawn, from the given values (or where the view is drawn
+    /// now) to the given ones, and leaves the view's own alpha and transform to MAUI. The caller sets Opacity and
+    /// Scale to where the view is to rest; with <paramref name="hold"/> the animation stays at its end until
+    /// <see cref="EndRenderServerAnimation"/>.
+    /// </para>
+    /// </remarks>
+    static void RenderServerAnimate(View target, double? fromOpacity, double opacity, double? fromScale, double scale, uint duration, bool hold)
+    {
+        if (PlatformViewOf(target)?.Layer is not { } layer)
+            return;
+
+        var drawn = layer.PresentationLayer ?? layer;
+        var drawnScale = (drawn.ValueForKeyPath(new Foundation.NSString("transform.scale")) as Foundation.NSNumber)?.DoubleValue ?? 1;
+
+        var fade = CoreAnimation.CABasicAnimation.FromKeyPath("opacity");
+        fade.From = Foundation.NSNumber.FromDouble(fromOpacity ?? drawn.Opacity);
+        fade.To = Foundation.NSNumber.FromDouble(opacity);
+
+        var grow = CoreAnimation.CABasicAnimation.FromKeyPath("transform.scale");
+        grow.From = Foundation.NSNumber.FromDouble(fromScale ?? drawnScale);
+        grow.To = Foundation.NSNumber.FromDouble(scale);
+
+        var both = new CoreAnimation.CAAnimationGroup
+        {
+            Animations = [fade, grow],
+            Duration = duration / 1000.0,
+            TimingFunction = CoreAnimation.CAMediaTimingFunction.FromName(CoreAnimation.CAMediaTimingFunction.EaseOut),
+            RemovedOnCompletion = !hold,
+        };
+        if (hold)
+            both.FillMode = CoreAnimation.CAFillMode.Forwards;
+
+        layer.AddAnimation(both, RenderServerAnimationKey);
+    }
+
+    static void EndRenderServerAnimation(View target) =>
+        PlatformViewOf(target)?.Layer.RemoveAnimation(RenderServerAnimationKey);
+
+    // The view MAUI puts opacity and transforms on: the wrapper when the view has one.
+    static UIKit.UIView? PlatformViewOf(View target) =>
+        target.Handler is Microsoft.Maui.IPlatformViewHandler handler ? handler.ContainerView ?? handler.PlatformView : null;
+#endif
+
     static bool CanAnimate(Element view)
     {
         for (Element? element = view; element is not null; element = element.Parent)
@@ -851,10 +913,12 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
         if (show)
         {
-            if (!target.IsVisible || target.Opacity == 0)
+            var fresh = !target.IsVisible || target.Opacity == 0;
+            if (fresh)
                 target.Scale = scale;
 
             target.IsVisible = true;
+            _leaving.Remove(target);
             PublishActionSlots();
 
             if (!CanAnimate(target))
@@ -871,6 +935,16 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
                 await Task.WhenAll(
                     GlassAppearance.AnimateAsync(target, show: true, duration),
                     target.ScaleToAsync(1, duration, PageActionView.TransitionEasing));
+                return;
+            }
+
+            // No glass at rest (none at all, or only while pressed): nothing to wait for, and Core Animation
+            // does the fade. See RenderServerAnimate for why not the MAUI animations.
+            if (!PageActionView.UseGlassHeaderActions || Glass == HeaderBarGlass.Transient)
+            {
+                target.Opacity = 1;
+                target.Scale = 1;
+                RenderServerAnimate(target, fresh ? 0 : null, 1, fresh ? scale : null, 1, duration, hold: false);
                 return;
             }
 
@@ -910,21 +984,35 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             // page that took them has slid away.
             var outDuration = PageActionView.RemovalDuration;
 
+            _leaving.Add(target);
+            PublishActionSlots();
+
 #if IOS || MACCATALYST
             if (GlassAppearance.Applies(target))
             {
-                await Task.WhenAll(
-                    GlassAppearance.AnimateAsync(target, show: false, outDuration),
-                    target.ScaleToAsync(scale, outDuration, PageActionView.TransitionEasing));
+                // UIKit reports a glass effect's dissolve as finished when the system's own animation is, which
+                // on a Mac was measured at up to a second after the duration asked for, with the action in plain
+                // sight all the while. The action is gone when its time is up, wherever the glass has got to.
+                await Task.WhenAny(
+                    Task.WhenAll(
+                        GlassAppearance.AnimateAsync(target, show: false, outDuration),
+                        target.ScaleToAsync(scale, outDuration, PageActionView.TransitionEasing)),
+                    Task.Delay((int)outDuration + 34));
             }
-            else
-#endif
+            else if (CanAnimate(target))
+            {
+                // Held at its end, so the action stays gone until this method gets to hide it for good.
+                RenderServerAnimate(target, null, 0, null, scale, outDuration, hold: true);
+                await Task.Delay((int)outDuration);
+            }
+#else
             if (CanAnimate(target))
             {
                 await Task.WhenAll(
                     target.FadeToAsync(0, outDuration, PageActionView.TransitionEasing),
                     target.ScaleToAsync(scale, outDuration, PageActionView.TransitionEasing));
             }
+#endif
 
             // Shown again while it went away: leave it.
             if (_visibilityVersions[target] != version)
@@ -933,6 +1021,10 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             target.Opacity = 0;
             target.IsVisible = false;
             target.Scale = 1;
+#if IOS || MACCATALYST
+            EndRenderServerAnimation(target);
+#endif
+            _leaving.Remove(target);
             PublishActionSlots();
         }
     }

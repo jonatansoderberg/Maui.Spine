@@ -120,12 +120,23 @@ public static class SafeArea
             _view = view;
             view.Loaded += OnLoaded;
             view.Unloaded += OnUnloaded;
+            view.HandlerChanged += OnHandlerChanged;
 
-            if (view.IsLoaded)
+            if (view.IsLoaded || view.Handler is not null)
                 Attach();
         }
 
         void OnLoaded(object? sender, EventArgs e) => Attach();
+
+        // Loaded comes in a later turn of the main thread, after the page is on screen. When that turn is slow to
+        // come (a busy main thread right after the click that navigated), the page was shown without its inset,
+        // its first rows under the header bar, and dropped into place afterwards. The platform view is made before
+        // the page is first drawn, and the page's view model is there by then, so the inset goes on with it.
+        void OnHandlerChanged(object? sender, EventArgs e)
+        {
+            if (_view.Handler is not null)
+                Attach();
+        }
 
         void OnUnloaded(object? sender, EventArgs e) => Detach();
 
@@ -175,6 +186,7 @@ public static class SafeArea
         {
             _view.Loaded -= OnLoaded;
             _view.Unloaded -= OnUnloaded;
+            _view.HandlerChanged -= OnHandlerChanged;
             Detach();
         }
     }
