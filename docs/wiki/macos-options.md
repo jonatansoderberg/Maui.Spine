@@ -68,6 +68,8 @@ By default a Mac window has its title bar and Spine's header bar below it: two r
 
 `TitleAlignment.Left` reads like a Mac toolbar's title. A centred title stays centred in the window.
 
+A page without a header bar that leaves `Top` out of its `SafeAreaEdges` (`None`, or `Left | Right` to keep a phone's sides clear in landscape) draws its own top. On the Mac it reaches up behind the title bar, with or without this option, and the window's title is hidden over it.
+
 ---
 
 ## Window sizes from the content
