@@ -64,9 +64,10 @@ internal sealed partial class PagePresenter : Grid
 
             // The header bar measures its own actions and publishes the result on the region
             // view model, which is this presenter's BindingContext.
-            var slotsBinding = new MultiBinding { Converter = new ActionsToTitleSlotsConverter() };
+            var slotsBinding = new MultiBinding { Converter = new ActionsToTitleSlotsConverter(() => Content?.BindingContext) };
             slotsBinding.Bindings.Add(new Binding("BindingContext.PrimaryActionSlot", source: this));
             slotsBinding.Bindings.Add(new Binding("BindingContext.SecondaryActionSlot", source: this));
+            slotsBinding.Bindings.Add(new Binding("BindingContext.HeaderRegionViewModel", source: this));
             _titleBar.SetBinding(TitleSlotLayout.SlotsProperty, slotsBinding);
         }
     }
@@ -763,10 +764,15 @@ internal class TitleAlignmentToTextAlignmentConverter : IValueConverter
 /// each side. A side with no action gets plain padding.
 /// <see cref="TitleSlotLayout"/> decides how much of it the title uses.
 /// </summary>
-internal class ActionsToTitleSlotsConverter : IMultiValueConverter
+internal class ActionsToTitleSlotsConverter(Func<object?>? page = null) : IMultiValueConverter
 {
+    // The slots are those of the page the header bar shows (the third value). During a transition that is the page
+    // arriving, and the page leaving keeps the slots it had: its title would otherwise step aside for the other
+    // page's actions just as it starts to slide away.
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
-        => new Thickness(Reserve(values, 0), 0, Reserve(values, 1), 0);
+        => values.Length > 2 && values[2] is ViewModelBase header && page?.Invoke() is ViewModelBase own && !ReferenceEquals(header, own)
+            ? Binding.DoNothing
+            : new Thickness(Reserve(values, 0), 0, Reserve(values, 1), 0);
 
     // With glass buttons, and on Windows, a side without an action keeps the page margin, so a left-aligned title
     // starts where the page's content and the buttons' edges do, as a UINavigationBar's does and as a WinUI title bar's
