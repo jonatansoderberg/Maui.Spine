@@ -244,8 +244,9 @@ public sealed partial class NavigationRegion : ContentView
 #if MACCATALYST
         // After fullSizeContentView, MAUI's safeAreaInsets offset already positions
         // NavigationRegion below the title bar for normal pages. Only full-bleed pages
-        // (no header bar, no safe area) need the negative counteraction so their content
-        // extends behind the title bar. SystemBarInsets stays zero on Mac Catalyst so
+        // (no header bar, no top safe area) need the negative counteraction so their content
+        // extends behind the title bar. A page that pads only its sides (for a phone in
+        // landscape) still draws its own top, so it is full-bleed too. SystemBarInsets stays zero on Mac Catalyst so
         // ApplySafeAreaPadding on other pages is unaffected.
         {
             var vm = ViewModel.CurrentRegionViewModel;
@@ -255,7 +256,7 @@ public sealed partial class NavigationRegion : ContentView
             bool fullBleed = titleBarH > 0
                 && vm is not null
                 && !vm.IsHeaderBarVisible
-                && vm.SafeAreaEdges == SpineSafeArea.None;
+                && !vm.SafeAreaEdges.HasFlag(SpineSafeArea.Top);
             bool overlay = titleBarH > 0 && vm is not null && ViewModel.Presentation is NavigationPresentation.Region && OverlaysTitleBar(vm);
             _container.Margin = fullBleed || overlay || unified
                 ? new Thickness(0, -titleBarH, 0, 0)
