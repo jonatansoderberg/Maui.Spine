@@ -7,7 +7,7 @@
 | `LineChart` | A time series (`Points`) as a line over a band, such as glucose over its target range, with times on the wall clock, gaps, `Bands` between two series under the line, and the last point live. 230 points tall by default; a small graph without axes for a card |
 | `RingChart` | A share (`Value`, 0 to 1) as a ring, clockwise from 12 o'clock with round ends. `null` draws only the track, for unknown, which is not 0. `Thickness` is the ring's width |
 | `BarChart` | A share as a bar, the track the whole width. 6 points tall by default |
-| `ColumnChart` | `Values` as columns with `Labels` under them, such as the cost per day of the last week. Each column is its share of the highest value; the last label is bold (`HighlightLast`). 72 points tall by default |
+| `ColumnChart` | `Values` as columns with `Labels` under them, such as the cost per day of the last week. Each column is its share of the highest value (or `Maximum`); the last label is bold (`HighlightLast`). A colour per column, every value above its column and a reference line for reports. 72 points tall by default |
 
 ```xml
 <Grid WidthRequest="84" HeightRequest="84">
@@ -26,6 +26,19 @@
   light and a dark card; `TrackColor` overrides it. The charts redraw when the theme changes.
 - **Without the track:** `ShowTrack="False"` on a `ColumnChart` drops the full-height track behind each column, and a value of 0 becomes a short column at the bottom in the track's colour. Use it when most values can be 0, so one busy day doesn't read as the only lit column among empty ones.
 - **Pointing at a column:** with `ValueLabels` (one text per value, such as "$0.32"), pointing at a column picks it out: the others dim, its value shows above it in a row the chart keeps for that, its label turns bold, and the system tooltip says the label and the value. `ToolTips` gives a longer text per column. On touch a tap picks a column out and a second tap lets it go. `SelectedIndex` is the column picked out, or -1. Give the chart about 16 points more height for the value row.
+- **For a report:** `Colors` gives each column its own colour (a mean in the colour of the range it falls in; `Color`
+  for a column without one, and each track follows its column), `ShowValueLabels="True"` shows every `ValueLabels`
+  text just above its column instead of only the one picked out, `ReferenceValue` draws a dashed line across the
+  columns at a value with `ReferenceLabel` at its trailing end (the scale reaches it), and `Maximum` fixes the top of
+  the scale so charts side by side compare. With `ShowTrack="False"` a 0 is a short mark at the bottom, so a count of
+  none still shows its place.
+
+```xml
+<charts:ColumnChart Values="{Binding BlockMeans}" Labels="{Binding Blocks}" ValueLabels="{Binding BlockMeanTexts}"
+                    Colors="{Binding BlockColors}" ShowValueLabels="True" ShowTrack="False" HighlightLast="False"
+                    ReferenceValue="10" ReferenceLabel="10,0" HeightRequest="140" />
+```
+
 - **Rings and bars:** set `ToolTipProperties.Text` for the detailed value, on the `Grid` that holds the ring and its label, so the label in the middle doesn't take the pointer.
 
 ```xml
