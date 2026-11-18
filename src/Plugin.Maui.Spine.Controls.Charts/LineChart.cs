@@ -681,7 +681,7 @@ public sealed class LineChart : ChartView, IScrollableChart
     /// </summary>
     /// <remarks>
     /// The canvas has no masks, so the downward fade is made of thin strips, each with the sideways gradient at its own
-    /// strength; at this alpha the steps cannot be seen.
+    /// strength; at this alpha the steps cannot be seen, as long as the strips meet on whole pixels.
     /// </remarks>
     void FillUnder(ICanvas canvas, PathF area, (float X, float Y)[] line, float past, float bandTop, float bandBottom)
     {
@@ -715,8 +715,14 @@ public sealed class LineChart : ChartView, IScrollableChart
 
         var top = line.Min(q => q.Y);
         var height = Math.Max(1, _plot.Bottom - top);
+        // Strips that meet on whole pixels, neither overlapping nor apart: a seam drawn twice, or not at all, shows as a line.
+        var density = (float)Math.Max(1, DeviceDisplay.Current.MainDisplayInfo.Density);
+        float Pixel(float y) => MathF.Round(y * density) / density;
         for (var k = 0; k < Strips; k++)
         {
+            var (stripTop, stripBottom) = (Pixel(top + height * k / Strips), Pixel(top + height * (k + 1) / Strips));
+            if (stripBottom <= stripTop)
+                continue;
             var strength = 0.24f * (1 - (k + 0.5f) / Strips);
             var stops = new PaintGradientStop[Samples + 1];
             for (var i = 0; i <= Samples; i++)
@@ -726,7 +732,7 @@ public sealed class LineChart : ChartView, IScrollableChart
                 stops[i] = new PaintGradientStop(at, blended[i].WithAlpha(strength * Side(at)));
             }
             canvas.SaveState();
-            canvas.ClipRectangle(from, top + height * k / Strips, width, height / Strips + 0.5f);
+            canvas.ClipRectangle(from, stripTop, width, stripBottom - stripTop);
             canvas.SetFillPaint(new LinearGradientPaint([new PaintGradientStop(0, blended[0].WithAlpha(0)), .. stops, new PaintGradientStop(1, blended[^1].WithAlpha(0))],
                 new Point(0, 0.5), new Point(1, 0.5)), new RectF(from, _plot.Top, width, _plot.Height));
             canvas.FillPath(area);
