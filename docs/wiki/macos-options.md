@@ -205,6 +205,14 @@ PropertyChanged += (_, e) =>
 
 **Fix:** convert with the ratio of `UIWindow.Bounds` to the `NSWindow` frame. UIKit's own safe area is already in UIKit points.
 
+### Blurry on a screen without Retina: the Mac idiom
+
+**Symptom:** on an external 1x display everything the app draws is soft, text and pictures alike, while the window buttons are sharp.
+
+**Cause:** with the MAUI template's `UIDeviceFamily` 2 the app is scaled to match iPad: UIKit draws at the screen's scale and the window is then shrunk to 77 %. On a Retina screen there are pixels to spare; on a 1x screen there are not.
+
+**Fix:** `UIDeviceFamily` 6 in `Platforms/MacCatalyst/Info.plist` (Xcode's "Optimize for Mac"), which draws 1:1. Content then looks 30 % larger in the same window and controls take the Mac look, so check the pages. Spine handles both: the title bar's toolbar buttons are 28 points with the Mac idiom (34 UIKit points scaled to match iPad), and MAUI's `DeviceIdiom.Desktop`, which the Mac idiom reports, does not turn the region and tab defaults into the Windows ones (title in the system title bar, no header bar) on Mac Catalyst.
+
 ### Testing on the Mac
 
 - Screenshots of a window in the background don't show CoreAnimation animations or the desktop behind a translucent window. Check those with the window in front, or by eye.

@@ -64,12 +64,21 @@ public static class HeaderBarConstants
 
     /// <summary>
     /// A compact bar's buttons, as a Mac toolbar's items beside the window buttons (<c>SpineOptions.MacOS.UnifiedTitleBar</c>):
-    /// shorter than the row, which keeps its <see cref="Height"/> so the title stays centred on them.
+    /// shorter than the row, which keeps its <see cref="Height"/> so the title stays centred on them. A toolbar item is
+    /// 28 points on screen: with the Mac idiom (<c>UIDeviceFamily</c> 6) UIKit points are the screen's, while an app
+    /// scaled to match iPad draws its 34 at 77 %.
     /// </summary>
-    public const double CompactButtonHeight = 34;
+    public static double CompactButtonHeight { get; } = IsMacIdiom() ? 28 : 34;
 
     /// <summary>The glyph in a compact button.</summary>
-    public const double CompactGlyphSize = 20;
+    public static double CompactGlyphSize { get; } = IsMacIdiom() ? 16 : 20;
+
+    static bool IsMacIdiom() =>
+#if MACCATALYST
+        UIKit.UIDevice.CurrentDevice.UserInterfaceIdiom == UIKit.UIUserInterfaceIdiom.Mac;
+#else
+        false;
+#endif
 
 
 #if ANDROID
