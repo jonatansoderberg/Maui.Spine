@@ -1,7 +1,9 @@
 # Plugin.Maui.Spine.Controls.Charts
 
-Small charts for dashboards, drawn with Microsoft.Maui.Graphics:
+Charts for dashboards, drawn with Microsoft.Maui.Graphics:
 
+- `LineChart`: a time series as a line over a band, with wall-clock times (summer/winter time marked), gaps, bands
+  between two series, thinning and smoothing that never hide a value outside the band, and a live last point.
 - `RingChart`: a share (0–1) as a ring, clockwise from 12 o'clock; null draws only the track.
 - `BarChart`: a share as a bar.
 - `ColumnChart`: values as columns with a label under each, such as cost per day.
