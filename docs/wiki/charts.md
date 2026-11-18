@@ -79,7 +79,7 @@ Ranges = [
 ```
 
 `Points` is a list of `ChartPoint(Time, Value)` in any order. Drawn the way iOS draws its charts: a smooth line with
-round ends, a faint fade under it, solid value lines with the values on the trailing side, and a dashed line with the
+round ends, a faint fade under it where no band is drawn (`Fill`), solid value lines with the values on the trailing side, and a dashed line with the
 time just after it at each round time.
 
 - **Time axis.** `From` and `To` fix the window (the first and last point when null). Times are round times on the
@@ -88,8 +88,9 @@ time just after it at each round time.
   (`ClockForwardLabel`, `ClockBackLabel`, or Spine's strings `Spine.Charts.ClockForward` / `ClockBack`). `TimeFormat`
   (`HH:mm`) and `ValueFormat` (`0.#`) format the labels.
 - **The band.** `BandLow` and `BandHigh` draw a band (`BandColor`, the chart's colour faint when null) and colour the
-  line in up to three colours: `AboveColor` above it, `Color` inside, `BelowColor` below, and the fade under it
-  follows. `BandLabel` names the band at its top edge. `ShowBand="False"` keeps the colours but not the band, for a
+  line in up to three colours: `AboveColor` above it, `Color` inside, `BelowColor` below. With the band drawn there
+  is no fade under the line: the band is the backdrop. A small graph with `ShowBand="False"` keeps its fade, in the
+  line's colours. `BandLabel` names the band at its top edge. `ShowBand="False"` keeps the colours but not the band, for a
   small graph where colour over the line would read as data.
 - **Gaps.** A pause longer than `GapAfter` (three times the usual spacing when null, never less than `MinimumGap`)
   breaks the line. A short gap is crossed by a dotted line; one longer than `LongGap` (twice the break when null)

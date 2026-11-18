@@ -148,7 +148,10 @@ public sealed class LineChart : ChartView, IScrollableChart
     /// <summary>Values on the trailing side and times underneath, with grid lines. Off for a small graph. True by default.</summary>
     public bool ShowAxes { get => (bool)GetValue(ShowAxesProperty); set => SetValue(ShowAxesProperty, value); }
 
-    /// <summary>A fade under the line. True by default.</summary>
+    /// <summary>
+    /// A fade under the line, where no band is drawn: with <see cref="BandLow"/>/<see cref="BandHigh"/> shown the band is
+    /// the backdrop and there is no fade. True by default.
+    /// </summary>
     public bool Fill { get => (bool)GetValue(FillProperty); set => SetValue(FillProperty, value); }
 
     /// <summary>
@@ -435,7 +438,9 @@ public sealed class LineChart : ChartView, IScrollableChart
         var stroke = axes ? 2.5f : 2f;
         var bandTop = BandHigh is { } h ? Y(Math.Min(h, max)) : _plot.Top;
         var bandBottom = BandLow is { } l ? Y(Math.Max(l, min)) : _plot.Bottom;
-        if (Fill)
+        // Where the band is drawn it is the backdrop the line reads against; a fade under the line as well is one too many.
+        var bandDrawn = ShowBand && BandLow is { } shownLow && BandHigh is { } shownHigh && shownHigh > shownLow;
+        if (Fill && !bandDrawn)
         {
             // A stretch only a few points wide (just after a gap) gets no fade: under it the fade is a bar, not an area.
             foreach (var segment in segments.Where(s => s.Length > 1 && XOf(s[^1].Time) - XOf(s[0].Time) >= MinFillWidth))
