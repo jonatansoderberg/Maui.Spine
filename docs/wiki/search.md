@@ -42,6 +42,7 @@ Spine creates `ViewModelBase.Search`, a `PageSearch`, once before the page first
 | `Placeholder` | The prompt while the field is empty |
 | `Submit` | A command run with the text when the search key is pressed: an `ICommand` property (`nameof(OpenFirstCommand)`) or a `[RelayCommand]` method (`nameof(OpenFirst)`) |
 | `Placement` | `Automatic` (the default) or `Top`; see below |
+| `Width` | How wide the field is at the trailing end of the header bar (iPad, Mac Catalyst), in points; 0 (the default) leaves the platform's width |
 
 The attribute also works on a toolkit field (`[ObservableProperty] private string _query;`). A page has one search field. A property that is not a string, a second `[PageSearch]` or a `Submit` that names no command throws when the page is prepared, with the type and member in the message.
 
@@ -56,6 +57,7 @@ The attribute also works on a toolkit field (`[ObservableProperty] private strin
 | `IsActive` | Whether a search is going on. Set it to `true` to start one from code (the field takes the focus and the keyboard comes up), `false` to end it. It follows the user too; see [While searching](#while-searching) |
 | `IsVisible` | Set it to `false` to take the field away; the content moves up. A hidden field still searches: `IsActive = true` shows it for as long as the search goes on and hides it again when the search ends |
 | `Placement` | Where the field goes |
+| `Width` | How wide the field is at the trailing end of the header bar, in points; `double.NaN` (the default) is 240 on iPad and 140 in the Mac's own sizes. The bar never gives it more than two fifths of its own width |
 | `SubmitCommand` | The search key's command (set when the search is created) |
 
 ```csharp
@@ -84,6 +86,8 @@ Without the attribute, set `Search = new PageSearch { Placeholder = "…", Submi
 | Windows | In the window's title bar, centred, while the page shows it (`IsTitleBarVisible`) and it has 200 points for the field; a row below the header bar otherwise | A row below the header bar |
 | A sheet, anywhere | A row below the sheet's header bar | The same |
 
+- **A field shown only for the search takes its button's place on iPad and the Mac.** With `IsVisible = false` and a page action that sets `IsActive = true` (see above), the field opens at the trailing end of the bar from the button's size to its width and closes to it again, the way Finder's search button does, and the title stays where it is. Hide the action while the field is there (`action.IsVisible = !Search.IsVisible`). The search then outlasts the focus while the field has text, so the page keeps what was found; empty, it ends with the focus.
+- **In a Mac window's title bar row** the bar's last item, a trailing action or the search field, ends 12 points from the window's edge, as its first starts 12 points after the window buttons.
 - **The row is part of the header.** It moves with the page in a push or a pop, the way the title does. Under a floating header (`Overlay`, a large title, or a scroll edge background) content scrolls under the row as well as the bar: `SafeAreaInsets.Top` and the scroll inset include it, and the scroll edge effect or solid background reaches below it.
 - **On Apple platforms** the field is the system's own `UISearchBar` in its minimal style, so it looks like the OS version's search field, held to 44 points as a search controller's in a navigation bar (a standalone bar lays it out taller), with 17-point text. UIKit's own cancel button stays off; see [While searching](#while-searching).
 - **On Android** it is MAUI's `SearchView` in Material 3's search bar: a fully rounded 56-point capsule 16 points in from the sides, the magnifier centred 24 points in and the text 68 points in, 16-point text, no underline.

@@ -195,7 +195,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     void UpdateMoreTrailingVisibility(PageActionView view)
     {
         UpdateTrailingGroup();
-        _ = AnimateVisibility(view, ShowsTrailing(view));
+        _ = AnimateVisibility(view, ShowsTrailing(view), scales: !_searchInButtonPlace);
     }
 
     // Whether a trailing action is, or is on its way to being, on screen: the group follows where the
@@ -213,6 +213,17 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         PublishActionSlots();
     }
     SearchField? _searchField;
+
+    // Whether the field in the bar is there only for the search that is going on (PageSearch.ShownForSearch): the
+    // page's own button started it, and the field takes that button's place, as Finder's search button opens into
+    // its field. Such a field leaves the title alone and opens from, and closes to, the button's size.
+    bool _searchInButtonPlace;
+
+    // How far such a field has opened, from 0 (the button's size) to 1 (its width).
+    double _searchOpen = 1;
+
+    const string SearchOpenAnimation = "SpineSearchOpen";
+    const uint SearchOpenDuration = 250;
 
     /// <summary>
     /// The page's search field when it goes at the trailing end of the bar (iPad, Mac Catalyst),
@@ -232,18 +243,75 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
                 {
                     HorizontalOptions = LayoutOptions.End,
                     VerticalOptions = LayoutOptions.Center,
-                    HeightRequest = HeaderBarConstants.Height,
                 };
+                ApplySearchHeight();
                 _searchField.SizeChanged += (_, _) => PublishActionSlots();
                 ((Grid)Content).Add(_searchField, 2);
-                ApplySearchWidth();
-                ApplySearchGap();
             }
 
+            if (Search is { } old)
+                old.PropertyChanged -= OnSearchWidthChanged;
+            if (value is not null)
+                value.PropertyChanged += OnSearchWidthChanged;
+
+            this.AbortAnimation(SearchOpenAnimation);
+
+            // The field that was there only for a search closes to the button coming back before it goes.
+            if (value is null && _searchInButtonPlace && _searchField.IsVisible && CanAnimate(this))
+            {
+                AnimateSearchOpen(0, () =>
+                {
+                    _searchInButtonPlace = false;
+                    _searchField.Search = null;
+                    _searchField.IsVisible = false;
+                    PublishActionSlots();
+                });
+                return;
+            }
+
+            _searchInButtonPlace = value is { ShownForSearch: true };
+            // In the button's place the field runs on over the trailing actions' column, so it ends where the
+            // button did whether the button has gone yet or not.
+            Grid.SetColumnSpan(_searchField, _searchInButtonPlace ? 2 : 1);
             _searchField.Search = value;
             _searchField.IsVisible = value is not null;
+            ApplySearchGap();
+
+            if (_searchInButtonPlace && CanAnimate(this))
+            {
+                _searchOpen = 0;
+                ApplySearchWidth();
+                AnimateSearchOpen(1, null);
+            }
+            else
+            {
+                _searchOpen = 1;
+                _searchField.Opacity = 1;
+                ApplySearchWidth();
+            }
+
             PublishActionSlots();
         }
+    }
+
+    void OnSearchWidthChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PageSearch.Width))
+            ApplySearchWidth();
+    }
+
+    void AnimateSearchOpen(double to, Action? finished)
+    {
+        new Animation(open =>
+        {
+            _searchOpen = open;
+            ApplySearchWidth();
+        }, _searchOpen, to).Commit(this, SearchOpenAnimation, length: SearchOpenDuration, easing: Easing.CubicOut,
+            finished: (_, cancelled) =>
+            {
+                if (!cancelled)
+                    finished?.Invoke();
+            });
     }
 
     /// <summary>
@@ -269,17 +337,43 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         }
     }
 
-    // As wide as a Mac toolbar's search field, but never more than two fifths of the bar.
+    // As tall as the bar's buttons: in a Mac window's title bar row they are smaller than the bar, and a taller field
+    // made the row grow as it came, which moved the buttons, and stood taller than the button it opens from.
+    void ApplySearchHeight()
+    {
+        if (_searchField is null)
+            return;
+
+        var height = LeadingInset > 0 ? ButtonHeight : HeaderBarConstants.Height;
+        _searchField.HeightRequest = height;
+        _searchField.FieldHeight = height;
+    }
+
+    // As wide as the page asks (PageSearch.Width) or a toolbar's search field is, but never more than two fifths of
+    // the bar. A field in the button's place is between the button's size and that, by how far it has opened, and
+    // comes in over the first part of the way.
     void ApplySearchWidth()
     {
-        if (_searchField is not null)
-            _searchField.WidthRequest = Width > 0 ? Math.Min(SearchField.TrailingWidth, Width * 0.4) : SearchField.TrailingWidth;
+        if (_searchField is null)
+            return;
+
+        var asked = _searchField.Search is { Width: > 0 } search ? search.Width : SearchField.TrailingWidth;
+        var full = Width > 0 ? Math.Min(asked, Width * 0.4) : asked;
+        if (!_searchInButtonPlace)
+        {
+            _searchField.WidthRequest = full;
+            return;
+        }
+
+        var closed = Math.Min(full, IconButtonWidth);
+        _searchField.WidthRequest = closed + (full - closed) * _searchOpen;
+        _searchField.Opacity = Math.Clamp(_searchOpen / 0.4, 0, 1);
     }
 
     void ApplySearchGap()
     {
         if (_searchField is not null)
-            _searchField.Margin = new Thickness(0, 0, _secondaryPageActionView.IsVisible ? HeaderBarConstants.TitleActionGap : 0, 0);
+            _searchField.Margin = new Thickness(0, 0, !_searchInButtonPlace && _secondaryPageActionView.IsVisible ? HeaderBarConstants.TitleActionGap : 0, 0);
     }
 
     /// <summary>
@@ -294,6 +388,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             if (Math.Abs(field - value) < 0.5) return;
             field = value;
             UpdatePresentationSizes();
+            ApplySearchHeight();
             PublishActionSlots();
         }
     }
@@ -302,6 +397,12 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     const double WindowButtonsGap = 12;
 
     double LeadingColumn => LeadingInset > 0 ? LeadingInset + WindowButtonsGap : SideMargin;
+
+    // A Mac toolbar's last item ends this far from the window's edge, as its first starts after the window
+    // buttons: closer than the page's margin, which the bar's buttons keep everywhere else.
+    const double MacToolbarEdge = WindowButtonsGap;
+
+    double TrailingColumn => LeadingInset > 0 && PlatformValue.IsMacIdiom ? MacToolbarEdge : SideMargin;
 
     // In the title bar row the buttons are a toolbar's, smaller than the row.
     double ButtonHeight => LeadingInset > 0 ? HeaderBarConstants.CompactButtonHeight : HeaderBarConstants.Height;
@@ -495,7 +596,9 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         }
 
         UpdateTrailingGroup();
-        _ = AnimateVisibility(_secondaryPageActionView, shouldShow);
+        // The button a search field opens from and closes to keeps its size: it changes places with the field, and
+        // one that shrank as it went, or grew as it came back, read as a smaller button beside the field.
+        _ = AnimateVisibility(_secondaryPageActionView, shouldShow, scales: !_searchInButtonPlace);
     }
 
     /// <summary>
@@ -507,8 +610,11 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         var primary = Math.Max(SlotFor(_primaryPageActionView, leading: true), LeadingInset > 0 ? LeadingColumn : 0);
         var secondary = TrailingSlot();
 
-        // The title keeps clear of a search field at the trailing end too.
-        if (_searchField is { IsVisible: true, Bounds.Width: > 0 } field && Width > 0)
+        // The title keeps clear of a search field at the trailing end too. Not of one in the button's place: the
+        // title stays where it stood beside the button, through the button going and the field opening.
+        if (_searchInButtonPlace)
+            secondary = Math.Max(secondary, TrailingColumn + IconButtonWidth);
+        else if (_searchField is { IsVisible: true, Bounds.Width: > 0 } field && Width > 0)
             secondary = Math.Max(secondary, Width - field.Bounds.Left);
 
         if (primary.Equals(PrimaryActionSlot) && secondary.Equals(SecondaryActionSlot))
@@ -538,7 +644,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
         // Before the first layout there is no frame yet. An icon action has a known width, so
         // seed with that rather than let the title start full-width and jump on the next pass.
-        return (leading ? LeadingColumn : SideMargin) + IconButtonWidth;
+        return (leading ? LeadingColumn : TrailingColumn) + IconButtonWidth;
     }
 
     /// <summary>How far the trailing actions reach in from the right edge: the leftmost visible one's left edge.</summary>
@@ -549,7 +655,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             return 0;
         if (Width > 0 && _trailing.Width > 0 && visible.All(v => v.Width > 0))
             return Math.Max(0, Width - (_trailingGroup.X + _trailing.X + visible.Min(v => v.X)));
-        return visible.Count * (SideMargin + IconButtonWidth);
+        return TrailingColumn + visible.Count * IconButtonWidth;
     }
 
     void UpdateActionWidth(PageActionView pageActionView) => pageActionView.IconWidth = IconButtonWidth;
@@ -629,7 +735,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             }
             else
             {
-                buttonGrid.ColumnDefinitions[^1].Width = SideMargin;
+                buttonGrid.ColumnDefinitions[^1].Width = TrailingColumn;
             }
         }
 
@@ -920,6 +1026,17 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             target.IsVisible = true;
             _leaving.Remove(target);
             PublishActionSlots();
+
+#if IOS || MACCATALYST
+            // A hide that was overtaken by this show left its animation held at its end (see below), and the action
+            // undrawn for good under it: a glass action on the Mac never appeared (its views were there, visible and
+            // taking clicks). Only the render-server show below puts a new animation in its place, from where the
+            // action is drawn now; every other way of showing lets go of it here.
+            var handsOver = CanAnimate(target) && !GlassAppearance.Applies(target)
+                && (!PageActionView.UseGlassHeaderActions || Glass == HeaderBarGlass.Transient);
+            if (!handsOver)
+                EndRenderServerAnimation(target);
+#endif
 
             if (!CanAnimate(target))
             {

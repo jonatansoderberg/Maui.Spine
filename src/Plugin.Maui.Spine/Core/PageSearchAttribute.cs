@@ -35,4 +35,10 @@ public sealed class PageSearchAttribute : Attribute
 
     /// <summary>Where the field goes. Defaults to <see cref="SearchPlacement.Automatic"/>.</summary>
     public SearchPlacement Placement { get; init; }
+
+    /// <summary>
+    /// How wide the field is at the trailing end of the header bar (iPad, Mac Catalyst), in points. 0, the default,
+    /// leaves the platform's width. See <see cref="PageSearch.Width"/>.
+    /// </summary>
+    public double Width { get; init; }
 }

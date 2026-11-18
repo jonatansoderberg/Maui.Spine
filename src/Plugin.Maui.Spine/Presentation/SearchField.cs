@@ -12,8 +12,11 @@ namespace Plugin.Maui.Spine.Presentation;
 /// </summary>
 internal sealed partial class SearchField : ContentView
 {
-    /// <summary>How wide the field is at the trailing end of the header bar, as a Mac toolbar's search field.</summary>
-    internal const double TrailingWidth = 240;
+    /// <summary>
+    /// How wide the field is at the trailing end of the header bar unless <see cref="PageSearch.Width"/> says: a
+    /// toolbar's search field, narrower in the Mac's own sizes than on iPad.
+    /// </summary>
+    internal static double TrailingWidth { get; } = PlatformValue.IsMacIdiom ? 140 : 240;
 
     private readonly SearchBar _bar;
     private PageSearch? _search;
@@ -38,7 +41,15 @@ internal sealed partial class SearchField : ContentView
         _bar.FontSize = PlatformValue.IsMacIdiom ? 13 : 17;
 #endif
         _bar.SearchButtonPressed += (_, _) => Submit();
-        _bar.TextChanged += (_, _) => ApplyCancelButton();
+        _bar.TextChanged += (_, e) =>
+        {
+            ApplyCancelButton();
+            // A search kept without the focus (see KeepsSearchWithoutFocus) ends when its text is taken away: not
+            // when a new field is given its empty text, before it has had the focus at all.
+            if (!OutlastsFocus && !_bar.IsFocused && _search is { IsActive: true, ShownForSearch: true }
+                && !string.IsNullOrEmpty(e.OldTextValue) && string.IsNullOrEmpty(e.NewTextValue))
+                SetActive(false);
+        };
         _bar.Focused += (_, _) =>
         {
             SetActive(true);
@@ -46,7 +57,7 @@ internal sealed partial class SearchField : ContentView
         };
         _bar.Unfocused += (_, _) =>
         {
-            if (!OutlastsFocus)
+            if (!OutlastsFocus && !KeepsSearchWithoutFocus)
                 SetActive(false);
             ApplyCancelButton();
         };
@@ -74,10 +85,36 @@ internal sealed partial class SearchField : ContentView
     internal bool OutlastsFocus { get; init; }
 
     /// <summary>
+    /// Whether the search goes on after the field has lost the focus: a field at the trailing end of the bar that
+    /// is there only for the search (the page's own button started it, as Finder's magnifier does) stays while it
+    /// has text, so the page keeps what was found; empty, it gives its place back to the button.
+    /// </summary>
+    private bool KeepsSearchWithoutFocus => _search is { ShownForSearch: true } && !string.IsNullOrEmpty(_search.Text);
+
+    /// <summary>
     /// The field's height in a bar that is not much taller than it (Windows' 32-point title bar), or
     /// 0 for the platform's own. Set before the field has a handler.
     /// </summary>
     internal double CompactHeight { get; init; }
+
+    /// <summary>
+    /// How tall the field itself is on Apple platforms: the header bar's height unless the bar says, as a Mac
+    /// window's title bar row does, whose buttons are smaller than the bar and whose field is as tall as they are.
+    /// </summary>
+    internal double FieldHeight
+    {
+        get;
+        set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+            ApplyFieldHeight();
+        }
+    } = HeaderBarConstants.Height;
+
+    partial void ApplyFieldHeight();
 
     /// <summary>
     /// How wide a region has to be for the field to go at the trailing end of its bar: narrower, as

@@ -38,6 +38,7 @@ internal static class PageSearchDiscovery
             Text = Read(),
             Placeholder = template.Attribute.Placeholder,
             Placement = template.Attribute.Placement,
+            Width = template.Attribute.Width > 0 ? template.Attribute.Width : double.NaN,
             SubmitCommand = submit,
         };
 
