@@ -55,6 +55,8 @@ the page unless it is more horizontal than vertical.
 | `FirstDayOfWeek` | `DayOfWeek` | `Monday` | |
 | `Culture` | `CultureInfo?` | `null` | Month and weekday names. `null` = `SpineStrings.Current.Culture`, followed live: switching the app's language re-labels the calendar. |
 | `MarkSource` | `ICalendarMarkSource?` | `null` | Where marked days come from; see Marking days. |
+| `DaySource` | `ICalendarDaySource?` | `null` | A colour, a dot and a description per day; see Days with their own look. Used in place of `MarkSource` when both are set. |
+| `MinimumDate` / `MaximumDate` | `DateTime?` | `null` | Days outside are faded, show no marks and ignore taps, and the calendar does not move to a month past them (arrows, swipes, the pickers, `DisplayDate`). |
 | `StyleOptions` | `CalendarStyleOptions?` | `null` | Fonts and colours for this calendar; see Styling. |
 
 ## Look
@@ -134,11 +136,44 @@ marks.NotifyChanged();
 The sample's Calendar page has a stand-in service that answers after 300 ms, a switch that sets and
 clears `MarkSource`, and a button that changes the data.
 
+## Days with their own look
+
+`DaySource` gives each day of a range its own look: a `CalendarDay(Background, Dot, Description)`.
+It is asked, cached and refreshed exactly as a mark source is (`ICalendarDaySource.GetDaysAsync` for
+the 42 days of a page and its neighbours, `Changed` to ask again). `CalendarDays` is the in-memory
+source and `CalendarDaySource.From` wraps a delegate.
+
+- `Background` fills the day in the day's shape, such as a tint for how the day went; the number on it
+  is black or white, whichever reads on it. It stays when
+  the day is selected or today; a ring round it says which (in the number's colour for the
+  selection, the accent for today). On a day of an adjacent month it is faded.
+- `Dot` draws a small dot under the number in that colour, with or without a background, such as an
+  event on that day.
+- `Description` is said after the date instead of "Marked".
+- A `CalendarDay` with neither colour (`CalendarDay.Marked`) is drawn as a marked day.
+
+With `DayShape="RoundedSquare"` in the style options the days are tiles instead of circles, which
+reads better for a calendar of coloured days. Days that have not happened yet stay plain with
+`MaximumDate` set to today.
+
+```xml
+<Calendar DaySource="{Binding Days}" SelectedDate="{Binding Day}" MaximumDate="{Binding Today}" MinimumDate="{Binding FirstDay}">
+    <Calendar.StyleOptions>
+        <CalendarStyleOptions DayShape="RoundedSquare" />
+    </Calendar.StyleOptions>
+</Calendar>
+```
+
+```csharp
+Days.Set(report.Days.Select(d => KeyValuePair.Create(d.Date, new CalendarDay(
+    Background: TintFor(d.InRangePercent),
+    Dot: d.Lows > 0 ? Color.FromArgb("#F2643D") : null,
+    Description: $"{d.InRangePercent} percent in range"))));
+```
+
 ### Extending
 
-A mark is "marked or not" for now. A kind or colour per day (an interface that returns
-`IReadOnlyDictionary<DateOnly, CalendarMark>`), or a count, can be added beside
-`ICalendarMarkSource` without changing it.
+A count per day can be added the same way, beside `ICalendarDaySource`, without changing it.
 
 ## Styling
 
@@ -232,5 +267,5 @@ Windows, which can keep a touch drag that starts on the calendar from scrolling 
 
 ## Not included
 
-Minimum/maximum or disabled dates, range selection, and event lists: the calendar marks days but
+Disabled dates inside the limits, range selection, and event lists: the calendar marks days but
 never holds or shows the events behind them.
