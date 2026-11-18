@@ -12,8 +12,8 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Small charts for dashboards in .NET MAUI: RingChart (a share as a ring, clockwise from 12 o'clock), BarChart (a share as a bar) and ColumnChart (values per day or category as columns with labels). Drawn with Microsoft.Maui.Graphics, theme-aware tracks.</Description>
-		<PackageTags>$(PackageTags);charts;ring;gauge;bar;columns;dashboard;controls</PackageTags>
+		<Description>Charts for .NET MAUI: LineChart (a time series over a target band, with gaps, bands between two series, a live point and summer/winter time on the axis), RingChart (a share as a ring, clockwise from 12 o'clock), BarChart (a share as a bar) and ColumnChart (values per day or category as columns with labels). Drawn with Microsoft.Maui.Graphics, theme-aware.</Description>
+		<PackageTags>$(PackageTags);charts;line;time-series;ring;gauge;bar;columns;dashboard;controls</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -22,6 +22,11 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+	</ItemGroup>
+
+	<!-- The line chart's words (where the clock changes), overridable by the app. -->
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
 	</ItemGroup>
 
 </Project>

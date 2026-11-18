@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Charts.ClockBack">Winter time</s>
+  <s key="Spine.Charts.ClockForward">Summer time</s>
+</strings>
