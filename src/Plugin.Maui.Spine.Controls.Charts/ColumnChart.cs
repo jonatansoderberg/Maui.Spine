@@ -18,8 +18,14 @@ namespace Plugin.Maui.Spine.Controls;
 /// value above its column, <see cref="ReferenceValue"/> draws a dashed line across at a value with
 /// <see cref="ReferenceLabel"/>, and <see cref="Maximum"/> fixes the top of the scale.
 /// </para>
+/// <para>
+/// Along time: with <see cref="Times"/> (when each column begins), <see cref="From"/> and <see cref="To"/>, each column
+/// stands over its own <see cref="ColumnSpan"/> of a time axis instead of sharing the width, so a
+/// <see cref="ChartScroller"/> can move the columns along time; the scroller sets these and the values from its
+/// source's <see cref="ChartColumn"/>s. Give it a fixed <see cref="Maximum"/> there, so loading more does not rescale.
+/// </para>
 /// </summary>
-public sealed class ColumnChart : ChartView
+public sealed class ColumnChart : ChartView, IScrollableChart
 {
     public static readonly BindableProperty ValuesProperty =
         BindableProperty.Create(nameof(Values), typeof(IList<double>), typeof(ColumnChart), null, propertyChanged: Redraw);
@@ -51,6 +57,18 @@ public sealed class ColumnChart : ChartView
     public static readonly BindableProperty MaximumProperty =
         BindableProperty.Create(nameof(Maximum), typeof(double?), typeof(ColumnChart), null, propertyChanged: Redraw);
 
+    public static readonly BindableProperty TimesProperty =
+        BindableProperty.Create(nameof(Times), typeof(IList<DateTimeOffset>), typeof(ColumnChart), null, propertyChanged: Redraw);
+
+    public static readonly BindableProperty ColumnSpanProperty =
+        BindableProperty.Create(nameof(ColumnSpan), typeof(TimeSpan?), typeof(ColumnChart), null, propertyChanged: Redraw);
+
+    public static readonly BindableProperty FromProperty =
+        BindableProperty.Create(nameof(From), typeof(DateTimeOffset?), typeof(ColumnChart), null, propertyChanged: Redraw);
+
+    public static readonly BindableProperty ToProperty =
+        BindableProperty.Create(nameof(To), typeof(DateTimeOffset?), typeof(ColumnChart), null, propertyChanged: Redraw);
+
     public static readonly BindableProperty ToolTipsProperty =
         BindableProperty.Create(nameof(ToolTips), typeof(IList<string>), typeof(ColumnChart), null);
 
@@ -76,6 +94,18 @@ public sealed class ColumnChart : ChartView
 
     /// <summary>The value at the top of the columns, so charts side by side compare; the highest value (or the reference) when null.</summary>
     public double? Maximum { get => (double?)GetValue(MaximumProperty); set => SetValue(MaximumProperty, value); }
+
+    /// <summary>When each column begins, one per value, oldest first: the columns then stand along the time from <see cref="From"/> to <see cref="To"/>.</summary>
+    public IList<DateTimeOffset>? Times { get => (IList<DateTimeOffset>?)GetValue(TimesProperty); set => SetValue(TimesProperty, value); }
+
+    /// <summary>How much time a column stands for along time, such as a day; the shortest step between two <see cref="Times"/> when null.</summary>
+    public TimeSpan? ColumnSpan { get => (TimeSpan?)GetValue(ColumnSpanProperty); set => SetValue(ColumnSpanProperty, value); }
+
+    /// <summary>The time at the leading edge, with <see cref="Times"/>.</summary>
+    public DateTimeOffset? From { get => (DateTimeOffset?)GetValue(FromProperty); set => SetValue(FromProperty, value); }
+
+    /// <summary>The time at the trailing edge, with <see cref="Times"/>.</summary>
+    public DateTimeOffset? To { get => (DateTimeOffset?)GetValue(ToProperty); set => SetValue(ToProperty, value); }
 
     /// <summary>A longer text per column for the system tooltip; the label and the value when null.</summary>
     public IList<string>? ToolTips { get => (IList<string>?)GetValue(ToolTipsProperty); set => SetValue(ToolTipsProperty, value); }
@@ -108,7 +138,11 @@ public sealed class ColumnChart : ChartView
     {
         HeightRequest = 72;
         var pointer = new PointerGestureRecognizer();
-        pointer.PointerMoved += (_, e) => Select(e.GetPosition(this) is { } p ? IndexAt(p.X) : -1);
+        pointer.PointerMoved += (_, e) =>
+        {
+            if (_dragSelects)
+                Select(e.GetPosition(this) is { } p ? IndexAt(p.X) : -1);
+        };
         pointer.PointerExited += (_, _) => Select(-1);
         GestureRecognizers.Add(pointer);
         // Touch has no pointer to rest: a tap picks a column out, and a second tap on it lets it go.
@@ -121,8 +155,81 @@ public sealed class ColumnChart : ChartView
         GestureRecognizers.Add(tap);
     }
 
-    int IndexAt(double x) =>
-        Values is { Count: > 0 } values && Width > 0 ? Math.Clamp((int)(x / (Width / values.Count)), 0, values.Count - 1) : -1;
+    int IndexAt(double x)
+    {
+        if (Values is not { Count: > 0 } values || Width <= 0)
+            return -1;
+        if (Along is not { } along)
+            return Math.Clamp((int)(x / (Width / values.Count)), 0, values.Count - 1);
+        for (var i = 0; i < values.Count; i++)
+        {
+            var (left, width) = along.Slot(i, 0);
+            if (x >= left && x < left + width && left + width > 0 && left < along.Right)
+                return i;
+        }
+        return -1;
+    }
+
+    bool _dragSelects = true;
+    float _referenceRoom;
+
+    /// <summary>The columns along time: where each column's time falls across the width.</summary>
+    sealed record TimeLayout(IList<DateTimeOffset> Times, TimeSpan Span, DateTimeOffset From, DateTimeOffset To, float Right)
+    {
+        public float X(DateTimeOffset time, float left) => left + (float)((time - From).TotalSeconds / Math.Max(1, (To - From).TotalSeconds)) * Right;
+
+        public (float Left, float Width) Slot(int index, float left)
+        {
+            var x = X(Times[index], left);
+            return (x, X(Times[index] + Span, left) - x);
+        }
+    }
+
+    /// <summary>The time layout, when the columns have times and the chart a time window; null for columns sharing the width.</summary>
+    TimeLayout? Along
+    {
+        get
+        {
+            if (Times is not { Count: > 0 } times || Values is not { } values || times.Count != values.Count || From is not { } from || To is not { } to || to <= from)
+                return null;
+            var span = ColumnSpan ?? Shortest(times);
+            return new TimeLayout(times, span, from, to, (float)Width - _referenceRoom);
+        }
+    }
+
+    static TimeSpan Shortest(IList<DateTimeOffset> times)
+    {
+        var shortest = TimeSpan.MaxValue;
+        for (var i = 1; i < times.Count; i++)
+            if (times[i] - times[i - 1] is { } step && step > TimeSpan.Zero && step < shortest)
+                shortest = step;
+        return shortest == TimeSpan.MaxValue ? TimeSpan.FromDays(1) : shortest;
+    }
+
+    void IScrollableChart.ShowWindow(DateTimeOffset from, DateTimeOffset to)
+    {
+        From = from;
+        To = to;
+    }
+
+    void IScrollableChart.ShowHistory(ChartSlice history)
+    {
+        var columns = history.Columns ?? [];
+        // The texts only where the source gave them, so a chart without labels keeps none.
+        Times = [.. columns.Select(c => c.Time)];
+        Values = [.. columns.Select(c => c.Value)];
+        Labels = columns.Any(c => c.Label is not null) ? [.. columns.Select(c => c.Label ?? "")] : null;
+        ValueLabels = columns.Any(c => c.ValueLabel is not null) ? [.. columns.Select(c => c.ValueLabel ?? "")] : null;
+        Colors = columns.Any(c => c.Color is not null) ? [.. columns.Select(c => c.Color ?? Color)] : null;
+        ToolTips = columns.Any(c => c.ToolTip is not null) ? [.. columns.Select(c => c.ToolTip ?? "")] : null;
+        Select(-1);
+    }
+
+    bool IScrollableChart.SelectsByDragging { get => _dragSelects; set => _dragSelects = value; }
+
+    void IScrollableChart.ClearSelection() => Select(-1);
+
+    Thickness IScrollableChart.PlotMargin => new(0, 0, _referenceRoom, 0);
 
     void Select(int index)
     {
@@ -153,7 +260,9 @@ public sealed class ColumnChart : ChartView
         var referenceRoom = ReferenceValue is not null && ReferenceLabel is { Length: > 0 } referenceLabel
             ? canvas.GetStringSize(referenceLabel, new Microsoft.Maui.Graphics.Font(FontFamily), 11).Width + 6
             : 0;
+        _referenceRoom = referenceRoom;
         var slot = (rect.Width - referenceRoom) / count;
+        var along = Along;
         var columnWidth = Math.Min(MaxColumnWidth, slot - Gap);
         var labels = Labels is { Count: > 0 };
         // A row above the columns for the value of the one picked out, kept whether or not one is, so nothing moves.
@@ -164,10 +273,23 @@ public sealed class ColumnChart : ChartView
         var dark = Application.Current?.RequestedTheme != AppTheme.Light;
         var selected = SelectedIndex;
         var valueTexts = new List<RectF>();
+        // Along time the columns run past the edges, and are cut off there.
+        if (along is not null)
+        {
+            canvas.SaveState();
+            canvas.ClipRectangle(rect.X, rect.Y, rect.Width - referenceRoom, rect.Height);
+        }
 
         for (var i = 0; i < count; i++)
         {
-            var x = rect.X + slot * i + (slot - columnWidth) / 2;
+            var (slotLeft, slotWidth) = along?.Slot(i, rect.X) ?? (rect.X + slot * i, slot);
+            if (along is not null)
+            {
+                if (slotLeft + slotWidth <= rect.X || slotLeft >= rect.Right - referenceRoom)
+                    continue;
+                columnWidth = Math.Min(MaxColumnWidth, slotWidth - Gap);
+            }
+            var x = slotLeft + (slotWidth - columnWidth) / 2;
             var dimmed = selected >= 0 && i != selected;
             var color = Colors is { } colors && i < colors.Count && colors[i] is { } own ? own : Color;
             var track = TrackColor ?? ChartColors.Track(color);
@@ -195,7 +317,7 @@ public sealed class ColumnChart : ChartView
                 var font = new Microsoft.Maui.Graphics.Font(FontFamily, FontWeights.Bold);
                 const float size = 11;
                 var width = canvas.GetStringSize(valueLabels[i], font, size).Width + 2;
-                var centre = rect.X + slot * i + slot / 2;
+                var centre = slotLeft + slotWidth / 2;
                 var left = Math.Clamp(centre - width / 2, rect.X, Math.Max(rect.X, rect.Right - width));
                 var y = ShowValueLabels ? top + height - Math.Max(h, MinColumn) - LabelHeight - 1 : rect.Y;
                 canvas.Font = font;
@@ -212,10 +334,13 @@ public sealed class ColumnChart : ChartView
                 canvas.Font = new Microsoft.Maui.Graphics.Font(FontFamily, strong ? FontWeights.Bold : FontWeights.Regular);
                 canvas.FontSize = 11;
                 canvas.FontColor = strong ? (dark ? Microsoft.Maui.Graphics.Colors.White : Microsoft.Maui.Graphics.Colors.Black) : dark ? Color.FromArgb("#8D8D93") : Color.FromArgb("#6D6D72");
-                canvas.DrawString(names[i], rect.X + slot * i, top + height + 4, slot, LabelHeight,
+                canvas.DrawString(names[i], slotLeft, top + height + 4, slotWidth, LabelHeight,
                     HorizontalAlignment.Center, VerticalAlignment.Center);
             }
         }
+
+        if (along is not null)
+            canvas.RestoreState();
 
         if (ReferenceValue is { } reference && max > 0)
         {

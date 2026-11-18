@@ -1,0 +1,88 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Charts.ChartsPage"
+    x:TypeArguments="ChartsPageViewModel"
+    x:DataType="ChartsPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Charts">
+
+        <Example Title="Scroll back through the history"
+                 Summary="Two fingers drag the chart along time and a flick glides to a round hour; one finger picks a reading out. The days come from your own service as the chart nears them, 90 days back, and the day names follow."
+                 OptionsCommand="{Binding ShowLineOptionsCommand}">
+            <VerticalStackLayout Spacing="8">
+                <Border StrokeThickness="1" Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
+                        Padding="10,10,6,8" StrokeShape="RoundRectangle 16">
+                    <VerticalStackLayout Spacing="2">
+                        <Grid ColumnDefinitions="*,Auto" HeightRequest="32">
+                            <Label x:Name="Picked" Text=" " FontSize="14" FontAttributes="Bold" VerticalOptions="Center" />
+                            <Button x:Name="LineNow" Grid.Column="1" Text="Now ›" IsVisible="False" Padding="10,0" HeightRequest="30" FontSize="13" />
+                        </Grid>
+                        <ChartScroller x:Name="LineScroller" Source="{Binding Readings}" Earliest="{Binding Earliest}"
+                                       Span="{Binding LineSpan}" SnapTo="{Binding LineSnap}" OneFinger="{Binding OneFinger}">
+                            <LineChart x:Name="Line" Minimum="2" Maximum="16" BandLow="3.9" BandHigh="10"
+                                       Color="#34C759" BelowColor="#FF453A" AboveColor="#FF9F0A" GapLabel="No readings" HighlightLast="False" />
+                        </ChartScroller>
+                    </VerticalStackLayout>
+                </Border>
+                <Label Text="{Binding LineAsked}" FontSize="13" TextColor="{DynamicResource SecondaryText}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;ChartScroller Source="{Binding History}"
+                               Earliest="{Binding NinetyDaysAgo}"
+                               Span="1.00:00" SnapTo="01:00"&gt;
+                    &lt;LineChart Minimum="2" Maximum="16"
+                               BandLow="3.9" BandHigh="10" /&gt;
+                &lt;/ChartScroller&gt;
+
+                // Your service, asked a day at a time
+                class History(IReadings api) : IChartHistory
+                {
+                    public async Task&lt;ChartSlice&gt; LoadAsync(
+                        DateTimeOffset from, DateTimeOffset to,
+                        CancellationToken ct) =&gt;
+                        new(Points: await api.GetAsync(from, to, ct));
+                }
+
+                // A new reading: today is asked for again
+                scroller.InvalidateData(today, now);
+
+                // One finger scrolls too; a tap picks a value out
+                OneFinger="Scroll"
+            </Example.Code>
+        </Example>
+
+        <Example Title="Columns along time"
+                 Summary="A column a day over a year, two weeks in view, resting on midnight. The service is asked for a week at a time, and the month's name stays over the plot until the next month pushes it out.">
+            <VerticalStackLayout Spacing="8">
+                <Border StrokeThickness="1" Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
+                        Padding="10,10,10,8" StrokeShape="RoundRectangle 16">
+                    <VerticalStackLayout Spacing="2">
+                        <Grid HeightRequest="32">
+                            <Button x:Name="ColumnNow" Text="Today ›" IsVisible="False" Padding="10,0" HeightRequest="30" FontSize="13" HorizontalOptions="End" />
+                        </Grid>
+                        <ChartScroller x:Name="ColumnScroller" Source="{Binding Steps}" Earliest="{Binding YearAgo}" Latest="{Binding EndOfToday}"
+                                       Span="14.00:00" SnapTo="1.00:00" ChunkDays="7" Sections="Months" OneFinger="{Binding OneFinger}">
+                            <ColumnChart Maximum="12000" ColumnSpan="1.00:00" ReferenceValue="8000" ReferenceLabel="8k" HeightRequest="140"
+                                         Color="{DynamicResource Primary}" />
+                        </ChartScroller>
+                    </VerticalStackLayout>
+                </Border>
+                <Label Text="{Binding ColumnAsked}" FontSize="13" TextColor="{DynamicResource SecondaryText}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;ChartScroller Source="{Binding Steps}"
+                               Span="14.00:00" SnapTo="1.00:00"
+                               ChunkDays="7" Sections="Months"&gt;
+                    &lt;ColumnChart Maximum="12000" ColumnSpan="1.00:00" /&gt;
+                &lt;/ChartScroller&gt;
+
+                // A column a day from the service
+                new ChartSlice(Columns: days.Select(d =&gt;
+                    new ChartColumn(d.Date, d.Steps, d.Date.ToString("%d"))));
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>
