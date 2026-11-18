@@ -359,8 +359,10 @@ internal sealed partial class SearchField : ContentView
     /// </summary>
     private const double CancelTrailing = 8;
 
+    /// <summary>The room the cancel button takes at the field's trailing end while a search goes on.</summary>
+    private static double CancelRoom => CancelGap + HeaderBarConstants.Height + CancelTrailing;
+
     private PageActionView? _cancel;
-    private ColumnDefinition? _cancelColumn;
 
     // UIKit's own cancel button is off (see SearchField.Apple.cs): it comes and goes with the text,
     // and is larger than the header bar's actions. In its place, a button like those actions.
@@ -371,9 +373,10 @@ internal sealed partial class SearchField : ContentView
 
         _cancel = new PageActionView
         {
-            HorizontalOptions = LayoutOptions.Start,
+            HorizontalOptions = LayoutOptions.End,
             VerticalOptions = LayoutOptions.Center,
             HeightRequest = HeaderBarConstants.Height,
+            TranslationX = CancelRoom,
             IconWidth = PageActionView.UseGlassHeaderActions ? HeaderBarConstants.Height : HeaderBarConstants.SheetButtonWidth,
             ButtonPadding = new Thickness(HeaderBarConstants.SheetButtonPadding),
             Margin = new Thickness(CancelGap, 0, CancelTrailing, 0),
@@ -386,26 +389,29 @@ internal sealed partial class SearchField : ContentView
             },
         };
 
-        _cancelColumn = new ColumnDefinition(0);
-        var row = new Grid { ColumnDefinitions = [new(GridLength.Star), _cancelColumn] };
-        row.Add(bar, 0);
-        row.Add(_cancel, 1);
+        // The button lies over the field's trailing end, which the field leaves free as the search
+        // goes on: in a column that narrowed with the search, the button was squeezed as it went.
+        var row = new Grid();
+        row.Add(bar);
+        row.Add(_cancel);
         return row;
     }
 
     /// <summary>
-    /// How far the search has taken the header bar's place, 0 to 1: the cancel button comes in with
-    /// it, and goes with it, and nothing else shows or hides it. Set by the page's title row, inside
-    /// the region's animation, so the button moves on the same curve as the bar.
+    /// How far the search has taken the header bar's place, 0 to 1: the cancel button slides in
+    /// with it, at its full size, as the field makes room for it, and goes the same way; nothing else
+    /// shows or hides it. Set by the page's title row, inside the region's animation, so the button
+    /// moves on the same curve as the bar.
     /// </summary>
     internal double SearchProgress
     {
         set
         {
-            if (_cancel is null || _cancelColumn is null)
+            if (_cancel is null)
                 return;
 
-            _cancelColumn.Width = (CancelGap + HeaderBarConstants.Height + CancelTrailing) * value;
+            _bar.Margin = new Thickness(0, 0, CancelRoom * value, 0);
+            _cancel.TranslationX = CancelRoom * (1 - value);
             _cancel.Opacity = value;
             _cancel.InputTransparent = value < 1;
         }
