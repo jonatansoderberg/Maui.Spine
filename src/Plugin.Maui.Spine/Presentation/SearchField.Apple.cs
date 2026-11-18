@@ -27,7 +27,14 @@ internal sealed partial class SearchField
         searchBar.SearchBarStyle = UISearchBarStyle.Minimal;
         searchBar.BackgroundImage = new UIImage();
 
+        ApplyFieldHeight();
         ApplyCancelButton();
+    }
+
+    partial void ApplyFieldHeight()
+    {
+        if (_bar.Handler?.PlatformView is FieldHeightSearchBar searchBar)
+            searchBar.FieldHeight = FieldHeight;
     }
 
     partial void ApplyCancelButton()
@@ -80,6 +87,20 @@ internal sealed partial class SearchField
     {
         private IDisposable? _frameObserver;
 
+        /// <summary>The height the field is held to; see <see cref="SearchField.FieldHeight"/>.</summary>
+        public double FieldHeight
+        {
+            get;
+            set
+            {
+                if (field == value)
+                    return;
+
+                field = value;
+                SetNeedsLayout();
+            }
+        } = HeaderBarConstants.Height;
+
         public override void LayoutSubviews()
         {
             base.LayoutSubviews();
@@ -99,7 +120,7 @@ internal sealed partial class SearchField
         private void HoldFieldHeight()
         {
             var field = SearchTextField;
-            var height = (nfloat)HeaderBarConstants.Height;
+            var height = (nfloat)FieldHeight;
             if (field.Superview is null || Math.Abs(field.Frame.Height - height) < 0.5)
                 return;
 

@@ -44,6 +44,14 @@ public sealed partial class PageSearch : ObservableObject
     public partial SearchPlacement Placement { get; set; }
 
     /// <summary>
+    /// How wide the field is at the trailing end of the header bar (iPad, Mac Catalyst), in points; the bar never
+    /// gives it more than two fifths of its own width. Defaults to <see cref="double.NaN"/>: the platform's width,
+    /// 240 points on iPad and 140 in the Mac's own sizes. A field in a row below the bar fills the row.
+    /// </summary>
+    [ObservableProperty]
+    public partial double Width { get; set; } = double.NaN;
+
+    /// <summary>
     /// Whether a search is going on. It starts when the field takes the focus; set it to start or end
     /// a search from code. In the row below the header bar (iPhone, Android, sheets) the header bar
     /// gives way to the field meanwhile, and the search outlasts the keyboard: it ends with the cancel
