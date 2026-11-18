@@ -20,7 +20,7 @@ public class MarkdownStyleOptions : SpineStyleOptions<MarkdownStyleOptions>
     public string? HeadingFontFamily { get; set; }
 
     /// <summary>Size of body text: the platform's body size.</summary>
-    public double FontSize { get; set; } = IsAndroid ? 16 : IsWindows ? 14 : 17;
+    public double FontSize { get; set; } = IsAndroid ? 16 : IsWindows || PlatformValue.IsMacIdiom ? 14 : 17;
 
     /// <summary>Heading sizes for levels 1 to 6, as multiples of <see cref="FontSize"/>.</summary>
     public double[] HeadingScales { get; set; } = [1.6, 1.35, 1.2, 1.05, 1.0, 0.9];

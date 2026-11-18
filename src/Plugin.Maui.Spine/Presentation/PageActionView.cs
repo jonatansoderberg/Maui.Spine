@@ -649,7 +649,8 @@ internal sealed class PageActionView : ContentView
         // The back button's chevron has a size and weight of its own, as UIKit's back indicator does. A compact
         // button (shorter than the row) has a toolbar item's smaller glyph.
         double GlyphSize(string? svg) =>
-            _owner.HeightRequest is > 0 and < HeaderBarConstants.Height ? HeaderBarConstants.CompactGlyphSize
+            _owner.HeightRequest > 0 && _owner.HeightRequest < HeaderBarConstants.Height
+                ? svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.CompactBackGlyphSize : HeaderBarConstants.CompactGlyphSize
             : svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphSize : HeaderBarConstants.GlyphSize;
 
         static double LineWidthScale(string? svg) =>

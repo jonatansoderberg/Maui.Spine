@@ -68,17 +68,13 @@ public static class HeaderBarConstants
     /// 28 points on screen: with the Mac idiom (<c>UIDeviceFamily</c> 6) UIKit points are the screen's, while an app
     /// scaled to match iPad draws its 34 at 77 %.
     /// </summary>
-    public static double CompactButtonHeight { get; } = IsMacIdiom() ? 28 : 34;
+    public static double CompactButtonHeight { get; } = Core.PlatformValue.IsMacIdiom ? 28 : 34;
 
     /// <summary>The glyph in a compact button.</summary>
-    public static double CompactGlyphSize { get; } = IsMacIdiom() ? 16 : 20;
+    public static double CompactGlyphSize { get; } = Core.PlatformValue.IsMacIdiom ? 18 : 20;
 
-    static bool IsMacIdiom() =>
-#if MACCATALYST
-        UIKit.UIDevice.CurrentDevice.UserInterfaceIdiom == UIKit.UIUserInterfaceIdiom.Mac;
-#else
-        false;
-#endif
+    /// <summary>The back button's chevron in a compact button, larger than the other glyphs as the bar's own is.</summary>
+    public static double CompactBackGlyphSize { get; } = Core.PlatformValue.IsMacIdiom ? 24 : 20;
 
 
 #if ANDROID
@@ -145,19 +141,20 @@ public static class HeaderBarConstants
 #elif IOS || MACCATALYST
 
     // The UINavigationBar item size: a 44-point row, and 44-point circles for icon actions. The
-    // bar itself can be taller, see BarHeight.
+    // bar itself can be taller, see BarHeight. With the Mac idiom, drawn 1:1, a Mac toolbar's: a 32-point row and
+    // circles, 18-point glyphs.
     /// <summary>Height of the header bar's item row and of its buttons.</summary>
-    public const double Height = 44;
+    public static double Height { get; } = Core.PlatformValue.IsMacIdiom ? 32 : 44;
 
     // Sheet presentation button size
     /// <summary>Width of a header bar button in a sheet.</summary>
-    public const double SheetButtonWidth = 44;
+    public static double SheetButtonWidth { get; } = Core.PlatformValue.IsMacIdiom ? 32 : 44;
     /// <summary>Padding inside a header bar button in a sheet.</summary>
     public const double SheetButtonPadding = 0;
 
     // Region presentation button size
     /// <summary>Width of a header bar button on a region page.</summary>
-    public const double RegionButtonWidth = 48;
+    public static double RegionButtonWidth { get; } = Core.PlatformValue.IsMacIdiom ? 36 : 48;
     /// <summary>Padding inside a header bar button on a region page.</summary>
     public const double RegionButtonPadding = 0;
 
@@ -166,7 +163,7 @@ public static class HeaderBarConstants
     // in a 25-point square, the square that gives Spine's glyphs the same height. Spine stops at 1.5
     // points, between its own weight and the symbols', with round ends as the symbols have.
     /// <summary>Size of the square a header bar button's SVG glyph is drawn in.</summary>
-    public const double GlyphSize = 25;
+    public static double GlyphSize { get; } = Core.PlatformValue.IsMacIdiom ? 18 : 25;
     /// <summary>
     /// Stroke multiplier for a header bar button's SVG glyph, so it has the weight of the platform's
     /// own bar icons (<see cref="Svg.SvgImageSourceBehavior.LineWidthScale"/>).
@@ -175,28 +172,28 @@ public static class HeaderBarConstants
     // The navigation bar's back chevron is larger and heavier than the symbols beside it: 11 by 19
     // points with lines 2.5 points wide; Spine's is about 1.9.
     /// <summary>Size of the square the back button's glyph (<see cref="BackGlyph"/>) is drawn in.</summary>
-    public const double BackGlyphSize = 34;
+    public static double BackGlyphSize { get; } = Core.PlatformValue.IsMacIdiom ? 26 : 34;
     /// <summary>Stroke multiplier for the back button's glyph.</summary>
     public const double BackGlyphLineWidthScale = 1.4;
 
     /// <summary>Space between the screen edge and the outermost header bar button on a region page.</summary>
     public const double RegionSideMargin = 8;
     /// <summary>Space between the sheet edge and the outermost header bar button in a sheet.</summary>
-    public const double SheetSideMargin = 16;
+    public static double SheetSideMargin { get; } = Core.PlatformValue.IsMacIdiom ? 12 : 16;
 
     // Space below the UISheetPresentationController grabber handle
     /// <summary>Space between a sheet's top edge and its header bar.</summary>
-    public const double SheetTopPadding = 20;
+    public static double SheetTopPadding { get; } = Core.PlatformValue.IsMacIdiom ? 12 : 20;
     /// <summary>Space between a header bar action's slot and the title beside it.</summary>
     public const double TitleActionGap = 8;
 
     // UINavigationBar's large title: 34-point bold in a 52-point row below the bar.
     /// <summary>Font size of a page's large title.</summary>
-    public const double LargeTitleFontSize = 34;
+    public static double LargeTitleFontSize { get; } = Core.PlatformValue.IsMacIdiom ? 26 : 34;
     /// <summary>Weight of a page's large title.</summary>
     public const FontAttributes LargeTitleFontAttributes = FontAttributes.Bold;
     /// <summary>Height of the large title's row.</summary>
-    public const double LargeTitleHeight = 52;
+    public static double LargeTitleHeight { get; } = Core.PlatformValue.IsMacIdiom ? 40 : 52;
     /// <summary>Left and right margin of the large title; the laid-out value is <see cref="PageMargin"/>.</summary>
     public const double LargeTitleSideMargin = 16;
 
@@ -264,7 +261,7 @@ public static class HeaderBarConstants
     /// </summary>
     public static double BarHeight { get; } =
 #if IOS || MACCATALYST
-        OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26) ? 54 : Height;
+        Core.PlatformValue.IsMacIdiom ? Height + 8 : OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26) ? 54 : Height;
 #else
         Height;
 #endif
@@ -277,7 +274,7 @@ public static class HeaderBarConstants
     /// </summary>
     public static double SearchRowHeight { get; } =
 #if IOS || MACCATALYST
-        OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26) ? 60 : 52;
+        Core.PlatformValue.IsMacIdiom ? 44 : OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26) ? 60 : 52;
 #elif ANDROID
         64;
 #else
@@ -289,5 +286,5 @@ public static class HeaderBarConstants
     /// bar: its text is centred in the row, so the text's lower edge is half a row plus half a font
     /// size down. The default <c>HeaderBar.CollapseDistance</c>.
     /// </summary>
-    public const double LargeTitleCollapseDistance = (LargeTitleHeight + LargeTitleFontSize) / 2;
+    public static double LargeTitleCollapseDistance { get; } = (LargeTitleHeight + LargeTitleFontSize) / 2;
 }

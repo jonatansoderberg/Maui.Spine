@@ -20,6 +20,18 @@
 /// </example>
 public static class PlatformValue
 {
+    /// <summary>
+    /// Whether this is a Mac Catalyst app with the Mac idiom (<c>UIDeviceFamily</c> 6, "Optimize for Mac"), drawn 1:1,
+    /// where Spine uses the Mac's own sizes: 13-point text, lower rows, smaller badges. Scaled to match iPad, the iOS
+    /// sizes are drawn at 77 % and come out the Mac's already.
+    /// </summary>
+    public static bool IsMacIdiom { get; } =
+#if MACCATALYST
+        UIKit.UIDevice.CurrentDevice.UserInterfaceIdiom == UIKit.UIUserInterfaceIdiom.Mac;
+#else
+        false;
+#endif
+
     /// <summary>Starts an OS chain with a value for Android.</summary>
     public static OsPlatformBuilder<T> ForAndroid<T>(T value) => new OsPlatformBuilder<T>().ForAndroid(value);
 

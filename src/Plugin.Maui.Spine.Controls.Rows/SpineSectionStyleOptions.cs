@@ -21,17 +21,19 @@ public class SpineSectionStyleOptions : SpineStyleOptions<SpineSectionStyleOptio
     static readonly bool IsAndroid = DeviceInfo.Platform == DevicePlatform.Android;
     static readonly bool IsWindows = DeviceInfo.Platform == DevicePlatform.WinUI;
     static readonly bool IsModernApple = OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26);
+    // The Mac idiom draws 1:1: the groups of the Mac's System Settings, a 13-point bold header and 11-point footer.
+    static readonly bool IsMac = PlatformValue.IsMacIdiom;
 
     /// <summary>Font of the header and the footer. <see langword="null"/> = the app's default font.</summary>
     public string? FontFamily { get; set; }
 
     // iOS 26 Settings: the header as large as a row's title, bold, in the secondary label colour.
-    public double HeaderFontSize { get; set; } = IsAndroid ? 14 : IsWindows ? 14 : IsModernApple ? 17 : 13;
+    public double HeaderFontSize { get; set; } = IsAndroid ? 14 : IsWindows ? 14 : IsMac ? 13 : IsModernApple ? 17 : 13;
     public FontAttributes HeaderFontAttributes { get; set; } = IsAndroid || IsWindows || IsModernApple ? FontAttributes.Bold : FontAttributes.None;
-    public double FooterFontSize { get; set; } = IsAndroid ? 14 : IsWindows ? 12 : 13;
+    public double FooterFontSize { get; set; } = IsAndroid ? 14 : IsWindows ? 12 : IsMac ? 11 : 13;
 
     /// <summary>Corner radius of the group, or of each row's card with <see cref="SeparateRows"/>.</summary>
-    public double CornerRadius { get; set; } = IsAndroid ? 0 : IsWindows ? 4 : IsModernApple ? 26 : 10;
+    public double CornerRadius { get; set; } = IsAndroid ? 0 : IsWindows ? 4 : IsMac ? 14 : IsModernApple ? 26 : 10;
 
     /// <summary>
     /// Draws each row as a card of its own, <see cref="RowSpacing"/> apart and without separators, as Windows'
@@ -49,10 +51,10 @@ public class SpineSectionStyleOptions : SpineStyleOptions<SpineSectionStyleOptio
     public bool ShowSeparators { get; set; } = !IsAndroid;
 
     /// <summary>Space between a separator's end and the group's trailing edge.</summary>
-    public double SeparatorTrailingInset { get; set; } = 16;
+    public double SeparatorTrailingInset { get; set; } = IsMac ? 12 : 16;
 
     /// <summary>Space before the header and footer text, from the group's edge. On Windows the text lines up with the cards.</summary>
-    public double TextInset { get; set; } = IsWindows ? 1 : 16;
+    public double TextInset { get; set; } = IsWindows ? 1 : IsMac ? 12 : 16;
 
     /// <summary>Fill of the group. <see cref="Colors.Transparent"/> on Android: the rows sit on the page.</summary>
     public Color? BackgroundColor { get; set; }
