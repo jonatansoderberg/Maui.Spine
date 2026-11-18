@@ -379,7 +379,10 @@ public sealed partial class NavigationRegion : ContentView
     /// </summary>
     internal void ApplySafeAreaPadding(ContentView host, ViewModelBase vm)
     {
-        var insets = _insetsProvider.SystemBarInsets;
+        // The page's own insets: on the Mac with a unified title bar they hold the room above the header bar that centres
+        // it on the window buttons, which a page whose header bar does not float needs as much as one whose does; the
+        // provider's alone left that page's title 4 points above the buttons.
+        var insets = SystemBarInsetsFor(vm, _insetsProvider, ViewModel.Presentation is NavigationPresentation.Region);
         var safeAreaEdges = vm.SafeAreaEdges;
 
         // An overlay or collapsing header floats over content that starts at the top of the screen.
