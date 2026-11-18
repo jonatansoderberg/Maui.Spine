@@ -14,6 +14,11 @@ namespace Plugin.Maui.Spine.Core;
 /// </summary>
 public abstract class NavigableDefaults
 {
+    // A desktop keeps the title in the window's title bar. The Mac is not one here: MAUI calls a Catalyst app with the
+    // Mac idiom a desktop (one scaled to match iPad a tablet), and Spine's Mac pages have their header bar, in the title
+    // bar's row with SpineOptions.MacOS.UnifiedTitleBar.
+    private protected static bool IsDesktop() => DeviceInfo.Idiom == DeviceIdiom.Desktop && !OperatingSystem.IsMacCatalyst();
+
     /// <summary>Default <see cref="TitlePlacement"/> applied when the attribute does not override it.</summary>
     public TitlePlacement TitlePlacement { get; set; }
 
@@ -170,7 +175,7 @@ public sealed class SpineOptions
         /// <summary>Initializes defaults tuned to the current platform and device idiom.</summary>
         public RegionDefaultsConfig()
         {
-            var isDesktop = DeviceInfo.Idiom == DeviceIdiom.Desktop;
+            var isDesktop = IsDesktop();
 
             IsHeaderBarVisible = !isDesktop;
             IsTitleBarVisible = isDesktop;
@@ -251,7 +256,7 @@ public sealed class SpineOptions
         /// <summary>Initializes defaults tuned to the current platform and device idiom.</summary>
         public TabDefaultsConfig()
         {
-            var isDesktop = DeviceInfo.Idiom == DeviceIdiom.Desktop;
+            var isDesktop = IsDesktop();
 
             IsHeaderBarVisible = !isDesktop;
             IsTitleBarVisible = isDesktop;
