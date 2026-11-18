@@ -8,7 +8,7 @@
 
 	<!--
 		The control packages target only MAUI platforms, which a net10.0 test cannot reference.
-		RollingNumber, the mesh geometry, the highlight timing, the markdown model, the chat answer and the line chart's series and clock have no MAUI types, so they are compiled
+		RollingNumber, the mesh geometry, the highlight timing, the markdown model, the chat answer, the line chart's series and clock and the column chart's scale have no MAUI types, so they are compiled
 		in here directly.
 	-->
 	<ItemGroup>
@@ -27,6 +27,7 @@
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Charts\LocalClock.cs" Link="LocalClock.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Charts\ChartSmoothing.cs" Link="ChartSmoothing.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Charts\LineSeries.cs" Link="LineSeries.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Charts\ColumnScale.cs" Link="ColumnScale.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

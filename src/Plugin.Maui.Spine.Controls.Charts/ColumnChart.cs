@@ -13,6 +13,11 @@ namespace Plugin.Maui.Spine.Controls;
 /// value shows above it in a row the chart keeps for that, and the system tooltip says the label and the value (or
 /// the column's <see cref="ToolTips"/> entry). <see cref="SelectedIndex"/> is the column picked out, or -1.
 /// </para>
+/// <para>
+/// For a report: <see cref="Colors"/> gives each column its own colour, <see cref="ShowValueLabels"/> shows every
+/// value above its column, <see cref="ReferenceValue"/> draws a dashed line across at a value with
+/// <see cref="ReferenceLabel"/>, and <see cref="Maximum"/> fixes the top of the scale.
+/// </para>
 /// </summary>
 public sealed class ColumnChart : ChartView
 {
@@ -31,6 +36,21 @@ public sealed class ColumnChart : ChartView
     public static readonly BindableProperty ValueLabelsProperty =
         BindableProperty.Create(nameof(ValueLabels), typeof(IList<string>), typeof(ColumnChart), null, propertyChanged: Redraw);
 
+    public static readonly BindableProperty ColorsProperty =
+        BindableProperty.Create(nameof(Colors), typeof(IList<Color>), typeof(ColumnChart), null, propertyChanged: Redraw);
+
+    public static readonly BindableProperty ShowValueLabelsProperty =
+        BindableProperty.Create(nameof(ShowValueLabels), typeof(bool), typeof(ColumnChart), false, propertyChanged: Redraw);
+
+    public static readonly BindableProperty ReferenceValueProperty =
+        BindableProperty.Create(nameof(ReferenceValue), typeof(double?), typeof(ColumnChart), null, propertyChanged: Redraw);
+
+    public static readonly BindableProperty ReferenceLabelProperty =
+        BindableProperty.Create(nameof(ReferenceLabel), typeof(string), typeof(ColumnChart), null, propertyChanged: Redraw);
+
+    public static readonly BindableProperty MaximumProperty =
+        BindableProperty.Create(nameof(Maximum), typeof(double?), typeof(ColumnChart), null, propertyChanged: Redraw);
+
     public static readonly BindableProperty ToolTipsProperty =
         BindableProperty.Create(nameof(ToolTips), typeof(IList<string>), typeof(ColumnChart), null);
 
@@ -41,6 +61,21 @@ public sealed class ColumnChart : ChartView
 
     /// <summary>Each column's value as text, such as "$0.32", shown above the column it picks out.</summary>
     public IList<string>? ValueLabels { get => (IList<string>?)GetValue(ValueLabelsProperty); set => SetValue(ValueLabelsProperty, value); }
+
+    /// <summary>A colour per column, such as the range its value falls in; <see cref="ChartView.Color"/> for a column without one.</summary>
+    public IList<Color>? Colors { get => (IList<Color>?)GetValue(ColorsProperty); set => SetValue(ColorsProperty, value); }
+
+    /// <summary>Whether every column shows its <see cref="ValueLabels"/> text above it, not only the one picked out. False by default.</summary>
+    public bool ShowValueLabels { get => (bool)GetValue(ShowValueLabelsProperty); set => SetValue(ShowValueLabelsProperty, value); }
+
+    /// <summary>A value to draw a dashed line across the columns at, such as a target's top; the scale reaches it. None when null.</summary>
+    public double? ReferenceValue { get => (double?)GetValue(ReferenceValueProperty); set => SetValue(ReferenceValueProperty, value); }
+
+    /// <summary>The reference line's text, at its trailing end, such as "10.0". None when null.</summary>
+    public string? ReferenceLabel { get => (string?)GetValue(ReferenceLabelProperty); set => SetValue(ReferenceLabelProperty, value); }
+
+    /// <summary>The value at the top of the columns, so charts side by side compare; the highest value (or the reference) when null.</summary>
+    public double? Maximum { get => (double?)GetValue(MaximumProperty); set => SetValue(MaximumProperty, value); }
 
     /// <summary>A longer text per column for the system tooltip; the label and the value when null.</summary>
     public IList<string>? ToolTips { get => (IList<string>?)GetValue(ToolTipsProperty); set => SetValue(ToolTipsProperty, value); }
@@ -114,50 +149,61 @@ public sealed class ColumnChart : ChartView
             return;
 
         var count = values.Count;
-        var slot = rect.Width / count;
+        // Room at the trailing side for the reference line's label.
+        var referenceRoom = ReferenceValue is not null && ReferenceLabel is { Length: > 0 } referenceLabel
+            ? canvas.GetStringSize(referenceLabel, new Microsoft.Maui.Graphics.Font(FontFamily), 11).Width + 6
+            : 0;
+        var slot = (rect.Width - referenceRoom) / count;
         var columnWidth = Math.Min(MaxColumnWidth, slot - Gap);
         var labels = Labels is { Count: > 0 };
         // A row above the columns for the value of the one picked out, kept whether or not one is, so nothing moves.
         var valueRow = ValueLabels is { Count: > 0 } ? LabelHeight + 2 : 0;
         var top = rect.Y + valueRow;
         var height = rect.Height - valueRow - (labels ? LabelHeight + 4 : 0);
-        var max = values.Max();
+        var max = ColumnScale.Top(values, ReferenceValue, Maximum);
         var dark = Application.Current?.RequestedTheme != AppTheme.Light;
         var selected = SelectedIndex;
+        var valueTexts = new List<RectF>();
 
         for (var i = 0; i < count; i++)
         {
             var x = rect.X + slot * i + (slot - columnWidth) / 2;
             var dimmed = selected >= 0 && i != selected;
+            var color = Colors is { } colors && i < colors.Count && colors[i] is { } own ? own : Color;
+            var track = TrackColor ?? ChartColors.Track(color);
             if (ShowTrack)
             {
-                canvas.FillColor = Track;
+                canvas.FillColor = track;
                 canvas.FillRoundedRectangle(new RectF(x, top, columnWidth, height), 4);
             }
             else if (max <= 0 || values[i] <= 0)
             {
-                canvas.FillColor = dimmed ? Track.WithAlpha(DimmedAlpha) : Track;
+                canvas.FillColor = dimmed ? track.WithAlpha(DimmedAlpha) : track;
                 canvas.FillRoundedRectangle(new RectF(x, top + height - MinColumn, columnWidth, MinColumn), 2);
             }
-            if (max > 0 && values[i] > 0)
+            var h = ColumnScale.Height(values[i], max, height, MinColumn);
+            if (h > 0)
             {
-                var h = Math.Max(MinColumn, height * (float)(values[i] / max));
-                canvas.FillColor = dimmed ? Color.WithAlpha(DimmedAlpha) : Color;
+                canvas.FillColor = dimmed ? color.WithAlpha(DimmedAlpha) : color;
                 canvas.FillRoundedRectangle(new RectF(x, top + height - h, columnWidth, h), 4);
             }
 
-            if (i == selected && ValueLabels is { } valueLabels && i < valueLabels.Count)
+            if ((ShowValueLabels || i == selected) && ValueLabels is { } valueLabels && i < valueLabels.Count)
             {
-                // Centred on its column; moved in only as far as the text would otherwise leave the chart.
+                // Centred on its column; moved in only as far as the text would otherwise leave the chart. Shown for
+                // every column, each sits just over its own column's top; the one picked out sits in the row on top.
                 var font = new Microsoft.Maui.Graphics.Font(FontFamily, FontWeights.Bold);
                 const float size = 11;
                 var width = canvas.GetStringSize(valueLabels[i], font, size).Width + 2;
                 var centre = rect.X + slot * i + slot / 2;
                 var left = Math.Clamp(centre - width / 2, rect.X, Math.Max(rect.X, rect.Right - width));
+                var y = ShowValueLabels ? top + height - Math.Max(h, MinColumn) - LabelHeight - 1 : rect.Y;
                 canvas.Font = font;
                 canvas.FontSize = size;
-                canvas.FontColor = dark ? Colors.White : Colors.Black;
-                canvas.DrawString(valueLabels[i], left, rect.Y, width, LabelHeight, HorizontalAlignment.Center, VerticalAlignment.Center);
+                canvas.FontColor = dimmed ? (dark ? Microsoft.Maui.Graphics.Colors.White : Microsoft.Maui.Graphics.Colors.Black).WithAlpha(DimmedAlpha)
+                    : dark ? Microsoft.Maui.Graphics.Colors.White : Microsoft.Maui.Graphics.Colors.Black;
+                canvas.DrawString(valueLabels[i], left, y, width, LabelHeight, HorizontalAlignment.Center, VerticalAlignment.Center);
+                valueTexts.Add(new RectF(left - 3, y + 2, width + 6, LabelHeight - 4));
             }
 
             if (Labels is { } names && i < names.Count)
@@ -165,9 +211,38 @@ public sealed class ColumnChart : ChartView
                 var strong = selected >= 0 ? i == selected : HighlightLast && i == count - 1;
                 canvas.Font = new Microsoft.Maui.Graphics.Font(FontFamily, strong ? FontWeights.Bold : FontWeights.Regular);
                 canvas.FontSize = 11;
-                canvas.FontColor = strong ? (dark ? Colors.White : Colors.Black) : dark ? Color.FromArgb("#8D8D93") : Color.FromArgb("#6D6D72");
+                canvas.FontColor = strong ? (dark ? Microsoft.Maui.Graphics.Colors.White : Microsoft.Maui.Graphics.Colors.Black) : dark ? Color.FromArgb("#8D8D93") : Color.FromArgb("#6D6D72");
                 canvas.DrawString(names[i], rect.X + slot * i, top + height + 4, slot, LabelHeight,
                     HorizontalAlignment.Center, VerticalAlignment.Center);
+            }
+        }
+
+        if (ReferenceValue is { } reference && max > 0)
+        {
+            // Over the columns, as a target over the values; its label at the trailing end, beside the line.
+            var y = top + height - height * (float)Math.Clamp(reference / max, 0, 1);
+            var muted = dark ? Color.FromArgb("#8D8D93") : Color.FromArgb("#86868B");
+            canvas.StrokeColor = muted;
+            canvas.StrokeSize = 1;
+            canvas.StrokeDashPattern = [3, 3];
+            // Broken where a value's text crosses it, so the line never runs through a number.
+            var from = rect.X;
+            foreach (var cut in valueTexts.Where(t => y >= t.Top && y <= t.Bottom).OrderBy(t => t.Left))
+            {
+                if (cut.Left > from)
+                    canvas.DrawLine(from, y, cut.Left, y);
+                from = Math.Max(from, cut.Right);
+            }
+            if (rect.Right - referenceRoom > from)
+                canvas.DrawLine(from, y, rect.Right - referenceRoom, y);
+            canvas.StrokeDashPattern = null;
+            if (ReferenceLabel is { Length: > 0 } text)
+            {
+                canvas.Font = new Microsoft.Maui.Graphics.Font(FontFamily);
+                canvas.FontSize = 11;
+                canvas.FontColor = muted;
+                canvas.DrawString(text, rect.Right - referenceRoom + 4, y - LabelHeight / 2, referenceRoom - 4, LabelHeight,
+                    HorizontalAlignment.Left, VerticalAlignment.Center);
             }
         }
     }
