@@ -35,7 +35,7 @@ internal sealed partial class SearchField : ContentView
 #if ANDROID
         _bar.FontSize = 16;
 #elif IOS || MACCATALYST
-        _bar.FontSize = 17;
+        _bar.FontSize = PlatformValue.IsMacIdiom ? 13 : 17;
 #endif
         _bar.SearchButtonPressed += (_, _) => Submit();
         _bar.TextChanged += (_, _) => ApplyCancelButton();

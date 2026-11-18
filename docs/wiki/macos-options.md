@@ -211,7 +211,7 @@ PropertyChanged += (_, e) =>
 
 **Cause:** with the MAUI template's `UIDeviceFamily` 2 the app is scaled to match iPad: UIKit draws at the screen's scale and the window is then shrunk to 77 %. On a Retina screen there are pixels to spare; on a 1x screen there are not.
 
-**Fix:** `UIDeviceFamily` 6 in `Platforms/MacCatalyst/Info.plist` (Xcode's "Optimize for Mac"), which draws 1:1. Content then looks 30 % larger in the same window and controls take the Mac look, so check the pages. Spine handles both: the title bar's toolbar buttons are 28 points with the Mac idiom (34 UIKit points scaled to match iPad), and MAUI's `DeviceIdiom.Desktop`, which the Mac idiom reports, does not turn the region and tab defaults into the Windows ones (title in the system title bar, no header bar) on Mac Catalyst.
+**Fix:** `UIDeviceFamily` 6 in `Platforms/MacCatalyst/Info.plist` (Xcode's "Optimize for Mac"), which draws 1:1, and controls take the Mac look. Spine then uses the Mac's own sizes (`PlatformValue.IsMacIdiom`): rows and sections as in System Settings (13- and 11-point text, 38-point rows, 22-point badges), a 32-point header bar row with 18-point glyphs, 13-point search fields, 14-point markdown and a 26-point large title. An app's own pages written in iOS sizes look 30 % too large there: give them Mac sizes too, for example `FontSize="{OnPlatform Default=17, MacCatalyst=13}"` in an app that always uses the Mac idiom. Spine handles both: the title bar's toolbar buttons are 28 points with the Mac idiom (34 UIKit points scaled to match iPad), and MAUI's `DeviceIdiom.Desktop`, which the Mac idiom reports, does not turn the region and tab defaults into the Windows ones (title in the system title bar, no header bar) on Mac Catalyst.
 
 ### Testing on the Mac
 

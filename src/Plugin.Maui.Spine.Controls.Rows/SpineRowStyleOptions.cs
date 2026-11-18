@@ -19,17 +19,19 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     static readonly bool IsAndroid = DeviceInfo.Platform == DevicePlatform.Android;
     static readonly bool IsWindows = DeviceInfo.Platform == DevicePlatform.WinUI;
     static readonly bool IsModernApple = OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26);
+    // The Mac idiom draws 1:1, so the Mac gets the rows of its System Settings: 13- and 11-point text, a 22-point badge.
+    static readonly bool IsMac = PlatformValue.IsMacIdiom;
 
     /// <summary>Font of the row's text. <see langword="null"/> = the app's default font.</summary>
     public string? FontFamily { get; set; }
 
-    public double TitleFontSize { get; set; } = IsAndroid ? 16 : IsWindows ? 14 : 17;
-    public double DetailFontSize { get; set; } = IsAndroid ? 14 : IsWindows ? 12 : 13;
-    public double ValueFontSize { get; set; } = IsAndroid ? 16 : IsWindows ? 14 : 17;
+    public double TitleFontSize { get; set; } = IsAndroid ? 16 : IsWindows ? 14 : IsMac ? 13 : 17;
+    public double DetailFontSize { get; set; } = IsAndroid ? 14 : IsWindows ? 12 : IsMac ? 11 : 13;
+    public double ValueFontSize { get; set; } = IsAndroid ? 16 : IsWindows ? 14 : IsMac ? 13 : 17;
     public FontAttributes TitleFontAttributes { get; set; }
 
     /// <summary>Size of the icon when it has no <see cref="SpineRow.IconBackground"/>.</summary>
-    public double IconSize { get; set; } = IsAndroid ? 24 : IsWindows ? 26 : 28;
+    public double IconSize { get; set; } = IsAndroid ? 24 : IsWindows ? 26 : IsMac ? 22 : 28;
 
     /// <summary>
     /// Margin of the SVG inside the icon's square when it has no badge. <see langword="null"/> = the canvas' own (5);
@@ -50,7 +52,7 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     public bool ShowIconBadges { get; set; } = !IsWindows;
 
     /// <summary>Space between the icon's square and the text: on Windows 15, so the text starts 60 points into the card as in its Settings.</summary>
-    public double IconSpacing { get; set; } = IsAndroid ? 16 : IsWindows ? 15 : 12;
+    public double IconSpacing { get; set; } = IsAndroid ? 16 : IsWindows ? 15 : IsMac ? 9 : 12;
 
     /// <summary>
     /// Shows <see cref="SpineRow.Status"/> as a small dot before the detail line, the way macOS and Windows mark a
@@ -81,22 +83,22 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     public double StatusDotSize { get; set; } = IsWindows ? 7 : 8;
 
     /// <summary>Size of the filled shape behind the icon when the row has an <see cref="SpineRow.IconBackground"/>.</summary>
-    public double IconBadgeSize { get; set; } = IsAndroid ? 40 : 30;
+    public double IconBadgeSize { get; set; } = IsAndroid ? 40 : IsMac ? 22 : 30;
 
     /// <summary>Size of the icon on its badge. It may be larger than the badge: the icon set draws with a margin, and the row gives up that margin rather than draw outside the badge.</summary>
-    public double IconBadgeGlyphSize { get; set; } = IsAndroid ? 32 : 34;
+    public double IconBadgeGlyphSize { get; set; } = IsAndroid ? 32 : IsMac ? 25 : 34;
 
     /// <summary>Corner radius of the badge: a rounded square on iOS and Windows, a circle on Android.</summary>
-    public double IconBadgeCornerRadius { get; set; } = IsAndroid ? 20 : 7;
+    public double IconBadgeCornerRadius { get; set; } = IsAndroid ? 20 : IsMac ? 5 : 7;
 
     /// <summary>Height of a row with one line of text.</summary>
-    public double MinimumHeight { get; set; } = IsAndroid ? 56 : IsWindows ? 69 : IsModernApple ? 52 : 44;
+    public double MinimumHeight { get; set; } = IsAndroid ? 56 : IsWindows ? 69 : IsMac ? 38 : IsModernApple ? 52 : 44;
 
     /// <summary>Height of a row with a second line (a detail, or the value under the title).</summary>
-    public double TwoLineMinimumHeight { get; set; } = IsAndroid ? 72 : IsWindows ? 69 : IsModernApple ? 52 : 44;
+    public double TwoLineMinimumHeight { get; set; } = IsAndroid ? 72 : IsWindows ? 69 : IsMac ? 44 : IsModernApple ? 52 : 44;
 
-    public Thickness Padding { get; set; } = new(16, 8);
-    public double Spacing { get; set; } = IsAndroid ? 16 : 12;
+    public Thickness Padding { get; set; } = IsMac ? new(12, 6) : new(16, 8);
+    public double Spacing { get; set; } = IsAndroid ? 16 : IsMac ? 9 : 12;
 
     /// <summary>
     /// Stroke of the chevron and the check mark, relative to the glyph's own. Heavier than an icon,
@@ -126,7 +128,7 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     public Color? DestructiveColor { get; set; }
 
     /// <summary>Diameter of the <see cref="SpineRow.Status"/> mark.</summary>
-    public double StatusSize { get; set; } = IsAndroid ? 24 : 22;
+    public double StatusSize { get; set; } = IsAndroid ? 24 : IsMac ? 17 : 22;
 
     /// <summary>Fill of the <see cref="SpineRowStatus.Ok"/> mark: the system green.</summary>
     public Color? StatusOkColor { get; set; }

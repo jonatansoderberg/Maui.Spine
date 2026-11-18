@@ -229,7 +229,7 @@ public class StateView : ContentView
     {
         var title = new Label
         {
-            FontSize = 17,
+            FontSize = PlatformValue.IsMacIdiom ? 13 : 17,
             FontAttributes = FontAttributes.Bold,
             HorizontalTextAlignment = TextAlignment.Center,
         };
