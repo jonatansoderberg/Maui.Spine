@@ -6,7 +6,7 @@
 |---|---|
 | `LineChart` | A time series (`Points`) as a line over a band, such as glucose over its target range, with times on the wall clock, gaps, `Bands` between two series under the line, and the last point live. 230 points tall by default; a small graph without axes for a card |
 | `RingChart` | A share (`Value`, 0 to 1) as a ring, clockwise from 12 o'clock with round ends. `null` draws only the track, for unknown, which is not 0. `Thickness` is the ring's width |
-| `BarChart` | A share as a bar, the track the whole width. 6 points tall by default |
+| `BarChart` | A share as a bar, the track the whole width; or `Segments` stacked in their colours, such as the time in each range. Across or standing up (`Orientation`). 6 points tall by default |
 | `ColumnChart` | `Values` as columns with `Labels` under them, such as the cost per day of the last week. Each column is its share of the highest value (or `Maximum`); the last label is bold (`HighlightLast`). A colour per column, every value above its column and a reference line for reports. 72 points tall by default |
 
 ```xml
@@ -37,6 +37,27 @@
 <charts:ColumnChart Values="{Binding BlockMeans}" Labels="{Binding Blocks}" ValueLabels="{Binding BlockMeanTexts}"
                     Colors="{Binding BlockColors}" ShowValueLabels="True" ShowTrack="False" HighlightLast="False"
                     ReferenceValue="10" ReferenceLabel="10,0" HeightRequest="140" />
+```
+
+- **A stacked bar:** `Segments` is a list of `ChartSegment(Value, Color)`, stacked from the leading edge (from the
+  top when `Orientation="Vertical"`) and filling the bar in proportion to their total; `Value` is then not drawn. A part
+  above 0 keeps a sliver of at least 3 points, taken from the longer parts, so a 0.4 % share still shows; a part of 0
+  is not drawn. Only the bar's own ends are round. `CornerRadius` makes a wide bar's ends less round (half the
+  thickness by default). A vertical bar is 6 points wide by default; give it a height. A single `Value` on a vertical
+  bar fills from the bottom.
+
+```xml
+<charts:BarChart Segments="{Binding Ranges}" Orientation="Vertical" WidthRequest="40" HeightRequest="240" CornerRadius="10" />
+```
+
+```csharp
+Ranges = [
+    new ChartSegment(1, Color.FromArgb("#E8890C")),   // very high
+    new ChartSegment(18, Color.FromArgb("#F2B312")),  // high
+    new ChartSegment(81, Color.FromArgb("#2BB894")),  // in range
+    new ChartSegment(0, Color.FromArgb("#F2643D")),   // low
+    new ChartSegment(0, Color.FromArgb("#C8321E")),   // very low
+];
 ```
 
 - **Rings and bars:** set `ToolTipProperties.Text` for the detailed value, on the `Grid` that holds the ring and its label, so the label in the middle doesn't take the pointer.
