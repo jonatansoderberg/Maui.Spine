@@ -9,3 +9,13 @@ public enum CalendarMarkStyle
     /// <summary>A small accent dot under the number, which stays visible on today and the selected day.</summary>
     Dot,
 }
+
+/// <summary>The shape a <see cref="Calendar"/> draws a day's fill, today ring and selection in.</summary>
+public enum CalendarDayShape
+{
+    /// <summary>A circle round the number.</summary>
+    Circle,
+
+    /// <summary>A square with rounded corners, filling more of the cell: a tile.</summary>
+    RoundedSquare,
+}

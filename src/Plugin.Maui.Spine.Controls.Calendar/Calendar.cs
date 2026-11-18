@@ -62,6 +62,31 @@ public partial class Calendar : ContentView
         nameof(StyleOptions), typeof(CalendarStyleOptions), typeof(Calendar), null,
         propertyChanged: (b, _, _) => ((Calendar)b).BuildVisualTree());
 
+    public static readonly BindableProperty MinimumDateProperty = BindableProperty.Create(
+        nameof(MinimumDate), typeof(DateTime?), typeof(Calendar), null,
+        propertyChanged: (b, _, _) => ((Calendar)b).OnLimitsChanged());
+
+    public static readonly BindableProperty MaximumDateProperty = BindableProperty.Create(
+        nameof(MaximumDate), typeof(DateTime?), typeof(Calendar), null,
+        propertyChanged: (b, _, _) => ((Calendar)b).OnLimitsChanged());
+
+    /// <summary>
+    /// The first day that can be chosen; earlier days are faded and do nothing on a tap, and the calendar does not
+    /// move to a month before this one. <see langword="null"/> = no limit.
+    /// </summary>
+    public DateTime? MinimumDate
+    {
+        get => (DateTime?)GetValue(MinimumDateProperty);
+        set => SetValue(MinimumDateProperty, value);
+    }
+
+    /// <summary>The last day that can be chosen, such as today for days that have data; later days are faded. <see langword="null"/> = no limit.</summary>
+    public DateTime? MaximumDate
+    {
+        get => (DateTime?)GetValue(MaximumDateProperty);
+        set => SetValue(MaximumDateProperty, value);
+    }
+
     /// <summary>The selected day. <see cref="DateTime.MinValue"/> = none. Setting it shows its month.</summary>
     public DateTime SelectedDate
     {
@@ -134,6 +159,10 @@ public partial class Calendar : ContentView
     private const double InnerCircleSize = 28;
     private const double MarkDotSize = 5;
 
+    // The corners of the rounded-square day shape (CalendarDayShape.RoundedSquare), outer and inner.
+    private const double SquareRadius = 10;
+    private const double InnerSquareRadius = 7;
+
     // Below the number and inside the inner fill, so a dot stays within every day look.
     private const double MarkDotOffset = 11;
     private const double PickerRowHeight = 64;
@@ -144,7 +173,7 @@ public partial class Calendar : ContentView
     {
         public required Grid Container;
         public required BoxView Fill;
-        public required Ellipse TodayRing;
+        public required Microsoft.Maui.Controls.Shapes.Rectangle TodayRing;
         public required BoxView InnerFill;
         public required Label Label;
 
@@ -168,8 +197,8 @@ public partial class Calendar : ContentView
         public int Year = -1;
         public int Month = -1;
 
-        // The marked days among the cells, and the question to the mark source they came from.
-        public HashSet<DateOnly>? Marks;
+        // The marked or described days among the cells, and the question to the source they came from.
+        public IReadOnlyDictionary<DateOnly, CalendarDay>? Marks;
         public MarkQuery? MarkQuery;
     }
 
@@ -472,8 +501,10 @@ public partial class Calendar : ContentView
             BackgroundColor = Colors.Transparent,
         };
 
-        var todayRing = new Ellipse
+        var todayRing = new Microsoft.Maui.Controls.Shapes.Rectangle
         {
+            RadiusX = DayCircleSize / 2,
+            RadiusY = DayCircleSize / 2,
             Fill = Brush.Transparent,
             HeightRequest = DayCircleSize,
             WidthRequest = DayCircleSize,

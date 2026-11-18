@@ -50,6 +50,12 @@ public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
     public Color? WeekNumberBackgroundColor { get; set; }
     public Color? WeekNumberTextColor { get; set; }
 
+    /// <summary>
+    /// The shape of a day's fill, ring and mark: a circle (the default), or a rounded square, which reads better as a
+    /// tile coloured by <see cref="Calendar.DaySource"/>.
+    /// </summary>
+    public CalendarDayShape DayShape { get; set; } = CalendarDayShape.Circle;
+
     /// <summary>How a day that <see cref="Calendar.MarkSource"/> marks is drawn.</summary>
     public CalendarMarkStyle MarkStyle { get; set; } = CalendarMarkStyle.Fill;
 

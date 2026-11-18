@@ -20,6 +20,47 @@ public partial class Calendar
         set => SetValue(MarkSourceProperty, value);
     }
 
+    public static readonly BindableProperty DaySourceProperty = BindableProperty.Create(
+        nameof(DaySource), typeof(ICalendarDaySource), typeof(Calendar), null,
+        propertyChanged: (b, _, _) => ((Calendar)b).OnMarkSourceChanged());
+
+    /// <summary>
+    /// Where each day's look comes from: a colour behind the number, a dot and a description (<see cref="CalendarDay"/>).
+    /// <see langword="null"/> = none. Used in place of <see cref="MarkSource"/> when both are set.
+    /// </summary>
+    public ICalendarDaySource? DaySource
+    {
+        get => (ICalendarDaySource?)GetValue(DaySourceProperty);
+        set => SetValue(DaySourceProperty, value);
+    }
+
+    // The source the calendar asks: the day source, or the mark source answering as days.
+    private ICalendarDaySource? _source;
+
+    /// <summary>A mark source answering as days, each <see cref="CalendarDay.Marked"/>, so one set of questions serves both.</summary>
+    private sealed class MarkAdapter(ICalendarMarkSource inner) : ICalendarDaySource
+    {
+        public ICalendarMarkSource Inner { get; } = inner;
+
+        public event EventHandler? Changed
+        {
+            add => Inner.Changed += value;
+            remove => Inner.Changed -= value;
+        }
+
+        public ValueTask<IReadOnlyDictionary<DateOnly, CalendarDay>> GetDaysAsync(DateOnly first, DateOnly last, CancellationToken cancellationToken)
+        {
+            var answer = Inner.GetMarkedDatesAsync(first, last, cancellationToken);
+            // An in-memory source answers at once, and still marks the page in the same render.
+            return answer.IsCompletedSuccessfully ? ValueTask.FromResult(ToDays(answer.Result)) : AwaitAsync(answer);
+
+            static async ValueTask<IReadOnlyDictionary<DateOnly, CalendarDay>> AwaitAsync(ValueTask<IReadOnlyCollection<DateOnly>> answer) => ToDays(await answer);
+        }
+
+        private static IReadOnlyDictionary<DateOnly, CalendarDay> ToDays(IReadOnlyCollection<DateOnly>? dates) =>
+            dates is null ? new Dictionary<DateOnly, CalendarDay>() : dates.Distinct().ToDictionary(d => d, _ => CalendarDay.Marked);
+    }
+
     // Answers kept for months the user may come back to; the displayed month and both neighbours
     // are always among the most recently used.
     private const int MarkCacheSize = 12;
@@ -33,7 +74,7 @@ public partial class Calendar
         public readonly CancellationTokenSource Cancellation = new();
 
         // The answer; null while it runs, and after a failure or a cancellation.
-        public HashSet<DateOnly>? Dates;
+        public IReadOnlyDictionary<DateOnly, CalendarDay>? Dates;
         public Task? Running;
         public long LastUsed;
     }
@@ -41,7 +82,7 @@ public partial class Calendar
     private readonly Dictionary<DateRange, MarkQuery> _markQueries = [];
     private long _markClock;
     private bool _isAttached;
-    private ICalendarMarkSource? _subscribedSource;
+    private ICalendarDaySource? _subscribedSource;
 
     // ── Lifetime ────────────────────────────────────────────────────────────────
 
@@ -65,7 +106,7 @@ public partial class Calendar
 
     private void SyncMarkSubscription()
     {
-        var wanted = _isAttached ? MarkSource : null;
+        var wanted = _isAttached ? _source : null;
         if (ReferenceEquals(wanted, _subscribedSource))
             return;
 
@@ -80,6 +121,7 @@ public partial class Calendar
 
     private void OnMarkSourceChanged()
     {
+        _source = DaySource ?? (MarkSource is { } marks ? new MarkAdapter(marks) : null);
         SyncMarkSubscription();
         DropMarkQueries();
 
@@ -97,7 +139,8 @@ public partial class Calendar
 
     private void OnMarksChanged(object? sender, EventArgs e)
     {
-        if (!ReferenceEquals(sender, _subscribedSource))
+        // A mark source raises Changed itself, through its adapter.
+        if (!ReferenceEquals(sender, _subscribedSource) && !(_subscribedSource is MarkAdapter adapter && ReferenceEquals(sender, adapter.Inner)))
             return;
 
         if (Dispatcher is { IsDispatchRequired: true } dispatcher)
@@ -160,7 +203,7 @@ public partial class Calendar
     /// <remarks>The caller refreshes the cells; an answer that arrives later refreshes them itself.</remarks>
     private void EnsureMarks(MonthPage page)
     {
-        var source = MarkSource;
+        var source = _source;
         if (source is null)
         {
             page.Marks = null;
@@ -196,7 +239,7 @@ public partial class Calendar
             page.Marks = query.Dates;
     }
 
-    private void PrefetchAround(ICalendarMarkSource source, DateTime firstOfMonth)
+    private void PrefetchAround(ICalendarDaySource source, DateTime firstOfMonth)
     {
         int index = firstOfMonth.Year * 12 + firstOfMonth.Month - 1;
         var window = new HashSet<DateRange>
@@ -220,7 +263,7 @@ public partial class Calendar
             GetOrStartQuery(source, range);
     }
 
-    private MarkQuery GetOrStartQuery(ICalendarMarkSource source, DateRange range)
+    private MarkQuery GetOrStartQuery(ICalendarDaySource source, DateRange range)
     {
         if (_markQueries.TryGetValue(range, out var cached))
         {
@@ -238,10 +281,10 @@ public partial class Calendar
             _markQueries.Remove(oldest.Range);
         }
 
-        ValueTask<IReadOnlyCollection<DateOnly>> answer;
+        ValueTask<IReadOnlyDictionary<DateOnly, CalendarDay>> answer;
         try
         {
-            answer = source.GetMarkedDatesAsync(range.First, range.Last, query.Cancellation.Token);
+            answer = source.GetDaysAsync(range.First, range.Last, query.Cancellation.Token);
         }
         catch (Exception e)
         {
@@ -251,20 +294,20 @@ public partial class Calendar
 
         // An in-memory source answers at once: the page is marked in the same render, with no second pass.
         if (answer.IsCompletedSuccessfully)
-            query.Dates = ToSet(answer.Result);
+            query.Dates = answer.Result ?? Empty;
         else
             query.Running = CompleteQueryAsync(source, query, answer);
 
         return query;
     }
 
-    private async Task CompleteQueryAsync(ICalendarMarkSource source, MarkQuery query, ValueTask<IReadOnlyCollection<DateOnly>> answer)
+    private async Task CompleteQueryAsync(ICalendarDaySource source, MarkQuery query, ValueTask<IReadOnlyDictionary<DateOnly, CalendarDay>> answer)
     {
         try
         {
             var dates = await answer;
             if (!query.Cancellation.IsCancellationRequested)
-                query.Dates = ToSet(dates);
+                query.Dates = dates ?? Empty;
         }
         catch (OperationCanceledException) when (query.Cancellation.IsCancellationRequested)
         {
@@ -295,19 +338,20 @@ public partial class Calendar
         }
     }
 
-    private static HashSet<DateOnly> ToSet(IReadOnlyCollection<DateOnly>? dates) => dates is null ? [] : [.. dates];
+    private static readonly IReadOnlyDictionary<DateOnly, CalendarDay> Empty = new Dictionary<DateOnly, CalendarDay>();
 
-    private void ReportMarkFailure(ICalendarMarkSource source, DateRange range, Exception exception)
+    private void ReportMarkFailure(ICalendarDaySource source, DateRange range, Exception exception)
     {
+        var type = (source is MarkAdapter adapter ? adapter.Inner.GetType() : source.GetType()).FullName;
         var logger = Handler?.MauiContext?.Services.GetService<ILoggerFactory>()?.CreateLogger<Calendar>();
         if (logger is not null)
         {
             logger.LogError(exception, "Calendar mark source {Source} failed for {First:yyyy-MM-dd}..{Last:yyyy-MM-dd}; those days show no marks.",
-                source.GetType().FullName, range.First, range.Last);
+                type, range.First, range.Last);
         }
         else
         {
-            Trace.TraceError($"[Spine] Calendar mark source {source.GetType().FullName} failed for {range.First:yyyy-MM-dd}..{range.Last:yyyy-MM-dd}; those days show no marks. {exception}");
+            Trace.TraceError($"[Spine] Calendar mark source {type} failed for {range.First:yyyy-MM-dd}..{range.Last:yyyy-MM-dd}; those days show no marks. {exception}");
         }
     }
 }

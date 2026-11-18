@@ -1,5 +1,6 @@
 using System.Globalization;
 using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Core;
 
 namespace Plugin.Maui.Spine.Controls;
 
@@ -15,7 +16,7 @@ public partial class Calendar
     /// <summary>The first of the month <paramref name="delta"/> pages away in the active view.</summary>
     private DateTime TargetDate(int delta) => _viewMode switch
     {
-        CalendarViewMode.Month => WithMonthIndex(DisplayDate.Year * 12 + DisplayDate.Month - 1 + delta),
+        CalendarViewMode.Month => WithinLimits(WithMonthIndex(DisplayDate.Year * 12 + DisplayDate.Month - 1 + delta)),
         CalendarViewMode.Year => WithYear(DisplayDate.Year + delta),
         _ => WithYear(DisplayDate.Year + delta * 10),
     };
@@ -23,6 +24,28 @@ public partial class Calendar
     private bool IsDisplayed(DateTime date) => date.Year == DisplayDate.Year && date.Month == DisplayDate.Month;
 
     private DateTime WithYear(int year) => new(Math.Clamp(year, MinYear, MaxYear), DisplayDate.Month, 1);
+
+    /// <summary>The first of the month, moved to the month of <see cref="MinimumDate"/> or <see cref="MaximumDate"/> when past it.</summary>
+    private DateTime WithinLimits(DateTime firstOfMonth)
+    {
+        if (MinimumDate is { } min && firstOfMonth < FirstOfMonth(min))
+            return FirstOfMonth(min);
+        if (MaximumDate is { } max && firstOfMonth > FirstOfMonth(max))
+            return FirstOfMonth(max);
+        return firstOfMonth;
+    }
+
+    private bool IsOutOfRange(DateTime date) =>
+        (MinimumDate is { } min && date.Date < min.Date) || (MaximumDate is { } max && date.Date > max.Date);
+
+    private void OnLimitsChanged()
+    {
+        SetDisplayMonth(WithinLimits(FirstOfMonth(DisplayDate)));
+        UpdateHeader();
+        RefreshDayVisuals();
+        if (_monthPeek is not null)
+            RefreshDayVisuals(_monthPeek);
+    }
 
     /// <summary>The first of the month <paramref name="index"/> (year × 12 + month − 1), clamped to the supported years.</summary>
     private static DateTime WithMonthIndex(int index)
@@ -93,7 +116,7 @@ public partial class Calendar
 
     private void OnDayTapped(DayCell cell)
     {
-        if (cell.IsTrailing && !ShowTrailingDays)
+        if (cell.IsTrailing && !ShowTrailingDays || IsOutOfRange(cell.Date))
             return;
 
         SelectedDate = cell.Date;
@@ -102,6 +125,7 @@ public partial class Calendar
     /// <summary>Writes <see cref="DisplayDate"/> once, as the 1st of the month, when the month changes.</summary>
     private void SetDisplayMonth(DateTime firstOfMonth)
     {
+        firstOfMonth = WithinLimits(firstOfMonth);
         if (IsDisplayed(firstOfMonth))
             return;
 
@@ -247,6 +271,9 @@ public partial class Calendar
         var selected = SelectedDate.Date;
         var marks = page.Marks;
         bool dots = style.MarkStyle == CalendarMarkStyle.Dot;
+        bool square = style.DayShape == CalendarDayShape.RoundedSquare;
+        var outer = new CornerRadius(square ? SquareRadius : DayCircleSize / 2);
+        var inner = new CornerRadius(square ? InnerSquareRadius : InnerCircleSize / 2);
 
         foreach (var cell in page.DayCells)
         {
@@ -258,37 +285,61 @@ public partial class Calendar
             cell.Container.IsVisible = true;
 
             var date = cell.Date;
+            bool outOfRange = IsOutOfRange(date);
             bool isToday = date == today;
-            bool isSelected = ShowSelectedDate && selected != DateTime.MinValue.Date && date == selected;
-            bool isMarked = marks?.Contains(DateOnly.FromDateTime(date)) == true;
-            bool markFill = isMarked && !dots;
+            bool isSelected = ShowSelectedDate && selected != DateTime.MinValue.Date && date == selected && !outOfRange;
+            CalendarDay? day = null;
+            bool isMarked = !outOfRange && marks?.TryGetValue(DateOnly.FromDateTime(date), out day) == true;
+
+            // A day with a background keeps it when selected or today: a ring round it says which.
+            bool tinted = isMarked && day!.Background is not null;
+            bool plainMark = isMarked && day!.Background is null && day.Dot is null;
+            bool markFill = plainMark && !dots;
+
+            cell.Fill.CornerRadius = outer;
+            cell.InnerFill.CornerRadius = inner;
+            cell.TodayRing.RadiusX = cell.TodayRing.RadiusY = outer.TopLeft;
 
             // Today and selected: the fill stays clear, and the ring and the inner fill make the look.
             // Today and marked: the mark fill inside the ring.
             cell.Fill.Color =
-                isSelected ? (isToday ? Colors.Transparent : style.AccentColor)
+                tinted ? day!.Background!
+                : isSelected ? (isToday ? Colors.Transparent : style.AccentColor)
                 : markFill ? (cell.IsTrailing ? style.TrailingMarkFillColor : style.MarkFillColor)
                 : Colors.Transparent;
-            cell.TodayRing.IsVisible = isToday;
-            cell.InnerFill.IsVisible = isToday && isSelected;
+            // Opacity rather than an alpha colour, which a BoxView paints over black on iOS.
+            cell.Fill.Opacity = tinted && cell.IsTrailing ? 0.4 : 1;
+            cell.TodayRing.IsVisible = isToday || tinted && isSelected;
+            cell.TodayRing.Stroke = new SolidColorBrush(tinted && isSelected ? SpineAccent.TextOn(day!.Background!) : style.AccentColor);
+            cell.InnerFill.IsVisible = isToday && isSelected && !tinted;
 
             // On a mark fill the number takes the marked colour even on today: the accent-coloured
             // today number reads poorly on an accent-tinted fill, and the ring still says "today".
             cell.Label.TextColor =
-                isSelected ? style.SelectedTextColor
+                outOfRange ? style.TrailingTextColor
+                : isSelected && !tinted ? style.SelectedTextColor
                 : cell.IsTrailing ? style.TrailingTextColor
+                : tinted ? SpineAccent.TextOn(day!.Background!)
                 : markFill ? style.MarkedTextColor
                 : isToday ? style.TodayTextColor
                 : style.DayTextColor;
 
             cell.Label.FontAttributes = isToday || isSelected ? FontAttributes.Bold : FontAttributes.None;
 
-            if (isMarked && dots)
+            if (isMarked && day!.Dot is { } dotColor)
+            {
+                var dot = cell.Dot ??= AddDot(cell);
+                dot.Color = dotColor;
+                dot.Opacity = cell.IsTrailing ? 0.4 : 1;
+                dot.IsVisible = true;
+            }
+            else if (plainMark && dots)
             {
                 var dot = cell.Dot ??= AddDot(cell);
                 dot.Color = isSelected ? style.SelectedTextColor
                     : cell.IsTrailing ? style.TrailingTextColor
                     : style.AccentColor;
+                dot.Opacity = 1;
                 dot.IsVisible = true;
             }
             else if (cell.Dot is not null)
@@ -302,7 +353,7 @@ public partial class Calendar
             if (isSelected)
                 description += ", " + strings["Spine.Calendar.Selected"];
             if (isMarked)
-                description += ", " + strings["Spine.Calendar.Marked"];
+                description += ", " + (day!.Description ?? strings["Spine.Calendar.Marked"]);
             SemanticProperties.SetDescription(cell.Label, description);
         }
     }
@@ -390,6 +441,12 @@ public partial class Calendar
             SemanticProperties.SetDescription(_previousButton, strings[previous]);
         if (_nextButton is not null)
             SemanticProperties.SetDescription(_nextButton, strings[next]);
+
+        // At MinimumDate's or MaximumDate's month the arrow that way leads nowhere: faded, as a disabled button.
+        if (_previousButton is not null)
+            _previousButton.Opacity = _viewMode == CalendarViewMode.Month && IsDisplayed(TargetDate(-1)) ? 0.3 : 1;
+        if (_nextButton is not null)
+            _nextButton.Opacity = _viewMode == CalendarViewMode.Month && IsDisplayed(TargetDate(1)) ? 0.3 : 1;
     }
 
     private static string Capitalize(string text, CultureInfo culture) =>
