@@ -402,6 +402,15 @@ public abstract partial class ViewModelBase : ObservableObject
             : 0;
 
     /// <summary>
+    /// The page's own row under the header bar (<see cref="SpinePage{TViewModel}.HeaderRow"/>) as tall as it measures,
+    /// set by the presenter that hosts it; 0 without one.
+    /// </summary>
+    internal double HeaderRowRestHeight { get; set; }
+
+    /// <summary>How much the page's header row adds below the header bar: its height, less as a search takes the bar's place.</summary>
+    internal double HeaderRowHeight => HeaderRowRestHeight * (1 - SearchProgress);
+
+    /// <summary>
     /// Whether the header bar gives way to the search row while a search is going on, as a
     /// <c>UISearchController</c> hides its navigation bar: in the row only, so not where the field
     /// sits in the bar (iPad, Mac), and not on Windows (see <see cref="Presentation.SearchField.HidesHeaderBar"/>).

@@ -445,6 +445,12 @@
       <DependentUpon>RoomPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\HeaderRow\HeaderRowPage.View.xaml">
+      <DependentUpon>HeaderRowPage.cs</DependentUpon>
+    </MauiXaml>
+    <Compile Include="Pages\HeaderRow\HeaderRowPage.ViewModel.cs">
+      <DependentUpon>HeaderRowPage.cs</DependentUpon>
+    </Compile>
     <MauiXaml Update="Pages\Search\SearchPage.View.xaml">
       <DependentUpon>SearchPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

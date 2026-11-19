@@ -27,6 +27,13 @@ public abstract class SpinePage<TViewModel> : ContentView, INavigable, IPageFoot
         typeof(SpinePage<TViewModel>),
         propertyChanged: (bindable, _, _) => ((SpinePage<TViewModel>)bindable)._footerChanged?.Invoke(bindable, EventArgs.Empty));
 
+    /// <summary>Identifies the <see cref="HeaderRow"/> bindable property.</summary>
+    public static readonly BindableProperty HeaderRowProperty = BindableProperty.Create(
+        nameof(HeaderRow),
+        typeof(View),
+        typeof(SpinePage<TViewModel>),
+        propertyChanged: (bindable, _, _) => ((SpinePage<TViewModel>)bindable)._headerRowChanged?.Invoke(bindable, EventArgs.Empty));
+
     private static IServiceProvider _services => IPlatformApplication.Current?.Services ?? throw new PlatformNotSupportedException();
 
     /// <summary>
@@ -96,7 +103,29 @@ public abstract class SpinePage<TViewModel> : ContentView, INavigable, IPageFoot
         set => SetValue(FooterProperty, value);
     }
 
+    /// <summary>
+    /// A row under the header bar that belongs to the header, as the search row does: what the page is about or a
+    /// choice that holds for all of it (whose figures, which period), kept in view while the content scrolls. It moves
+    /// with the page in a push or a pop. Under a floating header (a large title, <c>Overlay</c> or a scroll edge
+    /// background) the content scrolls under the row as well as the bar: <c>SafeAreaInsets.Top</c> and the scroll
+    /// inset include it, and the scroll edge effect or solid background reaches below it. The row is as tall as it
+    /// measures, spans the page's width inside the safe area (give it the page's side margin yourself) and gets the
+    /// page's <c>BindingContext</c>. It goes under a search row when the page has one.
+    /// </summary>
+    public View? HeaderRow
+    {
+        get => (View?)GetValue(HeaderRowProperty);
+        set => SetValue(HeaderRowProperty, value);
+    }
+
     private EventHandler? _footerChanged;
+    private EventHandler? _headerRowChanged;
+
+    event EventHandler? IPageFooterSource.HeaderRowChanged
+    {
+        add => _headerRowChanged += value;
+        remove => _headerRowChanged -= value;
+    }
 
     event EventHandler? IPageFooterSource.FooterChanged
     {
@@ -105,10 +134,17 @@ public abstract class SpinePage<TViewModel> : ContentView, INavigable, IPageFoot
     }
 }
 
-/// <summary>A page that may carry a <see cref="SpinePage{TViewModel}.Footer"/>, seen without its view model type.</summary>
+/// <summary>
+/// A page that may carry a <see cref="SpinePage{TViewModel}.Footer"/> or a <see cref="SpinePage{TViewModel}.HeaderRow"/>,
+/// seen without its view model type.
+/// </summary>
 internal interface IPageFooterSource
 {
     View? Footer { get; }
 
+    View? HeaderRow { get; }
+
     event EventHandler? FooterChanged;
+
+    event EventHandler? HeaderRowChanged;
 }
