@@ -55,6 +55,8 @@ None. The control needs no builder registration, with or without `UseSpine()`. `
 
 ### Scrolling under the bottom bar
 
+Its rows line up with the page margin through `SafeArea.PageMargin="True"`, as on any `CollectionView` (see [Lists inside the page margin](regions.md#lists-inside-the-page-margin)): the list reaches the page's sides, so its scroll bar stands at the screen edge and the hero is full width. Never put the page margin on the `HeroCollectionView` itself as a `Margin`; the scroll bar then stands 16 points in from the edge.
+
 A hero page usually excludes the bottom edge from `SafeAreaEdges` so the list draws behind the home indicator or the floating tab bar. Add `SafeArea.ScrollInset="Bottom"` to the `HeroCollectionView` (or `ScrollInset = SafeAreaEdges.Bottom` on the page attribute) so the last row scrolls clear of the bar without a footer spacer; see [Scrolling under a bar](regions.md#scrolling-under-a-bar).
 
 ## How it works

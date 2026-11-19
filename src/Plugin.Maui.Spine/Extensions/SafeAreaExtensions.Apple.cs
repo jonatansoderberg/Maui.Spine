@@ -71,7 +71,8 @@ public static partial class SpineExtensions
         }
 
         if (scrollView is UICollectionView collectionView)
-            ApplyPageMargin(collectionView, SafeArea.PageMarginOf(view));
+            // A list's rows carry the margin themselves (RowMargins); only a grid's sections are inset.
+            ApplyPageMargin(collectionView, RowMargins.PerRow(view) ? Thickness.Zero : SafeArea.PageMarginOf(view));
 
 #if MACCATALYST
         if (view is ScrollView scroll)

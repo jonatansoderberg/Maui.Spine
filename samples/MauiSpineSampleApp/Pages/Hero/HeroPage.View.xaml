@@ -13,6 +13,7 @@
             HeaderTitle=""
             HeaderImageCollapse="{Binding ImageCollapse}"
             Reorder.Mode="{Binding ReorderMode}"
+            SafeArea.PageMargin="True"
             HeaderMaxHeight="{Binding HeaderMaxHeight}"
             HeaderMinHeight="{Binding HeaderMinHeight}">
 
@@ -25,7 +26,7 @@
                 <HeroRowTemplateSelector>
                     <HeroRowTemplateSelector.Intro>
                         <DataTemplate x:DataType="HeroPageViewModel">
-                            <VerticalStackLayout Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,16,0,14" Spacing="12">
+                            <VerticalStackLayout Padding="0,16,0,14" Spacing="12">
                                 <ExampleCodeSwitch />
                                 <PackageChips Packages="Plugin.Maui.Spine.Controls.HeroCollectionView" />
 
@@ -55,7 +56,7 @@
                     </HeroRowTemplateSelector.Intro>
                     <HeroRowTemplateSelector.Row>
                         <DataTemplate x:DataType="Swatch">
-                            <Border Margin="20,6" Padding="16,14" StrokeThickness="0" StrokeShape="RoundRectangle 14" BackgroundColor="{Binding Colour}">
+                            <Border Margin="0,6" Padding="16,14" StrokeThickness="0" StrokeShape="RoundRectangle 14" BackgroundColor="{Binding Colour}">
                                 <VerticalStackLayout Spacing="4">
                                     <Label Text="{Binding Name}" TextColor="White" FontAttributes="Bold" FontSize="17" />
                                     <Label Text="{Binding Text}" TextColor="White" FontSize="14" />
