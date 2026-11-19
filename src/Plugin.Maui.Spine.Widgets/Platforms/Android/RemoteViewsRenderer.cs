@@ -160,7 +160,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             case "image":
             {
                 var size = (float)(Number(node, "height") ?? IconDp);
-                if (_icons.Bitmap(Text(node, "systemImage"), (int)(size * Density)) is not { } bitmap) return Empty();
+                if (_icons.Bitmap(Text(node, "systemImage") is { } iconName ? IconNode.AssetName(iconName, Text(node, "variant")) : null, (int)(size * Density)) is not { } bitmap) return Empty();
                 var views = new RemoteViews(Package, Resource.Layout.spine_widget_icon);
                 views.SetImageViewBitmap(Node, bitmap);
                 // The layout's view is IconDp square; RemoteViews can resize it from Android 12.

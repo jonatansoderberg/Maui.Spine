@@ -12,15 +12,15 @@ public static class SpineIcons
     public const string AirConditioner = "AirConditioner.svg";
     /// <summary>The <c>Arrow.svg</c> icon.</summary>
     public const string Arrow = "Arrow.svg";
-    /// <summary>The <c>ArrowDown.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    /// <summary>The <c>ArrowDown.svg</c> icon.</summary>
     public const string ArrowDown = "ArrowDown.svg";
-    /// <summary>The <c>ArrowDownRight.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    /// <summary>The <c>ArrowDownRight.svg</c> icon.</summary>
     public const string ArrowDownRight = "ArrowDownRight.svg";
-    /// <summary>The <c>ArrowRight.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    /// <summary>The <c>ArrowRight.svg</c> icon.</summary>
     public const string ArrowRight = "ArrowRight.svg";
-    /// <summary>The <c>ArrowUp.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    /// <summary>The <c>ArrowUp.svg</c> icon.</summary>
     public const string ArrowUp = "ArrowUp.svg";
-    /// <summary>The <c>ArrowUpRight.svg</c> icon: a trend arrow, heavier than the line icons so it holds its own beside a number.</summary>
+    /// <summary>The <c>ArrowUpRight.svg</c> icon.</summary>
     public const string ArrowUpRight = "ArrowUpRight.svg";
     /// <summary>The <c>Auto.svg</c> icon.</summary>
     public const string Auto = "Auto.svg";
@@ -144,6 +144,8 @@ public static class SpineIcons
     public const string Fridge = "Fridge.svg";
     /// <summary>The <c>Globe.svg</c> icon.</summary>
     public const string Globe = "Globe.svg";
+    /// <summary>The <c>Graph.svg</c> icon.</summary>
+    public const string Graph = "Graph.svg";
     /// <summary>The <c>Grid.svg</c> icon.</summary>
     public const string Grid = "Grid.svg";
     /// <summary>The <c>GripHorizontal.svg</c> icon.</summary>
@@ -284,6 +286,8 @@ public static class SpineIcons
     public const string Return = "Return.svg";
     /// <summary>The <c>Reverse.svg</c> icon.</summary>
     public const string Reverse = "Reverse.svg";
+    /// <summary>The <c>RobotVacuum.svg</c> icon.</summary>
+    public const string RobotVacuum = "RobotVacuum.svg";
     /// <summary>The <c>Search.svg</c> icon.</summary>
     public const string Search = "Search.svg";
     /// <summary>The <c>SearchItem.svg</c> icon.</summary>
@@ -370,8 +374,6 @@ public static class SpineIcons
     public const string Upload = "Upload.svg";
     /// <summary>The <c>User.svg</c> icon.</summary>
     public const string User = "User.svg";
-    /// <summary>The <c>Vacuum.svg</c> icon.</summary>
-    public const string Vacuum = "Vacuum.svg";
     /// <summary>The <c>Vertical.svg</c> icon.</summary>
     public const string Vertical = "Vertical.svg";
     /// <summary>The <c>Volume0.svg</c> icon.</summary>
@@ -573,6 +575,7 @@ public static class SpineIcons
         FloorHeater,
         Fridge,
         Globe,
+        Graph,
         Grid,
         GripHorizontal,
         GripVertical,
@@ -643,6 +646,7 @@ public static class SpineIcons
         RepeatOne,
         Return,
         Reverse,
+        RobotVacuum,
         Search,
         SearchItem,
         Segmented,
@@ -686,7 +690,6 @@ public static class SpineIcons
         Up,
         Upload,
         User,
-        Vacuum,
         Vertical,
         Volume0,
         Volume1,

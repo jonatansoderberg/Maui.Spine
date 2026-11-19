@@ -146,6 +146,8 @@ internal static class Vocabulary
             new("Values", Kind.Text, "Every icon a bound Source can name, comma-separated, so each is stored at start."),
             new("Tint", Kind.Color, "The icon's color."),
             new("Size", Kind.Number, "Points square."),
+            new("LineWidthScale", Kind.Number, "Multiplies the SVG's line widths: 3 for an arrow beside a large number."),
+            new("RoundLineEnds", Kind.Bool, "Round ends and corners on the SVG's lines."),
             new("AltText", Kind.Text, "The icon as text where only text fits.")],
         ["Image"] = [.. Node,
             new("Source", Kind.Text, "A stored asset's id."),

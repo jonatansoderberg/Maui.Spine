@@ -13,7 +13,7 @@ internal static class WidgetTree
         _ => [node],
     };
 
-    /// <summary>The symbol name of every <see cref="IconNode"/> in <paramref name="node"/>, in tree order, repeats included.</summary>
+    /// <summary>The stored name (<see cref="IconNode.Asset"/>) of every <see cref="IconNode"/> in <paramref name="node"/>, in tree order, repeats included.</summary>
     public static IEnumerable<string> Icons(WidgetNode? node) =>
-        Nodes(node).OfType<IconNode>().Where(icon => !string.IsNullOrWhiteSpace(icon.SystemName)).Select(icon => icon.SystemName);
+        Nodes(node).OfType<IconNode>().Where(icon => !string.IsNullOrWhiteSpace(icon.SystemName)).Select(icon => icon.Asset);
 }

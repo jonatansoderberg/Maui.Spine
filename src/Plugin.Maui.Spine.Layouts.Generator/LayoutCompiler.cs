@@ -1268,8 +1268,16 @@ internal sealed class LayoutCompiler
                     Report(Layouts.Diagnostics.UnknownAttribute, element, "Icon needs Source");
                     return null;
                 }
+                var stored = _icons.Count;
                 var icon = Icon(source, element.Attribute("Values"), scope);
                 if (icon is null) return null;
+                // An icon drawn with heavier or round lines is stored under its name and that variant, as IconNode.Asset has it.
+                var scale = element.Attribute("LineWidthScale") is { } s && double.TryParse(s.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var factor)
+                    && factor > 0 && Math.Abs(factor - 1) >= 0.005 ? factor.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "";
+                var variant = scale + (IsTrue(element.Attribute("RoundLineEnds")) ? "r" : "");
+                if (variant.Length > 0)
+                    for (var i = stored; i < _icons.Count; i++)
+                        _icons[i] += "@" + variant;
                 icon = Out(icon, Kind.Icon, source);
                 var tint = Optional("Tint", Kind.Color);
                 var size = Optional("Size", Kind.Number);
@@ -1547,7 +1555,7 @@ internal sealed class LayoutCompiler
 
         switch (local)
         {
-            case "Expand" or "Fill" or "Decorative" or "Pending" or "Accented" or "Area" or "Dot" or "FullColor":
+            case "Expand" or "Fill" or "Decorative" or "Pending" or "Accented" or "Area" or "Dot" or "FullColor" or "RoundLineEnds":
             {
                 var method = local == "Expand" ? "Fill" : local;
                 if (value is Literal flag)
@@ -1614,7 +1622,7 @@ internal sealed class LayoutCompiler
         var method2 = local switch
         {
             "HorizontalOptions" or "Part" or "Description" or "FontDesign" or "TextColor" or "HorizontalTextAlignment" or "MaxLines"
-                or "ShrinkToFit" or "CornerRadius" or "Background" or "AltText" or "MaxAspect" => local,
+                or "ShrinkToFit" or "CornerRadius" or "Background" or "AltText" or "MaxAspect" or "LineWidthScale" => local,
             _ => null,
         };
         if (method2 is null)

@@ -118,7 +118,7 @@ A `Widget` holds one tree for every size, and a size its own with `<Widget.Small
 | `Label` | `W.Label(text)` | `Text`, and every text attribute below |
 | `Elapsed` | `W.Elapsed(since, format)` | `Since`, `Format` (`Precise`, `Clock`, `Minutes`, `Ago`), `Prefix` |
 | `Countdown` | `W.Countdown(until)` | `Until`, `Prefix` |
-| `Icon` | `W.Icon(source, tint, size)` | `Source`, `Tint`, `Size`, `AltText`, `Values` (every name a bound `Source` can take) |
+| `Icon` | `W.Icon(source, tint, size)` | `Source`, `Tint`, `Size`, `LineWidthScale` and `RoundLineEnds` (heavier, round lines: a trend arrow beside a value; written as literals), `AltText`, `Values` (every name a bound `Source` can take) |
 | `Image` | `W.Image(asset, height)` | `Source`, `Height`, `FullColor` |
 | `Progress`, `Ring` | `W.Progress`, `W.Ring` | `Value`, `Tint`; `Size` on a ring |
 | `Sparkline` | `W.Sparkline(…)` | `Values`, `From`, `To`, `Step` (`5m`, `30s`, `1h`), `Tint` or `Color`, `Height`, `Area`, `Dot`, `BandLow`, `BandHigh`, `AboveColor`, `BelowColor`, `Shaded`, `Minimum`, `Maximum`, `MaxAspect` |

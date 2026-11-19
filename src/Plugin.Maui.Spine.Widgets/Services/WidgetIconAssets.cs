@@ -11,7 +11,8 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 /// from SVGs in the resource cache Spine fills — the ones bundled with <c>Plugin.Maui.Spine.Svg</c>
 /// and any the app embeds — named after the symbol with dots as underscores. The shape is rendered
 /// white, so the renderer tints it with the node's color in light and dark alike, and stored as
-/// <c>icons/&lt;name&gt;.png</c> beside the app's own assets before the tree is written.
+/// <c>icons/&lt;name&gt;.png</c> beside the app's own assets before the tree is written. An icon drawn with heavier or
+/// round lines (<see cref="IconNode.Variant"/>) is a picture of its own, <c>icons/&lt;name&gt;@&lt;variant&gt;.png</c>.
 /// </summary>
 internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCache _svgs, ILogger<WidgetIconAssets> _logger)
 {
@@ -26,7 +27,7 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     public Task EnsureAsync(IEnumerable<WidgetNode?> trees, CancellationToken cancellationToken) =>
         EnsureAsync(trees.SelectMany(WidgetTree.Icons), cancellationToken);
 
-    /// <summary>Icons by name: a control's, which Android draws on its Quick Settings tile.</summary>
+    /// <summary>Icons by stored name (<see cref="IconNode.Asset"/>): a control's, which Android draws on its Quick Settings tile.</summary>
     public async Task EnsureAsync(IEnumerable<string> names, CancellationToken cancellationToken)
     {
         if (!_platform.IsSupported && !_platform.AreControlsSupported && !_platform.AreActivitiesSupported) return;
@@ -40,14 +41,15 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
             {
                 if (_stored.Contains(name)) continue;
 
-                using var stream = Open(name);
+                var (svg, lineWidthScale, roundLineEnds) = IconNode.ParseAsset(name);
+                using var stream = Open(svg);
                 if (stream is null)
                 {
-                    _logger.LogWarning("Widget icon \"{Name}\" has no SVG among Spine's icons or the app's; it is drawn nowhere.", name);
+                    _logger.LogWarning("Widget icon \"{Name}\" has no SVG among Spine's icons or the app's; it is drawn nowhere.", svg);
                     _stored.Add(name);
                     continue;
                 }
-                if (Render(stream) is not { } png) continue;
+                if (Render(stream, SKColors.White, lineWidthScale, roundLineEnds) is not { } png) continue;
 
                 await _platform.StoreAssetAsync(AssetId(name), new MemoryStream(png), cancellationToken);
                 _stored.Add(name);
@@ -77,16 +79,14 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     /// <summary>The icon as a PNG in <paramref name="color"/>, for <see cref="WidgetPreview"/>; null when there is no SVG of that name.</summary>
     internal byte[]? Picture(string name, SKColor color)
     {
-        using var stream = Open(name);
-        return stream is null ? null : Render(stream, color);
+        var (svg, lineWidthScale, roundLineEnds) = IconNode.ParseAsset(name);
+        using var stream = Open(svg);
+        return stream is null ? null : Render(stream, color, lineWidthScale, roundLineEnds);
     }
 
-    private static byte[]? Render(Stream svgStream) => Render(svgStream, SKColors.White);
-
-    private static byte[]? Render(Stream svgStream, SKColor color)
+    private static byte[]? Render(Stream svgStream, SKColor color, double lineWidthScale, bool roundLineEnds)
     {
-        using var svg = new SKSvg();
-        svg.Load(svgStream);
+        using var svg = SvgRasterizer.Load(svgStream, SKColors.Transparent, out _, lineWidthScale: (float)lineWidthScale, roundLineEnds: roundLineEnds);
         if (svg.Picture is not { } picture || picture.CullRect.Width <= 0 || picture.CullRect.Height <= 0) return null;
 
         using var bitmap = new SKBitmap(Pixels, Pixels, SKColorType.Rgba8888, SKAlphaType.Premul);

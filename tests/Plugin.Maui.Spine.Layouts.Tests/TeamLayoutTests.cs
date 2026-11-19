@@ -26,7 +26,7 @@ public class TeamLayoutTests
             : m.Goals.Take(2).Select(g => W.Label($"{g.Scorer} {g.Minute:00}'").Caption());
 
         var row = W.HStack(
-                W.Icon(m.Mark, WidgetColor.Pair("#1C1C1E", "#FFFFFF")).Decorative(),
+                W.Icon(m.Mark, WidgetColor.Pair("#1C1C1E", "#FFFFFF")).LineWidthScale(3).RoundLineEnds().Decorative(),
                 W.Label(m.Next ?? s["NoMoreGames"]).MaxLines(2).Margin(0, 2, 0, 0).On(WidgetPlatform.Android, n => n.FontSize(12)),
                 W.Label(m.Venue is null ? "" : "@ " + m.Venue).TextColor(WidgetColor.Primary).On(WidgetPlatform.iOS, n => n.TextColor(WidgetColor.Secondary)))
             .Evenly();
@@ -96,7 +96,7 @@ public class TeamLayoutTests
     public void Actions_and_icons_are_named()
     {
         Assert.Equal("next-game", TeamLayout.Actions.NextGame);
-        Assert.Equal(["ArrowDownRight", "ArrowUpRight"], TeamLayout.Icons.Order());
+        Assert.Equal(["ArrowDownRight@3r", "ArrowUpRight@3r"], TeamLayout.Icons.Order());
     }
 
     static string WidgetJsonOf(WidgetNode node) => new WidgetTimeline().Add(DateTimeOffset.UnixEpoch, node).ToJson();
