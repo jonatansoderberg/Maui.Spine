@@ -108,6 +108,17 @@ public class ChartScrollerTests
         Assert.Equal(Local(2026, 10, 25, 5), snapped);
     }
 
+    [Fact]
+    public void Snapping_down_and_up_keeps_a_time_inside()
+    {
+        var at = Local(2026, 11, 19, 11, 3);
+        Assert.Equal(Local(2026, 11, 19), ScrollMotion.SnapDown(at, TimeSpan.FromDays(1), Stockholm));
+        Assert.Equal(Local(2026, 11, 20), ScrollMotion.SnapUp(at, TimeSpan.FromDays(1), Stockholm));
+        Assert.Equal(Local(2026, 11, 19, 11), ScrollMotion.SnapDown(at, TimeSpan.FromHours(1), Stockholm));
+        Assert.Equal(Local(2026, 11, 19, 12), ScrollMotion.SnapUp(at, TimeSpan.FromHours(1), Stockholm));
+        Assert.Equal(Local(2026, 11, 19, 12), ScrollMotion.SnapUp(Local(2026, 11, 19, 12), TimeSpan.FromHours(1), Stockholm));
+    }
+
     // Names over the plot
 
     [Fact]

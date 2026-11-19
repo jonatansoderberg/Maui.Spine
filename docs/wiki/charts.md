@@ -145,11 +145,24 @@ public IChartHistory History { get; } = new ChartHistory(async (from, to, ct) =>
     new ChartSlice(Points: await readings.GetAsync(from, to, ct)));
 ```
 
-- **The window.** `Span` of time is across the plot (a day by default), ending at `To` (`Latest` when null, and then it
-  follows `Latest` as it moves; `Latest` is now when null). `From` is read-only. `Earliest` and `Latest` are the ends of
-  the history; past them a drag rubber-bands and springs back. `IsAtLatest` says whether the window follows the
-  latest, for a "Now" button that calls `ScrollToLatestAsync()`; `ScrollToAsync(to)` glides anywhere, and setting
-  `To` jumps.
+- **The window.** `Span` of time is across the plot (a day by default), ending at `To`. `From` is read-only.
+  `Earliest` and `Latest` are the ends of the history (`Latest` is now when null); past them a drag rubber-bands and
+  springs back, and nothing the source gave past them is drawn. `ScrollToAsync(to)` glides anywhere, and setting `To`
+  jumps.
+- **Now.** `NowAt` says where now stands across the window when the chart opens and when it goes back to now: 1 (the
+  default) at the trailing edge for a history, 0 at the leading edge for a forecast, between for both in one chart.
+  With `SnapTo` the window rests on round times with now in view. `To` is null while the window is at now, and it
+  then moves on with now. `IsAtNow` is false once scrolled away, for a "Now" button that calls `ScrollToNowAsync()`.
+  With `NowAt` under 1 a line marks now wherever it is in view.
+
+```xml
+<!-- A forecast: yesterday behind, ten days ahead, now a quarter in -->
+<charts:ChartScroller Source="{Binding Forecast}" Earliest="{Binding Yesterday}" Latest="{Binding TenDaysAhead}"
+                      NowAt="0.25" Span="1.00:00" SnapTo="01:00">
+    <charts:LineChart BandLow="0" BandHigh="0" ShowBand="False" AboveColor="#E8505E" BelowColor="#0C7ED9" HighlightLast="False" />
+</charts:ChartScroller>
+```
+
 - **Gestures.** As in Stocks and Health: one finger sideways scrolls the chart, up or down scrolls the page (the
   page and iOS 26's back swipe wait for the chart to decide). A tap shows the value there for a few seconds; a press
   held 0.3 s picks the value out with a tick, and it then follows the finger until it lifts (a scrub), without

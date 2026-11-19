@@ -12,6 +12,30 @@ public partial class ChartsPageViewModel : SampleViewModel
 
     public DateTimeOffset EndOfToday { get; } = new(DateTime.Today.AddDays(1));
 
+    /// <summary>A forecast ten days ahead, with yesterday behind it.</summary>
+    public DateTimeOffset Yesterday { get; } = new(DateTime.Today.AddDays(-1));
+
+    public DateTimeOffset TenDaysAhead { get; } = new(DateTime.Today.AddDays(10));
+
+    public IChartHistory Weather => field ??= new ChartHistory(async (from, to, token) =>
+    {
+        await Task.Delay(Delay, token);
+        return new ChartSlice(Points: [.. FakeTemperatures(from, to)]);
+    });
+
+    /// <summary>A temperature an hour: a day's swing around a mean that drifts over the days, crossing zero now and then.</summary>
+    private static IEnumerable<ChartPoint> FakeTemperatures(DateTimeOffset from, DateTimeOffset to)
+    {
+        for (var t = new DateTimeOffset(from.Year, from.Month, from.Day, from.Hour, 0, 0, from.Offset); t < to; t = t.AddHours(1))
+        {
+            var hours = (t - DateTimeOffset.UnixEpoch).TotalHours;
+            var day = (int)(hours / 24);
+            var mean = 1.5 + 4 * Math.Sin(hours / 24 / 3.7) + (Scatter(day) % 30 - 15) / 10.0;
+            var swing = 2.5 * Math.Sin((t.ToLocalTime().Hour - 9) / 24.0 * 2 * Math.PI);
+            yield return new ChartPoint(t, Math.Round(mean + swing, 1));
+        }
+    }
+
     [ObservableProperty]
     public partial ChartDrag OneFinger { get; set; } = ChartDrag.Scroll;
 

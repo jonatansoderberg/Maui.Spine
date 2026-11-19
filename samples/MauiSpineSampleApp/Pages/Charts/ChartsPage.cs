@@ -17,17 +17,22 @@ public partial class ChartsPage
                     ? $"{s.Point.Value.ToString("0.0", CultureInfo.CurrentCulture)} mmol/L · {s.Point.Time.ToLocalTime():ddd d MMM HH:mm}"
                     : " ";
         };
-        LineScroller.PropertyChanged += (_, e) =>
+        Forecast.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(ChartScroller.IsAtLatest))
-                LineNow.IsVisible = !LineScroller.IsAtLatest;
+            if (e.PropertyName == nameof(LineChart.Selection))
+                ForecastPicked.Text = Forecast.Selection is { } s
+                    ? $"{s.Point.Value.ToString("0.0", CultureInfo.CurrentCulture)}° · {s.Point.Time.ToLocalTime():ddd d MMM HH:mm}"
+                    : " ";
         };
-        ColumnScroller.PropertyChanged += (_, e) =>
+        // A "Now" button while the chart is scrolled away from now; it glides back to where now belongs.
+        foreach (var (scroller, button) in new[] { (LineScroller, LineNow), (ColumnScroller, ColumnNow), (ForecastScroller, ForecastNow) })
         {
-            if (e.PropertyName == nameof(ChartScroller.IsAtLatest))
-                ColumnNow.IsVisible = !ColumnScroller.IsAtLatest;
-        };
-        LineNow.Clicked += (_, _) => _ = LineScroller.ScrollToLatestAsync();
-        ColumnNow.Clicked += (_, _) => _ = ColumnScroller.ScrollToLatestAsync();
+            scroller.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ChartScroller.IsAtNow))
+                    button.IsVisible = !scroller.IsAtNow;
+            };
+            button.Clicked += (_, _) => _ = scroller.ScrollToNowAsync();
+        }
     }
 }

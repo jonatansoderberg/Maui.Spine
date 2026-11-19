@@ -71,8 +71,12 @@ public sealed class ChartScroller : ContentView
     static readonly BindablePropertyKey FromPropertyKey = BindableProperty.CreateReadOnly(nameof(From), typeof(DateTimeOffset?), typeof(ChartScroller), null);
     public static readonly BindableProperty FromProperty = FromPropertyKey.BindableProperty;
 
-    static readonly BindablePropertyKey IsAtLatestPropertyKey = BindableProperty.CreateReadOnly(nameof(IsAtLatest), typeof(bool), typeof(ChartScroller), true);
-    public static readonly BindableProperty IsAtLatestProperty = IsAtLatestPropertyKey.BindableProperty;
+    public static readonly BindableProperty NowAtProperty = BindableProperty.Create(nameof(NowAt), typeof(double), typeof(ChartScroller), 1.0,
+        validateValue: static (_, value) => (double)value is >= 0 and <= 1,
+        propertyChanged: static (b, _, _) => ((ChartScroller)b).Replace());
+
+    static readonly BindablePropertyKey IsAtNowPropertyKey = BindableProperty.CreateReadOnly(nameof(IsAtNow), typeof(bool), typeof(ChartScroller), true);
+    public static readonly BindableProperty IsAtNowProperty = IsAtNowPropertyKey.BindableProperty;
 
     static readonly BindablePropertyKey IsLoadingPropertyKey = BindableProperty.CreateReadOnly(nameof(IsLoading), typeof(bool), typeof(ChartScroller), false);
     public static readonly BindableProperty IsLoadingProperty = IsLoadingPropertyKey.BindableProperty;
@@ -87,7 +91,7 @@ public sealed class ChartScroller : ContentView
     public TimeSpan Span { get => (TimeSpan)GetValue(SpanProperty); set => SetValue(SpanProperty, value); }
 
     /// <summary>
-    /// The end of the time in view; <see cref="Latest"/> when null. Set when a scroll comes to rest, and setting it moves
+    /// The end of the time in view; where now puts it (<see cref="NowAt"/>) when null, following now. Set when a scroll comes to rest, and setting it moves
     /// the chart there at once (<see cref="ScrollToAsync"/> glides).
     /// </summary>
     public DateTimeOffset? To { get => (DateTimeOffset?)GetValue(ToProperty); set => SetValue(ToProperty, value); }
@@ -132,8 +136,19 @@ public sealed class ChartScroller : ContentView
     /// </summary>
     public ChartDrag OneFinger { get => (ChartDrag)GetValue(OneFingerProperty); set => SetValue(OneFingerProperty, value); }
 
-    /// <summary>Whether the window ends at <see cref="Latest"/> and follows it as it moves on; false once scrolled back.</summary>
-    public bool IsAtLatest => (bool)GetValue(IsAtLatestProperty);
+    /// <summary>
+    /// Where now stands across the window when the chart opens and when it goes back to now: 1 (the default) at the
+    /// trailing edge, for a history that ends now; 0 at the leading edge, for a forecast; between, for a history and a
+    /// forecast in one chart. With <see cref="SnapTo"/> the window rests on round times with now in view. Under 1, a
+    /// line marks now wherever it is in view.
+    /// </summary>
+    public double NowAt { get => (double)GetValue(NowAtProperty); set => SetValue(NowAtProperty, value); }
+
+    /// <summary>
+    /// Whether the window is where now puts it (<see cref="NowAt"/>) and moves on with it; false once scrolled away. A
+    /// page shows its "Now" button while it is false, and <see cref="ScrollToNowAsync"/> goes back.
+    /// </summary>
+    public bool IsAtNow => (bool)GetValue(IsAtNowProperty);
 
     /// <summary>Whether a day in view is still being loaded.</summary>
     public bool IsLoading => (bool)GetValue(IsLoadingProperty);
@@ -249,8 +264,24 @@ public sealed class ChartScroller : ContentView
         return GlideAsync(target);
     }
 
-    /// <summary>Glides back to <see cref="Latest"/>, where the window follows it again.</summary>
-    public Task ScrollToLatestAsync() => ScrollToAsync(MaxTo);
+    /// <summary>Glides back to now, put where <see cref="NowAt"/> says, where the window follows it again.</summary>
+    public Task ScrollToNowAsync() => ScrollToAsync(Home);
+
+    /// <summary>
+    /// Where now puts the window's end: now at <see cref="NowAt"/> across it, on round times with now still in view, and
+    /// within the history.
+    /// </summary>
+    DateTimeOffset Home
+    {
+        get
+        {
+            var now = DateTimeOffset.Now;
+            var to = now + Span * (1 - NowAt);
+            if (SnapTo is { } step)
+                to = NowAt >= 0.5 ? ScrollMotion.SnapUp(to, step, Zone) : ScrollMotion.SnapDown(to - Span, step, Zone) + Span;
+            return Clamp(to);
+        }
+    }
 
     /// <summary>Says the source has new data: every loaded day is asked for again, and shows what it had until the answer comes.</summary>
     public void InvalidateData()
@@ -297,7 +328,7 @@ public sealed class ChartScroller : ContentView
     void OnChartSized(object? sender, EventArgs e)
     {
         if (_placed)
-            Show(_panning || _gliding ? _to : Clamp(_following ? MaxTo : _to));
+            Show(_panning || _gliding ? _to : _following ? Home : Clamp(_to));
         else
             Place();
     }
@@ -308,7 +339,7 @@ public sealed class ChartScroller : ContentView
         if (_placed || Scrollable is null || PlotWidth <= 0)
             return;
         _placed = true;
-        _to = Clamp(To ?? MaxTo);
+        _to = To is { } to ? Clamp(to) : Home;
         Show(_to);
         Settle();
         _restDay = ChartChunks.Day(_to - Span / 2, Zone);
@@ -389,7 +420,7 @@ public sealed class ChartScroller : ContentView
             return;
         this.AbortAnimation(GlideAnimation);
         _gliding = false;
-        Show(Clamp(to ?? MaxTo));
+        Show(to is { } at ? Clamp(at) : Home);
         Settle();
     }
 
@@ -399,7 +430,7 @@ public sealed class ChartScroller : ContentView
         Publish();
         if (!_placed || _panning || _gliding)
             return;
-        Show(Clamp(_following ? MaxTo : _to));
+        Show(_following ? Home : Clamp(_to));
         Settle();
     }
 
@@ -456,10 +487,11 @@ public sealed class ChartScroller : ContentView
     void OnTick(object? sender, EventArgs e)
     {
         _dirty = true;
-        if (_placed && _following && Latest is null && !_panning && !_gliding)
-            Show(MaxTo);
+        if (_placed && _following && !_panning && !_gliding)
+            Show(Home);
         else
             Load();
+        _overlay.Invalidate();
     }
 
     /// <summary>The window, now ending at <paramref name="to"/>: the chart, the names, the pulse and what to load.</summary>
@@ -476,11 +508,11 @@ public sealed class ChartScroller : ContentView
     void Settle()
     {
         var spp = SecondsPerPoint;
-        _following = (MaxTo - _to).TotalSeconds <= Math.Max(1, spp * 2);
-        SetValue(IsAtLatestPropertyKey, _following);
+        _following = Math.Abs((Home - _to).TotalSeconds) <= Math.Max(1, spp * 2);
+        SetValue(IsAtNowPropertyKey, _following);
         SetValue(FromPropertyKey, _placed ? _to - Span : null);
         _settingTo = true;
-        To = _following && Latest is null ? null : _to;
+        To = _following ? null : _to;
         _settingTo = false;
         if (Scrollable is { } chart)
             chart.SelectsByDragging = DragSelects;
@@ -822,6 +854,17 @@ public sealed class ChartScroller : ContentView
             var x1 = Math.Min(right, XOf(to));
             if (x1 - x0 > 1)
                 canvas.FillRoundedRectangle(x0 + 1, rect.Y + 4, x1 - x0 - 2, rect.Height - 8, 6);
+        }
+
+        // Now, on a chart made to reach past it (NowAt under 1): a line through the plot, so what has been and what is
+        // forecast part. A history that ends now has nothing past it to part from.
+        var now = XOf(DateTimeOffset.Now);
+        if (NowAt < 1 && now > left + 2 && now < right - 2)
+        {
+            canvas.StrokeColor = (dark ? Colors.White : Colors.Black).WithAlpha(0.45f);
+            canvas.StrokeSize = 1.5f;
+            canvas.StrokeLineCap = LineCap.Round;
+            canvas.DrawLine(now, rect.Y + 2, now, rect.Bottom - 2);
         }
     }
 

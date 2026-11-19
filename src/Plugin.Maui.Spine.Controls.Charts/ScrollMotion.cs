@@ -49,6 +49,20 @@ internal sealed class ScrollMotion
     /// <summary>How long the glide to rest takes for a distance in points: longer for further, within a quarter and four fifths of a second.</summary>
     public static double Duration(double distance) => Math.Clamp(180 + Math.Sqrt(Math.Abs(distance)) * 14, 250, 800);
 
+    /// <summary>The round time at or before <paramref name="time"/>, as <see cref="Snap"/> finds them.</summary>
+    public static DateTimeOffset SnapDown(DateTimeOffset time, TimeSpan step, TimeZoneInfo zone)
+    {
+        var snapped = Snap(time, step, zone);
+        return snapped <= time ? snapped : Snap(time - step, step, zone);
+    }
+
+    /// <summary>The round time at or after <paramref name="time"/>, as <see cref="Snap"/> finds them.</summary>
+    public static DateTimeOffset SnapUp(DateTimeOffset time, TimeSpan step, TimeZoneInfo zone)
+    {
+        var snapped = Snap(time, step, zone);
+        return snapped >= time ? snapped : Snap(time + step, step, zone);
+    }
+
     /// <summary>
     /// The round time nearest <paramref name="time"/> on <paramref name="zone"/>'s clock: a whole number of days from
     /// local midnight for a step of a day or more, else every <paramref name="step"/> from local midnight, so an hour

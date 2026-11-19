@@ -32,7 +32,7 @@ spacer:
   that fails is asked again when it is needed after 10 s. While a chunk in view loads, a soft pulse lies over its
   part of the plot, so loading never reads as "no data".
 - `InvalidateData()` / `InvalidateData(from, to)` let an app say new data exists (a new reading); following the latest
-  (`IsAtLatest`) keeps the window at `Latest` when it moves. `ScrollToAsync(to)` and `ScrollToLatestAsync()` move it.
+  (`IsAtNow`, see Changes 2026-11-19) keeps the window at now when it moves. `ScrollToAsync(to)` and `ScrollToNowAsync()` move it.
 - **Motion** (`ScrollMotion`, free of MAUI): velocity from the last 100 ms of the drag; a flick is projected as
   UIScrollView decelerates (rate 0.998 a millisecond) and the end snapped to `SnapTo` on the wall clock of
   `TimeZone` (local midnight for a day, round hours across a clock change), then eased out; past `Earliest`/`Latest`
@@ -89,6 +89,13 @@ weeks with "November 2026" over it, a flick back five weeks rests on whole days 
   anywhere) waits for the chart's one-finger pan, which begins only on a sideways drag or a scrub. Tried in the
   simulator: hold-and-drag scrubs without scrolling, a sideways flick scrolls (it went back a page before the
   back swipe waited), an up-and-down drag on the chart scrolls the page.
+
+- 2026-11-19: nothing past `Earliest`/`Latest` is drawn (`ChartSlice.Within`): the column sample's week chunks drew
+  days before the year's start, which looked reachable while a drag there sprang back.
+- 2026-11-19, the owner: "Now ›" went to the end of the history, wrong for a forecast. `IsAtLatest`/`ScrollToLatestAsync`
+  became `IsAtNow`/`ScrollToNowAsync`, with `NowAt` (1 history, 0 forecast, between for both) placing now in the window,
+  snapped with now in view; under 1 a line marks now. Showcase: "A forecast ahead" (yesterday and ten days of hourly
+  temperature, red above zero and blue below). Tried in the simulator: the forecast opens with now a quarter in.
 
 ## Decisions
 

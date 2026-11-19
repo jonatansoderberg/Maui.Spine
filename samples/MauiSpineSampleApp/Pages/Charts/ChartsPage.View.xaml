@@ -53,6 +53,39 @@
             </Example.Code>
         </Example>
 
+        <Example Title="A forecast ahead"
+                 Summary="Now stands a quarter in, with a line through it: yesterday behind, ten days of forecast ahead to drag through. Red above zero, blue below; the button goes back to now, not to the end.">
+            <VerticalStackLayout Spacing="8">
+                <Border StrokeThickness="1" Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
+                        Padding="10,10,6,8" StrokeShape="RoundRectangle 16">
+                    <VerticalStackLayout Spacing="2">
+                        <Grid ColumnDefinitions="*,Auto" HeightRequest="32">
+                            <Label x:Name="ForecastPicked" Text=" " FontSize="14" FontAttributes="Bold" VerticalOptions="Center" />
+                            <Button x:Name="ForecastNow" Grid.Column="1" Text="Now ›" IsVisible="False" Padding="10,0" HeightRequest="30" FontSize="13" />
+                        </Grid>
+                        <ChartScroller x:Name="ForecastScroller" Source="{Binding Weather}" Earliest="{Binding Yesterday}" Latest="{Binding TenDaysAhead}"
+                                       Span="1.00:00" NowAt="0.25" SnapTo="01:00" OneFinger="{Binding OneFinger}">
+                            <LineChart x:Name="Forecast" Minimum="-10" Maximum="12" BandLow="0" BandHigh="0" ShowBand="False"
+                                       Color="#E8505E" AboveColor="#E8505E" BelowColor="#0C7ED9" HighlightLast="False" />
+                        </ChartScroller>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;ChartScroller Source="{Binding Forecast}"
+                               Earliest="{Binding Yesterday}"
+                               Latest="{Binding TenDaysAhead}"
+                               NowAt="0.25" Span="1.00:00" SnapTo="01:00"&gt;
+                    &lt;LineChart BandLow="0" BandHigh="0" ShowBand="False"
+                               AboveColor="#E8505E" BelowColor="#0C7ED9"
+                               HighlightLast="False" /&gt;
+                &lt;/ChartScroller&gt;
+
+                // Back to now, not to the end
+                scroller.ScrollToNowAsync();
+            </Example.Code>
+        </Example>
+
         <Example Title="Columns along time"
                  Summary="A column a day over a year, two weeks in view, resting on midnight. The service is asked for a week at a time, and the month's name stays over the plot until the next month pushes it out.">
             <VerticalStackLayout Spacing="8">
