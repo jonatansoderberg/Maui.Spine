@@ -329,11 +329,17 @@ public sealed class ChartScroller : ContentView
             {
                 if (recognizer is not UIKit.UIPanGestureRecognizer pan)
                     continue;
-                pan.ShouldBegin = r =>
-                {
-                    var velocity = ((UIKit.UIPanGestureRecognizer)r).VelocityInView(r.View);
-                    return Math.Abs(velocity.X) >= Math.Abs(velocity.Y);
-                };
+                // Two fingers on the chart always mean it: which way they go is decided once they have moved
+                // (OnPan). One finger begins only on a drag that has gone more sideways than up or down, measured
+                // from where it landed, so a page scroll starting on the chart stays the page's.
+                if (pan.MinimumNumberOfTouches <= 1)
+                    pan.ShouldBegin = r =>
+                    {
+                        var moved = ((UIKit.UIPanGestureRecognizer)r).TranslationInView(r.View);
+                        return Math.Abs(moved.X) >= Math.Abs(moved.Y);
+                    };
+                // Beside the chart's own touch (the finger that picks a value out), never beside the page's scrolling.
+                pan.ShouldRecognizeSimultaneously = (_, other) => other.View is not UIKit.UIScrollView;
 #if MACCATALYST
                 pan.AllowedScrollTypesMask = UIKit.UIScrollTypeMask.All;
 #endif
@@ -462,6 +468,12 @@ public sealed class ChartScroller : ContentView
                 _panStart = _to;
                 _motion.Reset();
                 _motion.Add(now, 0);
+                // A second finger: whatever the first began to pick out lets go at once.
+                if (ReferenceEquals(sender, _twoFingers))
+                {
+                    chart.SelectsByDragging = false;
+                    chart.ClearSelection();
+                }
                 break;
             case GestureStatus.Running:
                 if (!_panning)

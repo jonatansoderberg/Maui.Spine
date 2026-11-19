@@ -224,6 +224,7 @@ public sealed class LineChart : ChartView, IScrollableChart
     ChartPoint[] _shown = [];
     RectF _plot;
     bool _scrolled, _dragSelects = true;
+    readonly TouchGrace _grace = new();
     DateTimeOffset _from, _to;
     CancellationTokenSource? _linger;
 
@@ -242,12 +243,15 @@ public sealed class LineChart : ChartView, IScrollableChart
         Unloaded += (_, _) => this.AbortAnimation(PulseAnimation);
         var pointer = new PointerGestureRecognizer();
         // On a phone a finger moves the pointer too, and never leaves: it lets go by itself, as a tap does.
+        pointer.PointerPressed += (_, _) => _grace.Press();
         pointer.PointerMoved += (_, e) =>
         {
             if (!_dragSelects)
                 return;
             if (DeviceInfo.Idiom == DeviceIdiom.Desktop)
                 Select(e.GetPosition(this) is { } p ? IndexAt(p.X) : -1);
+            else if (_scrolled && e.GetPosition(this) is { } touched)
+                _grace.Move(this, touched.X, x => Touch(x), () => _dragSelects);
             else
                 Touch(e.GetPosition(this)?.X);
         };

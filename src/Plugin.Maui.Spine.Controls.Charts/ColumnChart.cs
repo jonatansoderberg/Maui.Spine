@@ -138,9 +138,14 @@ public sealed class ColumnChart : ChartView, IScrollableChart
     {
         HeightRequest = 72;
         var pointer = new PointerGestureRecognizer();
+        pointer.PointerPressed += (_, _) => _grace.Press();
         pointer.PointerMoved += (_, e) =>
         {
-            if (_dragSelects)
+            if (!_dragSelects)
+                return;
+            if (_scrolled && DeviceInfo.Idiom != DeviceIdiom.Desktop && e.GetPosition(this) is { } touched)
+                _grace.Move(this, touched.X, x => Select(IndexAt(x)), () => _dragSelects);
+            else
                 Select(e.GetPosition(this) is { } p ? IndexAt(p.X) : -1);
         };
         pointer.PointerExited += (_, _) => Select(-1);
@@ -170,7 +175,8 @@ public sealed class ColumnChart : ChartView, IScrollableChart
         return -1;
     }
 
-    bool _dragSelects = true;
+    bool _dragSelects = true, _scrolled;
+    readonly TouchGrace _grace = new();
     float _referenceRoom;
 
     /// <summary>The columns along time: where each column's time falls across the width.</summary>
@@ -208,6 +214,7 @@ public sealed class ColumnChart : ChartView, IScrollableChart
 
     void IScrollableChart.ShowWindow(DateTimeOffset from, DateTimeOffset to)
     {
+        _scrolled = true;
         From = from;
         To = to;
     }
