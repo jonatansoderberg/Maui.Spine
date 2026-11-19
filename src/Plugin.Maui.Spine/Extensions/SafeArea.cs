@@ -45,7 +45,15 @@ public static class SafeArea
     /// </summary>
     public static readonly BindableProperty PageMarginProperty = BindableProperty.CreateAttached(
         "PageMargin", typeof(bool), typeof(SafeArea), false,
-        propertyChanged: static (bindable, _, _) => (bindable as View)?.Handler?.UpdateValue(MapperKey));
+        propertyChanged: static (bindable, _, _) =>
+        {
+            if (bindable is not View view)
+                return;
+#if IOS || MACCATALYST
+            RowMargins.Update(view);
+#endif
+            view.Handler?.UpdateValue(MapperKey);
+        });
 
     /// <summary>Gets whether <paramref name="view"/> lays its rows out inside the page margin.</summary>
     public static bool GetPageMargin(BindableObject view) => (bool)view.GetValue(PageMarginProperty);
