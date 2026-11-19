@@ -256,6 +256,7 @@ final class Node: Decodable {
     var until: Date?
     var date: Date?
     var systemImage: String?
+    var variant: String?
     var asset: String?
     var height: Double?
     var value: Double?
@@ -440,8 +441,8 @@ struct NodeView: View {
         case "image":
             // The app rasterized the icon from an SVG as a white mask. Only an SF Symbol's dotted name still falls back to
             // the symbol, as before Spine drew icons from SVGs alone; any other name draws nothing without its SVG, as on
-            // Android, so the two never differ.
-            if let name = node.systemImage, let mask = Store.image(asset: "icons/\(name).png") {
+            // Android, so the two never differ. An icon drawn with heavier or round lines is stored as name@variant.
+            if let name = node.systemImage, let mask = Store.image(asset: "icons/\(name)\(node.variant.map { "@" + $0 } ?? "").png") {
                 Image(uiImage: mask).renderingMode(.template).resizable().scaledToFit()
                     .frame(width: CGFloat(node.height ?? 18), height: CGFloat(node.height ?? 18))
                     .foregroundStyle(Palette.color(node.color))

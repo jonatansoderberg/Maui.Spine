@@ -82,7 +82,7 @@ The file itself stays as it was exported.
 dotnet add package Plugin.Maui.Spine.Svg.Icons
 ```
 
-**Trend arrows** — `ArrowUp`, `ArrowUpRight`, `ArrowRight`, `ArrowDownRight`, `ArrowDown` — are one shape turned, with a round stroke three times the line icons' weight, so the direction of a value reads beside the number. In a widget or Live Activity, `W.Icon("arrow.up.right")` finds `ArrowUpRight.svg`, and an iOS widget that has not stored it yet falls back to the SF Symbol of that name.
+**Trend arrows** — `ArrowUp`, `ArrowUpRight`, `ArrowRight`, `ArrowDownRight`, `ArrowDown` — are drawn in the same 2-unit line as the rest of the set. Beside a large number that is too thin: give the arrow its weight where it is drawn, `LineWidthScale="3"` and `RoundLineEnds="True"` on the `SvgImageSource` in the app, `W.Icon(SpineIcons.ArrowUpRight).LineWidthScale(3).RoundLineEnds()` in a widget or Live Activity (see [Line width](#line-width)). Before, the five files had that weight drawn in; an app that showed them beside a value sets it now.
 
 **Delete and remove** use `Delete.svg` (`SpineIcons.Delete`), in menus, action sheets, swipe actions and header buttons alike. `Trashcan.svg` is the trash can as an object, not the action.
 

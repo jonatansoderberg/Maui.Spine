@@ -160,7 +160,9 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         {
             if (Find(Region(layout, region), "image") is not { } icon) continue;
             var pixels = (int)(IconDp * _context.Resources!.DisplayMetrics!.Density);
-            if (_icons.Bitmap(icon.TryGetProperty("systemImage", out var name) ? name.GetString() : null, pixels) is not { } bitmap) continue;
+            if (_icons.Bitmap(icon.TryGetProperty("systemImage", out var name) && name.GetString() is { } svg
+                    ? Plugin.Maui.Spine.Common.IconNode.AssetName(svg, icon.TryGetProperty("variant", out var variant) ? variant.GetString() : null)
+                    : null, pixels) is not { } bitmap) continue;
             accent = icon.TryGetProperty("color", out var color) ? WidgetPalette.Concrete(color.GetString()) : null;
             return Icon.CreateWithBitmap(bitmap)!;
         }

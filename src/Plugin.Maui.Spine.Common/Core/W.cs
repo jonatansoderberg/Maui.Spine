@@ -379,6 +379,17 @@ public static class WidgetNodeStyling
     /// <summary>Tints the icon with <paramref name="color"/>.</summary>
     public static IconNode Tint(this IconNode node, WidgetColor color) => node with { Color = color };
 
+    /// <summary>
+    /// Multiplies every line width of the icon's SVG, as <c>SvgImageSource.LineWidthScale</c> does in the app: <c>3</c> for
+    /// an arrow that has to read beside a large number. Filled parts are left as they are.
+    /// </summary>
+    public static IconNode LineWidthScale(this IconNode node, double scale) =>
+        node with { Variant = IconNode.VariantOf(scale, IconNode.ParseVariant(node.Variant)?.RoundLineEnds ?? false) };
+
+    /// <summary>Ends every line of the icon's SVG in a half circle and rounds its corners, as <c>SvgImageSource.RoundLineEnds</c> does in the app.</summary>
+    public static IconNode RoundLineEnds(this IconNode node, bool round = true) =>
+        node with { Variant = IconNode.VariantOf(IconNode.ParseVariant(node.Variant)?.LineWidthScale ?? 1, round) };
+
     /// <summary>Draws the ring in <paramref name="color"/>.</summary>
     public static RingNode Tint(this RingNode node, WidgetColor color) => node with { Color = color };
 

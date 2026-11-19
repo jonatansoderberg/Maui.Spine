@@ -37,7 +37,7 @@
                     <Icon Source="Warning" Tint="#FF9500" Size="{Size, Scale=0.6}" />
                 </When>
                 <When If="{Symbol}">
-                    <Icon Source="{Symbol}" Tint="{Color}" Size="{Size, Scale=0.7}" />
+                    <Icon Source="{Symbol}" Tint="{Color}" Size="{Size, Scale=0.7}" LineWidthScale="3" RoundLineEnds="True" />
                 </When>
                 <Otherwise>
                     <Label Text="{Arrow}" FontSize="{Size, Scale=0.7}" FontAttributes="Bold" TextColor="{Color}" />

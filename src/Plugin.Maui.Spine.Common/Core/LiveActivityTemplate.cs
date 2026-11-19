@@ -31,7 +31,9 @@ public sealed class LiveActivityTemplate
         _root = root;
         Json = root.ToJsonString();
         Icons = [.. (icons ?? []).Concat(root.DescendantsAndSelf().OfType<JsonObject>()
-            .Select(n => n["systemImage"] is JsonValue v && v.TryGetValue<string>(out var name) ? name : null).OfType<string>()).Distinct(StringComparer.Ordinal)];
+            .Select(n => n["systemImage"] is JsonValue v && v.TryGetValue<string>(out var name)
+                ? IconNode.AssetName(name, n["variant"] is JsonValue w && w.TryGetValue<string>(out var variant) ? variant : null)
+                : null).OfType<string>()).Distinct(StringComparer.Ordinal)];
     }
 
     /// <summary>The template's name and a hash of its content, <c>glucose-activity@1a2b3c4d</c>: a changed layout is a new template.</summary>

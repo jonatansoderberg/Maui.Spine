@@ -323,6 +323,51 @@ public sealed record IconNode([property: JsonPropertyName("systemImage")] string
     /// </summary>
     [JsonPropertyName("altText")]
     public string? AltText { get; init; }
+
+    /// <summary>
+    /// How the SVG is drawn when not as it stands: the scale of its line widths, then <c>r</c> for round line ends
+    /// (<c>3r</c>, <c>1.5</c>, <c>r</c>). Set with <see cref="WidgetNodeStyling.LineWidthScale"/> and
+    /// <see cref="WidgetNodeStyling.RoundLineEnds"/>; each variant is stored as a picture of its own.
+    /// </summary>
+    [JsonPropertyName("variant")]
+    public string? Variant { get; init; }
+
+    /// <summary>
+    /// The name the icon's picture is stored under: its name, and <c>@</c> with the <see cref="Variant"/> when it has one
+    /// (<c>ArrowUpRight@3r</c>). What <c>SpineWidgetsOptions.Icons</c> takes for an icon a server may push.
+    /// </summary>
+    [JsonIgnore]
+    public string Asset => AssetName(SystemName, Variant);
+
+    internal static string AssetName(string name, string? variant) => string.IsNullOrEmpty(variant) ? name : name + "@" + variant;
+
+    internal static string? VariantOf(double lineWidthScale, bool roundLineEnds)
+    {
+        var scale = Math.Abs(lineWidthScale - 1) < 0.005 || lineWidthScale <= 0 ? "" : lineWidthScale.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        var variant = scale + (roundLineEnds ? "r" : "");
+        return variant.Length == 0 ? null : variant;
+    }
+
+    /// <summary>The line width scale and round ends a variant stands for; null when the text is no variant.</summary>
+    internal static (double LineWidthScale, bool RoundLineEnds)? ParseVariant(string? variant)
+    {
+        if (string.IsNullOrEmpty(variant)) return (1, false);
+        var round = variant.EndsWith('r');
+        var number = round ? variant[..^1] : variant;
+        if (number.Length == 0) return (1, round);
+        return double.TryParse(number, System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out var scale) && scale > 0
+            ? (scale, round)
+            : null;
+    }
+
+    /// <summary>A stored name back into the icon's name and its variant: <c>ArrowUpRight@3r</c> is <c>ArrowUpRight</c> drawn <c>3r</c>.</summary>
+    internal static (string Name, double LineWidthScale, bool RoundLineEnds) ParseAsset(string asset)
+    {
+        var at = asset.LastIndexOf('@');
+        return at > 0 && at < asset.Length - 1 && ParseVariant(asset[(at + 1)..]) is { } variant
+            ? (asset[..at], variant.LineWidthScale, variant.RoundLineEnds)
+            : (asset, 1, false);
+    }
 }
 
 /// <summary>A bitmap the app has placed in the shared container under <see cref="AssetId"/>.</summary>

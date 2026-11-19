@@ -489,6 +489,12 @@
       <xs:attribute name="Size" type="xs:string">
         <xs:annotation><xs:documentation>Points square.</xs:documentation></xs:annotation>
       </xs:attribute>
+      <xs:attribute name="LineWidthScale" type="xs:string">
+        <xs:annotation><xs:documentation>Multiplies the SVG's line widths: 3 for an arrow beside a large number.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="RoundLineEnds" type="xs:string">
+        <xs:annotation><xs:documentation>Round ends and corners on the SVG's lines.</xs:documentation></xs:annotation>
+      </xs:attribute>
       <xs:attribute name="AltText" type="xs:string">
         <xs:annotation><xs:documentation>The icon as text where only text fits.</xs:documentation></xs:annotation>
       </xs:attribute>

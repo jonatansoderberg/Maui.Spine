@@ -240,6 +240,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Timer(until, prefix)` | A countdown the **system** redraws every second, with optional text in front of it |
 | `W.Relative(date, compact, prefix, rounded, ago)` | Relative text ("3 min ago"), also system-drawn. `ago` gives "now", then "3 minutes ago"; `rounded` gives whole minutes, then hours and minutes (see [Choosing a time node](#choosing-a-time-node)) |
 | `W.Icon(name, color, size)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
+| `.LineWidthScale(3)` / `.RoundLineEnds()` on an icon | Heavier lines and round ends for the icon's SVG, as `SvgImageSource` has them in the app: a trend arrow beside a large value |
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
 | `W.Ring(value, color, size)` | A share (0 to 1, null for unknown) as a ring: a faint track all round, the value clockwise from 12 o'clock. Put it in a `ZStack` with a text for the number. SwiftUI draws it; Android draws it as a picture |
@@ -342,7 +343,7 @@ A node can say what it is in a Live Activity with `.Part(ActivityPart.…)`: `Su
 A widget or a Live Activity's region reads as **one sentence** to VoiceOver and TalkBack: its texts and the descriptions of its icons and pictures, in order. A `.Description("…")` on the root replaces that sentence; on any other node it is what that node says, as MAUI's `SemanticProperties.Description`. `.Decorative()` leaves a node out, as MAUI's `IsInAccessibleTree="False"`.
 
 ```csharp
-W.Icon(SpineIcons.ArrowDownRight).Description("sjunker")
+W.Icon(SpineIcons.ArrowDownRight).LineWidthScale(3).RoundLineEnds().Description("sjunker")
 W.Image(team.LogoAsset).Decorative()                    // the team's name is beside it
 W.Sparkline(lastHour).Description("stiger från 6,7 till 9,3 senaste timmen")
 ```
@@ -638,7 +639,13 @@ public Task OnWidgetOpenedAsync(WidgetLink link) =>
 
 Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it.
 
-**Icons are SVGs only, by two kinds of name:** the icons of `Plugin.Maui.Spine.Svg.Icons` by their constants, `W.Icon(SpineIcons.ArrowUpRight)` (the trend arrows drawn to stand beside a value), and the app's own by file name. The build writes a constant for each SVG the app embeds or ships as a `MauiImage`, `AppIcons.Drop` for `drop.svg`, so a misspelt or removed icon is a build error (`<SpineAppIcons>false</SpineAppIcons>` turns it off). Both platforms draw the same SVG. A name with no SVG is drawn nowhere and logged once; only an SF Symbol's dotted name (`"arrow.up.right"`, from before) still finds its PascalCase SVG and, failing that, falls back to the symbol on iOS. That form is kept for existing trees and should not be used for new ones.
+**Icons are SVGs only, by two kinds of name:** the icons of `Plugin.Maui.Spine.Svg.Icons` by their constants, `W.Icon(SpineIcons.ArrowUpRight)`, and the app's own by file name. The build writes a constant for each SVG the app embeds or ships as a `MauiImage`, `AppIcons.Drop` for `drop.svg`, so a misspelt or removed icon is a build error (`<SpineAppIcons>false</SpineAppIcons>` turns it off). Both platforms draw the same SVG. A name with no SVG is drawn nowhere and logged once; only an SF Symbol's dotted name (`"arrow.up.right"`, from before) still finds its PascalCase SVG and, failing that, falls back to the symbol on iOS. That form is kept for existing trees and should not be used for new ones.
+
+**An icon's line weight is set where it is drawn.** Spine's icons have a 2-unit line, right for a row or a header and too thin beside a large value. `.LineWidthScale(3)` multiplies the SVG's line widths and `.RoundLineEnds()` rounds their ends and corners, the same two settings as `SvgImageSource` in the app; filled parts stay as they are. Each combination is stored as a picture of its own, under the icon's name and the variant (`ArrowUpRight@3r`, the node's `Asset`).
+
+```csharp
+W.HStack(4, W.Text("7,4").Title().Bold(), W.Icon(SpineIcons.ArrowUpRight, color).LineWidthScale(3).RoundLineEnds())
+```
 
 **Icons a server may push** must be on the device before the push: the app draws the icons of every tree it writes itself, but a Live Activity updated by a server can name one the app has never shown. List them once, and Spine draws them when the app starts:
 
@@ -646,7 +653,7 @@ Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kir
 builder.UseSpineWidgets(options =>
 {
     options.Icons.Add(SpineIcons.ArrowUp);
-    options.Icons.Add(SpineIcons.ArrowUpRight);
+    options.Icons.Add(W.Icon(SpineIcons.ArrowUpRight).LineWidthScale(3).RoundLineEnds().Asset);   // drawn heavier: stored as that variant
     options.Icons.Add(AppIcons.Drop);
 });
 ```

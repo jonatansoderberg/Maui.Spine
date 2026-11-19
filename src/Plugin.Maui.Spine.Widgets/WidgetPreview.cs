@@ -389,7 +389,7 @@ public sealed class WidgetPreview : ContentView
     {
         var size = Number(node, "height") ?? (Platform == WidgetPlatform.Android ? 20 : 18);
         var color = Paint(Text(node, "color")) ?? Ink();
-        var png = Services?.GetService<WidgetIconAssets>()?.Picture(Text(node, "systemImage") ?? "", Sk(color));
+        var png = Services?.GetService<WidgetIconAssets>()?.Picture(IconNode.AssetName(Text(node, "systemImage") ?? "", Text(node, "variant")), Sk(color));
         return png is null
             ? new Label { Text = "?", FontSize = size * 0.8, TextColor = color, WidthRequest = size, HeightRequest = size, HorizontalTextAlignment = TextAlignment.Center }
             : new Image { Source = ImageSource.FromStream(() => new MemoryStream(png)), WidthRequest = size, HeightRequest = size };

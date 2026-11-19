@@ -23,7 +23,7 @@
         </Card>
         <Label Text="{Loc Goals, Count=GoalCount}" />
         <HStack Background="{OnBool IsLive, True=Red}" Spacing="Evenly">
-            <Icon Source="{Mark}" Values="ArrowUpRight, ArrowDownRight" Tint="{AppThemeBinding Light=#1C1C1E, Dark=#FFFFFF}" Decorative="True" />
+            <Icon Source="{Mark}" Values="ArrowUpRight, ArrowDownRight" LineWidthScale="3" RoundLineEnds="True" Tint="{AppThemeBinding Light=#1C1C1E, Dark=#FFFFFF}" Decorative="True" />
             <Label Text="{Next, Fallback={Loc NoMoreGames}}" MaxLines="2" Margin="0,2,0,0">
                 <On Platform="Android" FontSize="12" />
             </Label>
