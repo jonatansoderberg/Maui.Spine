@@ -305,6 +305,32 @@ Every page lines its content up with the header bar's outermost buttons: `Header
 - **Windows:** the margin is added to the list's `Padding`.
 - A `ScrollView` has no `PageMargin`: put `Padding="{x:Static HeaderBarConstants.PagePadding}"` on its content.
 
+### A row under the header bar
+
+A page whose content is about one thing, or depends on one choice for all of it, keeps that in view as part of the header: whose figures and which period, above a report that scrolls. `SpinePage.HeaderRow` is a view in a row of its own below the bar, as the [search row](search.md) is:
+
+```xml
+<SpinePage ...>
+    <SpinePage.HeaderRow>
+        <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="10" Margin="0,4,0,8">
+            <Label Text="{Binding PersonName}" HorizontalTextAlignment="Center" />
+            <SegmentedControl SelectedIndex="{Binding PeriodIndex}">
+                <Segment Title="7 d" />
+                <Segment Title="30 d" />
+            </SegmentedControl>
+        </VerticalStackLayout>
+    </SpinePage.HeaderRow>
+
+    <ScrollView> ... </ScrollView>
+</SpinePage>
+```
+
+- **The row is part of the header.** It moves with the page in a push or a pop, the way the title does. Under a floating header (`Overlay`, a large title, or a scroll edge background) the content scrolls under the row as well as the bar: `SafeAreaInsets.Top` and the scroll inset include it, and the scroll edge effect or solid background reaches below it. Fixed content above a page's list would keep the bar `Solid` (see [Scroll edge](#scroll-edge)); in the header row it does not.
+- **Its height is its own:** the row is laid out at the height it asks for, across the page's width inside the safe area, and a change in that height (a line that wraps, a part shown or hidden) moves the content with it. It gets no side margin from Spine: give it `HeaderBarConstants.PagePadding`, as the page's content has.
+- It gets the page's `BindingContext`, as `Footer` does.
+- **With a search row** the header row goes below the field. While a search takes the bar's place the row goes up with the bar and fades, and the content moves into its place.
+- A page without a header bar (`IsHeaderBarVisible = false`) shows no header row.
+
 ### Changing the header while the page is shown
 
 `HeaderBarMode`, `LargeTitle`, `HeaderBarBackground`, `HeaderBarForeground` and `StatusBarStyle` are properties on `ViewModelBase`. The attribute sets them before the page appears; set them later and Spine resolves the header again (`Auto`, Reduce Transparency and the fallbacks included) and lays the page out again, under the bar or below it.

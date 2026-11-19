@@ -37,6 +37,9 @@ internal sealed partial class PagePresenter : Grid
     private readonly ContentView _footerHost;
     private IPageFooterSource? _footerSource;
 
+    // The page's own row under the header bar (SpinePage.HeaderRow), part of the title row.
+    private readonly ContentView _headerRowHost;
+
     // The page's search field in the row below the header bar, at the bottom of the title row.
     private SearchField? _searchField;
     private double _sheetOverhang;
@@ -113,6 +116,14 @@ internal sealed partial class PagePresenter : Grid
         Grid.SetRow(_footerHost, 2);
         Children.Add(_footerHost);
 
+        // Over the content and the bar's background when they share the row, as the search field is. It spans the
+        // title row and the content's, so it is laid out at its own height whatever the title row's height is, and
+        // that height then sets the title row's (OnHeaderRowSized).
+        _headerRowHost = new ContentView { IsVisible = false, VerticalOptions = LayoutOptions.Start, ZIndex = 3 };
+        Grid.SetRowSpan(_headerRowHost, 2);
+        Children.Add(_headerRowHost);
+        _headerRowHost.SizeChanged += (_, _) => OnHeaderRowSized();
+
         _titleLabel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IsVisible))
@@ -140,15 +151,78 @@ internal sealed partial class PagePresenter : Grid
         if (!ReferenceEquals(source, _footerSource))
         {
             if (_footerSource is not null)
+            {
                 _footerSource.FooterChanged -= OnFooterChanged;
+                _footerSource.HeaderRowChanged -= OnHeaderRowChanged;
+            }
 
             _footerSource = source;
 
             if (source is not null)
+            {
                 source.FooterChanged += OnFooterChanged;
+                source.HeaderRowChanged += OnHeaderRowChanged;
+            }
         }
 
         ApplyFooter();
+        ApplyHeaderRow();
+    }
+
+    private void OnHeaderRowChanged(object? sender, EventArgs e) => ApplyHeaderRow();
+
+    // The header row is a property value of the page, as the footer is: hosted here, in the title row,
+    // and handed the page's binding context by hand.
+    private void ApplyHeaderRow()
+    {
+        var row = _footerSource?.HeaderRow;
+
+        _headerRowHost.Content = row;
+        _headerRowHost.IsVisible = row is not null;
+
+        if (row is not null && _footerSource is BindableObject page)
+            _headerRowHost.SetBinding(BindingContextProperty, new Binding(nameof(BindingContext), source: page));
+        else
+            _headerRowHost.RemoveBinding(BindingContextProperty);
+
+        // A new page's row as tall as the last one raises no SizeChanged: read its height now as well.
+        OnHeaderRowSized();
+        ApplyHeaderRowFrame();
+    }
+
+    // The row's height, once it is laid out, moves the title row's bottom, the page's top inset and so the
+    // scroll inset.
+    private void OnHeaderRowSized()
+    {
+        if (_page is not { } page)
+            return;
+
+        var height = _headerRowHost is { IsVisible: true, Content: not null } && page.IsHeaderBarVisible
+            ? Math.Ceiling(_headerRowHost.Height)
+            : 0;
+        if (height < 0 || Math.Abs(height - page.HeaderRowRestHeight) < 0.5)
+            return;
+
+        page.HeaderRowRestHeight = height;
+        page.SafeAreaInsets = NavigationRegion.SafeAreaInsetsFor(page, page.SystemBarInsets);
+        ApplyTitleRowHeight();
+    }
+
+    // Under the header bar and a search row; while a search takes the bar's place the row goes up with the
+    // bar and fades, and the content takes its place.
+    private void ApplyHeaderRowFrame()
+    {
+        if (!_headerRowHost.IsVisible || _page is not { } page)
+            return;
+
+        var progress = page.SearchProgress;
+        var sides = page.SafeAreaInsets;
+        var overlayInset = page.HeaderBarFloats ? page.SystemBarInsets.Top : 0;
+        var top = overlayInset + HeaderBarConstants.BarHeight * (1 - progress) + page.SearchRowHeight;
+
+        _headerRowHost.Opacity = 1 - progress;
+        _headerRowHost.InputTransparent = progress > 0.5;
+        _headerRowHost.Margin = new Thickness(sides.Left, top, sides.Right, 0);
     }
 
     private void OnFooterChanged(object? sender, EventArgs e) => ApplyFooter();
@@ -229,6 +303,7 @@ internal sealed partial class PagePresenter : Grid
         else if (e.PropertyName is nameof(ViewModelBase.SearchProgress))
         {
             ApplySearchRowFrame();
+            ApplyHeaderRowFrame();
             ApplyTitleBarMargin();
             ApplyTitleRowHeight();
             ApplyCollapse();
@@ -285,6 +360,7 @@ internal sealed partial class PagePresenter : Grid
         _barBackground.ZIndex = floats ? 1 : 0;
 
         ApplySearchRow();
+        ApplyHeaderRowFrame();
         ApplyTitleRowHeight();
         ApplyTitleTextColor();
         ApplyBarBackgroundColor();
@@ -604,7 +680,8 @@ internal sealed partial class PagePresenter : Grid
 
         var overlayInset = _page?.HeaderBarFloats == true ? _page.SystemBarInsets.Top : 0;
         var search = _page?.SearchRowHeight ?? 0;
-        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.BarHeight + overlayInset + search);
+        var headerRow = _page?.HeaderRowHeight ?? 0;
+        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.BarHeight + overlayInset + search + headerRow);
 
         // Padding keeps the label as tall as the bar and a search row below it, so UIKit's edge
         // effect covers all of it. UIKit's own hard band under an inline title in a pushed or root
@@ -613,10 +690,12 @@ internal sealed partial class PagePresenter : Grid
         // search row's height at rest, also while a search takes it away: a padding is not
         // animated, and the title would drop as the row started to shrink.
         var row = _page is { SearchLayout: SearchLayout.Row, SearchInPlace: false };
-        var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height + (row ? HeaderBarConstants.SearchRowHeight : 0));
+        var ownRow = _page?.HeaderRowRestHeight ?? 0;
+        var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height + (row ? HeaderBarConstants.SearchRowHeight : 0) + ownRow);
         var itemsOnly = BarBackground is HeaderBarBackground.HardEdge
             && _page?.LargeTitle != true
             && !row
+            && ownRow == 0
             && (BindingContext as NavigationRegionViewModel)?.Presentation is not NavigationPresentation.Sheet;
         _titleLabel.Padding = itemsOnly ? Thickness.Zero : below;
         _titleLabel.Margin = itemsOnly ? below : Thickness.Zero;

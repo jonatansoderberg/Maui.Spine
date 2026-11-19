@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:MauiSpineSampleApp.Pages.HeaderRow"
+    x:Class="MauiSpineSampleApp.Pages.HeaderRow.HeaderRowPage"
+    x:TypeArguments="local:HeaderRowPageViewModel"
+    x:DataType="local:HeaderRowPageViewModel">
+
+    <!-- Whose figures and which period: part of the header, so the cards scroll under it and the bar's scroll edge reaches below it. -->
+    <SpinePage.HeaderRow>
+        <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="10" Margin="0,4,0,8">
+            <Label Text="Alex" FontSize="15" Opacity="0.6" HorizontalTextAlignment="Center" />
+            <SegmentedControl SelectedIndex="{Binding PeriodIndex}">
+                <Segment Title="7 d" />
+                <Segment Title="14 d" />
+                <Segment Title="30 d" />
+                <Segment Title="90 d" />
+            </SegmentedControl>
+        </VerticalStackLayout>
+    </SpinePage.HeaderRow>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="12" Margin="0,8,0,32"
+                             BindableLayout.ItemsSource="{Binding Weeks}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="local:Week">
+                    <Border Padding="16,14" StrokeThickness="1" Stroke="{AppThemeBinding Light=#E5E5EA, Dark=#3A3A3C}" StrokeShape="RoundRectangle 16">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="{Binding Name}" FontSize="17" FontAttributes="Bold" />
+                            <Label Text="{Binding Detail}" FontSize="13" Opacity="0.6" />
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>
