@@ -1,7 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<!-- The Showcase runs on .NET 11 (MAUI 11) while the Spine packages it references stay on .NET 10
+		     ($(SpineMauiTargetFrameworks)); global.json in this folder picks the .NET 11 SDK. -->
+		<TargetFrameworks>net11.0-android;net11.0-ios;net11.0-maccatalyst</TargetFrameworks>
+		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net11.0-windows10.0.19041.0</TargetFrameworks>
 
 
 		<!-- Note for MacCatalyst:
@@ -27,8 +30,9 @@
 
 		<!-- App Identifier -->
 		<ApplicationId>se.cosmomedia.spineshowcase</ApplicationId>
-		<!-- Plugin.Maui.Spine.Scanner uses CameraX, which needs Android 6.0. -->
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
+		<!-- .NET 11's minimums: Android 7.0 (above the 6.0 Plugin.Maui.Spine.Scanner's CameraX needs) and Mac Catalyst 17 (macOS 14). -->
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">17.0</SupportedOSPlatformVersion>
 
 		<!-- Versions: major.yyMMdd.revision and a build id, from Version.props (samples/Directory.Build.props). -->
 
@@ -36,6 +40,12 @@
 		<WindowsPackageType>None</WindowsPackageType>
 
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<!-- .NET 11's Apple SDKs need Xcode 27.2. Pointing at it here leaves the selected Xcode (xcode-select) on the
+	     version the .NET 10 Spine projects are built with. Override with -p:XcodeLocation=... or DEVELOPER_DIR. -->
+	<PropertyGroup Condition="'$(XcodeLocation)' == '' And '$(DEVELOPER_DIR)' == '' And Exists('/Applications/Xcode_27.2.app')">
+		<XcodeLocation>/Applications/Xcode_27.2.app</XcodeLocation>
 	</PropertyGroup>
 
 	<!-- Windows names an unpackaged app after its file's description and product name, not ApplicationTitle: the
@@ -76,7 +86,7 @@
 	<ItemGroup>
 		<PackageReference Include="AsyncAwaitBestPractices" />
 		<PackageReference Include="CommunityToolkit.Mvvm" />
-		<PackageReference Include="Microsoft.Maui.Controls" />
+		<PackageReference Include="Microsoft.Maui.Controls" VersionOverride="11.0.10" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
 	</ItemGroup>
 
@@ -915,6 +925,8 @@
 	     signed with that team's certificate: set CodesignKey, e.g. in MauiSpineSampleApp.csproj.user. -->
 	<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
 		<SpineWidgetsAppGroup>7F2CQZ9T84.se.cosmomedia.spineshowcase</SpineWidgetsAppGroup>
+		<!-- .NET 11 checks entitlements against a provisioning profile (MT7139); macOS allows the Team ID App Group without one. -->
+		<ValidateEntitlements>warn</ValidateEntitlements>
 	</PropertyGroup>
 
 	<!-- The score activity has a layout of its own for CarPlay and the Apple Watch (ScoreActivity's Small). -->
@@ -936,9 +948,9 @@
 		<SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Description="A goal for the Owls in the running game, without opening the app." Icon="Plus" />
 		<SpineControl Include="spine-icons" Type="Button" DisplayName="Spine icons" Description="Spine's SVG icons as custom symbols; tap for the next one." Icon="ArrowUpRight" />
 	</ItemGroup>
-	<!-- The AI client page's on-device model: Apple Intelligence, from the .NET 10 preview of Essentials.AI (Q24). -->
+	<!-- The AI client page's on-device model: Apple Intelligence, from the .NET 11 preview of Essentials.AI (Q24). -->
 	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
-		<PackageReference Include="Microsoft.Maui.Essentials.AI" />
+		<PackageReference Include="Microsoft.Maui.Essentials.AI" VersionOverride="11.0.0-preview.9.26567.2" />
 	</ItemGroup>
 	<PropertyGroup>
 		<!-- Essentials.AI marks its types as an evaluation preview. -->

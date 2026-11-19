@@ -313,12 +313,24 @@ Firebase project's `google-services.json` for Android, with an Android app for t
 
 ### Run the sample
 
+The Showcase runs on .NET 11 (MAUI 11) while the Spine packages stay on .NET 10, so it has a `global.json` of its own:
+build it from its folder, with the .NET 11 SDK and its `maui` workload. The Apple builds use Xcode 27.2 from
+`/Applications/Xcode_27.2.app` (or `-p:XcodeLocation=…`), whichever Xcode is selected.
+
 ```bash
+cd samples/MauiSpineSampleApp
+
 # Android
-dotnet build samples/MauiSpineSampleApp -t:Run -f net10.0-android
+dotnet build -t:Run -f net11.0-android
+
+# iOS simulator
+dotnet build -t:Run -f net11.0-ios -r iossimulator-arm64
+
+# Mac
+dotnet build -t:Run -f net11.0-maccatalyst
 
 # Windows
-dotnet build samples/MauiSpineSampleApp -t:Run -f net10.0-windows10.0.19041.0
+dotnet build -t:Run -f net11.0-windows10.0.19041.0
 ```
 
 Or open the solution in Visual Studio 2022 and press **F5**.
