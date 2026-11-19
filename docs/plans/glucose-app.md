@@ -1,7 +1,7 @@
 # Plan: Glukos – glukosvärdet här och nu
 
 **Påbörjad:** 2026-10-21
-**Senast uppdaterad:** 2026-10-21 (femte utkastet: renskrivet, med kartläggning av vad användare efterfrågar, Garmin på djupet och dialogen med Abbott)
+**Senast uppdaterad:** 2026-11-19 (köp med RevenueCat, Standard var 15:e minut, demokällan varje minut, test av prenumerationer i §7.9)
 
 En app byggd på Spine som visar ett aktuellt glukosvärde. Värdet hämtas av en backend i Azure Functions från en **källa**, först LibreLinkUp (FreeStyle Libre 3) och senare Nightscout.
 Det visas i appen, i en Live Activity (iPhone, och därmed StandBy, Macens menyrad och Apple Watch), i Live Update (Android), på Garmin-klockan (datafält, glance och urtavla)
@@ -23,7 +23,7 @@ Arbetsnamn: **Glukos**. Statusvärden: **Förslag**, **Klar att börja**, **Påg
   5. Garmin.
   Allt ligger inom "här och nu".
 - **Det tydligaste försprånget:** en Live Activity som startar om sig själv efter iOS gräns på 8 timmar. Spine kan redan göra det med push-to-start, och ingen konkurrent gör det bra.
-- **Gratisnivån (Standard)** innehåller Live Activity, Garmin, DIY och säkerhetsläget, med ett nytt värde var 5:e minut. **Plus** säljer tätheten: varje minut.
+- **Gratisnivån (Standard)** innehåller Live Activity, Garmin, DIY och säkerhetsläget, med ett nytt värde var 15:e minut. **Plus** är en prenumeration som säljer tätheten: varje minut. **Demokällan** ger varje minut gratis, så att alla kan se hur Plus ser ut. Köpen går genom **RevenueCat**, och servern får veta om dem via en webhook (§7.9).
 - **Garmin:** tre appar.
   - Ett **datafält** som visar och **loggar glukos i aktiviteten**, med graf och min, max och snitt i Garmin Connect.
   - En **app med glance** som också publicerar värdet som complication till andra urtavlor.
@@ -123,7 +123,9 @@ Styrkan bygger på antal kommentarer och separata trådar (detaljer i marknadsdo
 | Mörkt läge, dynamisk textstorlek | Måste | |
 | Svenska och engelska | Måste | §8.6 |
 | **Notiser per person**: lågt, mycket lågt, högt, snabb förändring, inga nya värden, med talade ljud | Bör (direkt efter v1-kärnan) | §7.8 |
-| **Säkerhetsläge**: hämtning varje minut vid lågt eller sjunkande värde, oavsett nivå | Bör | §7.8 |
+| **Säkerhetsläge**: hämtning varje minut vid lågt eller sjunkande värde, oavsett nivå | Måste | §7.8. Måste sedan Standard blev 15 minuter |
+| **Demokälla**: simulerade värden varje minut, utan LinkUp, för att prova Plus och för App Review | Måste | §7.2, §7.9 |
+| **Plus**: prenumeration per månad och år, provperiod, återställ köp, hantera prenumeration | Måste | §7.9 |
 | Sängläge: helskärm, stor siffra, dämpad | Bör | StandBy täcker mycket gratis |
 | Valfritt diskret ljud vid nytt värde | Senare | |
 | Critical alerts | Senare, men ansök tidigt | Kräver Apples godkännande (G7) |
@@ -228,7 +230,7 @@ Priser för andra är inte verifierade.
 ```
  FreeStyle Libre 3 ──▶ Libre 3-appen ──▶ LibreView / LibreLinkUp ─┐
  (senare) xDrip+, Juggluco, Loop, AAPS ──▶ användarens Nightscout ─┤
-                                                                  │  HTTPS: var 5:e min (Standard), varje min (Plus, säkerhetsläge)
+                                                                  │  HTTPS: var 15:e min (Standard), varje min (Plus, säkerhetsläge)
  ┌──────────── Azure (Sweden Central), Function App ──────────────┼───────────────────────────────┐
  │  Timer "PollDue" var 10:e s ───────────────────────────────────┘                               │
  │     └─ källor på tur ─▶ IGlucoseSource ─▶ ny mätning per person ─▶ Readings (Table)             │
@@ -240,6 +242,7 @@ Priser för andra är inte verifierade.
  │  HTTP /v1/…        appen (hämtar vid nextUpdateAt), Garmin, DIY                                 │
  │  HTTP /api/v1/…, /api/v2/properties, /pebble   Nightscout-kompatibelt                           │
  │  HTTP /auth/… (Spine.Server.Authentication) · /push/… (Spine.Server)                            │
+ │  HTTP /v1/purchases/revenuecat   webhook från RevenueCat: köp, förnyelse, utgång (§7.9)         │
  │  Timers "Maintenance" (rensning, rotation av Live Activity) och "Canary" (§7.11)               │
  │  Storage Account (Table) · Key Vault · Application Insights · Managed Identity                  │
  └─────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -275,7 +278,7 @@ Nocturne (Nightscouts API omskrivet i .NET 10, AGPL) är en referens för de Nig
 | **Azure Functions, Consumption-planen på Windows** | Inom gratiskvoten (1 miljon körningar och 400 000 GB-s per månad) med upplägget i §7.5. Linux-varianten fasas ut 2028-09-30, men Windows berörs inte |
 | **Flex Consumption** vid fler användare | Rekommenderas för nya appar, skalar bättre. Mindre gratiskvot (250 000 körningar, 100 000 GB-s) |
 | **Storage Account** (Table) | All data. Samma konto som Functions behöver ändå |
-| **Key Vault** | Signeringsnyckeln, APNs `.p8`, FCM, nyckeln som krypterar källornas uppgifter |
+| **Key Vault** | Signeringsnyckeln, APNs `.p8`, FCM, nyckeln som krypterar källornas uppgifter, RevenueCats webhook-hemlighet och hemliga API-nyckel |
 | **Application Insights** | Med sampling, under de gratis 5 GB per månad |
 | **Managed Identity**, GitHub Actions | Inga anslutningssträngar. Bygga och driftsätta |
 
@@ -326,7 +329,7 @@ Libre använder samma pil som Libre 3-appen visar (Abbott: ↑ mer än 2 mg/dL p
 **Nightscout (efter v1):** webbadress och en access token med rollen `readable` (inte `API_SECRET`).
 Hämtning med `GET /api/v1/entries.json?find[date][$gt]=<senaste>&count=10`, målområdet från `/api/v1/status.json`. Högst varje minut.
 
-**Fejkad källa** (bara i dev): två personer med sinuskurvor, alla trender, glapp och sensorns tillstånd. För utveckling, Garmin-simulatorn, DIY-exempel och skärmdumpar.
+**Demokälla** (`demo`, även i produktion): två personer med sinuskurvor, alla trender, glapp och sensorns tillstånd, **ett nytt värde varje minut oavsett nivå**. Den kan anslutas av alla utan LinkUp-konto. Den används för att prova Plus, av Apples och Googles granskare, i utveckling, i Garmin-simulatorn, i DIY-exempel och för skärmdumpar. Värdena räknas fram ur tiden och personens id, så inget behöver hämtas eller sparas i förväg, och de är samma för alla som tittar samtidigt.
 
 **Vilken källa när:**
 
@@ -343,7 +346,7 @@ Hämtning med `GET /api/v1/entries.json?find[date][$gt]=<senaste>&count=10`, må
 
 | Tabell | PartitionKey | RowKey | Innehåll |
 |---|---|---|---|
-| `Users` | `userId` (Spines `sub`) | `profile` | Språk, enhet, nivå och slutdatum, aktiv källa, huvudperson, Live Activity på/av och för vem |
+| `Users` | `userId` (Spines `sub`) | `profile` | Språk, enhet, aktiv källa, huvudperson, Live Activity på/av och för vem. Plus: `plusUntil`, `plusProduct`, `plusWillRenew`, `plusState` (`active`, `gracePeriod`, `billingIssue`, `expired`), `plusEnvironment` (`production` / `sandbox`), senaste händelsens id och tid från RevenueCat |
 | `Sources` | `userId` | `sourceId` | Typ, krypterade uppgifter, krypterad token med utgångstid, region, status (`Active`, `NeedsReconnect`, `Paused`), `nextPollAt`, säkerhetsläge till, *d* |
 | `People` | `userId` | `personId` | `sourceId`, källans id (LinkUps `patientId`), namn, färg, ordning, målområde, notisinställningar (§7.8), senaste värde |
 | `Readings` | `personId:yyyyMMdd` | `HHmmss` | `mgdl`, `trend`, `state`, `source` (`poll` / `backfill`) |
@@ -354,7 +357,7 @@ Hämtning med `GET /api/v1/entries.json?find[date][$gt]=<senaste>&count=10`, må
 | `Pairings` | `userCode` | `pairing` | Garmin-koppling under väntan, tas bort efter 10 min |
 
 - **Lagringstid 48 timmar**, så att dygnsgrafen alltid är hel. `Maintenance` tar bort äldre partitioner en gång i timmen.
-- **Graferna** bygger på våra egna hämtningar: en punkt per minut (Plus) eller per 5 minuter (Standard). Intervall över 3 h slås ihop till en punkt per 5 minuter (24 h = 288 punkter, ungefär 6 KB).
+- **Graferna** bygger på våra egna hämtningar: en punkt per minut (Plus, demo) eller per 15 minuter (Standard). Intervall över 3 h slås ihop till en punkt per 5 minuter (24 h = 288 punkter, ungefär 6 KB).
   Det första dygnet efter anslutning är dygnsgrafen gles bakåt, eftersom LinkUp bara ger en punkt per kvart.
 - **"Vilka står på tur?"** Vid 100 användare läses alla `Sources` var 10:e sekund. Vid fler: en tabell `Schedule` med tidsluckan som nyckel.
 - Cosmos DB (gratisnivå, TTL) och Azure SQL behövs inte. SQL blir inte gratis, eftersom timern håller den vaken.
@@ -383,9 +386,9 @@ Timern `PollDue` körs var 10:e sekund. Functions låter den aldrig köra i två
 1. Läs aktiva källor vars `nextPollAt` har infallit.
 2. Hämta parallellt, högst 16 åt gången, **i samma körning**. Det håller kostnaden inom gratiskvoten.
 3. Räkna ut nästa `nextPollAt`:
-   - **Intervall:** Standard 5 min, Plus 1 min, **säkerhetsläge 1 min** (§7.8).
+   - **Intervall:** demokällan 1 min, **säkerhetsläge 1 min** (§7.8), Plus 1 min, annars Standard 15 min. Plus gäller när `plusUntil` ligger i framtiden, och servern räknar det vid varje hämtning. När prenumerationen går ut får nästa hämtning Standards intervall utan att någon behöver göra något.
    - **Strax efter nytt värde:** hämtningen lär sig fördröjningen *d* från mätning till att källan visar den. Nästa hämtning läggs vid `senaste mätning + intervall + d`. Om inget nytt finns provar den igen efter 10 s och 20 s.
-   - **Glapp:** inget nytt på 15 minuter ger var 5:e minut. När värden kommer igen fylls glappet från källans historik.
+   - **Glapp:** inget nytt på 2 × intervallet (minst 15 minuter) ger var 5:e minut. När värden kommer igen fylls glappet från källans historik.
 4. Vid ny mätning för en person: spara, utvärdera notiser, pusha Live Activity.
 
 | Fel | Vad hämtningen gör |
@@ -413,7 +416,8 @@ Allt under `/v1`, JSON i camelCase, OpenAPI. `?person=<id>` väljer person, anna
 | `/v1/sources…` | användare | Källor |
 | `GET/PUT /v1/settings` | användare | Språk, enhet, Live Activity |
 | `GET /v1/status` | ingen | Status per källtyp |
-| `POST /v1/subscription/verify` | användare | Köp |
+| `POST /v1/subscription/refresh` | användare | Frågar RevenueCat om användaren direkt efter ett köp eller en återställning, så att Plus gäller innan webhooken har kommit. Svarar med `tier` och `plusUntil` |
+| `POST /v1/purchases/revenuecat` | RevenueCats hemlighet i `Authorization` | Webhooken (§7.9) |
 | `/v1/keys…` | användare | API-nycklar |
 | `POST /v1/devices/pair`, `/approve`, `/token` | §9.2 | Garmin-koppling |
 | `/api/v1/…`, `/api/v2/properties`, `/pebble`, `/sgv.json` | nyckel | Nightscout-kompatibelt |
@@ -451,7 +455,7 @@ Allt under `/v1`, JSON i camelCase, OpenAPI. `?person=<id>` väljer person, anna
 | **FCM** | Android 16+ | Samma anrop. Spines push-hanterare uppdaterar Live Update |
 | **Notiser** | §7.8 | `SendAsync` |
 
-- **Takt:** push när värdet eller pilen ändras, plus ett hjärtslag var 5:e minut som flyttar fram `staleAt`. Plus ger ungefär 20–40 pushar i timmen, Standard högst 12. `SpineWidgetsFrequentUpdates=true`. S2 bekräftar (B5).
+- **Takt:** push när värdet eller pilen ändras, plus ett hjärtslag var 5:e minut som flyttar fram `staleAt`. Plus och demo ger ungefär 20–40 pushar i timmen. Standard ger en push per hämtning, 4 i timmen, och behöver inget hjärtslag. `SpineWidgetsFrequentUpdates=true`. S2 bekräftar (B5).
 - **Dynamic Island som expanderar** (Bör): en uppdatering med `PushAlert` vid hopp större än 30 mg/dL på 15 minuter eller vid lågt värde.
 - **Bortsvept aktivitet** (`ActivityEnded`) stänger av Live Activity i inställningarna. Push-to-start väcker den inte igen förrän användaren slår på den.
 
@@ -481,7 +485,7 @@ Texten säger resten: **"Lisa 3,4 ↓ · lågt"**. Ljudet säger vad, texten sä
 - Tysta timmar per person, utom för "Mycket lågt".
 
 **Säkerhetsläge:** när värdet är lågt, eller under 5,0 och sjunker, hämtar backend **varje minut oavsett nivå** tills värdet är stabilt.
-Annars kunde en notis om lågt komma upp till 5 minuter sent på Standard.
+Annars kunde en notis om lågt komma upp till 15 minuter sent på Standard. Med 15 minuter i Standard är säkerhetsläget en del av v1-kärnan, inte bara Bör.
 
 **Hur det skickas** (Spine stöder detta idag):
 - `SendAsync(PushTarget.User(id), new PushNotification { Title, Body, Sound = "glucose_low_sv.wav", Channel = "glucose-low-sv", CollapseId, Interruption = PushInterruption.TimeSensitive, Category = "glucose" })`.
@@ -501,15 +505,72 @@ Annars kunde en notis om lågt komma upp till 5 minuter sent på Standard.
 
 ### 7.9 Nivåer och köp
 
-| Nivå | Hämtning | Ingår |
+| Nivå | Hämtning och Live Activity | Ingår |
 |---|---|---|
-| **Standard** (gratis) | var 5:e min, varje minut i säkerhetsläge | App, flera personer, Live Activity, Live Update, Garmin, DIY, notiser |
-| **Plus** (betald) | varje minut | Samma, med varje nytt värde överallt |
+| **Standard** (gratis) | var 15:e min, varje minut i säkerhetsläge | App, flera personer, Live Activity, Live Update, Garmin, DIY, notiser |
+| **Plus** (prenumeration) | varje minut | Samma, med varje nytt värde överallt |
+| **Demokällan** (gratis, alla nivåer) | varje minut | Simulerade värden (§7.2), så att alla kan se Plus utan att köpa |
 
 - 1 minut är taket. Plus säljs bara om S1 visar minutvärden (B13).
-- Köp med StoreKit 2 och Play Billing. Servern kontrollerar köpet (`POST /v1/subscription/verify`) mot App Store Server API och Google Play Developer API, och följer förnyelser via deras notiser.
-- Spine har inget köppaket (G3). Köpen skrivs i appen först (B12).
-- Köpet gäller hela kontot och alla personer, så en förälder betalar en gång.
+- **Nivån bestäms per källa på servern:** demo ger 1 minut, ett säkerhetsläge ger 1 minut, Plus ger 1 minut, och allt annat ger 15 minuter (§7.5). Appen och klockorna visar `tier` från `current`. De bestämmer ingenting själva.
+- **Köpet gäller hela kontot** och alla personer, så en förälder betalar en gång. Det gäller också på båda plattformarna: den som köper på iPhone har Plus i Android-appen efter inloggning.
+- **Köp kräver inloggning.** Kontot finns ändå, eftersom källorna hör till det (§7.4).
+
+**RevenueCat (B12).** RevenueCat tar hand om StoreKit 2 och Play Billing, kontrollerar kvittona och håller reda på förnyelser, uppsägningar, grace period och återbetalningar. Glukos backend behöver bara ta emot en webhook. Utan RevenueCat skulle backenden själv behöva kontrollera App Stores signerade transaktioner och ta emot App Store Server Notifications, fråga Play Developer API och ta emot Googles notiser via Pub/Sub i ett Google Cloud-projekt.
+
+| Del | Vad |
+|---|---|
+| **Appen** | [`Plugin.RevenueCat`](https://www.nuget.org/packages/Plugin.RevenueCat) (iOS, Android). `Configure` med plattformens publika SDK-nyckel vid start, `LogIn(userId)` med Spines `sub` efter inloggning och `LogOut` vid utloggning. Erbjudandet (`Offerings`) ger produkterna med pris i användarens valuta och om provperioden gäller. Efter köp eller återställning anropas `POST /v1/subscription/refresh` |
+| **RevenueCat** | Projektet "Glukos" med apparna för App Store och Play. Rättigheten `plus`, erbjudandet `default` med paketen månad och år. Webhook till `POST /v1/purchases/revenuecat` med en hemlighet i `Authorization` |
+| **Webhooken** | Kontrollerar hemligheten och läser `event.app_user_id`, `event.type`, `event.expiration_at_ms`, `event.environment` och `event.id`. Uppdaterar Plus-fälten i `Users` (§7.3). Händelser med ett id som redan är sparat hoppas över, eftersom RevenueCat skickar om vid fel. Ett anrop som RevenueCat inte får 200 på görs om |
+| **Uppdateringen** | `GET /v1/subscribers/{userId}` mot RevenueCats REST-API med den hemliga nyckeln. Används efter köp, vid tvekan (webhook som saknas, `Maintenance` en gång om dygnet för användare vars `plusUntil` har passerats) och i test |
+
+| Händelse från RevenueCat | Vad servern gör |
+|---|---|
+| `INITIAL_PURCHASE`, `RENEWAL`, `UNCANCELLATION`, `PRODUCT_CHANGE` | `plusUntil = expiration_at_ms`, `plusWillRenew = true`, `plusState = active` |
+| `CANCELLATION` | `plusWillRenew = false`. Plus gäller till `plusUntil` |
+| `BILLING_ISSUE` | `plusState = billingIssue`. Plus gäller under butikens grace period, som RevenueCat räknar in i `expiration_at_ms`. Appen visar "Betalningen gick inte igenom" med en länk till butiken |
+| `EXPIRATION` | `plusState = expired`. Nästa hämtning går tillbaka till 15 minuter |
+| `TRANSFER` | Plus flyttas mellan konton när ett köp återställs på ett annat Glukos-konto |
+| `TEST` | Loggas bara |
+
+- **Återbetalning** ger `CANCELLATION` med ett utgångsdatum som redan har passerats. Plus slutar direkt.
+- **Hela flödet är idempotent.** Webhooken, uppdateringen och `Maintenance` skriver samma fält från samma källa, i vilken ordning de än kommer.
+
+**Produkter och pris (förslag):**
+
+| | App Store | Play | Pris |
+|---|---|---|---|
+| Månad | `<bundle-id>.plus.month` i prenumerationsgruppen "Plus" | prenumerationen `plus`, basplanen `month` | ≈ 29–39 kr |
+| År | `<bundle-id>.plus.year` i samma grupp | `plus`, basplanen `year` | ≈ 249–299 kr, 30–40 % billigare än månad |
+| Provperiod | Introduktionserbjudande, 14 dagar gratis | Erbjudande på båda basplanerna, 14 dagar gratis | |
+
+- Priset sätts till närmaste prispunkt i butikerna. Standard har redan Live Activity och Garmin, så Plus säljer bara tätheten och bör kosta mindre än konkurrenternas premium (≈ 40 USD/år, §4).
+- **Avgifter:** Apples Small Business Program och Googles prenumerationer tar båda 15 %. RevenueCat är gratis upp till 2 500 USD i månadsintäkt (före butikernas avgift), sedan 1 % av hela intäkten. Det motsvarar runt 700 Plus-användare.
+- **Family Sharing** stängs av. Köpet följer kontot, och ett konto följer redan flera personer.
+- **Plus-sidan** följer App Reviews riktlinje 3.1.2: pris, period, vad som förnyas, och länkar till villkoren och integritetspolicyn. Den har också knappen *Återställ köp*.
+
+**Sandlådan i produktion.** Apples granskare köper med sandlådekonton i produktionsappen. Produktionsservern tar därför emot `SANDBOX`-händelser, men bara för konton som har en demokälla eller finns i listan `Purchases:SandboxUsers` i Key Vault. `plusEnvironment` sparas, så att sandlådeköp aldrig räknas som intäkt eller syns i statistiken.
+
+**App Review och demokontot.** Granskarnas konto i App Store Connect och Play Console har en demokälla. Anteckningen till granskarna säger: *"Demo sources always update every minute so you can see what Plus gives. Plus applies to the user's own LibreLinkUp sources. Purchases work with a sandbox account."*
+
+#### Så testas prenumerationerna
+
+| Nivå | Med | Vad det visar |
+|---|---|---|
+| **Servern, automatiskt** | Inspelade webhooks från RevenueCat (knappen "Send test webhook" och riktiga sandlådehändelser) i `Glukos.Tests` | Fälten i `Users` efter varje händelse, i fel ordning och dubblerade. Intervallet för demo, säkerhetsläge, Plus, utgånget och grace period, med en fast klocka |
+| **Servern, för hand** | RevenueCats knapp *Grant promotional entitlement* för ett konto i en vald tid, eller ett dev-anrop som sätter `plusUntil` | Hämtningen går över till varje minut och tillbaka, och Live Activity följer med, utan något köp |
+| **Appen, utan butik** | RevenueCats **Test Store**: en egen testnyckel i stället för plattformens nyckel, med testprodukter i RevenueCat. Köpen uppdaterar `CustomerInfo` och skickar webhooks. Debug-byggen i simulatorn och emulatorn | Plus-sidan, köp, avbrott, återställning, raden i inställningarna och hela flödet till servern. Release-byggen vägrar byggas med testnyckeln |
+| **iOS, riktig butik** | Sandlådetestare i App Store Connect, inloggade under Inställningar → App Store → Sandlådekonto på iPhone. Förnyelsetakten ställs per testare: som standard förnyas en månad på 5 minuter, och prenumerationen förnyas upp till 12 gånger. Där går det också att rensa köphistoriken och slå av förnyelser för att få fram ett betalningsproblem | Riktiga StoreKit 2-köp, provperioden, uppsägning, grace period, att `BILLING_ISSUE` och `EXPIRATION` når servern |
+| **iOS, TestFlight** | TestFlight-byggen köper i sandlådan och förnyar en gång om dagen, upp till 6 gånger | Det som beta-testarna ser. För långsamt för att testa utgångar |
+| **Android, riktig butik** | Licenstestare i Play Console och en version i spåret för intern testning. Testkorten *Godkänns alltid*, *Avvisas alltid* och de långsamma korten för väntande betalningar. Månad och vecka förnyas på 5 minuter, år på 30 minuter, provperioden tar 3 minuter, grace period 5 minuter, och prenumerationen förnyas upp till 6 gånger. Ett köp som inte kvitteras återbetalas efter 3 minuter | Riktiga Play Billing-köp, byte mellan basplanerna, betalningsproblem, väntande betalningar |
+
+- **Ordning:**
+  1. Test Store och promotional entitlements medan appen och servern byggs.
+  2. Sandlådan på iPhone och licenstestare på Android innan Plus släpps.
+  3. TestFlight och intern testning för beta-testarna.
+- **Simulatorn** köper bara via Test Store. Xcodes StoreKit-konfigurationsfiler kräver ett Xcode-schema och används inte.
+- **RevenueCats instrumentpanel** visar sandlådeköp för sig (knappen *Sandbox data*). Varje testköp kan följas där, med händelserna som skickades till webhooken.
 
 ### 7.10 API-nycklar och DIY
 
@@ -610,7 +671,7 @@ Spines tre-filsmönster (`/spine-page`), `HeaderBarConstants.PagePadding`.
 | **Person, inställningar** | Namn, färg, ordning, målområde, notiser per typ, tysta timmar, "visa namn på låsskärmen" |
 | **API-nycklar** | Lista, ny nyckel (en gång, QR-kod, välj personer), återkalla. Länk till recepten |
 | **Koppla Garmin** (sheet) | Koden från klockan, välj person |
-| **Plus** (sheet) | Vad Plus ger, pris, köp, återställ köp |
+| **Plus** (sheet) | Vad Plus ger, månad och år med pris från RevenueCat, provperioden, köp, återställ köp, villkor och integritet (§7.9). Inställningarna visar "Plus · förnyas 18 dec", "Plus · slutar 18 dec" eller ett betalningsproblem, och raden *Hantera prenumeration* öppnar butikens egen sida |
 
 ### 8.2 Data i appen
 
@@ -625,6 +686,7 @@ Spines tre-filsmönster (`/spine-page`), `HeaderBarConstants.PagePadding`.
 - **Regeln för gamla värden**, samma överallt (appen, Live Activity, klockorna, DIY):
   - Efter **2 × intervallet** (minst 5 min) utan nytt värde: grått, "Inget nytt värde på 7 min".
   - Efter **15 minuter**: siffran visas inte stort längre, i stället "Senaste värdet 14:32".
+  - **Öppet (B29):** med Standard var 15:e minut, och LinkUp upp till 3 minuter efter, skulle siffran försvinna strax före nästan varje nytt värde. Förslag: gränsen blir 2 × intervallet + 5 minuter, minst 15 minuter. Det ger 15 minuter för Plus och 35 minuter för Standard. Mellan 2 × intervallet och gränsen är värdet grått.
   - Sensorns tillstånd visas med egen text och utan siffra.
 
 ### 8.4 Live Activity och Live Update
@@ -816,6 +878,7 @@ Ungefärliga listpriser, cirka 10 kr per dollar. Kontrollera i priskalkylatorn.
 | **Functions** (Consumption, Windows) | **≈ 0–2 kr**, nästan helt inom gratiskvoten |
 | Table Storage, lagringskonto, Key Vault | < 15 kr |
 | Application Insights (sampling), APNs, FCM | 0 kr |
+| RevenueCat | 0 kr under 2 500 USD i månadsintäkt, sedan 1 % (§7.9) |
 | **Summa** | **≈ 0–20 kr** (Flex Consumption: ≈ 40–100 kr) |
 
 Det håller sig nästan gratis tack vare två saker: en körning hämtar för många användare, och appen hämtar vid `nextUpdateAt` i stället för att hålla en anslutning öppen.
@@ -878,7 +941,7 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 |---|---|---|---|
 | G1 | Ingen linjegraf | `LineChart` i `Controls.Charts`: tidsserie, band, glapp, sista punkt, pekare | Hem (v1) |
 | G2 | Ingen graf i widgetträdet | `W.Sparkline(values, low, high)`, ritad av renderaren på iOS och Android | Minigraf i Live Activity (Bör) |
-| G3 | Inga köp i appen | StoreKit 2 och Play Billing, med kontroll på servern | Plus (B12) |
+| G3 | Inga köp i appen | Glukos använder `Plugin.RevenueCat` direkt. Det flyttas till Spine enligt förslaget om `Plugin.Maui.Spine.Purchases` ([#832](https://github.com/jonatansoderberg/Maui.Spine/pull/832)) när en andra app behöver köp | Plus (B12) |
 | G4 | Ikonen i menyraden (Mac) och ikonområdet (Windows) är fast och sätts vid start | Mac: bild och färgad text som en enhet, eller en egenritad bild. Windows: ikon och tooltip som kan ändras | Egna skrivbordsappar (Senare) |
 | G5 | Trendpilar som symboler | Symboler via `/spine-symbol`, eller rotera `Arrow` | Appen (B4) |
 | G6 | Inga App Intents för Siri | En intent som svarar med en mening | Senare |
@@ -907,7 +970,7 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | 11 | Nightscout-kompatibla vägar och recept | Home Assistant och nightscout-clock visar värdet | Förslag |
 | 12 | **Garmin-app** med glance och complication | Värdet syns i en Face It-urtavla | Förslag |
 | 13 | **Garmin urtavla** | Always-on under 10 %, åldern stämmer | Förslag |
-| 14 | Nivåer och köp | Plus kan köpas i sandlådan | Förslag |
+| 14 | Nivåer och köp (§7.9): demokällan i produktion, RevenueCat-projektet, produkterna i App Store Connect och Play Console, webhooken, `refresh`, Plus-sidan och raden i inställningarna | Köp, förnyelse, betalningsproblem och utgång i sandlådan på iPhone och med licenstestare på Android ändrar intervallet på servern inom en minut | Förslag |
 | 15 | Härdning: rensning, rate limiting, integritetspolicy | Fel hos en källa upptäcks utan att du tittar | Förslag |
 | 16 | Bör-funktioner: minigraf (G2), Dynamic Island som expanderar, sängläge, en aktivitet per person, ton och vibration i datafältet | Enligt §3 | Förslag |
 | 17 | Nightscout som källa | En Nightscout-användare får samma upplevelse | Parkerad (efter S1) |
@@ -934,8 +997,8 @@ Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med
 | B9 | Repo | Eget repo. Spine-luckorna som issues här |
 | B10 | Flera personer | Ja, från v1 i appen, API:et och på Garmin. En Live Activity i v1 |
 | B11 | Notiser | Ja, direkt efter v1-kärnan, per person och med talade ljud. Notiser, inte larm |
-| B12 | Köp | I appen först. Till Spine om en andra app behöver det |
-| B13 | Nivåer | Standard 5 min gratis, Plus 1 min, om S1 visar minutvärden |
+| B12 | Köp | **Beslutat 2026-11-19:** RevenueCat (`Plugin.RevenueCat`) i appen, och en webhook till servern. iOS och Android först. Till Spine om en andra app behöver det |
+| B13 | Nivåer | **Beslutat 2026-11-19:** Standard 15 min gratis, Plus 1 min som prenumeration, demokällan 1 min för alla. Plus säljs bara om S1 visar minutvärden |
 | B14 | Röster | Generera med Azure Speech och OpenAI och lyssna. Troligen Azure för svenska |
 | B15 | Säkerhetsläge på Standard | Ja |
 | B16 | Live Activity och Garmin på Standard | Ja |
@@ -951,6 +1014,8 @@ Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med
 | B26 | Data Act | Skicka begäran och partnerfrågan parallellt med S1 |
 | B27 | Namn | "Glukos" eller "Glucose:Live" / "Glukos:Live", med en undertitel per språk. "Glucose" ensamt är taget. "… Live" är troligen möjligt, med förväxlingsrisk mot GlucoLive. Kontrollera i App Store Connect, USPTO och EUIPO. Ett eget varumärke ger bäst skydd (§18.3) |
 | B28 | Ikon | Behåll droppen och färgen, men byt grafen mot något som säger "nu" i stället för "över tid" (§18.2) |
+| B29 | Gamla värden med Standard var 15:e minut | Gränsen för att dölja siffran blir 2 × intervallet + 5 min, minst 15 min (§8.3) |
+| B30 | Pris för Plus | ≈ 29–39 kr i månaden, ≈ 249–299 kr om året, 14 dagar gratis. Sätts när S1 har visat takten |
 
 ---
 
@@ -1087,6 +1152,7 @@ Ett **eget kort varumärke med en beskrivande undertitel** ("<Namn> – blodsock
   - [CMS om Data Act och medicintekniska produkter](https://cms.law/en/aut/legal-updates/adapting-to-the-new-eu-data-act-implications-for-medical-devices-and-other-health-devices)
   - [White & Case](https://www.whitecase.com/insight-alert/eu-data-act-unlocking-data-healthcare-life-sciences-and-beyond)
   - [SRD Rechtsanwälte](https://www.srd-rechtsanwaelte.de/en/blog/data-act-healthcare-impact)
+- **Köp:** [RevenueCat, priser](https://www.revenuecat.com/pricing), [Test Store](https://www.revenuecat.com/docs/test-and-launch/sandbox/test-store), [webhooks](https://www.revenuecat.com/docs/integrations/webhooks), [Plugin.RevenueCat](https://www.nuget.org/packages/Plugin.RevenueCat), [Apple: testa köp i sandlådan](https://developer.apple.com/help/app-store-connect/test-in-app-purchases-main/test-in-app-purchases), [Apple: förnyelser i TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/subscription-renewal-rate-in-testflight), [Google: testa Play Billing](https://developer.android.com/google/play/billing/test), [dotnet/maui#30658](https://github.com/dotnet/maui/issues/30658)
 - **Azure Functions:** [prissättning](https://azure.microsoft.com/pricing/details/functions/), [Flex Consumption](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan), [planer och Linux 2028](https://learn.microsoft.com/en-us/Azure/azure-functions/functions-scale)
 - **Live Activities på Mac:** [9to5Mac](https://9to5mac.com/2025/06/16/macos-26-live-activities-work-even-if-your-iphone-is-on-ios-18/)
 - **Connect IQ:**
