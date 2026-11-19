@@ -8,7 +8,7 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Controls.Charts">
 
         <Example Title="Scroll back through the history"
-                 Summary="Two fingers drag the chart along time and a flick glides to a round hour; one finger picks a reading out. The days come from your own service as the chart nears them, 90 days back, and the day names follow."
+                 Summary="Drag sideways to go back in time; a flick glides to a round hour. Tap, or hold a moment and drag, to read the values. The days come from your own service as the chart nears them, 90 days back, and the day names follow."
                  OptionsCommand="{Binding ShowLineOptionsCommand}">
             <VerticalStackLayout Spacing="8">
                 <Border StrokeThickness="1" Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
@@ -47,8 +47,9 @@
                 // A new reading: today is asked for again
                 scroller.InvalidateData(today, now);
 
-                // One finger scrolls too; a tap picks a value out
-                OneFinger="Scroll"
+                // One finger picks a value out at once;
+                // only two fingers scroll
+                OneFinger="Select"
             </Example.Code>
         </Example>
 

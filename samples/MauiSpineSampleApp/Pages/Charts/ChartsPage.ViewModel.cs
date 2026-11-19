@@ -13,7 +13,7 @@ public partial class ChartsPageViewModel : SampleViewModel
     public DateTimeOffset EndOfToday { get; } = new(DateTime.Today.AddDays(1));
 
     [ObservableProperty]
-    public partial ChartDrag OneFinger { get; set; } = ChartDrag.Select;
+    public partial ChartDrag OneFinger { get; set; } = ChartDrag.Scroll;
 
     [ObservableProperty]
     public partial TimeSpan LineSpan { get; set; } = TimeSpan.FromDays(1);
@@ -85,8 +85,8 @@ public partial class ChartsPageViewModel : SampleViewModel
     [RelayCommand]
     private Task ShowLineOptions() => ShowOptionsAsync("Chart scroller",
         Choices("One finger", OneFinger, v => OneFinger = v,
-            ("Shows the value", "One finger picks a value out, the chart's legend; two fingers scroll.", ChartDrag.Select),
-            ("Scrolls", "One finger scrolls as well; a tap picks a value out.", ChartDrag.Scroll)),
+            ("Scrolls", "Sideways scrolls the chart, up and down the page; tap, or hold a moment and drag, to see the values.", ChartDrag.Scroll),
+            ("Shows the value", "One finger picks a value out at once; only two fingers scroll.", ChartDrag.Select)),
         Choices("Span", LineSpan, v => LineSpan = v,
             ("6 hours", "", TimeSpan.FromHours(6)),
             ("A day", "", TimeSpan.FromDays(1)),

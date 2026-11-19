@@ -150,12 +150,14 @@ public IChartHistory History { get; } = new ChartHistory(async (from, to, ct) =>
   the history; past them a drag rubber-bands and springs back. `IsAtLatest` says whether the window follows the
   latest, for a "Now" button that calls `ScrollToLatestAsync()`; `ScrollToAsync(to)` glides anywhere, and setting
   `To` jumps.
-- **Gestures.** Two fingers drag the chart along time. One finger does what it does on a chart alone, picks a value
-  out (the chart's `Selection`, the page's legend), unless `OneFinger="Scroll"`, where one finger scrolls and a tap
-  picks a value out. With a mouse a drag scrolls and pointing picks a value out. A flick glides as a scroll view
-  decelerates and comes to rest on `SnapTo`, a round time at the start of the window on the clock of `TimeZone`
-  (an hour on a round hour across a change of clock, a day on local midnight); an end of the history is always a
-  resting place. A drag that starts more up or down than sideways is the page's. A scroll lets go of the selection.
+- **Gestures.** As in Stocks and Health: one finger sideways scrolls the chart, up or down scrolls the page (the
+  page and iOS 26's back swipe wait for the chart to decide). A tap shows the value there for a few seconds; a press
+  held 0.3 s picks the value out with a tick, and it then follows the finger until it lifts (a scrub), without
+  scrolling anything. Two fingers scroll too. A finger on a gliding chart stops it. `OneFinger="Select"` instead
+  picks a value out at once as a chart alone does, and only two fingers scroll. With a mouse a drag scrolls and
+  pointing picks a value out. A flick glides as a scroll view decelerates and comes to rest on `SnapTo`, a round time
+  at the start of the window on the clock of `TimeZone` (an hour on a round hour across a change of clock, a day on
+  local midnight), with a light tick when it rests on another day; an end of the history is always a resting place.
 - **Loading.** `Source` (an `IChartHistory`, or `ChartHistory` around a function) is asked for whole local days,
   `ChunkDays` at a time (1 by default; 7 for a column a day over months): those in the window first, newest first,
   then one window each way, at most three at a time. Days more than three windows away are let go and a load still

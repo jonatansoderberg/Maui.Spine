@@ -154,6 +154,9 @@ public sealed class ColumnChart : ChartView, IScrollableChart
         var tap = new TapGestureRecognizer();
         tap.Tapped += (_, e) =>
         {
+            // The lift that ends a held press can also be a tap: it would let go of the column just picked out.
+            if (Environment.TickCount64 - _heldUntil < 400)
+                return;
             var index = e.GetPosition(this) is { } p ? IndexAt(p.X) : -1;
             Select(index == SelectedIndex ? -1 : index);
         };
@@ -235,6 +238,16 @@ public sealed class ColumnChart : ChartView, IScrollableChart
     bool IScrollableChart.SelectsByDragging { get => _dragSelects; set => _dragSelects = value; }
 
     void IScrollableChart.ClearSelection() => Select(-1);
+
+    void IScrollableChart.HoldSelection(double? x)
+    {
+        if (x is { } at)
+            Select(IndexAt(at));
+        else
+            _heldUntil = Environment.TickCount64;
+    }
+
+    long _heldUntil = long.MinValue / 2;
 
     Thickness IScrollableChart.PlotMargin => new(0, 0, _referenceRoom, 0);
 

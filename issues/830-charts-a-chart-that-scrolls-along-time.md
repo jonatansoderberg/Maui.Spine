@@ -82,7 +82,18 @@ starts on the chart scrolls the page; a two-finger drag past now springs back. T
 weeks with "November 2026" over it, a flick back five weeks rests on whole days with "Sep" shortened and pushed by
 "October 2026". Android and the Mac build; neither was run.
 
+- 2026-11-19, after the owner tried two fingers on the iPhone ("often not seen; it starts marking instead, or the page
+  scrolls"): one finger scrolls by default (`ChartDrag.Scroll`, now the first value), a press held 0.3 s scrubs the
+  value with a tick (`IScrollableChart.HoldSelection`), a tap shows it, a finger stops a glide, a light tick when a
+  scroll rests on another day; on iOS every pan around the chart (the page's scrolling, iOS 26's back swipe from
+  anywhere) waits for the chart's one-finger pan, which begins only on a sideways drag or a scrub. Tried in the
+  simulator: hold-and-drag scrubs without scrolling, a sideways flick scrolls (it went back a page before the
+  back swipe waited), an up-and-down drag on the chart scrolls the page.
+
 ## Decisions
+
+- **One finger scrolls, a held press scrubs** (2026-11-19), as Stocks and Health do: two fingers as the way to scroll
+  failed on the phone, since fingers land apart and the page's own two-finger scrolling competes.
 
 - **The chart is drawn for the window on every frame**, not moved as a wide picture: the value axis then stays put
   and 90 days need no canvas of their size. A line chart's per-frame cost is its thinning and smoothing over the

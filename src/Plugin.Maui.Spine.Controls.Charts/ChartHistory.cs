@@ -71,6 +71,12 @@ public interface IScrollableChart
     /// <summary>Lets go of a value picked out.</summary>
     void ClearSelection();
 
+    /// <summary>
+    /// Picks out the value at <paramref name="x"/> and keeps it while a finger is held on the chart (a scrub);
+    /// <c>null</c> when the finger lifts, and the value then goes as a tapped one does.
+    /// </summary>
+    void HoldSelection(double? x);
+
     /// <summary>The chart's space outside its plot at the leading and trailing sides, so the scroller lines up with the plot.</summary>
     Thickness PlotMargin { get; }
 }
@@ -78,11 +84,14 @@ public interface IScrollableChart
 /// <summary>What one finger dragging over a chart in a <see cref="ChartScroller"/> does; two fingers always scroll.</summary>
 public enum ChartDrag
 {
-    /// <summary>Picks a value out, the chart's legend; two fingers scroll.</summary>
-    Select,
-
-    /// <summary>Scrolls; a tap picks a value out.</summary>
+    /// <summary>
+    /// Scrolls, as one finger does in Stocks and Health: sideways moves the chart, up and down the page. A tap picks a
+    /// value out; a press held a moment picks it out with a tick, and the value then follows the finger until it lifts.
+    /// </summary>
     Scroll,
+
+    /// <summary>Picks a value out at once, the chart's legend, as on a chart alone; only two fingers scroll.</summary>
+    Select,
 }
 
 /// <summary>The names over a <see cref="ChartScroller"/>'s plot.</summary>

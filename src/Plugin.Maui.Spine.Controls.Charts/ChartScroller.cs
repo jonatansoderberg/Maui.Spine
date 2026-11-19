@@ -65,7 +65,7 @@ public sealed class ChartScroller : ContentView
     public static readonly BindableProperty FontFamilyProperty = BindableProperty.Create(nameof(FontFamily), typeof(string), typeof(ChartScroller), null,
         propertyChanged: static (b, _, _) => ((ChartScroller)b)._sections.Invalidate());
 
-    public static readonly BindableProperty OneFingerProperty = BindableProperty.Create(nameof(OneFinger), typeof(ChartDrag), typeof(ChartScroller), ChartDrag.Select,
+    public static readonly BindableProperty OneFingerProperty = BindableProperty.Create(nameof(OneFinger), typeof(ChartDrag), typeof(ChartScroller), ChartDrag.Scroll,
         propertyChanged: static (b, _, _) => ((ChartScroller)b).Recognize());
 
     static readonly BindablePropertyKey FromPropertyKey = BindableProperty.CreateReadOnly(nameof(From), typeof(DateTimeOffset?), typeof(ChartScroller), null);
@@ -126,7 +126,10 @@ public sealed class ChartScroller : ContentView
     /// <summary>The names' font, or null for the platform's.</summary>
     public string? FontFamily { get => (string?)GetValue(FontFamilyProperty); set => SetValue(FontFamilyProperty, value); }
 
-    /// <summary>What one finger dragging over the chart does: picks a value out (the default) or scrolls. Two fingers always scroll.</summary>
+    /// <summary>
+    /// What one finger dragging over the chart does: scrolls (the default), with a tap or a held press picking a value
+    /// out, or picks a value out at once. Two fingers always scroll.
+    /// </summary>
     public ChartDrag OneFinger { get => (ChartDrag)GetValue(OneFingerProperty); set => SetValue(OneFingerProperty, value); }
 
     /// <summary>Whether the window ends at <see cref="Latest"/> and follows it as it moves on; false once scrolled back.</summary>
@@ -146,6 +149,17 @@ public sealed class ChartScroller : ContentView
     readonly RowDefinition _sectionRow = new(SectionHeight);
     readonly PanGestureRecognizer _twoFingers = new() { TouchPoints = 2 };
     readonly PanGestureRecognizer _oneFinger = new() { TouchPoints = 1 };
+    readonly PointerGestureRecognizer _touch = new();
+
+    /// <summary>How long a finger rests before its press picks a value out, and how far it may wander meanwhile.</summary>
+    const int HoldMilliseconds = 300;
+    const double HoldSlop = 10;
+
+    int _press;
+    Point? _pressedAt;
+    bool _scrubbing, _panScrubs;
+    double _scrubFrom;
+    int? _restDay;
     readonly ScrollMotion _motion = new();
     readonly Stopwatch _clock = Stopwatch.StartNew();
     readonly SortedDictionary<int, Chunk> _chunks = [];
@@ -185,6 +199,10 @@ public sealed class ChartScroller : ContentView
         Content = grid;
         _twoFingers.PanUpdated += OnPan;
         _oneFinger.PanUpdated += OnPan;
+        _touch.PointerPressed += OnPressed;
+        _touch.PointerMoved += OnTouchMoved;
+        _touch.PointerReleased += (_, _) => Lift();
+        _touch.PointerExited += (_, _) => Lift();
         Loaded += (_, _) => OnLoaded();
         Unloaded += (_, _) => OnUnloaded();
     }
@@ -262,6 +280,7 @@ public sealed class ChartScroller : ContentView
             old.HandlerChanged -= OnChartHandlerChanged;
             old.GestureRecognizers.Remove(_twoFingers);
             old.GestureRecognizers.Remove(_oneFinger);
+            old.GestureRecognizers.Remove(_touch);
             _area.Remove(old);
         }
         _placed = false;
@@ -292,6 +311,7 @@ public sealed class ChartScroller : ContentView
         _to = Clamp(To ?? MaxTo);
         Show(_to);
         Settle();
+        _restDay = ChartChunks.Day(_to - Span / 2, Zone);
     }
 
     /// <summary>Gestures as <see cref="OneFinger"/> asks: two fingers always scroll; one does too with a mouse, or when set to.</summary>
@@ -306,6 +326,8 @@ public sealed class ChartScroller : ContentView
             chart.GestureRecognizers.Add(_oneFinger);
         else if (!one)
             chart.GestureRecognizers.Remove(_oneFinger);
+        if (!chart.GestureRecognizers.Contains(_touch))
+            chart.GestureRecognizers.Add(_touch);
         if (!_panning && !_gliding && Scrollable is { } scrollable)
             scrollable.SelectsByDragging = DragSelects;
         // The platform's recognizers are made from the list after this, so they are tuned a moment later.
@@ -332,12 +354,22 @@ public sealed class ChartScroller : ContentView
                 // Two fingers on the chart always mean it: which way they go is decided once they have moved
                 // (OnPan). One finger begins only on a drag that has gone more sideways than up or down, measured
                 // from where it landed, so a page scroll starting on the chart stays the page's.
+                // A held press (a scrub) keeps the finger whichever way it goes, so the page does not move under it.
                 if (pan.MinimumNumberOfTouches <= 1)
+                {
                     pan.ShouldBegin = r =>
                     {
                         var moved = ((UIKit.UIPanGestureRecognizer)r).TranslationInView(r.View);
-                        return Math.Abs(moved.X) >= Math.Abs(moved.Y);
+                        return _scrubbing || Math.Abs(moved.X) >= Math.Abs(moved.Y);
                     };
+                    // Everything around the chart that pans waits for it to say whether a drag is its own: the
+                    // page's scrolling, and the back swipe iOS 26 takes from anywhere on a page, which a sideways
+                    // drag on the chart would otherwise start.
+                    for (var parent = view?.Superview; parent is not null; parent = parent.Superview)
+                        foreach (var other in parent.GestureRecognizers ?? [])
+                            if (other is UIKit.UIPanGestureRecognizer outer && !ReferenceEquals(outer, pan))
+                                outer.RequireGestureRecognizerToFail(pan);
+                }
                 // Beside the chart's own touch (the finger that picks a value out), never beside the page's scrolling.
                 pan.ShouldRecognizeSimultaneously = (_, other) => other.View is not UIKit.UIScrollView;
 #if MACCATALYST
@@ -453,8 +485,85 @@ public sealed class ChartScroller : ContentView
             chart.SelectsByDragging = DragSelects;
     }
 
+    /// <summary>
+    /// A finger lands: it stops a glide, as a finger stops a scroll view; resting where it landed it becomes a scrub after
+    /// <see cref="HoldMilliseconds"/>, with a tick, where one finger scrolls. A mouse points instead.
+    /// </summary>
+    void OnPressed(object? sender, PointerEventArgs e)
+    {
+        if (DeviceInfo.Idiom == DeviceIdiom.Desktop || Chart is not { } chart)
+            return;
+        var press = ++_press;
+        _pressedAt = e.GetPosition(chart);
+        if (_gliding)
+        {
+            this.AbortAnimation(GlideAnimation);
+            _gliding = false;
+            Settle();
+            _pressedAt = null;
+            return;
+        }
+        if (OneFinger != ChartDrag.Scroll)
+            return;
+        Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(HoldMilliseconds), () =>
+        {
+            if (press == _press && _pressedAt is { } at && !_panning)
+                StartScrub(at.X);
+        });
+    }
+
+    void OnTouchMoved(object? sender, PointerEventArgs e)
+    {
+        if (Chart is not { } chart || e.GetPosition(chart) is not { } at)
+            return;
+        if (_scrubbing)
+            Scrollable?.HoldSelection(at.X);
+        else if (_pressedAt is { } from && Math.Abs(at.X - from.X) + Math.Abs(at.Y - from.Y) > HoldSlop)
+            _pressedAt = null;
+    }
+
+    void StartScrub(double x)
+    {
+        _scrubbing = true;
+        _scrubFrom = x;
+        HapticFeedback.Default.Perform(HapticFeedbackType.LongPress);
+        Scrollable?.HoldSelection(x);
+    }
+
+    /// <summary>The finger lifts: a scrub ends, and its value goes as a tapped one does.</summary>
+    void Lift()
+    {
+        _press++;
+        _pressedAt = null;
+        if (!_scrubbing)
+            return;
+        _scrubbing = false;
+        Scrollable?.HoldSelection(null);
+    }
+
     void OnPan(object? sender, PanUpdatedEventArgs e)
     {
+        // A held press that moves is a scrub, not a scroll: the value follows the finger.
+        if (!ReferenceEquals(sender, _twoFingers) && (_panScrubs || (_scrubbing && e.StatusType == GestureStatus.Started)))
+        {
+            _panScrubs = e.StatusType is not (GestureStatus.Completed or GestureStatus.Canceled);
+            if (e.StatusType == GestureStatus.Running)
+                Scrollable?.HoldSelection(_scrubFrom + e.TotalX);
+            else if (!_panScrubs)
+                Lift();
+            return;
+        }
+        // Any scroll ends the wait for a held press.
+        if (e.StatusType == GestureStatus.Started)
+        {
+            _press++;
+            _pressedAt = null;
+            if (_scrubbing)
+            {
+                _scrubbing = false;
+                Scrollable?.ClearSelection();
+            }
+        }
         if (Scrollable is not { } chart || SecondsPerPoint <= 0)
             return;
         var now = _clock.Elapsed.TotalMilliseconds;
@@ -509,6 +618,15 @@ public sealed class ChartScroller : ContentView
         }
     }
 
+    /// <summary>A light tick when a scroll comes to rest on another day than the last one, so the day can be felt.</summary>
+    void Tick()
+    {
+        var day = ChartChunks.Day(_to - Span / 2, Zone);
+        if (_restDay is { } before && before != day)
+            HapticFeedback.Default.Perform(HapticFeedbackType.Click);
+        _restDay = day;
+    }
+
     /// <summary>A drag past an end gives less and less, as iOS's rubber band does.</summary>
     DateTimeOffset Banded(DateTimeOffset to)
     {
@@ -554,6 +672,7 @@ public sealed class ChartScroller : ContentView
                 {
                     _gliding = false;
                     Settle();
+                    Tick();
                 }
                 done.TrySetResult();
             });

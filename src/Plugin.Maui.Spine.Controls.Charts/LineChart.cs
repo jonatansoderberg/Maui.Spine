@@ -285,6 +285,12 @@ public sealed class LineChart : ChartView, IScrollableChart
         if (x is null)
             return;
         Select(IndexAt(x.Value));
+        Linger();
+    }
+
+    /// <summary>The point picked out lets go by itself after a moment, as a touch has no pointer to rest.</summary>
+    void Linger()
+    {
         _linger?.Cancel();
         _linger = new CancellationTokenSource();
         var token = _linger.Token;
@@ -538,6 +544,19 @@ public sealed class LineChart : ChartView, IScrollableChart
     bool IScrollableChart.SelectsByDragging { get => _dragSelects; set => _dragSelects = value; }
 
     void IScrollableChart.ClearSelection() => Select(-1);
+
+    void IScrollableChart.HoldSelection(double? x)
+    {
+        if (x is { } at)
+        {
+            _linger?.Cancel();
+            Select(IndexAt(at));
+        }
+        else if (SelectedIndex >= 0)
+        {
+            Linger();
+        }
+    }
 
     Thickness IScrollableChart.PlotMargin => new(Inset, 0, Inset + (ShowAxes ? AxisWidth : 0), 0);
 
