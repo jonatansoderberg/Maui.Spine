@@ -2,4 +2,5 @@
 <strings>
   <s key="Spine.Charts.ClockBack">Vintertid</s>
   <s key="Spine.Charts.ClockForward">Sommartid</s>
+  <s key="Spine.Charts.Now">Nu</s>
 </strings>

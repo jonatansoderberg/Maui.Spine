@@ -639,6 +639,15 @@
       <DependentUpon>AboutPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Charts\ChartsPage.View.xaml">
+      <DependentUpon>ChartsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Charts\ChartsPage.ViewModel.cs">
+      <DependentUpon>ChartsPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Dates\DatesPage.View.xaml">
       <DependentUpon>DatesPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -867,6 +876,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Images\Plugin.Maui.Spine.Images.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Calendar\Plugin.Maui.Spine.Controls.Calendar.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Charts\Plugin.Maui.Spine.Controls.Charts.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.DataGrid\Plugin.Maui.Spine.Controls.DataGrid.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Rows\Plugin.Maui.Spine.Controls.Rows.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />

@@ -20,8 +20,12 @@ public sealed record ChartBand(IReadOnlyList<ChartRange> Ranges, Color? Color = 
 /// line. The last point is marked. Touching the chart picks out the nearest point for a moment; nothing stays
 /// selected. <see cref="Bands"/> fill between two series under the line. With <see cref="ShowAxes"/> off it is a small
 /// graph for a card. 230 points tall by default.
+/// <para>
+/// In a <see cref="ChartScroller"/> it is moved along time: the scroller sets <see cref="From"/>, <see cref="To"/>,
+/// <see cref="Points"/> and <see cref="Bands"/>, and the line, its fade and the bands are cut off at the plot's edges.
+/// </para>
 /// </summary>
-public sealed class LineChart : ChartView
+public sealed class LineChart : ChartView, IScrollableChart
 {
     public static readonly BindableProperty PointsProperty = Create(nameof(Points), typeof(IList<ChartPoint>), null);
     public static readonly BindableProperty BandsProperty = Create(nameof(Bands), typeof(IList<ChartBand>), null);
@@ -144,7 +148,10 @@ public sealed class LineChart : ChartView
     /// <summary>Values on the trailing side and times underneath, with grid lines. Off for a small graph. True by default.</summary>
     public bool ShowAxes { get => (bool)GetValue(ShowAxesProperty); set => SetValue(ShowAxesProperty, value); }
 
-    /// <summary>A fade under the line. True by default.</summary>
+    /// <summary>
+    /// A fade under the line, where no band is drawn: with <see cref="BandLow"/>/<see cref="BandHigh"/> shown the band is
+    /// the backdrop and there is no fade. True by default.
+    /// </summary>
     public bool Fill { get => (bool)GetValue(FillProperty); set => SetValue(FillProperty, value); }
 
     /// <summary>
@@ -216,6 +223,8 @@ public sealed class LineChart : ChartView
 
     ChartPoint[] _shown = [];
     RectF _plot;
+    bool _scrolled, _dragSelects = true;
+    readonly TouchGrace _grace = new();
     DateTimeOffset _from, _to;
     CancellationTokenSource? _linger;
 
@@ -234,10 +243,15 @@ public sealed class LineChart : ChartView
         Unloaded += (_, _) => this.AbortAnimation(PulseAnimation);
         var pointer = new PointerGestureRecognizer();
         // On a phone a finger moves the pointer too, and never leaves: it lets go by itself, as a tap does.
+        pointer.PointerPressed += (_, _) => _grace.Press();
         pointer.PointerMoved += (_, e) =>
         {
+            if (!_dragSelects)
+                return;
             if (DeviceInfo.Idiom == DeviceIdiom.Desktop)
                 Select(e.GetPosition(this) is { } p ? IndexAt(p.X) : -1);
+            else if (_scrolled && e.GetPosition(this) is { } touched)
+                _grace.Move(this, touched.X, x => Touch(x), () => _dragSelects);
             else
                 Touch(e.GetPosition(this)?.X);
         };
@@ -271,6 +285,12 @@ public sealed class LineChart : ChartView
         if (x is null)
             return;
         Select(IndexAt(x.Value));
+        Linger();
+    }
+
+    /// <summary>The point picked out lets go by itself after a moment, as a touch has no pointer to rest.</summary>
+    void Linger()
+    {
         _linger?.Cancel();
         _linger = new CancellationTokenSource();
         var token = _linger.Token;
@@ -297,6 +317,9 @@ public sealed class LineChart : ChartView
         var distance = double.MaxValue;
         for (var i = 0; i < _shown.Length; i++)
         {
+            // In a scroller the history reaches past the window: only a point in view can be picked out.
+            if (_scrolled && (_shown[i].Time < _from || _shown[i].Time > _to))
+                continue;
             var d = Math.Abs(XOf(_shown[i].Time) - x);
             if (d < distance)
             {
@@ -373,6 +396,13 @@ public sealed class LineChart : ChartView
             gaps.Add((new PointF(XOf(a.Time), Y(a.Value)), new PointF(XOf(b.Time), Y(b.Value)), b.Time - a.Time > longGap));
         }
 
+        // In a scroller the history runs past the window: what is drawn along time stops at the plot's edges.
+        if (_scrolled)
+        {
+            canvas.SaveState();
+            canvas.ClipRectangle(_plot.Left, rect.Top, _plot.Width, rect.Height);
+        }
+
         if (ShowBand && BandLow is { } low && BandHigh is { } high && high > low)
         {
             // The band breaks where the data does, for a gap long enough to name.
@@ -418,7 +448,9 @@ public sealed class LineChart : ChartView
         var stroke = axes ? 2.5f : 2f;
         var bandTop = BandHigh is { } h ? Y(Math.Min(h, max)) : _plot.Top;
         var bandBottom = BandLow is { } l ? Y(Math.Max(l, min)) : _plot.Bottom;
-        if (Fill)
+        // Where the band is drawn it is the backdrop the line reads against; a fade under the line as well is one too many.
+        var bandDrawn = ShowBand && BandLow is { } shownLow && BandHigh is { } shownHigh && shownHigh > shownLow;
+        if (Fill && !bandDrawn)
         {
             // A stretch only a few points wide (just after a gap) gets no fade: under it the fade is a bar, not an area.
             foreach (var segment in segments.Where(s => s.Length > 1 && XOf(s[^1].Time) - XOf(s[0].Time) >= MinFillWidth))
@@ -465,6 +497,8 @@ public sealed class LineChart : ChartView
             }
             canvas.RestoreState();
         }
+        if (_scrolled)
+            canvas.RestoreState();
 
         // The band's label goes over the line, so a line passing through it never hides it.
         if (axes && ShowBand && BandLabel is { Length: > 0 } label && BandHigh is { } labelHigh)
@@ -475,7 +509,7 @@ public sealed class LineChart : ChartView
             canvas.DrawString(label, _plot.Left + 8, Y(Math.Min(labelHigh, max)) + 3, _plot.Width - 16, LabelSize + 4, HorizontalAlignment.Left, VerticalAlignment.Top);
         }
 
-        if (HighlightLast && _shown.Length > 0)
+        if (HighlightLast && _shown.Length > 0 && (!_scrolled || (_shown[^1].Time >= _from && _shown[^1].Time <= _to)))
             DrawLast(canvas, rect, Y, dark, muted);
 
         if (SelectedIndex >= 0 && SelectedIndex < _shown.Length)
@@ -492,6 +526,39 @@ public sealed class LineChart : ChartView
             canvas.FillCircle(x, y, Dot);
         }
     }
+
+    void IScrollableChart.ShowWindow(DateTimeOffset from, DateTimeOffset to)
+    {
+        _scrolled = true;
+        From = from;
+        To = to;
+    }
+
+    void IScrollableChart.ShowHistory(ChartSlice history)
+    {
+        _scrolled = true;
+        Points = history.Points is { Count: > 0 } points ? [.. points] : null;
+        Bands = history.Bands is { Count: > 0 } bands ? [.. bands] : null;
+    }
+
+    bool IScrollableChart.SelectsByDragging { get => _dragSelects; set => _dragSelects = value; }
+
+    void IScrollableChart.ClearSelection() => Select(-1);
+
+    void IScrollableChart.HoldSelection(double? x)
+    {
+        if (x is { } at)
+        {
+            _linger?.Cancel();
+            Select(IndexAt(at));
+        }
+        else if (SelectedIndex >= 0)
+        {
+            Linger();
+        }
+    }
+
+    Thickness IScrollableChart.PlotMargin => new(Inset, 0, Inset + (ShowAxes ? AxisWidth : 0), 0);
 
     /// <summary>
     /// Drawn as Apple Health draws its charts: solid value lines with the values outside on the trailing side, a solid
@@ -642,7 +709,7 @@ public sealed class LineChart : ChartView
     /// </summary>
     /// <remarks>
     /// The canvas has no masks, so the downward fade is made of thin strips, each with the sideways gradient at its own
-    /// strength; at this alpha the steps cannot be seen.
+    /// strength; at this alpha the steps cannot be seen, as long as the strips meet on whole pixels.
     /// </remarks>
     void FillUnder(ICanvas canvas, PathF area, (float X, float Y)[] line, float past, float bandTop, float bandBottom)
     {
@@ -676,8 +743,14 @@ public sealed class LineChart : ChartView
 
         var top = line.Min(q => q.Y);
         var height = Math.Max(1, _plot.Bottom - top);
+        // Strips that meet on whole pixels, neither overlapping nor apart: a seam drawn twice, or not at all, shows as a line.
+        var density = (float)Math.Max(1, DeviceDisplay.Current.MainDisplayInfo.Density);
+        float Pixel(float y) => MathF.Round(y * density) / density;
         for (var k = 0; k < Strips; k++)
         {
+            var (stripTop, stripBottom) = (Pixel(top + height * k / Strips), Pixel(top + height * (k + 1) / Strips));
+            if (stripBottom <= stripTop)
+                continue;
             var strength = 0.24f * (1 - (k + 0.5f) / Strips);
             var stops = new PaintGradientStop[Samples + 1];
             for (var i = 0; i <= Samples; i++)
@@ -687,7 +760,7 @@ public sealed class LineChart : ChartView
                 stops[i] = new PaintGradientStop(at, blended[i].WithAlpha(strength * Side(at)));
             }
             canvas.SaveState();
-            canvas.ClipRectangle(from, top + height * k / Strips, width, height / Strips + 0.5f);
+            canvas.ClipRectangle(from, stripTop, width, stripBottom - stripTop);
             canvas.SetFillPaint(new LinearGradientPaint([new PaintGradientStop(0, blended[0].WithAlpha(0)), .. stops, new PaintGradientStop(1, blended[^1].WithAlpha(0))],
                 new Point(0, 0.5), new Point(1, 0.5)), new RectF(from, _plot.Top, width, _plot.Height));
             canvas.FillPath(area);

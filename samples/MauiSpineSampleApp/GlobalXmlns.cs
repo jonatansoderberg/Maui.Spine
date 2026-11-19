@@ -8,6 +8,10 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
+    "Plugin.Maui.Spine.Controls", AssemblyName = "Plugin.Maui.Spine.Controls.Charts")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
     "Plugin.Maui.Spine.Core", AssemblyName = "Plugin.Maui.Spine")]
 
 [assembly: XmlnsDefinition(
@@ -217,6 +221,10 @@
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.Dates")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.Charts")]
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",

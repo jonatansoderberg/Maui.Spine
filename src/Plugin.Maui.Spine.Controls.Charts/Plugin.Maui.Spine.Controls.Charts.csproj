@@ -12,8 +12,8 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Charts for .NET MAUI: LineChart (a time series over a target band, with gaps, bands between two series, a live point and summer/winter time on the axis), RingChart (a share as a ring, clockwise from 12 o'clock), BarChart (a share as a bar) and ColumnChart (values per day or category as columns with labels). Drawn with Microsoft.Maui.Graphics, theme-aware.</Description>
-		<PackageTags>$(PackageTags);charts;line;time-series;ring;gauge;bar;columns;dashboard;controls</PackageTags>
+		<Description>Charts for .NET MAUI: LineChart (a time series over a target band, with gaps, bands between two series, a live point and summer/winter time on the axis), RingChart (a share as a ring, clockwise from 12 o'clock), BarChart (a share as a bar) ColumnChart (values per day or category as columns with labels) and ChartScroller (a line or column chart scrolled back through its history, loaded a day at a time as the window nears it). Drawn with Microsoft.Maui.Graphics, theme-aware.</Description>
+		<PackageTags>$(PackageTags);charts;line;time-series;ring;gauge;bar;columns;dashboard;history;scroll;controls</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
