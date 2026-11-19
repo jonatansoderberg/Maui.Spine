@@ -105,6 +105,11 @@ weeks with "November 2026" over it, a flick back five weeks rests on whole days 
   of it and are cut off where it stands. Tried in the simulator: a flick ahead shows the forecast at once with
   "‹ Now", a tap goes back to now and the pill goes.
 
+- 2026-11-19, after the merge (PR #840), for the Home app's forecast on the scroller: `FontSize` (the names, their
+  row and the "Now" pill grow with it, for a television's larger rows), `ShowNowLine` (a forecast whose steps start at
+  this hour needs no line through its first step), and the names in the app's language (`SpineStrings.Current.Culture`)
+  rather than the thread's. The Home app's chart is an `IScrollableChart` of its own with no `Source`.
+
 ## Decisions
 
 - **One finger scrolls, a held press scrubs** (2026-11-19), as Stocks and Health do: two fingers as the way to scroll
