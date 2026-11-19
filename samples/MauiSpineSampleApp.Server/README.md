@@ -29,7 +29,7 @@ The Showcase on a phone talks to `https://spine-showcase-e41ddd.azurewebsites.ne
 - **Storage:** an account for Table storage.
 
 ```bash
-dotnet build ../MauiSpineSampleApp -c Release -f net10.0-ios -r ios-arm64 \
+cd ../MauiSpineSampleApp && dotnet build -c Release -f net11.0-ios -r ios-arm64 \
   -p:SpineSampleServer=https://spine-showcase-e41ddd.azurewebsites.net/ …
 ```
 
