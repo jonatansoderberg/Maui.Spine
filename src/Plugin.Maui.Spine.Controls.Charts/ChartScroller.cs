@@ -66,6 +66,10 @@ public sealed class ChartScroller : ContentView
     public static readonly BindableProperty FontFamilyProperty = BindableProperty.Create(nameof(FontFamily), typeof(string), typeof(ChartScroller), null,
         propertyChanged: static (b, _, _) => ((ChartScroller)b)._sections.Invalidate());
 
+    public static readonly BindableProperty FontSizeProperty = BindableProperty.Create(nameof(FontSize), typeof(double), typeof(ChartScroller), 13.0,
+        validateValue: static (_, value) => value is double size && size > 0,
+        propertyChanged: static (b, _, _) => ((ChartScroller)b).OnFontSizeChanged());
+
     public static readonly BindableProperty OneFingerProperty = BindableProperty.Create(nameof(OneFinger), typeof(ChartDrag), typeof(ChartScroller), ChartDrag.Scroll,
         propertyChanged: static (b, _, _) => ((ChartScroller)b).Recognize());
 
@@ -75,6 +79,9 @@ public sealed class ChartScroller : ContentView
     public static readonly BindableProperty NowAtProperty = BindableProperty.Create(nameof(NowAt), typeof(double), typeof(ChartScroller), 1.0,
         validateValue: static (_, value) => (double)value is >= 0 and <= 1,
         propertyChanged: static (b, _, _) => ((ChartScroller)b).Replace());
+
+    public static readonly BindableProperty ShowNowLineProperty = BindableProperty.Create(nameof(ShowNowLine), typeof(bool), typeof(ChartScroller), true,
+        propertyChanged: static (b, _, _) => ((ChartScroller)b)._overlay.Invalidate());
 
     public static readonly BindableProperty ShowNowButtonProperty = BindableProperty.Create(nameof(ShowNowButton), typeof(bool), typeof(ChartScroller), true,
         propertyChanged: static (b, _, _) => ((ChartScroller)b).OnSectionsChanged());
@@ -128,7 +135,7 @@ public sealed class ChartScroller : ContentView
     /// <summary>The names over the plot: a day's, a month's or none. Days by default.</summary>
     public ChartSections Sections { get => (ChartSections)GetValue(SectionsProperty); set => SetValue(SectionsProperty, value); }
 
-    /// <summary>A section's name, as a date format in the current culture: <c>dddd</c> (Tuesday) for days and <c>MMMM yyyy</c> for months when null.</summary>
+    /// <summary>A section's name, as a date format in the app's language (<c>SpineStrings.Current.Culture</c>): <c>dddd</c> (Tuesday) for days and <c>MMMM yyyy</c> for months when null.</summary>
     public string? SectionFormat { get => (string?)GetValue(SectionFormatProperty); set => SetValue(SectionFormatProperty, value); }
 
     /// <summary>The name where the long one does not fit: <c>ddd</c> for days and <c>MMM</c> for months when null.</summary>
@@ -136,6 +143,12 @@ public sealed class ChartScroller : ContentView
 
     /// <summary>The names' font, or null for the platform's.</summary>
     public string? FontFamily { get => (string?)GetValue(FontFamilyProperty); set => SetValue(FontFamilyProperty, value); }
+
+    /// <summary>
+    /// The names' size, 13 by default; the row they stand in and the "Now" pill grow with it, for a chart made larger
+    /// as a whole (on a television, say).
+    /// </summary>
+    public double FontSize { get => (double)GetValue(FontSizeProperty); set => SetValue(FontSizeProperty, value); }
 
     /// <summary>
     /// What one finger dragging over the chart does: scrolls (the default), with a tap or a held press picking a value
@@ -170,11 +183,20 @@ public sealed class ChartScroller : ContentView
     /// </summary>
     public bool ShowNowButton { get => (bool)GetValue(ShowNowButtonProperty); set => SetValue(ShowNowButtonProperty, value); }
 
+    /// <summary>
+    /// Whether a line marks now on a chart that reaches past it (<see cref="NowAt"/> under 1). True by default; a chart
+    /// whose own steps already say where now is can leave it off.
+    /// </summary>
+    public bool ShowNowLine { get => (bool)GetValue(ShowNowLineProperty); set => SetValue(ShowNowLineProperty, value); }
+
     /// <summary>Whether a day in view is still being loaded.</summary>
     public bool IsLoading => (bool)GetValue(IsLoadingProperty);
 
     const string GlideAnimation = "ChartScrollerGlide", PulseAnimation = "ChartScrollerPulse";
     const float SectionHeight = 22, SectionSize = 13, SectionGap = 8, SectionInset = 4;
+
+    /// <summary>How much larger than at its own size the row of names is drawn: <see cref="FontSize"/> against 13.</summary>
+    float Scale => (float)(FontSize / SectionSize);
     const int MostLoads = 3, KeptWindows = 3;
     static readonly TimeSpan RetryAfter = TimeSpan.FromSeconds(10);
 
@@ -491,9 +513,20 @@ public sealed class ChartScroller : ContentView
 
     void OnSectionsChanged()
     {
-        _sectionRow.Height = Sections == ChartSections.None && !ShowNowButton ? 0 : SectionHeight;
+        _sectionRow.Height = Sections == ChartSections.None && !ShowNowButton ? 0 : SectionHeight * Scale;
         UpdateNowPill();
         _sections.Invalidate();
+    }
+
+    void OnFontSizeChanged()
+    {
+        var scale = Scale;
+        _nowText.FontSize = FontSize;
+        _nowPill.HeightRequest = SectionHeight * scale;
+        _nowPill.Padding = new Thickness(9 * scale, 0);
+        if (_nowPill.StrokeShape is Microsoft.Maui.Controls.Shapes.RoundRectangle shape)
+            shape.CornerRadius = SectionHeight * scale / 2;
+        OnSectionsChanged();
     }
 
     void OnLoaded()
@@ -939,7 +972,7 @@ public sealed class ChartScroller : ContentView
         // Now, on a chart made to reach past it (NowAt under 1): a line through the plot, so what has been and what is
         // forecast part. A history that ends now has nothing past it to part from.
         var now = XOf(DateTimeOffset.Now);
-        if (NowAt < 1 && now > left + 2 && now < right - 2)
+        if (ShowNowLine && NowAt < 1 && now > left + 2 && now < right - 2)
         {
             canvas.StrokeColor = (dark ? Colors.White : Colors.Black).WithAlpha(0.45f);
             canvas.StrokeSize = 1.5f;
@@ -954,8 +987,9 @@ public sealed class ChartScroller : ContentView
             return;
         var zone = Zone;
         var from = _to - Span;
-        var culture = CultureInfo.CurrentCulture;
+        var culture = SpineStrings.Current.Culture;
         var font = new Microsoft.Maui.Graphics.Font(FontFamily, FontWeights.SemiBold);
+        var (size, scale) = ((float)FontSize, Scale);
         var (longFormat, shortFormat) = Sections == ChartSections.Days
             ? (SectionFormat ?? "dddd", ShortSectionFormat ?? "ddd")
             : (SectionFormat ?? "MMMM yyyy", ShortSectionFormat ?? "MMM");
@@ -977,16 +1011,16 @@ public sealed class ChartScroller : ContentView
             var date = DateOnly.FromDayNumber(day).ToDateTime(TimeOnly.MinValue);
             var (name, brief) = (Capital(date.ToString(longFormat, culture), culture), Capital(date.ToString(shortFormat, culture), culture));
             names.Add((name, brief));
-            sections.Add(new ChartSection(XOf(start) - left, Measure(canvas, name, font), Measure(canvas, brief, font)));
+            sections.Add(new ChartSection(XOf(start) - left, Measure(canvas, name, font, size), Measure(canvas, brief, font, size)));
             day = Sections == ChartSections.Days ? day + 1 : DateOnly.FromDayNumber(day).AddMonths(1).DayNumber;
         }
 
         var dark = Application.Current?.RequestedTheme != AppTheme.Light;
         var ink = dark ? Colors.White : Color.FromArgb("#1D1D1F");
         canvas.Font = font;
-        canvas.FontSize = SectionSize;
+        canvas.FontSize = size;
         // The names keep clear of the "Now" pill, on whichever side it stands.
-        var reserve = _nowPill.IsVisible ? (float)Math.Max(_nowPill.Width, 56) + SectionGap : 0;
+        var reserve = _nowPill.IsVisible ? (float)Math.Max(_nowPill.Width, 56 * scale) + SectionGap * scale : 0;
         var (leading, trailing) = IsNowLater ? (0f, reserve) : (reserve, 0f);
         for (var i = 0; i < sections.Count; i++)
             sections[i] = sections[i] with { Offset = sections[i].Offset - leading };
@@ -994,19 +1028,19 @@ public sealed class ChartScroller : ContentView
         var room = (float)PlotWidth - leading - trailing;
         // A name being pushed out slides under nothing: it is cut off where the row's room ends.
         canvas.ClipRectangle(left, rect.Y, room, rect.Height);
-        foreach (var placed in SectionLayout.Place(sections, room, SectionGap, SectionInset))
+        foreach (var placed in SectionLayout.Place(sections, room, SectionGap * scale, SectionInset * scale))
         {
             var text = placed.Short ? names[placed.Index].Short : names[placed.Index].Long;
             canvas.FontColor = ink.WithAlpha(placed.Opacity);
             // A box wider than the name, so a measure a little too narrow never cuts it short.
-            canvas.DrawString(text, left + placed.X, rect.Y, (placed.Short ? sections[placed.Index].ShortWidth : sections[placed.Index].LongWidth) + 40,
+            canvas.DrawString(text, left + placed.X, rect.Y, (placed.Short ? sections[placed.Index].ShortWidth : sections[placed.Index].LongWidth) + 40 * scale,
                 rect.Height, HorizontalAlignment.Left, VerticalAlignment.Center);
         }
     }
 
     /// <summary>A name's width, with a little to spare: the platform's measure can come out narrower than what it draws.</summary>
-    static float Measure(ICanvas canvas, string text, Microsoft.Maui.Graphics.Font font) =>
-        canvas.GetStringSize(text, font, SectionSize).Width * 1.06f + 2;
+    static float Measure(ICanvas canvas, string text, Microsoft.Maui.Graphics.Font font, float size) =>
+        canvas.GetStringSize(text, font, size).Width * 1.06f + 2;
 
     static string Capital(string text, CultureInfo culture) => text.Length == 0 ? text : char.ToUpper(text[0], culture) + text[1..];
 }

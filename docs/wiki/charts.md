@@ -155,7 +155,8 @@ public IChartHistory History { get; } = new ChartHistory(async (from, to, ct) =>
   then moves on with now. Scrolled away, a small "Now" pill (Spine's `Spine.Charts.Now`) stands in the row of names
   on the side where now lies, "Now ›" back in a history and "‹ Now" ahead in a forecast; a tap glides back. For a
   button of the page's own, `ShowNowButton="False"`, `IsAtNow`, `IsNowLater` and `ScrollToNowAsync()`. With
-  `NowAt` under 1 a line marks now wherever it is in view. A forecast is usually one request: give it a `ChunkDays`
+  `NowAt` under 1 a line marks now wherever it is in view (`ShowNowLine="False"` leaves it out, for a chart whose own
+  steps already show where now is). A forecast is usually one request: give it a `ChunkDays`
   as long as the forecast.
 
 ```xml
@@ -189,8 +190,10 @@ public IChartHistory History { get; } = new ChartHistory(async (from, to, ct) =>
   and `Months` the month's at each first; `None` leaves the row out. The section at the leading edge keeps its name
   there until the next one leaves no room; it is then shortened (`ShortSectionFormat`), then pushed out, fading, and a
   name coming in at the trailing edge fades in. `SectionFormat` and `ShortSectionFormat` are date formats in the
-  current culture (`dddd`/`ddd` for days, `MMMM yyyy`/`MMM` for months by default); the first letter is a capital.
-  The names line up with the chart's plot, 4 points inside the line where their section begins.
+  app's language, `SpineStrings.Current.Culture` (`dddd`/`ddd` for days, `MMMM yyyy`/`MMM` for months by default);
+  the first letter is a capital. The names line up with the chart's plot, 4 points inside the line where their
+  section begins. `FontSize` (13) sizes them, and the row and the "Now" pill grow with it, for a chart made larger as
+  a whole, as on a television.
 - **A still scale.** The value axis stays where it is while the time moves. Give the chart a fixed `Minimum` and
   `Maximum` (a `ColumnChart` a `Maximum`), or the axis is fitted to everything loaded and moves when more arrives.
 - **A column chart along time.** In a scroller a `ColumnChart` places each column by its time: `Times` (when each
@@ -205,6 +208,9 @@ public IChartHistory History { get; } = new ChartHistory(async (from, to, ct) =>
 
 - **Another chart.** Any view that implements `IScrollableChart` can be scrolled: `ShowWindow(from, to)` on every frame
   of a scroll, `ShowHistory(slice)` when the loaded days change, `SelectsByDragging` (off while scrolling),
-  `ClearSelection()`, and `PlotMargin`, its space outside the plot at either side, for the names to line up with.
+  `ClearSelection()`, `HoldSelection(x)` for a scrub, and `PlotMargin`, its space outside the plot at either side,
+  for the names to line up with. A chart with everything it shows already in hand needs no `Source`: it draws the
+  window it is given from its own data, and `Earliest`/`Latest` are its first and last moment. The Home app's weather
+  forecast is one, drawn with SkiaSharp (symbols, wind, rain and two fixed scales).
 - **Not yet:** keys on a television or a keyboard, VoiceOver's and TalkBack's adjustable action, and Windows' mouse
   wheel. On the Mac the trackpad's swipe and the mouse drag scroll the chart.
