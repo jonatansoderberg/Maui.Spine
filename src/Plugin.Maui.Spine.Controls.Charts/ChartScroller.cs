@@ -396,6 +396,7 @@ public sealed class ChartScroller : ContentView
     /// <summary>The span, the limits or the size changed: the window keeps its end, or follows the latest.</summary>
     void Replace()
     {
+        Publish();
         if (!_placed || _panning || _gliding)
             return;
         Show(Clamp(_following ? MaxTo : _to));
@@ -776,7 +777,11 @@ public sealed class ChartScroller : ContentView
     }
 
     /// <summary>What is loaded, merged oldest first, to the chart.</summary>
-    void Publish() => Scrollable?.ShowHistory(ChartSlice.Merge(_chunks.Values.Select(c => c.Slice).OfType<ChartSlice>()));
+    /// <remarks>
+    /// Only what lies between <see cref="Earliest"/> and <see cref="Latest"/>: a source that answers whole weeks may give
+    /// days past an end, and drawn there they would look reachable while a drag past the end springs back.
+    /// </remarks>
+    void Publish() => Scrollable?.ShowHistory(ChartSlice.Merge(_chunks.Values.Select(c => c.Slice).OfType<ChartSlice>()).Within(Earliest, Latest));
 
     /// <summary>Whether a day in view has nothing to show yet, and the pulse over it.</summary>
     void UpdateLoading()

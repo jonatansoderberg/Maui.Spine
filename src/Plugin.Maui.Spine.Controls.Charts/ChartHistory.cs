@@ -12,6 +12,19 @@ public sealed record ChartSlice(IReadOnlyList<ChartPoint>? Points = null, IReadO
     public static ChartSlice Empty { get; } = new();
 
     /// <summary>Slices one after the other as one, oldest first: the points and columns in order, each band's ranges joined by its place in the list.</summary>
+    /// <summary>
+    /// What lies from <paramref name="from"/> up to <paramref name="to"/>, each end open when null: a column by when it
+    /// begins, so one that begins before <paramref name="to"/> stays.
+    /// </summary>
+    public ChartSlice Within(DateTimeOffset? from, DateTimeOffset? to)
+    {
+        bool In(DateTimeOffset time) => (from is not { } f || time >= f) && (to is not { } t || time <= t);
+        return new ChartSlice(
+            Points?.Where(p => In(p.Time)).ToList(),
+            Bands?.Select(b => b with { Ranges = [.. b.Ranges.Where(r => In(r.Time))] }).ToList(),
+            Columns?.Where(c => (from is not { } f || c.Time >= f) && (to is not { } t || c.Time < t)).ToList());
+    }
+
     public static ChartSlice Merge(IEnumerable<ChartSlice> slices)
     {
         var points = new List<ChartPoint>();
