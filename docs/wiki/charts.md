@@ -152,8 +152,11 @@ public IChartHistory History { get; } = new ChartHistory(async (from, to, ct) =>
 - **Now.** `NowAt` says where now stands across the window when the chart opens and when it goes back to now: 1 (the
   default) at the trailing edge for a history, 0 at the leading edge for a forecast, between for both in one chart.
   With `SnapTo` the window rests on round times with now in view. `To` is null while the window is at now, and it
-  then moves on with now. `IsAtNow` is false once scrolled away, for a "Now" button that calls `ScrollToNowAsync()`.
-  With `NowAt` under 1 a line marks now wherever it is in view.
+  then moves on with now. Scrolled away, a small "Now" pill (Spine's `Spine.Charts.Now`) stands in the row of names
+  on the side where now lies, "Now ›" back in a history and "‹ Now" ahead in a forecast; a tap glides back. For a
+  button of the page's own, `ShowNowButton="False"`, `IsAtNow`, `IsNowLater` and `ScrollToNowAsync()`. With
+  `NowAt` under 1 a line marks now wherever it is in view. A forecast is usually one request: give it a `ChunkDays`
+  as long as the forecast.
 
 ```xml
 <!-- A forecast: yesterday behind, ten days ahead, now a quarter in -->
@@ -173,8 +176,8 @@ public IChartHistory History { get; } = new ChartHistory(async (from, to, ct) =>
   local midnight), with a light tick when it rests on another day; an end of the history is always a resting place.
 - **Loading.** `Source` (an `IChartHistory`, or `ChartHistory` around a function) is asked for whole local days,
   `ChunkDays` at a time (1 by default; 7 for a column a day over months): those in the window first, newest first,
-  then one window each way, at most three at a time. Days more than three windows away are let go and a load still
-  running there is cancelled. A day in view that has nothing yet has a soft pulse over it (`IsLoading`), so loading
+  then one window each way, at most three at a time; during a glide, those where it will rest. Days more than three windows away are let go and a load still
+  running there is cancelled. A day in view that has nothing yet, asked for or waiting its turn, has a soft pulse over it (`IsLoading`), so loading
   never reads as "no data"; a day that could not be read (the source threw) is asked again when needed after 10 s.
   `InvalidateData()` or `InvalidateData(from, to)` asks again for days the app knows have changed, such as today after
   a new reading; the chart keeps what it had until the answer comes.

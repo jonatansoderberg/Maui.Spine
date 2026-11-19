@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Core;
 
 namespace Plugin.Maui.Spine.Controls;
@@ -74,6 +75,12 @@ public sealed class ChartScroller : ContentView
     public static readonly BindableProperty NowAtProperty = BindableProperty.Create(nameof(NowAt), typeof(double), typeof(ChartScroller), 1.0,
         validateValue: static (_, value) => (double)value is >= 0 and <= 1,
         propertyChanged: static (b, _, _) => ((ChartScroller)b).Replace());
+
+    public static readonly BindableProperty ShowNowButtonProperty = BindableProperty.Create(nameof(ShowNowButton), typeof(bool), typeof(ChartScroller), true,
+        propertyChanged: static (b, _, _) => ((ChartScroller)b).OnSectionsChanged());
+
+    static readonly BindablePropertyKey IsNowLaterPropertyKey = BindableProperty.CreateReadOnly(nameof(IsNowLater), typeof(bool), typeof(ChartScroller), false);
+    public static readonly BindableProperty IsNowLaterProperty = IsNowLaterPropertyKey.BindableProperty;
 
     static readonly BindablePropertyKey IsAtNowPropertyKey = BindableProperty.CreateReadOnly(nameof(IsAtNow), typeof(bool), typeof(ChartScroller), true);
     public static readonly BindableProperty IsAtNowProperty = IsAtNowPropertyKey.BindableProperty;
@@ -150,6 +157,19 @@ public sealed class ChartScroller : ContentView
     /// </summary>
     public bool IsAtNow => (bool)GetValue(IsAtNowProperty);
 
+    /// <summary>
+    /// Whether now lies later than the window (scrolled back into the history), so the way back to it points forward;
+    /// false when it lies earlier (scrolled ahead into a forecast) or the window is at now.
+    /// </summary>
+    public bool IsNowLater => (bool)GetValue(IsNowLaterProperty);
+
+    /// <summary>
+    /// Whether a small "Now" pill shows in the row of names, on the side where now lies, while the window is away from
+    /// now; a tap goes back. Its text is Spine's <c>Spine.Charts.Now</c>. True by default; off for a page with a button of
+    /// its own (<see cref="IsAtNow"/>, <see cref="IsNowLater"/>).
+    /// </summary>
+    public bool ShowNowButton { get => (bool)GetValue(ShowNowButtonProperty); set => SetValue(ShowNowButtonProperty, value); }
+
     /// <summary>Whether a day in view is still being loaded.</summary>
     public bool IsLoading => (bool)GetValue(IsLoadingProperty);
 
@@ -161,6 +181,16 @@ public sealed class ChartScroller : ContentView
     readonly Grid _area = [];
     readonly GraphicsView _sections = new() { InputTransparent = true };
     readonly GraphicsView _overlay = new() { InputTransparent = true };
+    readonly Label _nowText = new() { FontSize = 13, FontAttributes = FontAttributes.Bold, VerticalOptions = LayoutOptions.Center };
+    readonly Border _nowPill = new()
+    {
+        StrokeThickness = 0,
+        StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 11 },
+        Padding = new Thickness(9, 0),
+        HeightRequest = 22,
+        VerticalOptions = LayoutOptions.Center,
+        IsVisible = false,
+    };
     readonly RowDefinition _sectionRow = new(SectionHeight);
     readonly PanGestureRecognizer _twoFingers = new() { TouchPoints = 2 };
     readonly PanGestureRecognizer _oneFinger = new() { TouchPoints = 1 };
@@ -184,6 +214,9 @@ public sealed class ChartScroller : ContentView
     bool _placed, _following = true, _panning, _gliding, _settingTo, _dirty = true;
     DateTimeOffset _panStart;
 
+    /// <summary>Where a glide is going: its days are loaded first, not those it passes on the way.</summary>
+    DateTimeOffset? _glideTarget;
+
     /// <summary>Which way the drag went first: sideways moves the chart, up or down is the page's.</summary>
     int _axis;
     const double AxisSlop = 8;
@@ -203,6 +236,8 @@ public sealed class ChartScroller : ContentView
         public void Draw(ICanvas canvas, RectF dirtyRect) => draw(canvas, dirtyRect);
     }
 
+    static ChartScroller() => SpineStrings.Current.AddDefaults(new EmbeddedXmlStringProvider(typeof(ChartScroller).Assembly));
+
     public ChartScroller()
     {
         _sections.Drawable = new Drawn(DrawSections);
@@ -210,6 +245,13 @@ public sealed class ChartScroller : ContentView
         _area.Add(_overlay);
         var grid = new Grid { RowDefinitions = { _sectionRow, new RowDefinition(GridLength.Star) }, RowSpacing = 0 };
         grid.Add(_sections, 0, 0);
+        _nowPill.Content = _nowText;
+        var goBack = new TapGestureRecognizer();
+        goBack.Tapped += (_, _) => _ = ScrollToNowAsync();
+        _nowPill.GestureRecognizers.Add(goBack);
+        _nowPill.SizeChanged += (_, _) => _sections.Invalidate();
+        SemanticProperties.SetHint(_nowPill, SpineStrings.Current["Spine.Charts.Now"]);
+        grid.Add(_nowPill, 0, 0);
         grid.Add(_area, 0, 1);
         Content = grid;
         _twoFingers.PanUpdated += OnPan;
@@ -449,7 +491,8 @@ public sealed class ChartScroller : ContentView
 
     void OnSectionsChanged()
     {
-        _sectionRow.Height = Sections == ChartSections.None ? 0 : SectionHeight;
+        _sectionRow.Height = Sections == ChartSections.None && !ShowNowButton ? 0 : SectionHeight;
+        UpdateNowPill();
         _sections.Invalidate();
     }
 
@@ -477,8 +520,30 @@ public sealed class ChartScroller : ContentView
         this.AbortAnimation(PulseAnimation);
     }
 
+    /// <summary>The "Now" pill: shown away from now, on the side where now lies, lined up with the plot's edge.</summary>
+    void UpdateNowPill()
+    {
+        var show = ShowNowButton && _placed && !_following;
+        _nowPill.IsVisible = show;
+        if (!show)
+        {
+            _sections.Invalidate();
+            return;
+        }
+        var later = IsNowLater;
+        var now = SpineStrings.Current["Spine.Charts.Now"];
+        _nowText.Text = later ? $"{now} ›" : $"‹ {now}";
+        _nowPill.HorizontalOptions = later ? LayoutOptions.End : LayoutOptions.Start;
+        _nowPill.Margin = later ? new Thickness(0, 0, Margins.Right, 0) : new Thickness(Margins.Left, 0, 0, 0);
+        var dark = Application.Current?.RequestedTheme != AppTheme.Light;
+        _nowPill.BackgroundColor = (dark ? Colors.White : Colors.Black).WithAlpha(dark ? 0.16f : 0.07f);
+        _nowText.TextColor = dark ? Colors.White : Color.FromArgb("#1D1D1F");
+        _sections.Invalidate();
+    }
+
     void OnThemeChanged(object? sender, AppThemeChangedEventArgs e)
     {
+        UpdateNowPill();
         _sections.Invalidate();
         _overlay.Invalidate();
     }
@@ -508,8 +573,11 @@ public sealed class ChartScroller : ContentView
     void Settle()
     {
         var spp = SecondsPerPoint;
-        _following = Math.Abs((Home - _to).TotalSeconds) <= Math.Max(1, spp * 2);
+        var home = Home;
+        _following = Math.Abs((home - _to).TotalSeconds) <= Math.Max(1, spp * 2);
         SetValue(IsAtNowPropertyKey, _following);
+        SetValue(IsNowLaterPropertyKey, !_following && home > _to);
+        UpdateNowPill();
         SetValue(FromPropertyKey, _placed ? _to - Span : null);
         _settingTo = true;
         To = _following ? null : _to;
@@ -698,9 +766,12 @@ public sealed class ChartScroller : ContentView
         }
         var done = new TaskCompletionSource();
         _gliding = true;
+        _glideTarget = target;
+        _dirty = true;
         new Animation(t => Show(start + (target - start) * t), 0, 1, Easing.CubicOut)
             .Commit(this, GlideAnimation, rate: 16, length: (uint)ScrollMotion.Duration(distance), finished: (_, cancelled) =>
             {
+                _glideTarget = null;
                 if (!cancelled)
                 {
                     _gliding = false;
@@ -724,13 +795,15 @@ public sealed class ChartScroller : ContentView
             return;
         }
         var (zone, days, span) = (Zone, ChunkDays, Span);
-        var from = _to - span;
+        // Gliding, the days where it will rest are the ones to have; those it passes are gone in a moment.
+        var at = _glideTarget ?? _to;
+        var from = at - span;
         var max = MaxTo;
         var lowest = Earliest;
-        var (viewFirst, viewLast) = ChartChunks.Range(from, _to, zone, days);
-        var (needFirst, needLast) = ChartChunks.Range(lowest is { } e ? Max(from - span, e) : from - span, Min(_to + span, max), zone, days);
+        var (viewFirst, viewLast) = ChartChunks.Range(from, at, zone, days);
+        var (needFirst, needLast) = ChartChunks.Range(lowest is { } e ? Max(from - span, e) : from - span, Min(at + span, max), zone, days);
         var keep = KeptWindows * span;
-        var (keepFirst, keepLast) = ChartChunks.Range(from - keep, _to + keep, zone, days);
+        var (keepFirst, keepLast) = ChartChunks.Range(Min(from, _to - span) - keep, Max(at, _to) + keep, zone, days);
         var key = (viewFirst, viewLast, needFirst, needLast);
         if (!_dirty && _loadedFor == key)
             return;
@@ -833,9 +906,16 @@ public sealed class ChartScroller : ContentView
     /// <summary>The days in view still waiting for their first answer.</summary>
     IEnumerable<(DateTimeOffset From, DateTimeOffset To)> VisibleLoading()
     {
-        var (first, last) = ChartChunks.Range(_to - Span, _to, Zone, ChunkDays);
-        foreach (var (key, chunk) in _chunks)
-            if (key >= first && key <= last && chunk.Slice is null && chunk.Loading is not null)
+        if (Source is null)
+            yield break;
+        var from = Earliest is { } earliest ? Max(_to - Span, earliest) : _to - Span;
+        var to = Min(_to, MaxTo);
+        if (to <= from)
+            yield break;
+        // Asked for or still waiting its turn: either way it has nothing to show yet. One that failed waits quietly.
+        var (first, last) = ChartChunks.Range(from, to, Zone, ChunkDays);
+        for (var key = first; key <= last; key++)
+            if (!_chunks.TryGetValue(key, out var chunk) || (chunk.Slice is null && chunk.FailedAt is null))
                 yield return ChartChunks.Bounds(key, Zone, ChunkDays);
     }
 
@@ -905,7 +985,16 @@ public sealed class ChartScroller : ContentView
         var ink = dark ? Colors.White : Color.FromArgb("#1D1D1F");
         canvas.Font = font;
         canvas.FontSize = SectionSize;
-        foreach (var placed in SectionLayout.Place(sections, (float)PlotWidth, SectionGap, SectionInset))
+        // The names keep clear of the "Now" pill, on whichever side it stands.
+        var reserve = _nowPill.IsVisible ? (float)Math.Max(_nowPill.Width, 56) + SectionGap : 0;
+        var (leading, trailing) = IsNowLater ? (0f, reserve) : (reserve, 0f);
+        for (var i = 0; i < sections.Count; i++)
+            sections[i] = sections[i] with { Offset = sections[i].Offset - leading };
+        left += leading;
+        var room = (float)PlotWidth - leading - trailing;
+        // A name being pushed out slides under nothing: it is cut off where the row's room ends.
+        canvas.ClipRectangle(left, rect.Y, room, rect.Height);
+        foreach (var placed in SectionLayout.Place(sections, room, SectionGap, SectionInset))
         {
             var text = placed.Short ? names[placed.Index].Short : names[placed.Index].Long;
             canvas.FontColor = ink.WithAlpha(placed.Opacity);

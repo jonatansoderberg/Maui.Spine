@@ -14,11 +14,8 @@
                 <Border StrokeThickness="1" Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
                         Padding="10,10,6,8" StrokeShape="RoundRectangle 16">
                     <VerticalStackLayout Spacing="2">
-                        <Grid ColumnDefinitions="*,Auto" HeightRequest="32">
-                            <Label x:Name="Picked" Text=" " FontSize="14" FontAttributes="Bold" VerticalOptions="Center" />
-                            <Button x:Name="LineNow" Grid.Column="1" Text="Now ›" IsVisible="False" Padding="10,0" HeightRequest="30" FontSize="13" />
-                        </Grid>
-                        <ChartScroller x:Name="LineScroller" Source="{Binding Readings}" Earliest="{Binding Earliest}"
+                        <Label x:Name="Picked" Text=" " FontSize="14" FontAttributes="Bold" HeightRequest="22" />
+                        <ChartScroller Source="{Binding Readings}" Earliest="{Binding Earliest}"
                                        Span="{Binding LineSpan}" SnapTo="{Binding LineSnap}" OneFinger="{Binding OneFinger}">
                             <LineChart x:Name="Line" Minimum="2" Maximum="16" BandLow="3.9" BandHigh="10"
                                        Color="#34C759" BelowColor="#FF453A" AboveColor="#FF9F0A" GapLabel="No readings" HighlightLast="False" />
@@ -54,17 +51,14 @@
         </Example>
 
         <Example Title="A forecast ahead"
-                 Summary="Now stands a quarter in, with a line through it: yesterday behind, ten days of forecast ahead to drag through. Red above zero, blue below; the button goes back to now, not to the end.">
+                 Summary="Now stands a quarter in, with a line through it: yesterday behind, ten days of forecast ahead to drag through. Red above zero, blue below; the pill goes back to now, not to the end. The whole forecast is one request.">
             <VerticalStackLayout Spacing="8">
                 <Border StrokeThickness="1" Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
                         Padding="10,10,6,8" StrokeShape="RoundRectangle 16">
                     <VerticalStackLayout Spacing="2">
-                        <Grid ColumnDefinitions="*,Auto" HeightRequest="32">
-                            <Label x:Name="ForecastPicked" Text=" " FontSize="14" FontAttributes="Bold" VerticalOptions="Center" />
-                            <Button x:Name="ForecastNow" Grid.Column="1" Text="Now ›" IsVisible="False" Padding="10,0" HeightRequest="30" FontSize="13" />
-                        </Grid>
-                        <ChartScroller x:Name="ForecastScroller" Source="{Binding Weather}" Earliest="{Binding Yesterday}" Latest="{Binding TenDaysAhead}"
-                                       Span="1.00:00" NowAt="0.25" SnapTo="01:00" OneFinger="{Binding OneFinger}">
+                        <Label x:Name="ForecastPicked" Text=" " FontSize="14" FontAttributes="Bold" HeightRequest="22" />
+                        <ChartScroller Source="{Binding Weather}" Earliest="{Binding Yesterday}" Latest="{Binding TenDaysAhead}"
+                                       Span="1.00:00" NowAt="0.25" SnapTo="01:00" ChunkDays="12" OneFinger="{Binding OneFinger}">
                             <LineChart x:Name="Forecast" Minimum="-10" Maximum="12" BandLow="0" BandHigh="0" ShowBand="False"
                                        Color="#E8505E" AboveColor="#E8505E" BelowColor="#0C7ED9" HighlightLast="False" />
                         </ChartScroller>
@@ -81,8 +75,10 @@
                                HighlightLast="False" /&gt;
                 &lt;/ChartScroller&gt;
 
-                // Back to now, not to the end
-                scroller.ScrollToNowAsync();
+                // A forecast is one request: ChunkDays="12"
+                // The "Now" pill goes back to now, not to the end;
+                // your own: ShowNowButton="False", IsAtNow,
+                // IsNowLater and ScrollToNowAsync()
             </Example.Code>
         </Example>
 
@@ -92,10 +88,7 @@
                 <Border StrokeThickness="1" Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
                         Padding="10,10,10,8" StrokeShape="RoundRectangle 16">
                     <VerticalStackLayout Spacing="2">
-                        <Grid HeightRequest="32">
-                            <Button x:Name="ColumnNow" Text="Today ›" IsVisible="False" Padding="10,0" HeightRequest="30" FontSize="13" HorizontalOptions="End" />
-                        </Grid>
-                        <ChartScroller x:Name="ColumnScroller" Source="{Binding Steps}" Earliest="{Binding YearAgo}" Latest="{Binding EndOfToday}"
+                        <ChartScroller Source="{Binding Steps}" Earliest="{Binding YearAgo}" Latest="{Binding EndOfToday}"
                                        Span="14.00:00" SnapTo="1.00:00" ChunkDays="7" Sections="Months" OneFinger="{Binding OneFinger}">
                             <ColumnChart Maximum="12000" ColumnSpan="1.00:00" ReferenceValue="8000" ReferenceLabel="8k" HeightRequest="140"
                                          Color="{DynamicResource Primary}" />

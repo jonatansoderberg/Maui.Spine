@@ -97,6 +97,14 @@ weeks with "November 2026" over it, a flick back five weeks rests on whole days 
   snapped with now in view; under 1 a line marks now. Showcase: "A forecast ahead" (yesterday and ten days of hourly
   temperature, red above zero and blue below). Tried in the simulator: the forecast opens with now a quarter in.
 
+- 2026-11-19, the owner on the forecast: it flickered, its button said "Now ›" though now lay behind, and the button
+  took too much room. A flick asked for every day it passed and the days where it rested waited behind them, empty:
+  a glide now loads its target's days first, a day in view waiting its turn shows the pulse, and the forecast sample
+  is one request (`ChunkDays="12"`). The "Now" button is built in: a small pill in the row of names on the side where
+  now lies ("Now ›" / "‹ Now", `Spine.Charts.Now`, Swedish "Nu"), `ShowNowButton`, `IsNowLater`; the names keep clear
+  of it and are cut off where it stands. Tried in the simulator: a flick ahead shows the forecast at once with
+  "‹ Now", a tap goes back to now and the pill goes.
+
 ## Decisions
 
 - **One finger scrolls, a held press scrubs** (2026-11-19), as Stocks and Health do: two fingers as the way to scroll

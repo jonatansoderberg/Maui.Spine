@@ -24,15 +24,5 @@ public partial class ChartsPage
                     ? $"{s.Point.Value.ToString("0.0", CultureInfo.CurrentCulture)}° · {s.Point.Time.ToLocalTime():ddd d MMM HH:mm}"
                     : " ";
         };
-        // A "Now" button while the chart is scrolled away from now; it glides back to where now belongs.
-        foreach (var (scroller, button) in new[] { (LineScroller, LineNow), (ColumnScroller, ColumnNow), (ForecastScroller, ForecastNow) })
-        {
-            scroller.PropertyChanged += (_, e) =>
-            {
-                if (e.PropertyName == nameof(ChartScroller.IsAtNow))
-                    button.IsVisible = !scroller.IsAtNow;
-            };
-            button.Clicked += (_, _) => _ = scroller.ScrollToNowAsync();
-        }
     }
 }
