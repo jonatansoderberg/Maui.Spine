@@ -19,7 +19,41 @@ public static partial class SpineExtensions
 
         // A new items layout is a new UICollectionViewLayout, without the page margin.
         CollectionViewHandler2.Mapper.AppendToMapping(nameof(StructuredItemsView.ItemsLayout), ApplyScrollInset);
+
+        CollectionViewHandler.Mapper.PrependToMapping(nameof(ItemsView.ItemsSource), NoteOffsetBeforeItemsSource);
+        CollectionViewHandler.Mapper.AppendToMapping(nameof(ItemsView.ItemsSource), ScrollToTopInsideInset);
+        CollectionViewHandler2.Mapper.PrependToMapping(nameof(ItemsView.ItemsSource), NoteOffsetBeforeItemsSource);
+        CollectionViewHandler2.Mapper.AppendToMapping(nameof(ItemsView.ItemsSource), ScrollToTopInsideInset);
     }
+
+    static CoreGraphics.CGPoint? _offsetBeforeItemsSource;
+
+    static void NoteOffsetBeforeItemsSource(IElementHandler handler, IElement element) =>
+        _offsetBeforeItemsSource = ScrollViewOf(handler)?.ContentOffset;
+
+    /// <summary>
+    /// MAUI 11 takes a collection view back to its top when its ItemsSource changes by setting the
+    /// offset to zero, which is the top only without a content inset: under the header bar's inset
+    /// the first rows were left under the bar (a search that filters the list, then ends). The top
+    /// it means is minus the inset. MAUI 10 leaves the offset alone, and so does this then.
+    /// </summary>
+    static void ScrollToTopInsideInset(IElementHandler handler, IElement element)
+    {
+        var before = _offsetBeforeItemsSource;
+        _offsetBeforeItemsSource = null;
+
+        if (ScrollViewOf(handler) is not { } scrollView)
+            return;
+
+        var inset = scrollView.AdjustedContentInset;
+
+        if (before is { } offset && offset != CoreGraphics.CGPoint.Empty && scrollView.ContentOffset == CoreGraphics.CGPoint.Empty
+            && (inset.Top != 0 || inset.Left != 0))
+            scrollView.ContentOffset = new CoreGraphics.CGPoint(-inset.Left, -inset.Top);
+    }
+
+    static UIScrollView? ScrollViewOf(IElementHandler handler) =>
+        handler.PlatformView is UIView view ? view as UIScrollView ?? FindScrollView(view) : null;
 
     static void ApplyScrollInset(IElementHandler handler, IElement element)
     {
