@@ -252,6 +252,12 @@ os_keys() {  # <ios version>
   fi
 }
 
+# The device capability App Store Connect asks of every 64-bit extension (ITMS-90502 without it). iOS only;
+# Mac Catalyst bundles do not carry UIRequiredDeviceCapabilities.
+device_keys() {
+  [[ "$CATALYST" == "true" ]] || printf '\t<key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>'
+}
+
 # --- Extension Info.plist ------------------------------------------------------------------------
 {
   write_plist_header
@@ -267,6 +273,7 @@ os_keys() {  # <ios version>
 	<key>CFBundleVersion</key><string>1</string>
 	<key>CFBundleSupportedPlatforms</key><array><string>$PLATFORM</string></array>
 $(os_keys "$EXT_MIN_OS")
+$(device_keys)
 	<key>SpineWidgetsAppGroup</key><string>$(plist_escape "$APP_GROUP")</string>
 	<key>DTCompiler</key><string>com.apple.compilers.llvm.clang.1_0</string>
 	<key>DTPlatformName</key><string>$XCRUN_SDK</string>

@@ -181,6 +181,7 @@ Without either, macOS blocks the container ("Data Access Blocked") and the widge
 
 - **macOS with Xcode for iOS and Mac Catalyst.** The extension and the bridge are compiled with `swiftc` during the iOS and Mac Catalyst builds (a few seconds); everything else is untouched. The Android build needs nothing beyond the SDK and runs on any host.
 - **A real App Group in the provisioning profile** for device and TestFlight builds, on both App IDs — see [above](#4-register-the-extension-in-the-developer-portal-for-device-builds). Simulator builds sign ad hoc and need no identity — the targets set `CodesignKey=-` themselves when none is configured.
+- **App Store uploads** need `UIRequiredDeviceCapabilities` = `arm64` in the extension's Info.plist, or App Store Connect rejects the build with ITMS-90502 ("has a 64-bit architecture slice"). The build script writes it for iOS (not for Mac Catalyst); the push-notification service extension carries it too.
 - Only iOS and Mac Catalyst **inner** builds (those with a `RuntimeIdentifier`) run the native step. Design-time builds, other platforms and Windows hosts skip it entirely.
 - **Release builds carry the widgets' debug symbols.** The extension and the bridge are compiled with debug info, stripped, and their dSYMs — `SpineWidgets.appex.dSYM` and `SpineWidgetBridge.framework.dSYM` — land beside the app's in the archive, so a crash in a widget is symbolicated like one in the app.
 
