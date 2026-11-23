@@ -182,3 +182,32 @@ public class PurchaseResolverTests
         Assert.Empty(PurchaseResolver.OverlappingSubscriptions(Catalog, owned, Now));
     }
 }
+
+public enum TierPurchase
+{
+    Supporter,
+}
+
+public enum TierProduct
+{
+    [StoreProduct(ProductKind.OneTime, Apple = "gold")]
+    [Grants(TierPurchase.Supporter)]
+    Gold,
+
+    [StoreProduct(ProductKind.OneTime, Apple = "bronze")]
+    [Grants(TierPurchase.Supporter)]
+    Bronze,
+}
+
+public class TierTests
+{
+    [Fact]
+    public void Among_one_time_tiers_the_product_declared_first_gives_the_state()
+    {
+        var catalog = PurchaseCatalog.Create<TierPurchase, TierProduct>();
+        var now = new DateTimeOffset(2026, 11, 23, 12, 0, 0, TimeSpan.Zero);
+        OwnedProduct[] owned = [new(TierProduct.Bronze, now.AddDays(-2), null, false), new(TierProduct.Gold, now, null, false)];
+
+        Assert.Equal(TierProduct.Gold, PurchaseResolver.Resolve(catalog, owned, now)[TierPurchase.Supporter].Product);
+    }
+}

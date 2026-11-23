@@ -171,13 +171,15 @@ An app with its own paywall registers it with `.Paywall<MyPaywallPage>()`: a `[N
 <PurchasesSection />
 ```
 
+Each purchase's and credit's row has a star unless the app names an icon: `o.Icon(AppPurchase.Season2627, "Trophy.svg")`, `o.Icon(AppCredit.LiveGame, "RadioTower.svg")`, `o.Icon(AppPurchase.Supporter, "HeartHandshake.svg")`.
+
 Put it between Account and what the app works with ([settings pages](settings-pages.md)). It has:
 
 - **a row per active purchase**: "Pro Yearly · Renews 30 Nov 2026", "Lifetime" or "Bought", with `Status="Ok"`. A grace period shows `NeedsAttention` with "Payment problem: update it in App Store";
 - **"Get Supporter"** for each purchase not bought yet, which opens its paywall;
 - **a row for an overlapping subscription**, `NeedsAttention`: it still renews although a one-time purchase gives the same;
 - **Manage subscription** (`ExternalLink`, indigo) while a subscription runs;
-- **each credit's balance** ("3 kvar"), or "Obegränsat" while a purchase makes it free;
+- **a row per credit with what is left** ("Livematcher · 3 kvar"). A tap opens the paywall for the credit: the products that add it and the purchases that make it unlimited. The row's name is `Purchases.Credits.<Member>.Row` in the app's strings, or the credit's name. While a purchase makes the credit unlimited, the row stays greyed with "Unlimited" and that purchase's name, and does nothing on a tap;
 - **Restore purchases**, with the result in the section's footer.
 
 A purchase is not offered there while another active purchase already makes the same credit unlimited.

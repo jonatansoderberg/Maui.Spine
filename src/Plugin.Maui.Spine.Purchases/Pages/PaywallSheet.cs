@@ -327,8 +327,14 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
 
     private static Task Open(Uri? uri) => uri is null ? Task.CompletedTask : Launcher.Default.OpenAsync(uri);
 
+    private PaywallText? _text;
+
+    /// <summary>The mark on the highlighted product when this paywall's text sets its own.</summary>
+    internal string? HighlightBadge => _text?.HighlightBadge is { } badge ? PurchasesStrings.Text(badge) : null;
+
     private void ShowText(PaywallText text)
     {
+        _text = text.Highlight is null && text.HighlightBadge is null ? null : text;
         Headline = text.Headline is { } headline ? PurchasesStrings.Text(headline)
             : Common.SpineStrings.Current.Has("Purchases.Paywall.Title") ? Common.SpineStrings.Current["Purchases.Paywall.Title"]
             : PurchasesStrings.Get("Spine.Purchases.Paywall.Title");
@@ -351,7 +357,7 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
 
         Products.Clear();
         foreach (var info in offered)
-            Products.Add(new PaywallProduct(this, info, IsCurrent(info), hasPlan, Equals(info.Product, _purchases.Settings.Paywall.Highlight), storeName));
+            Products.Add(new PaywallProduct(this, info, IsCurrent(info), hasPlan, Equals(info.Product, _text?.Highlight ?? _purchases.Settings.Paywall.Highlight), storeName));
 
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(IsLoadingFirst));
@@ -429,7 +435,7 @@ public sealed partial class PaywallProduct : ObservableObject
 
         Badge = isCurrent
             ? PurchasesStrings.Get(info.Kind == ProductKind.Subscription ? "Spine.Purchases.Paywall.Current" : "Spine.Purchases.Paywall.Owned")
-            : isHighlighted ? PurchasesStrings.Get("Spine.Purchases.Paywall.Best") : "";
+            : isHighlighted ? owner.HighlightBadge ?? PurchasesStrings.Get("Spine.Purchases.Paywall.Best") : "";
         if (isCurrent)
             ActionText = Badge;
     }
