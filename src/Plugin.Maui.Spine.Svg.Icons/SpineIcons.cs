@@ -96,6 +96,8 @@ public static class SpineIcons
     public const string CreditCard = "CreditCard.svg";
     /// <summary>The <c>Crossfade.svg</c> icon.</summary>
     public const string Crossfade = "Crossfade.svg";
+    /// <summary>The <c>Crown.svg</c> icon.</summary>
+    public const string Crown = "Crown.svg";
     /// <summary>The <c>Curtain.svg</c> icon.</summary>
     public const string Curtain = "Curtain.svg";
     /// <summary>The <c>Delete.svg</c> icon.</summary>
@@ -563,6 +565,7 @@ public static class SpineIcons
         Copy,
         CreditCard,
         Crossfade,
+        Crown,
         Curtain,
         Delete,
         DeskDisplay,
