@@ -106,6 +106,12 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     /// </summary>
     public double GlyphLineWidthScale { get; set; } = IsWindows ? 2 : 1.6;
 
+    /// <summary>
+    /// Stroke of a <see cref="SpineRow.Menu"/> row's up-and-down chevron, relative to the glyph's own.
+    /// <see langword="null"/> = a quarter heavier than <see cref="GlyphLineWidthScale"/>: the glyph is drawn smaller.
+    /// </summary>
+    public double? MenuGlyphLineWidthScale { get; set; }
+
     /// <summary>Opacity of a disabled row's content.</summary>
     public double DisabledOpacity { get; set; } = 0.4;
 

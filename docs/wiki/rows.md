@@ -67,7 +67,7 @@ XAML namespaces: `Tap` and `Semantic` are in `Plugin.Maui.Spine.Extensions` (ass
 
 A row whose accessory is a `Switch` and that has no `Command` toggles the switch when tapped, which is also what a screen reader's activation does. `IsEnabled="False"` dims the row and takes away its press and command.
 
-The chevron is the header bar's back glyph (`HeaderBarConstants.BackGlyph`) turned around, so both arrows in an app are the same shape, drawn with a heavier stroke like the system's `chevron.forward` (`GlyphLineWidthScale`); in a right-to-left layout it points left.
+The chevron is the header bar's back glyph (`HeaderBarConstants.BackGlyph`) turned around, so both arrows in an app are the same shape, drawn with a heavier stroke like the system's `chevron.forward` (`GlyphLineWidthScale`); in a right-to-left layout it points left. A `Menu` row's up-and-down chevron is drawn a quarter heavier, as it is smaller, unless `MenuGlyphLineWidthScale` gives it a weight of its own, and an icon without a badge has `IconLineWidthScale`.
 
 The defaults follow the platform, so the same markup reads as native on both: on Android the value moves under the title and there is no chevron, as in Android's own settings. `ValuePlacement="Trailing"` and `ShowChevron="True"` keep the iOS layout on Android.
 
