@@ -287,6 +287,22 @@ await ledger.GrantAsync(caller, AppCredit.LiveMatch, 5, "demo");   // once per i
 - **The caller** is the JWT `sub` (Spine sign-in), or the `Spine-Installation` header. `o.Identify` replaces that.
 - **Spends:** two at the same time for one caller are serialised within one server instance. Two spends on different references at the same moment on two instances could both take the last credit.
 
+**Push tags that cost money.** When a paid feature is a push tag (`match:{id}`, `pro`), let the push server keep it only for an installation that paid. The push installation's id is the same id the purchases use:
+
+```csharp
+o.AllowTagsAsync = async (installation, tags, ct) =>
+{
+    var caller = CallerKeys.Installation(installation.Id);
+    var kept = new List<string>();
+    foreach (var tag in tags)
+        if (!tag.StartsWith("match:") || await ledger.IsUnlockedAsync(caller, AppCredit.LiveMatch, tag, ct))
+            kept.Add(tag);
+    return kept;
+};
+```
+
+The app registers again after a purchase or a spend, so the tag is there once the ledger has it. RevenueCat's webhook can come a few seconds after the purchase; the next registration (the next launch) picks up what it wrote.
+
 ## RevenueCat
 
 `Plugin.Maui.Spine.Purchases.RevenueCat` sells through App Store and Google Play with RevenueCat, on [Plugin.RevenueCat](https://github.com/redth/Plugin.RevenueCat). It runs on iOS, Mac Catalyst and Android; Plugin.RevenueCat has no Windows build. It needs MAUI 10.0.110 or later.

@@ -65,6 +65,7 @@ name of what is missing, rather than failing on the first send.
 | `UseInMemoryStore()` | Keeps the register in the process. For tests and sample servers |
 | `UseStore(...)` | A register of your own — see [The register](#the-register) |
 | `AllowTags` | Narrows the tags a client may register. Runs on every registration |
+| `AllowTagsAsync` | Narrows them further with a check that waits, such as a purchase ledger (`IPurchaseLedger.IsActiveAsync` / `IsUnlockedAsync` with `CallerKeys.Installation(installation.Id)`). Runs after `AllowTags`, on what it kept |
 | `Authenticate` | Gates the registration endpoints. Unset accepts everything |
 
 ---
