@@ -100,7 +100,7 @@ the app's resources sets it for every row of every page:
      titles; the chevron a little heavier and the up-and-down chevron of a menu row a little lighter to match -->
 <SpineRowStyleOptions x:Key="DefaultSpineRowStyleOptions"
                       ShowIconBadges="False" IconColor="#8E8E93" IconSize="32" IconLineWidthScale="1.5"
-                      GlyphLineWidthScale="2" MenuGlyphLineWidthScale="1.6" />
+                      GlyphLineWidthScale="2" MenuGlyphLineWidthScale="1.2" />
 ```
 
 `#8E8E93` is the system grey, which reads on both the light and the dark grouped background. `IconSize` (28 points on
