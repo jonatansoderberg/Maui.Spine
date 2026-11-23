@@ -1,7 +1,7 @@
 # Widgets everywhere: one description for every platform
 
 **Status:** Done (2026-11-04). Decisions D1–D12 approved by the owner on 2026-11-03.
-**Last updated:** 2026-11-04 (W0–W15 done; Glukos and Almanacka on layout files)
+**Last updated:** 2026-11-23 (W0–W15 done; Glukos and Almanacka on layout files; Windows widget board added)
 **Inputs:** the owner's review of Glukos's Live Activity on Android and iOS (#737, #739, #741); research into how others describe widgets for several platforms (§2); every widget and Live Activity in Glukos, Puckkoll and Almanacka, read and measured (§3).
 **Related:** [widgets-everywhere-examples.md](widgets-everywhere-examples.md) (every one of those written as a layout file), [docs/wiki/widgets.md](../wiki/widgets.md).
 **Goal:** An app describes a widget or Live Activity once, in names that read like MAUI and Spine, with narrow overrides where a platform needs something else, and Spine draws it on iOS and Android alike. Optionally as an XML layout file bound to a view model, compiled into the same C# by a source generator, so it is checked at build time and costs nothing extra at run time.

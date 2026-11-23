@@ -7,13 +7,14 @@
 		<UseMaui>true</UseMaui>
 		<SingleProject>true</SingleProject>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-
+		<!-- Windows registers the widget board's provider with COM through source-generated interop. -->
+		<AllowUnsafeBlocks Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Home-screen widgets and Live Activities for .NET MAUI, built from C#: a WidgetKit extension on iOS compiled during the app build and AppWidgetProvider receivers on Android, both drawn from one serialized view tree; plus iOS 18 Control Center controls and Android Quick Settings tiles.</Description>
+		<Description>Home-screen widgets and Live Activities for .NET MAUI, built from C#: a WidgetKit extension on iOS compiled during the app build, AppWidgetProvider receivers on Android and Adaptive Cards on the Windows 11 widget board, all drawn from one serialized view tree; plus iOS 18 Control Center controls and Android Quick Settings tiles.</Description>
 		<SpineIcon>widgets.png</SpineIcon>
-		<PackageTags>$(PackageTags);widgets;widgetkit;live-activities;appwidget;control-center;quick-settings</PackageTags>
+		<PackageTags>$(PackageTags);widgets;widgetkit;live-activities;appwidget;control-center;quick-settings;windows-widgets;adaptive-cards</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>

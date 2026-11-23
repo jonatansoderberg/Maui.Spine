@@ -11,6 +11,8 @@ public enum WidgetPlatform
     iOS = 1,
     /// <summary>Android.</summary>
     Android = 2,
+    /// <summary>Windows 11's widget board.</summary>
+    Windows = 4,
 }
 
 /// <summary>Where a tree is drawn, for an override that applies there.</summary>
