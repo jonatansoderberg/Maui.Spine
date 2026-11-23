@@ -155,6 +155,14 @@ if (await purchases.RequireAsync(AppPurchase.Pro)) …
 - **Restore purchases, Terms and Privacy** are under the products.
 - **Text in the app's language:** the product's name is `Purchases.Products.<Member>` in the app's strings and the purchase's name is `Purchases.<Member>`. Without them, the member name is split at capitals ("Pro Yearly").
 
+**The paywall in the app's own look:**
+
+- `.Accent(color)` sets the picked product's frame, the marks and the primary button. Text on the accent is black or white, whichever reads better. The default is pink.
+- `.Describe(product, text)` puts the app's own line under a product's price, instead of the trial, the price per month or what a consumable adds.
+- **Spine's own words** come from the app's strings when the app has the key. Hockeymatch writes every price as "79 kr · engångsköp" with `Spine.Purchases.Paywall.Once` = `{0} · engångsköp`.
+
+The cards are a step lighter than the sheet in the dark theme. The primary button has its own colours, so an app's `Button` style does not turn it into plain text.
+
 An app with its own paywall registers it with `.Paywall<MyPaywallPage>()`: a `[NavigableSheet]` that takes a `PaywallRequest` and returns `bool`.
 
 ## The settings section
@@ -169,7 +177,10 @@ Put it between Account and what the app works with ([settings pages](settings-pa
 - **"Get Supporter"** for each purchase not bought yet, which opens its paywall;
 - **a row for an overlapping subscription**, `NeedsAttention`: it still renews although a one-time purchase gives the same;
 - **Manage subscription** (`ExternalLink`, indigo) while a subscription runs;
+- **each credit's balance** ("3 kvar"), or "Obegränsat" while a purchase makes it free;
 - **Restore purchases**, with the result in the section's footer.
+
+A purchase is not offered there while another active purchase already makes the same credit unlimited.
 
 ## The test store
 

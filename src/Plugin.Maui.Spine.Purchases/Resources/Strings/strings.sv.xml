@@ -54,6 +54,8 @@
   <s key="Spine.Purchases.Row.Overlap">Din prenumeration förnyas fortfarande {0}. Avsluta den i {1}.</s>
   <s key="Spine.Purchases.Row.Manage">Hantera prenumeration</s>
   <s key="Spine.Purchases.Row.Restore">Återställ köp</s>
+  <s key="Spine.Purchases.Row.Left">{0} kvar</s>
+  <s key="Spine.Purchases.Row.Unlimited">Obegränsat</s>
 
   <s key="Spine.Purchases.Cover.Message">{0} låser upp det här.</s>
   <s key="Spine.Purchases.Cover.SeePlans">Visa erbjudanden</s>

@@ -100,6 +100,16 @@ public sealed class PaywallOptions<TPurchase, TProduct>
         return this;
     }
 
+    /// <summary>
+    /// The line under a product's price on its card: text, or the key of a Spine string. Without it, the trial, the price
+    /// per month of a longer period, or what a consumable adds.
+    /// </summary>
+    public PaywallOptions<TPurchase, TProduct> Describe(TProduct product, string text)
+    {
+        _settings.Descriptions[product] = text;
+        return this;
+    }
+
     /// <summary>The headline: text, or the key of a Spine string. Without it, "Purchases.Paywall.Title" in the app's strings, or "Upgrade".</summary>
     public PaywallOptions<TPurchase, TProduct> Headline(string text)
     {
@@ -148,6 +158,16 @@ public sealed class PaywallOptions<TPurchase, TProduct>
         var text = new PaywallText();
         configure(new PaywallTextOptions(text));
         _settings.PerPurchase[credit] = text;
+        return this;
+    }
+
+    /// <summary>
+    /// The colour of the picked product's frame, the marks and the primary button: the app's own accent. Without it, the
+    /// pink of access settings. Text on it is black or white, whichever reads better.
+    /// </summary>
+    public PaywallOptions<TPurchase, TProduct> Accent(Color accent)
+    {
+        _settings.Accent = accent;
         return this;
     }
 
@@ -232,7 +252,12 @@ internal sealed class PaywallSettings
 {
     public List<Enum>? Offer { get; set; }
     public Enum? Highlight { get; set; }
+    public Color Accent { get; set; } = Color.FromArgb("#FF2D55");
+
+    /// <summary>Black or white, whichever reads better on <see cref="Accent"/>.</summary>
+    public Color OnAccent => 0.2126f * Accent.Red + 0.7152f * Accent.Green + 0.0722f * Accent.Blue > 0.55f ? Color.FromArgb("#111111") : Colors.White;
     public PaywallText Text { get; } = new();
+    public Dictionary<Enum, string> Descriptions { get; } = [];
     public Dictionary<Enum, PaywallText> PerPurchase { get; } = [];
     public Uri? Terms { get; set; }
     public Uri? Privacy { get; set; }

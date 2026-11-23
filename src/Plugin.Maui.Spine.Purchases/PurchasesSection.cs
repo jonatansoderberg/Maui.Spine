@@ -20,13 +20,11 @@ public sealed class PurchasesSection : ContentView
     private static readonly Color Leaving = Color.FromArgb("#5856D6");
 
     private readonly SpineSection _section = new() { Header = PurchasesStrings.Get("Spine.Purchases.Section.Header") };
-    private readonly VerticalStackLayout _rows = new();
     private AppPurchases? _purchases;
 
     /// <summary>Builds the section; the rows follow once it is loaded.</summary>
     public PurchasesSection()
     {
-        _section.Content = _rows;
         Content = _section;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -39,6 +37,11 @@ public sealed class PurchasesSection : ContentView
 
         _purchases.Changed -= OnChanged;
         _purchases.Changed += OnChanged;
+        if (Credits is { } credits)
+        {
+            credits.Changed -= OnCreditsChanged;
+            credits.Changed += OnCreditsChanged;
+        }
         Build();
         _purchases.RefreshAsync().SafeFireAndForget(ex => System.Diagnostics.Debug.WriteLine($"[Spine] PurchasesSection: refresh failed: {ex}"));
     }
@@ -47,9 +50,15 @@ public sealed class PurchasesSection : ContentView
     {
         if (_purchases is not null)
             _purchases.Changed -= OnChanged;
+        if (Credits is { } credits)
+            credits.Changed -= OnCreditsChanged;
     }
 
+    private static AppCredits? Credits => IPlatformApplication.Current?.Services.GetService<AppCredits>();
+
     private void OnChanged(object? sender, PurchasesChangedEventArgs e) => Build();
+
+    private void OnCreditsChanged(object? sender, EventArgs e) => Build();
 
     private void Build()
     {
@@ -59,7 +68,7 @@ public sealed class PurchasesSection : ContentView
         var store = purchases.Store.Name;
         var catalog = purchases.Catalog;
         var anySubscription = false;
-        _rows.Children.Clear();
+        _section.Rows.Clear();
 
         foreach (var purchase in catalog.Purchases)
         {
@@ -68,7 +77,7 @@ public sealed class PurchasesSection : ContentView
             {
                 anySubscription |= state.Kind == ProductKind.Subscription;
                 var grace = state.Phase == PurchasePhase.GracePeriod;
-                _rows.Children.Add(new SpineRow
+                _section.Rows.Add(new SpineRow
                 {
                     Icon = "purchases-star.svg",
                     IconBackground = Access,
@@ -78,10 +87,10 @@ public sealed class PurchasesSection : ContentView
                     Command = grace || state.Kind == ProductKind.Subscription ? new Command(() => purchases.ManageAsync().SafeFireAndForget()) : null,
                 });
             }
-            else if (catalog.ProductsGranting(purchase).Any(p => p.Kind is ProductKind.Subscription or ProductKind.OneTime))
+            else if (catalog.ProductsGranting(purchase).Any(p => p.Kind is ProductKind.Subscription or ProductKind.OneTime) && !Covered(purchases, purchase))
             {
                 var value = purchase.Value;
-                _rows.Children.Add(new SpineRow
+                _section.Rows.Add(new SpineRow
                 {
                     Icon = "purchases-star.svg",
                     IconBackground = Access,
@@ -92,9 +101,25 @@ public sealed class PurchasesSection : ContentView
             }
         }
 
+        // Each credit's balance: "3 left", or unlimited while a purchase makes it free.
+        if (Credits is { } credits)
+        {
+            foreach (var credit in catalog.Credits)
+            {
+                var unlimited = credits.IsUnlimited(credit);
+                _section.Rows.Add(new SpineRow
+                {
+                    Icon = "purchases-star.svg",
+                    IconBackground = Access,
+                    Title = PurchasesStrings.Capitalized(PurchasesStrings.CreditName(credit.Value)),
+                    Value = unlimited ? PurchasesStrings.Get("Spine.Purchases.Row.Unlimited") : PurchasesStrings.Get("Spine.Purchases.Row.Left", credits.Balance(credit)),
+                });
+            }
+        }
+
         foreach (var overlap in purchases.OverlappingSubscriptions)
         {
-            _rows.Children.Add(new SpineRow
+            _section.Rows.Add(new SpineRow
             {
                 Icon = "purchases-manage.svg",
                 IconBackground = Leaving,
@@ -107,7 +132,7 @@ public sealed class PurchasesSection : ContentView
 
         if (anySubscription)
         {
-            _rows.Children.Add(new SpineRow
+            _section.Rows.Add(new SpineRow
             {
                 Icon = "purchases-manage.svg",
                 IconBackground = Leaving,
@@ -116,7 +141,7 @@ public sealed class PurchasesSection : ContentView
             });
         }
 
-        _rows.Children.Add(new SpineRow
+        _section.Rows.Add(new SpineRow
         {
             Icon = "purchases-restore.svg",
             IconBackground = Access,
@@ -124,6 +149,14 @@ public sealed class PurchasesSection : ContentView
             Command = new Command(async () => await RestoreAsync(purchases)),
         });
     }
+
+    /// <summary>
+    /// True when another active purchase already gives what this one would: both make the same credit unlimited (a
+    /// season card and a subscription). Offering it would sell nothing new.
+    /// </summary>
+    private static bool Covered(AppPurchases purchases, PurchaseDefinition purchase) =>
+        purchases.Catalog.Credits.Any(c => c.UnlimitedWith.Contains(purchase)
+            && c.UnlimitedWith.Any(other => other != purchase && purchases.State(other.Value).IsActive));
 
     private async Task RestoreAsync(AppPurchases purchases)
     {
