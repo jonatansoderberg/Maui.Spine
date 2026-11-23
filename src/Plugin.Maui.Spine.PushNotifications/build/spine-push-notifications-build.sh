@@ -76,6 +76,8 @@ PLIST
 	<key>CFBundleSupportedPlatforms</key><array><string>$PLATFORM</string></array>
 	<key>MinimumOSVersion</key><string>$MIN_OS</string>
 	<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
+	<!-- App Store Connect rejects a 64-bit extension without it (ITMS-90502). -->
+	<key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
 	<key>DTCompiler</key><string>com.apple.compilers.llvm.clang.1_0</string>
 	<key>DTPlatformName</key><string>$SDK</string>
 	<key>DTPlatformVersion</key><string>$SDK_VERSION</string>
