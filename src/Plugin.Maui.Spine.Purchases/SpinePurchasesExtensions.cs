@@ -49,7 +49,7 @@ public static class SpinePurchasesExtensions
         var spine = services.FirstOrDefault(static d => d.ServiceType == typeof(SpineOptions))?.ImplementationInstance as SpineOptions
             ?? throw new InvalidOperationException("Spine purchases: call UseSpinePurchases after UseSpine(), so the paywall sheet can be registered.");
 
-        var options = new SpinePurchasesOptions<TPurchase, TProduct>();
+        var options = new SpinePurchasesOptions<TPurchase, TProduct>(builder);
         configure(options);
         var settings = options.Settings;
         var catalog = PurchaseCatalog.Create<TPurchase, TProduct>();

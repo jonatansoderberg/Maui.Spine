@@ -8,7 +8,7 @@
 - a Purchases section for the settings page;
 - a test store.
 
-The store itself comes from an adapter package. Phase P1 of [the proposal](../proposals/spine-purchases.md) ships the test store; the RevenueCat adapter and the server check come next.
+The store itself comes from an adapter package. Phase P1 of [the proposal](../proposals/spine-purchases.md) ships the test store and the RevenueCat adapter; the server check comes next.
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Purchases
@@ -187,6 +187,50 @@ store.Reset();
 ```
 
 A trial is given once per product, as the stores do. `Reset()` forgets it.
+
+## RevenueCat
+
+`Plugin.Maui.Spine.Purchases.RevenueCat` sells through App Store and Google Play with RevenueCat, on [Plugin.RevenueCat](https://github.com/redth/Plugin.RevenueCat). It runs on iOS, Mac Catalyst and Android; Plugin.RevenueCat has no Windows build. It needs MAUI 10.0.110 or later.
+
+```bash
+dotnet add package Plugin.Maui.Spine.Purchases.RevenueCat
+```
+
+```csharp
+builder.UseSpinePurchases<AppPurchase, AppProduct>(o => o
+    .UseRevenueCat(r =>
+    {
+        r.AppleApiKey = "appl_…";    // public SDK keys from the RevenueCat project's API keys, not secret keys
+        r.GoogleApiKey = "goog_…";
+    })
+    .Paywall(p => p.Terms(terms).Privacy(privacy)));
+```
+
+**Setting up a project:**
+
+1. Create the products in App Store Connect and in Play Console with the ids on `[StoreProduct]`. A Play subscription is `subscription:base-plan`, for example `pro:month`. In App Store Connect the Paid Applications Agreement, bank and tax forms must be done first.
+2. In RevenueCat, add the App Store app and the Play Store app and import the products. Make one entitlement per member of the purchase enum, with the member's `[PurchaseId]` as its identifier (`pro`), and attach the products that give it.
+3. Put the two public SDK keys in the app's build, as the Showcase does with `-p:SpineRevenueCatAppleKey=appl_…`.
+
+**What the adapter does:**
+
+- **Owned products** come from RevenueCat's customer info: subscriptions with their end, renewal, trial, intro offer, grace period and billing retry, and one-time products. A refunded subscription gives nothing. Spine works out the purchases through `[Grants]`.
+- **Entitlements are checked against `[Grants]`.** When RevenueCat gives an entitlement for a product whose `[Grants]` does not give it, or has an entitlement that is no member of the enum, a `[Spine]` warning is logged once. Spine follows `[Grants]`.
+- **Products and prices** come from the store through RevenueCat, by id; offerings are not needed. A free trial shows only when the store says the user is still eligible for it (Apple's intro eligibility, Play's offer).
+- **On Play, a base plan is bought through its subscription option**, because a purchase by product id buys the subscription's first base plan. A change of plan passes the old product with time proration.
+- **The RevenueCat app user id follows the app's user:**
+  - the signed-in Spine user's id when Plugin.Maui.Spine.Authentication is used;
+  - the user `r.AppUserId` returns, when the app sets it;
+  - otherwise RevenueCat's anonymous id.
+
+  It is checked before every look at the purchases, so a sign-in or sign-out takes effect on the next refresh.
+- **Manage subscription** opens RevenueCat's management URL, or the store's subscription page.
+- **Offline or with a store error**, the last known state stays, and the paywall shows the last known products. Spine keeps that state per store, so the test store's purchases never show up as RevenueCat's.
+
+**Trying it:**
+
+- **Apple:** a sandbox account on a device, or a StoreKit configuration file. Whether a MAUI simulator run can use a StoreKit configuration file is still open (proposal §9).
+- **Google:** a license tester on a device or an emulator with Play.
 
 ## Writing a store adapter
 

@@ -11,6 +11,11 @@ public sealed class SpinePurchasesOptions<TPurchase, TProduct>
 {
     internal PurchasesSettings Settings { get; } = new();
 
+    internal SpinePurchasesOptions(MauiAppBuilder builder) => Builder = builder;
+
+    /// <summary>The app's builder, for an adapter package that registers its store SDK from its own <c>Use…()</c>.</summary>
+    public MauiAppBuilder Builder { get; }
+
     /// <summary>
     /// Uses the test store: purchases kept on the device, the paywall with the prices given here, and <see cref="ITestStore"/>
     /// to expire, renew or refund them. A Release build refuses it unless <see cref="AllowTestStoreInRelease"/> is set.

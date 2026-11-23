@@ -102,6 +102,14 @@
 	</ItemGroup>
 
 	<!--
+		Plugin.Maui.Spine.Purchases.RevenueCat: the RevenueCat SDK for iOS, Mac Catalyst and Android. A new version goes
+		through the Showcase on a device before a Spine release (docs/proposals/spine-purchases.md, section 5).
+	-->
+	<ItemGroup>
+		<PackageVersion Include="Plugin.RevenueCat" Version="0.4.44" />
+	</ItemGroup>
+
+	<!--
 		Plugin.Maui.Spine.Authentication.Google, Android only. The 1.5.0.3 builds are the ones on the AndroidX releases
 		MAUI 10.0.50 ships (Core 1.16.0.3, Biometric 1.1.0.30, as above); 1.6 lifts Core to 1.19 and Biometric past
 		Spine's pin, and its PlayServicesAuth moves to a renamed GoogleId package.

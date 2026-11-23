@@ -30,6 +30,7 @@
   <Project Path="src/Plugin.Maui.Spine.BackgroundTasks/Plugin.Maui.Spine.BackgroundTasks.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Biometrics/Plugin.Maui.Spine.Biometrics.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Purchases/Plugin.Maui.Spine.Purchases.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Purchases.RevenueCat/Plugin.Maui.Spine.Purchases.RevenueCat.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server/Plugin.Maui.Spine.Server.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server.AI/Plugin.Maui.Spine.Server.AI.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server.AI.Assets/Plugin.Maui.Spine.Server.AI.Assets.csproj" />

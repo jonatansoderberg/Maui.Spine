@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.Purchases.RevenueCat</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Purchases.RevenueCat</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>The RevenueCat store for Plugin.Maui.Spine.Purchases on iOS, Mac Catalyst and Android, on Plugin.RevenueCat: products and prices, purchases, restores, the user's purchases across devices with the Spine account, and a check of RevenueCat's entitlements against the app's [Grants].</Description>
+		<PackageTags>$(PackageTags);purchases;subscriptions;revenuecat;in-app-purchase;storekit;billing</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AsyncAwaitBestPractices" />
+		<!-- Plugin.RevenueCat 0.4.44 is built against MAUI 10.0.110, above the 10.0.50 the other Spine packages need, so an app
+		     with this adapter needs MAUI 10.0.110 or later. -->
+		<PackageReference Include="Microsoft.Maui.Controls" VersionOverride="10.0.110" />
+	</ItemGroup>
+
+	<!-- Plugin.RevenueCat has no Windows build; there the adapter throws at start-up with the reason. -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'windows'">
+		<PackageReference Include="Plugin.RevenueCat" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Purchases\Plugin.Maui.Spine.Purchases.csproj" />
+	</ItemGroup>
+
+</Project>
