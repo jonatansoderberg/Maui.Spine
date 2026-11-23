@@ -85,19 +85,30 @@ public partial class SpineTabbedHostPage
 
         // The bar's height, not its frame's: a frame read mid-slide is moved by the transform.
         var drop = bar.Bounds.Height + (bar.Window?.SafeAreaInsets.Bottom ?? 0);
-        if (!hidden)
+        var down = CoreGraphics.CGAffineTransform.MakeTranslation(0, drop);
+
+        // A hidden bar keeps no transform: UIKit lays the bar out while it is hidden (when a sheet closes) and sets its
+        // frame with the transform counted in, so the bar came back as far above its place as it had slid down. So a
+        // show starts the slide from below here, and a hide puts the transform back once the bar is out of sight.
+        if (!hidden && bar.Hidden)
+        {
+            bar.Transform = down;
+            bar.Alpha = 0;
             bar.Hidden = false;
+        }
 
         var animator = new UIViewPropertyAnimator(0.35, new UISpringTimingParameters(1));
         animator.AddAnimations(() =>
         {
-            bar.Transform = hidden ? CoreGraphics.CGAffineTransform.MakeTranslation(0, drop) : CoreGraphics.CGAffineTransform.MakeIdentity();
+            bar.Transform = hidden ? down : CoreGraphics.CGAffineTransform.MakeIdentity();
             bar.Alpha = hidden ? 0 : 1;
         });
         animator.AddCompletion(position =>
         {
-            if (position == UIViewAnimatingPosition.End && hidden && ReferenceEquals(animator, _tabBarAnimator))
-                bar.Hidden = true;
+            if (position != UIViewAnimatingPosition.End || !hidden || !ReferenceEquals(animator, _tabBarAnimator))
+                return;
+            bar.Hidden = true;
+            bar.Transform = CoreGraphics.CGAffineTransform.MakeIdentity();
         });
         _tabBarAnimator = animator;
         animator.StartAnimation();
