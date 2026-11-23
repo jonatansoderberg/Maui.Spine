@@ -164,6 +164,8 @@ public static class SpineIcons
     public const string HeaderBar = "HeaderBar.svg";
     /// <summary>The <c>Heart.svg</c> icon.</summary>
     public const string Heart = "Heart.svg";
+    /// <summary>The <c>HeartHandshake.svg</c> icon.</summary>
+    public const string HeartHandshake = "HeartHandshake.svg";
     /// <summary>The <c>Heat.svg</c> icon.</summary>
     public const string Heat = "Heat.svg";
     /// <summary>The <c>Help.svg</c> icon.</summary>
@@ -276,6 +278,8 @@ public static class SpineIcons
     public const string QrCode = "QrCode.svg";
     /// <summary>The <c>Radiator.svg</c> icon.</summary>
     public const string Radiator = "Radiator.svg";
+    /// <summary>The <c>RadioTower.svg</c> icon.</summary>
+    public const string RadioTower = "RadioTower.svg";
     /// <summary>The <c>Rain.svg</c> icon.</summary>
     public const string Rain = "Rain.svg";
     /// <summary>The <c>Refresh.svg</c> icon.</summary>
@@ -366,6 +370,8 @@ public static class SpineIcons
     public const string Trashcan = "Trashcan.svg";
     /// <summary>The <c>Trend.svg</c> icon.</summary>
     public const string Trend = "Trend.svg";
+    /// <summary>The <c>Trophy.svg</c> icon.</summary>
+    public const string Trophy = "Trophy.svg";
     /// <summary>The <c>Tv.svg</c> icon.</summary>
     public const string Tv = "Tv.svg";
     /// <summary>The <c>Unlink.svg</c> icon.</summary>
@@ -591,6 +597,7 @@ public static class SpineIcons
         Haptic,
         HeaderBar,
         Heart,
+        HeartHandshake,
         Heat,
         Help,
         HockeyStick,
@@ -647,6 +654,7 @@ public static class SpineIcons
         ProviderBadgeNone,
         QrCode,
         Radiator,
+        RadioTower,
         Rain,
         Refresh,
         Reload,
@@ -692,6 +700,7 @@ public static class SpineIcons
         TowelRailRadiator,
         Trashcan,
         Trend,
+        Trophy,
         Tv,
         Unlink,
         Unlock,
