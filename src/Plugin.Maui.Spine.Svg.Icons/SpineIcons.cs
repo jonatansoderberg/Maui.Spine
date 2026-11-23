@@ -62,6 +62,8 @@ public static class SpineIcons
     public const string Cam = "Cam.svg";
     /// <summary>The <c>Car.svg</c> icon.</summary>
     public const string Car = "Car.svg";
+    /// <summary>The <c>CarPlay.svg</c> icon.</summary>
+    public const string CarPlay = "CarPlay.svg";
     /// <summary>The <c>Chat.svg</c> icon.</summary>
     public const string Chat = "Chat.svg";
     /// <summary>The <c>Check.svg</c> icon.</summary>
@@ -114,6 +116,8 @@ public static class SpineIcons
     public const string Download = "Download.svg";
     /// <summary>The <c>Dryer.svg</c> icon.</summary>
     public const string Dryer = "Dryer.svg";
+    /// <summary>The <c>DynamicIsland.svg</c> icon.</summary>
+    public const string DynamicIsland = "DynamicIsland.svg";
     /// <summary>The <c>Edit.svg</c> icon.</summary>
     public const string Edit = "Edit.svg";
     /// <summary>The <c>Energy.svg</c> icon.</summary>
@@ -534,6 +538,7 @@ public static class SpineIcons
         CalendarDay,
         Cam,
         Car,
+        CarPlay,
         Chat,
         Check,
         ChevronDown,
@@ -560,6 +565,7 @@ public static class SpineIcons
         Down,
         Download,
         Dryer,
+        DynamicIsland,
         Edit,
         Energy,
         Expand,
