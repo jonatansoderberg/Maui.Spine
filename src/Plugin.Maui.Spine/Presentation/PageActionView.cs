@@ -638,10 +638,14 @@ internal sealed class PageActionView : ContentView
         public void ApplyIconWidth()
         {
             _imageButton.RemoveBinding(VisualElement.WidthRequestProperty);
-            _imageButton.WidthRequest = _owner._glass ? _owner.HeightRequest : Filled || Circles ? FilledSize : _owner.IconWidth;
+            _imageButton.WidthRequest = _owner._glass ? _owner.HeightRequest : Filled || Circles ? FilledSide : _owner.IconWidth;
         }
 
         const double FilledSize = 40;
+
+        // A filled circle no taller than its row: Windows' 32-point row clipped the 40-point circle to 40 by 32, and
+        // WinUI drew its 20-point corners on that as a lopsided blob.
+        double FilledSide => Circles || _owner.HeightRequest <= 0 ? FilledSize : Math.Min(FilledSize, _owner.HeightRequest);
 
         // How far a filled circle's outer edge sits inside its slot.
         const double GlyphInset = 5;
@@ -660,7 +664,7 @@ internal sealed class PageActionView : ContentView
         Thickness GlyphPadding(string? svg)
         {
             var side = _owner._glass ? _owner.HeightRequest
-                : Filled || Circles ? FilledSize
+                : Filled || Circles ? FilledSide
                 : Math.Min(_owner.HeightRequest, _owner.IconWidth);
             return new Thickness(Math.Max(0, (side - GlyphSize(svg)) / 2));
         }
@@ -714,6 +718,7 @@ internal sealed class PageActionView : ContentView
         }
 
         bool _filledShape;
+        double _filledShapeSide;
 
         /// <summary>
         /// Without glass, a 40-point circle inside the slot for a filled button (Material 3's filled icon button),
@@ -722,10 +727,12 @@ internal sealed class PageActionView : ContentView
         void ApplyShape()
         {
             var filled = Filled;
-            if (filled == _filledShape)
+            var side = FilledSide;
+            if (filled == _filledShape && side == _filledShapeSide)
                 return;
 
             _filledShape = filled;
+            _filledShapeSide = side;
             // An Android circle keeps its size and its glyph; only its fill changes
             if (!Circles && filled)
             {
@@ -736,7 +743,7 @@ internal sealed class PageActionView : ContentView
                 _imageButton.HorizontalOptions = leading ? LayoutOptions.Start : LayoutOptions.End;
                 _imageButton.RemoveBinding(VisualElement.HeightRequestProperty);
                 _imageButton.RemoveBinding(ImageButton.PaddingProperty);
-                _imageButton.HeightRequest = FilledSize;
+                _imageButton.HeightRequest = side;
                 _imageButton.Padding = new Thickness(0);
                 _imageButton.Margin = leading ? new Thickness(outer, 0, 0, 0) : new Thickness(0, 0, outer, 0);
             }
@@ -747,7 +754,7 @@ internal sealed class PageActionView : ContentView
                 _imageButton.SetBinding(VisualElement.HeightRequestProperty, new Binding(nameof(HeightRequest), source: _owner));
                 _imageButton.SetBinding(ImageButton.PaddingProperty, new Binding(nameof(ButtonPadding), source: _owner));
             }
-            _imageButton.CornerRadius = filled || Circles ? (int)(FilledSize / 2) : 0;
+            _imageButton.CornerRadius = filled || Circles ? (int)(side / 2) : 0;
             _textButton.CornerRadius = filled ? (int)Math.Round(_owner.HeightRequest / 2) : -1;
             if (!filled)
             {
