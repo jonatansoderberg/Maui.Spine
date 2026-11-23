@@ -71,6 +71,11 @@ public partial class SpineTabbedHostPage
     /// The bar slides down out of sight and fades, by its transform alone. UIKit's own
     /// <c>setTabBarHidden</c> takes the bar out of the tab's safe area, which moves the region the
     /// lightbox lies in while it zooms; the region already reaches under the bar.
+    ///
+    /// A hide and a show can overlap: a page that hides the bar is left before its push has finished. UIKit lets the
+    /// later animation take over the transform and the alpha, but the earlier one still completes, and a hide that
+    /// completed after a show took the bar away for good. Only the latest animation may hide the bar at its end. The
+    /// earlier one is not stopped: a bar stopped mid-fade lost its Liquid Glass background on iOS 26.
     /// </remarks>
     partial void PlatformSetTabBarHidden(bool hidden)
     {
@@ -78,7 +83,8 @@ public partial class SpineTabbedHostPage
         if (Controller?.TabBar is not { } bar)
             return;
 
-        var drop = bar.Frame.Height + (bar.Window?.SafeAreaInsets.Bottom ?? 0);
+        // The bar's height, not its frame's: a frame read mid-slide is moved by the transform.
+        var drop = bar.Bounds.Height + (bar.Window?.SafeAreaInsets.Bottom ?? 0);
         if (!hidden)
             bar.Hidden = false;
 
@@ -90,12 +96,17 @@ public partial class SpineTabbedHostPage
         });
         animator.AddCompletion(position =>
         {
-            if (position == UIViewAnimatingPosition.End && hidden)
+            if (position == UIViewAnimatingPosition.End && hidden && ReferenceEquals(animator, _tabBarAnimator))
                 bar.Hidden = true;
         });
+        _tabBarAnimator = animator;
         animator.StartAnimation();
 #endif
     }
+
+#if IOS
+    private UIViewPropertyAnimator? _tabBarAnimator;
+#endif
 
     partial void PlatformApplyBadge(int index, string? text)
     {
