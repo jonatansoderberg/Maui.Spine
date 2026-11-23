@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.Purchases</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Purchases</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Subscriptions and one-time purchases for a Spine app: IAppPurchases with typed keys from the app's own enums, [RequiresPurchase] on a page or command, a paywall sheet, a Purchases section for the settings page and a test store. The store itself comes from an adapter package.</Description>
+		<PackageTags>$(PackageTags);purchases;subscriptions;in-app-purchase;paywall;storekit;billing</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AsyncAwaitBestPractices" />
+		<PackageReference Include="Microsoft.Maui.Controls" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Rows\Plugin.Maui.Spine.Controls.Rows.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
+		<EmbeddedResource Include="Resources\Svg\*.svg" />
+	</ItemGroup>
+
+</Project>

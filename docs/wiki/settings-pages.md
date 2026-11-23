@@ -62,12 +62,13 @@ private async Task RefreshAsync()
 From what the app is about to what is about the app, as in the platform's own Settings:
 
 1. **Account**: signing in, the signed-in account and its sign-in methods, signing out (a grey row at the end of the section).
-2. **What the app works with**: the sources, services, devices, people or the place the app's content comes from, one section each when there are several.
-3. **Display**: theme, language, units, clock and the app's own display choices.
-4. **The system**: notifications, launch at login, Apple Health, motion effects; only the ones the device has.
-5. **More**: links to other apps and web pages.
-6. **About**: About <app> (a sheet with the app's page), Send feedback and Version (see below).
-7. **Delete**: deleting the account or all data, alone in the last section, with a footer that says what goes.
+2. **Purchases**, in an app that sells something: `<PurchasesSection />` from `Plugin.Maui.Spine.Purchases`. It has a row per active purchase with what gave it and until when, a row to get each purchase not bought yet, Manage subscription while one runs, and Restore purchases with its result in the footer (see [purchases](purchases.md)).
+3. **What the app works with**: the sources, services, devices, people or the place the app's content comes from, one section each when there are several.
+4. **Display**: theme, language, units, clock and the app's own display choices.
+5. **The system**: notifications, launch at login, Apple Health, motion effects; only the ones the device has.
+6. **More**: links to other apps and web pages.
+7. **About**: About <app> (a sheet with the app's page), Send feedback and Version (see below).
+8. **Delete**: deleting the account or all data, alone in the last section, with a footer that says what goes.
 
 A section has a header when it has more than one row or when its row doesn't say what it is about on its own. A footer explains what a choice does or where something comes from, in one or two sentences; it is not a place for status that changes, except a section's own last-sync or error line.
 
@@ -97,7 +98,7 @@ Every row of a settings page has an icon on a badge (`IconBackground`). The badg
 | Grey | `#8E8E93` | The app itself and the system: launch at login, sign out, version |
 | Blue | `#007AFF` | What the app shows and how: theme, language, units, clock, display options, show or hide |
 | Purple | `#AF52DE` | The things the app works with: a device, people, a place |
-| Pink | `#FF2D55` | Access and sign-in: the account, keys, tokens, sign-in methods, permissions |
+| Pink | `#FF2D55` | Access and sign-in: the account, keys, tokens, sign-in methods, permissions, purchases |
 | Indigo | `#5856D6` | Leaving the app: web pages, other apps, feedback by mail |
 | Teal | `#30B0C7` | Fetching and syncing: fetch now, reconnect, sync status |
 | The service's own colour | | A named third-party service's own row (its logo or icon, its brand colour): Apple Health, a data source, an AI provider |

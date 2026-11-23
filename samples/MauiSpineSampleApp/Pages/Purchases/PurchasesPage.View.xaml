@@ -1,0 +1,132 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:app="clr-namespace:MauiSpineSampleApp.Pages.Purchases"
+    x:Class="MauiSpineSampleApp.Pages.Purchases.PurchasesPage"
+    x:TypeArguments="PurchasesPageViewModel"
+    x:DataType="PurchasesPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Purchases">
+
+        <Example Title="What the user has"
+                 Summary="IAppPurchases answers from the last known state at once, also offline, and raises Changed when the store says something new. Everything here runs on the test store, so nothing is charged.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding ProState, StringFormat='Pro: {0}'}" FontSize="15" />
+                <Label Text="{Binding SupporterState, StringFormat='Supporter: {0}'}" FontSize="15" />
+                <Label Text="{Binding Log}" FontSize="15" Opacity="0.7" />
+                <Button Text="Show the paywall" Command="{Binding ShowPaywallCommand}" />
+                <Button Text="Restore purchases" Command="{Binding RestoreCommand}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                if (purchases.IsActive(AppPurchase.Pro)) …
+
+                var state = purchases.GetState(AppPurchase.Pro);   // kind, ends, renews, trial
+                await purchases.ShowPaywallAsync();
+            </Example.Code>
+        </Example>
+
+        <Example Title="A page behind a purchase"
+                 Summary="[RequiresPurchase] on the page: without Pro the paywall opens first, with only the products that give Pro. After a purchase or a restore the page opens.">
+            <Button Text="Open statistics" Command="{Binding OpenStatisticsCommand}" />
+            <Example.Code>
+                [NavigableRegion(Title = "Statistics"),
+                 RequiresPurchase(AppPurchase.Pro)]
+                public partial class StatisticsPage { … }
+            </Example.Code>
+        </Example>
+
+        <Example Title="A command behind a purchase"
+                 Summary="[RequiresPurchase] on a command asks wherever Spine runs it, here a menu row. On a plain button, Purchase.Command asks first.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Export" MenuButton.Items="{Binding ExportMenu}" />
+                <Button Text="Export this" Purchase.Command="{Binding ExportCommand}" Purchase.Requires="{x:Static app:ShowcasePurchase.Pro}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                [RequiresPurchase(AppPurchase.Pro)]
+                [RelayCommand]
+                private void ExportAll() { … }
+
+                &lt;Button Purchase.Command="{Binding ExportCommand}"
+                        Purchase.Requires="{x:Static app:AppPurchase.Pro}" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="A mark on a row"
+                 Summary="Purchase.Requires on a SpineRow shows the purchase's name while it is not active, and Purchase.Command opens the paywall before the row's command.">
+            <SpineSection>
+                <SpineRow Title="Statistics" Icon="graph.svg" IconBackground="#007AFF"
+                          Purchase.Command="{Binding OpenStatisticsCommand}" Purchase.Requires="{x:Static app:ShowcasePurchase.Pro}" />
+            </SpineSection>
+            <Example.Code>
+                &lt;SpineRow Title="Statistics" Purchase.Command="{Binding OpenStatisticsCommand}"
+                          Purchase.Requires="{x:Static app:AppPurchase.Pro}" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Show and hide by a purchase"
+                 Summary="{}{PurchaseActive} follows the purchase: a thank-you banner for a supporter, and a button to become one for everyone else. A one-time purchase that unlocks nothing.">
+            <VerticalStackLayout Spacing="10">
+                <Border IsVisible="{PurchaseActive {x:Static app:ShowcasePurchase.Supporter}}"
+                        BackgroundColor="#FF2D55" StrokeThickness="0" Padding="16,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <Label Text="Thank you for supporting the developer!" TextColor="White" FontAttributes="Bold" />
+                </Border>
+                <Button Text="Support the developer" Command="{Binding SupportCommand}"
+                        IsVisible="{PurchaseActive {x:Static app:ShowcasePurchase.Supporter}, Invert=True}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Border IsVisible="{PurchaseActive {x:Static app:AppPurchase.Supporter}}"&gt;…
+                &lt;Button IsVisible="{PurchaseActive {x:Static app:AppPurchase.Supporter}, Invert=True}" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="The settings section"
+                 Summary="PurchasesSection on a settings page: each active purchase with what gave it, a row to get the rest, Manage subscription while one runs, and Restore purchases.">
+            <PurchasesSection />
+            <Example.Code>
+                &lt;PurchasesSection /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="The test store"
+                 Summary="ITestStore sends what a real store sends, now: the end of a period, a renewal, a cancelled renewal, a failed payment, a refund, Ask to Buy. A Release build refuses the test store unless the app allows it, as the Showcase does.">
+            <VerticalStackLayout Spacing="10">
+                <SpineSection Header="The Pro subscription">
+                    <SpineRow Title="End the period" Command="{Binding ExpireCommand}" />
+                    <SpineRow Title="Renew" Command="{Binding RenewCommand}" />
+                    <SpineRow Title="Turn off renewal" Command="{Binding CancelRenewalCommand}" />
+                    <SpineRow Title="Payment failed: grace period" Command="{Binding GracePeriodCommand}" />
+                </SpineSection>
+                <SpineSection Header="Every purchase">
+                    <SpineRow Title="Next purchase asks to buy">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding NextPending}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                    <SpineRow Title="Approve what is pending" Command="{Binding ApprovePendingCommand}" />
+                    <SpineRow Title="Next purchase fails">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding NextFails}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                    <SpineRow Title="Refund everything" Command="{Binding RefundAllCommand}" />
+                    <SpineRow Title="Empty the test store" Command="{Binding ResetStoreCommand}" IsDestructive="True" />
+                </SpineSection>
+            </VerticalStackLayout>
+            <Example.Code>
+                builder.UseSpinePurchases&lt;AppPurchase, AppProduct&gt;(o =&gt; o
+                    .UseTestStore(t =&gt; t
+                        .Price(AppProduct.ProYearly, 249)
+                        .Period(AppProduct.ProYearly, StorePeriod.Year)
+                        .Trial(AppProduct.ProYearly, StorePeriod.Days(7)))
+                    .Paywall(p =&gt; p.Terms(terms).Privacy(privacy)));
+
+                store.Expire(AppProduct.ProMonthly);
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

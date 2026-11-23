@@ -1,6 +1,6 @@
 # Purchases and subscriptions
 
-**Status:** Proposal, 2026-11-18. Nothing has been built or run. Spine facts are read from the source at `4f4c76c4`. Package facts come from the NuGet pages and the dotnet/maui issue on 2026-11-18.
+**Status:** Proposal, 2026-11-18. P1's client side (the package, the paywall, the guard and the test store) is built in #849; see `docs/wiki/purchases.md`. The RevenueCat adapter and the server are next. Spine facts are read from the source at `4f4c76c4`. Package facts come from the NuGet pages and the dotnet/maui issue on 2026-11-18.
 **Question:** A free app wants to sell some features as a subscription or a one-time purchase. What exists for .NET MAUI today, what should Spine build, and in which packages?
 **Answer:** Spine does not build its own store layer. It builds a thin package, `Plugin.Maui.Spine.Purchases`, on top of an existing store package. The package covers what Spine is good at:
 
@@ -324,7 +324,7 @@ app.MapPost("/export", …).RequirePurchase(AppPurchase.Pro);
 ## 8. Out of scope
 
 - **RevenueCat's native paywalls** (Paywalls v2). They need RevenueCatUI bindings on both platforms and would draw a UI unlike the rest of the app.
-- **Consumables and virtual currency** (coins, credits). `ProductKind.Consumable` has its place from the start (§3.1), but a consumable is a balance on the server, not an active purchase. It needs its own API (`[Adds(AppCredit.AiMinutes, 60)]` and a balance the server spends) and is better done when an app needs one.
+- **Consumables and virtual currency** (coins, credits). Hockeymatch wants it first: one free live match per user, more matches bought one at a time, or a subscription for all of them. The free credit and the balance live on the server, so this comes with P2. `ProductKind.Consumable` has its place from the start (§3.1), but a consumable is a balance on the server, not an active purchase. It needs its own API (`[Adds(AppCredit.AiMinutes, 60)]` and a balance the server spends) and is better done when an app needs one.
 - **Time-limited passes** (`ProductKind.Pass`, for example 30 days without renewal). Nothing else is needed for them except counting the time, but that count should live on the server, and P1 has no server.
 - **Web purchases** through Stripe or RevenueCat Web Billing. The store rules on links out of the app differ per country and change often.
 - **Promotional and win-back offers, offer codes and price-increase consent.** The adapter passes them through where the store package exposes them; Spine gets no UI for them in P1.

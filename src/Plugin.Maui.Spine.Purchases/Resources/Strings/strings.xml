@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Purchases.Ok">OK</s>
+  <s key="Spine.Purchases.Cancel">Cancel</s>
+
+  <s key="Spine.Purchases.Period.Day.one">{0} day</s>
+  <s key="Spine.Purchases.Period.Day.other">{0} days</s>
+  <s key="Spine.Purchases.Period.Week.one">{0} week</s>
+  <s key="Spine.Purchases.Period.Week.other">{0} weeks</s>
+  <s key="Spine.Purchases.Period.Month.one">{0} month</s>
+  <s key="Spine.Purchases.Period.Month.other">{0} months</s>
+  <s key="Spine.Purchases.Period.Year.one">{0} year</s>
+  <s key="Spine.Purchases.Period.Year.other">{0} years</s>
+  <s key="Spine.Purchases.Per.Day">{0}/day</s>
+  <s key="Spine.Purchases.Per.Week">{0}/week</s>
+  <s key="Spine.Purchases.Per.Month">{0}/month</s>
+  <s key="Spine.Purchases.Per.Year">{0}/year</s>
+  <s key="Spine.Purchases.Every">{0} every {1}</s>
+
+  <s key="Spine.Purchases.Paywall.Title">Upgrade</s>
+  <s key="Spine.Purchases.Paywall.Once">{0} once</s>
+  <s key="Spine.Purchases.Paywall.PerMonth">{0}/month</s>
+  <s key="Spine.Purchases.Paywall.FreeTrial">{0} free</s>
+  <s key="Spine.Purchases.Paywall.Best">Best value</s>
+  <s key="Spine.Purchases.Paywall.Owned">Bought</s>
+  <s key="Spine.Purchases.Paywall.Current">Your plan</s>
+  <s key="Spine.Purchases.Paywall.StartTrial">Try {0} free</s>
+  <s key="Spine.Purchases.Paywall.Subscribe">Subscribe for {0}</s>
+  <s key="Spine.Purchases.Paywall.Switch">Switch for {0}</s>
+  <s key="Spine.Purchases.Paywall.Buy">Buy for {0}</s>
+  <s key="Spine.Purchases.Paywall.TrialTerms">Then {0}. Cancel at any time in {1}.</s>
+  <s key="Spine.Purchases.Paywall.RenewTerms">Renews automatically. Cancel at any time in {0}.</s>
+  <s key="Spine.Purchases.Paywall.Restore">Restore purchases</s>
+  <s key="Spine.Purchases.Paywall.Terms">Terms of use</s>
+  <s key="Spine.Purchases.Paywall.Privacy">Privacy policy</s>
+  <s key="Spine.Purchases.Paywall.Pending">Waiting for approval. It unlocks as soon as the purchase goes through.</s>
+  <s key="Spine.Purchases.Paywall.Failed">The purchase didn't go through: {0}</s>
+  <s key="Spine.Purchases.Paywall.Unavailable">Nothing is for sale here right now.</s>
+
+  <s key="Spine.Purchases.Restore.Done">Your purchases are restored.</s>
+  <s key="Spine.Purchases.Restore.Nothing">No purchases to restore were found.</s>
+  <s key="Spine.Purchases.Restore.Failed">Could not restore: {0}</s>
+
+  <s key="Spine.Purchases.Section.Header">Purchases</s>
+  <s key="Spine.Purchases.Row.Get">Get {0}</s>
+  <s key="Spine.Purchases.Row.Renews">Renews {0}</s>
+  <s key="Spine.Purchases.Row.Ends">Ends {0}</s>
+  <s key="Spine.Purchases.Row.Trial">Free trial, renews {0}</s>
+  <s key="Spine.Purchases.Row.TrialEnds">Free trial, ends {0}</s>
+  <s key="Spine.Purchases.Row.Lifetime">Lifetime</s>
+  <s key="Spine.Purchases.Row.Bought">Bought</s>
+  <s key="Spine.Purchases.Row.Grace">Payment problem: update it in {0}</s>
+  <s key="Spine.Purchases.Row.Overlap">Your subscription still renews on {0}. Cancel it in {1}.</s>
+  <s key="Spine.Purchases.Row.Manage">Manage subscription</s>
+  <s key="Spine.Purchases.Row.Restore">Restore purchases</s>
+
+  <s key="Spine.Purchases.Cover.Message">{0} unlocks this.</s>
+  <s key="Spine.Purchases.Cover.SeePlans">See plans</s>
+
+  <s key="Spine.Purchases.Store.Apple">App Store</s>
+  <s key="Spine.Purchases.Store.Google">Google Play</s>
+  <s key="Spine.Purchases.Store.Microsoft">Microsoft Store</s>
+  <s key="Spine.Purchases.Store.Test">Test store</s>
+
+  <s key="Spine.Purchases.TestStore.Confirm">Buy {0} for {1}? Nothing is charged.</s>
+  <s key="Spine.Purchases.TestStore.Buy">Buy</s>
+  <s key="Spine.Purchases.TestStore.Failed">The test store failed this purchase on purpose.</s>
+  <s key="Spine.Purchases.TestStore.Manage">The store's subscription management opens here. In the test store, cancel and renew from the app's test controls.</s>
+</strings>

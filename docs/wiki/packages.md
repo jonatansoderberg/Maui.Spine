@@ -14,6 +14,7 @@ Spine ships as thirty-seven NuGet packages built from this repository, one per p
 | Security | `Plugin.Maui.Spine.Authentication.Microsoft` | [Sign in with Microsoft](authentication.md#sign-in-with-microsoft): MSAL with the broker, via the Spine server or directly | `.Authentication`, Microsoft.Identity.Client (+ `.Broker`, `.Extensions.Msal` on Windows) |
 | Security | `Plugin.Maui.Spine.Authentication.Passkeys` | [Passkeys](authentication.md#passkeys) through the platform's sheet, iOS, Mac Catalyst and Windows | `.Authentication` |
 | Security | `Plugin.Maui.Spine.Biometrics` | `IBiometricAuth` (Face ID, Touch ID, fingerprint, Windows Hello), `IUnlock`, `[RequiresUnlock]`, `Unlock.Command`, the app lock and `[PrivacyShield]`. Brings `Xamarin.AndroidX.Biometric` on Android | `Plugin.Maui.Spine`, `.Common` |
+| Security | `Plugin.Maui.Spine.Purchases` | `IAppPurchases` with the app's own purchase and product enums, `[RequiresPurchase]`, `Purchase.Command`, `{PurchaseActive}`, the paywall sheet, `PurchasesSection` and the test store (`ITestStore`). The real store comes from an adapter | `Plugin.Maui.Spine`, `.Common`, `.Controls.Rows` |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes on BGTaskScheduler (iOS) and JobScheduler (Android), a timer while the app runs elsewhere | `Plugin.Maui.Spine`, `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp | — |
@@ -81,6 +82,7 @@ PushNotifications                                    AnimatedLabel
 | Work while the app is closed, or widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` (brings the core and `.Common`) |
 | Sign-in against the app's own server, a page or command behind it | `Plugin.Maui.Spine.Authentication` in the app (and `.Authentication.Google`, `.Authentication.Microsoft`, `.Authentication.Passkeys`), `Plugin.Maui.Spine.Server.Authentication` on the server |
 | Face ID, fingerprint or Windows Hello before a page or a command | `Plugin.Maui.Spine.Biometrics` (brings the core and `.Common`) |
+| Subscriptions and one-time purchases, a paywall | `Plugin.Maui.Spine.Purchases` (brings the core, `.Common` and `.Controls.Rows`) |
 | QR codes and other barcodes on screen | `Plugin.Maui.Spine.Barcodes` (no camera, no permissions) |
 | Scanning codes with the camera | `Plugin.Maui.Spine.Scanner` (brings the core and `.Barcodes`) |
 | Lists of remote photos, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` (brings `.Common`; the core is not required) |
