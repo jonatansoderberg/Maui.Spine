@@ -8,7 +8,8 @@
 
 		Consumer knobs:
 		  <SpineWidget Include="next-start" DisplayName="Nästa start" Description="…" Families="Small,Medium" />
-		                PreviewImage="…png"          (Android below 15: the picker's picture; 15 and later draw the timeline)
+		                PreviewImage="…png"          (Android below 15: the picker's picture; 15 and later draw the timeline. Windows: the board's screenshot)
+		                WindowsFamilies="Medium"     (Windows: the widget board's sizes, instead of Families)
 		  <SpineControl Include="goal-alerts" Type="Toggle|Button" DisplayName="Goal alerts" Description="…" Icon="bell" />
 		                (a Control Center control on iOS 18, a Quick Settings tile on Android; none on Mac Catalyst.
 		                 Icon is the gallery's SF Symbol until the app has run; the provider's state names it after that.)
@@ -517,7 +518,8 @@ Resources = resources.ToArray();
 		Windows: the same <SpineWidget> items become widget-board definitions in the package manifest of an app packaged
 		as MSIX: a COM server class (the app's own exe, started with -RegisterProcessAsComServer, which Spine serves
 		from the app's process) and the com.microsoft.windows.widgets app extension, one Definition per item, its
-		sizes from Families (Small, Medium, Large; ExtraLarge is Large; the accessory families are not on Windows).
+		sizes from Families (Small, Medium, Large; ExtraLarge is Large; the accessory families are not on Windows), or from
+		WindowsFamilies when the item has it, and always medium unless WindowsFamilies leaves it out: the board adds widgets at medium.
 		Added to the manifest MAUI generates, after it has filled in its placeholders, so the app's own
 		Package.appxmanifest stays as it is. The class id is derived from ApplicationId, so it stays the same
 		from build to build; SpineWidgetsWindowsClassId replaces it. PreviewImage, when set, is the board's
@@ -616,15 +618,30 @@ foreach (var widget in Widgets)
         Log.LogError("Spine widgets: <SpineWidget Include=\"{0}\"> is declared twice.", kind);
         return false;
     }
-    var families = (widget.GetMetadata("Families") ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLowerInvariant()).ToList();
+    // WindowsFamilies chooses the board's sizes; without it they follow Families.
+    var chosen = widget.GetMetadata("WindowsFamilies");
+    var explicitSizes = !string.IsNullOrWhiteSpace(chosen);
+    var families = (explicitSizes ? chosen : widget.GetMetadata("Families") ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLowerInvariant()).ToList();
     var sizes = new List<string>();
     foreach (var family in families)
     {
         var size = family == "small" ? "small" : family == "medium" ? "medium" : family == "large" || family == "extralarge" ? "large" : null;
+        if (size == null && explicitSizes)
+        {
+            Log.LogError("Spine widgets: WindowsFamilies of <SpineWidget Include=\"{0}\"> takes Small, Medium and Large, not \"{1}\".", kind, family);
+            return false;
+        }
         if (size != null && !sizes.Contains(size)) sizes.Add(size);
     }
-    // A kind for the Lock Screen only still appears on the board, as Android shows it in its picker.
-    if (sizes.Count == 0) sizes.Add("small");
+    // The board adds a new widget at medium and refuses one that does not offer it (its Add button stays grey), so a
+    // kind always offers medium, drawn from its nearest family. A WindowsFamilies without it is the app's choice.
+    if (!sizes.Contains("medium"))
+    {
+        if (explicitSizes)
+            Log.LogWarning("Spine widgets: <SpineWidget Include=\"{0}\"> has no Medium in WindowsFamilies; the widget board adds widgets at medium and cannot add this one.", kind);
+        else
+            sizes.Add("medium");
+    }
     sizes = new[] { "small", "medium", "large" }.Where(sizes.Contains).ToList();
 
     var screenshot = logo;

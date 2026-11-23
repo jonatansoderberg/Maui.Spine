@@ -52,7 +52,7 @@ What every one of them can show is the [tree vocabulary](#the-tree): stacks, tex
 | `AccessoryRectangular` | Lock Screen, a two- or three-line rectangle | Ignored | Ignored |
 | `AccessoryInline` | Lock Screen, one line of text beside the date above the clock | Ignored | Ignored |
 
-On Android the smallest declared family is the widget's minimum size and the largest its maximum; from Android 12 the launcher picks the tree for the size the user resized to. A kind that declares **only** accessory families still appears in the Android picker, as a 2×2 widget drawing its first tree — so declare a lock-screen-only kind knowing that, or give it a home-screen tree too.
+On Android the smallest declared family is the widget's minimum size and the largest its maximum; from Android 12 the launcher picks the tree for the size the user resized to. A kind that declares **only** accessory families still appears in the Android picker, as a 2×2 widget drawing its first tree — so declare a lock-screen-only kind knowing that, or give it a home-screen tree too. On the Windows widget board a kind offers the sizes of its families and always medium, where the board adds a new widget; `WindowsFamilies` chooses them instead (see [Windows](#windows)).
 
 ---
 
@@ -86,7 +86,8 @@ The native side is generated from MSBuild items, not from the attribute — the 
 | `DisplayName` | The name in the widget gallery. Defaults to the kind. |
 | `Description` | The gallery's subtitle. |
 | `Families` | `Small`, `Medium`, `Large`, `ExtraLarge`, `AccessoryCircular`, `AccessoryRectangular`, `AccessoryInline`, separated by commas or semicolons. Defaults to `Small`. See [Families](#families). |
-| `PreviewImage` | Android only: a PNG, relative to the project, that the widget picker shows below Android 15. From Android 15 the picker shows the widget itself; see [Picker preview](#picker-preview). |
+| `PreviewImage` | A PNG, relative to the project: the Android picker's picture below Android 15 (from 15 the picker shows the widget itself; see [Picker preview](#picker-preview)), and the screenshot of the Windows widget board's picker. |
+| `WindowsFamilies` | Windows only: the widget board's sizes, `Small`, `Medium`, `Large`, instead of those of `Families`. See [Windows](#windows). |
 
 A WidgetKit bundle holds at most ten widgets and Spine reserves one for Live Activities, so nine `<SpineWidget>` items is the limit. Android has the same cap: the package carries nine fixed receivers and the build wires the items to them in declaration order.
 
@@ -1285,7 +1286,14 @@ The board shows widgets of **MSIX-packaged** apps only: it finds a provider in t
 The `<SpineWidget>` items need nothing more. A packaged build adds to the manifest MAUI generates, leaving `Platforms/Windows/Package.appxmanifest` as it is:
 
 - **A COM server class:** the app's own exe, started with `-RegisterProcessAsComServer`. The class id is derived from `ApplicationId`, so it stays the same from build to build; `SpineWidgetsWindowsClassId` sets another.
-- **The `com.microsoft.windows.widgets` app extension**, with one definition per item: its kind as the id, `DisplayName`, `Description`, and the sizes of `Families`.
+- **The `com.microsoft.windows.widgets` app extension**, with one definition per item: its kind as the id, `DisplayName`, `Description`, and the board's sizes. They follow `Families`, plus medium, since the board adds a new widget at medium and greys out **Add widget** for one without it. `WindowsFamilies` chooses them instead:
+
+```xml
+<!-- A leaf drawn for a square: on the board at medium only, which is near square; its small is a low strip. -->
+<SpineWidget Include="today" Families="Small,AccessoryCircular" WindowsFamilies="Medium" />
+```
+
+  A `WindowsFamilies` without `Medium` builds with a warning, since the board cannot add that widget.
 - **The board's icon and screenshot** for the widget: the app's logo, or `PreviewImage` when the item has one, the same picture Android's picker shows.
 
 **Signing.** Windows installs an MSIX only when it trusts the certificate it is signed with. For the Store, Partner Center signs. For sideloading on your own machine, make a test certificate whose subject is the manifest's `Publisher`, and trust it once from an elevated PowerShell:
@@ -1310,8 +1318,8 @@ Add-AppxPackage .\AppPackages\<App>_<version>_x64_Debug_Test\<App>_<version>_x64
 
 | Spine | Windows |
 |---|---|
-| `<SpineWidget>` item | A `Definition` in the manifest's widget extension, its sizes from `Families` (see [Families](#families)) |
-| `WidgetFamily` | The board's sizes, one column wide: small a strip, medium near square, large tall. Each draws the family of its name; a timeline without it draws the nearest one, and one shared tree draws `W.Adaptive`'s entry for that family |
+| `<SpineWidget>` item | A `Definition` in the manifest's widget extension, its sizes from `WindowsFamilies` or `Families`, always with medium unless `WindowsFamilies` leaves it out (see [Families](#families)) |
+| `WidgetFamily` | The board's sizes, one column wide: small a strip, medium near square, large tall. Each draws the family of its name; a timeline without it draws the nearest one, and one shared tree draws `W.Adaptive`'s entry for that family. The content is centred in the whole widget, as on iOS: the board's header takes 41 points at the top, so Spine leaves the same room under the content, and a root `W.Image` without a height is drawn as tall as the widget less the header's room at both ends |
 | The provider | `IWidgetProvider` from the Windows App SDK, served by the app's own process. If the app is not running, COM starts it with its window hidden: the window cannot take focus, which would close the board, and it shows once the user opens the app. A process the board started ends a minute after the board stops showing its widgets |
 | The tree | An Adaptive Card 1.5, sent with `WidgetManager.UpdateWidget`. A `VStack` is a container, an `HStack` a column set (a `Spacer` a stretching column), text a text block |
 | `WidgetTimeline` entries | The entry that applies now. While the process runs, a timer sends the next entry at its date; the board asks for the current one each time it shows the widget, so an entry that turned while the app was closed is drawn then |
@@ -1335,7 +1343,7 @@ The app's process is also where every rebuild happens. Windows has no background
 - **Clocks count in minutes.** The board does not tick, so a timer shows minutes and is redrawn every minute while it is on screen.
 - **Sparklines are straight.** The line joins the points with straight segments, not the monotone curve of the other platforms.
 - **No Live Activities and no controls.** Windows has neither; the services say so (`AreActivitiesEnabled`, `IControlService.IsSupported`).
-- **The sizes were measured** on Windows 11 build 26300 at 150 %, where the board draws the card at the widget's full height. A board that draws them otherwise leaves a margin under the surface or crops it.
+- **The sizes and insets were measured** on Windows 11 build 26300 at 150 %: the board draws the card at the widget's full height, with 41 points above the content for its header and 5 below. A board that draws them otherwise leaves a margin under the surface, crops it, or moves the content off centre.
 
 ---
 
@@ -1461,6 +1469,7 @@ What Spine widgets cannot do, and what to do instead.
 | `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
 | The app is not in the widget board's picker (Windows) | The app is unpackaged (`WindowsPackageType` `None`), or was never installed as MSIX. The board lists only packaged apps whose manifest declares the provider; the build adds it to a packaged build only. |
 | A Windows widget shows only "—" | The app has not built that kind yet. The board started the app for it and asked the provider; open the board again a moment later. |
+| The board's **Add widget** button is grey for a widget (Windows) | The widget does not offer medium, where the board adds new widgets: its `WindowsFamilies` leaves `Medium` out, which the build warns about. |
 | `Add-AppxPackage`: *0x800B0109* | The signing certificate is not trusted on this machine; see [Windows](#windows). |
 | `Add-AppxPackage`: *0x80073CFB*, the package is already installed | A rebuild of the same commit has the same MSIX version; pass a higher `-p:SpineMsixVersion=…`. |
 | Build error about the App Group | The app's `CodesignEntitlements` does not list the group; see [setup](#3-give-the-app-the-app-group-entitlement). |
