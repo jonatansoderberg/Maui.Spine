@@ -97,13 +97,15 @@ the app's resources sets it for every row of every page:
 
 ```xml
 <!-- App.xaml: grey icons without badges, a size up and a little heavier, so they hold their own beside the
-     titles; the chevron a little heavier and the up-and-down chevron of a menu row a little lighter to match -->
+     titles; the chevron in the same grey and a little heavier, the up-and-down chevron of a menu row a little lighter to match -->
 <SpineRowStyleOptions x:Key="DefaultSpineRowStyleOptions"
-                      ShowIconBadges="False" IconColor="#8E8E93" IconSize="32" IconLineWidthScale="1.5"
+                      ShowIconBadges="False" IconColor="#8E8E93" ChevronColor="#8E8E93" IconSize="32" IconLineWidthScale="1.5"
                       GlyphLineWidthScale="2" MenuGlyphLineWidthScale="1.2" />
 ```
 
-`#8E8E93` is the system grey, which reads on both the light and the dark grouped background. `IconSize` (28 points on
+`#8E8E93` is the system grey, which reads on both the light and the dark grouped background. The chevron takes it
+too: its default is the fainter tertiary grey, which beside a menu row's up-and-down chevron (drawn in the value's
+colour) reads as a different colour. `IconSize` (28 points on
 iOS by default) and `IconLineWidthScale` (the glyph's own stroke by default) apply to an icon without a badge only.
 Hockeymatch was the first app with this style (2026-11-23).
 
