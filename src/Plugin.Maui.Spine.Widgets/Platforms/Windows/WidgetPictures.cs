@@ -71,6 +71,14 @@ internal static class WidgetPictures
         return data.ToArray();
     }
 
+    /// <summary>One transparent pixel, for room the card would otherwise leave out.</summary>
+    public static byte[] Clear()
+    {
+        using var surface = SKSurface.Create(new SKImageInfo(1, 1, SKColorType.Rgba8888, SKAlphaType.Premul));
+        surface.Canvas.Clear(SKColors.Transparent);
+        return Png(surface);
+    }
+
     /// <summary>The white icon <see cref="WidgetIconAssets"/> stored, in <paramref name="color"/>.</summary>
     public static byte[]? Tint(byte[] whiteIcon, SKColor color)
     {

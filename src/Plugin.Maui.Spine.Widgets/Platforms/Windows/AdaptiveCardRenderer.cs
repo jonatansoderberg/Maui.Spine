@@ -20,6 +20,18 @@ internal sealed class AdaptiveCardRenderer(Func<string, byte[]?> _asset, Windows
     private const string Dark = "${$host.hostTheme == 'dark'}";
     private const string Light = "${$host.hostTheme != 'dark'}";
 
+    /// <summary>
+    /// The room the board leaves above a card's content (its header) and below it, in points; measured on Windows 11 build
+    /// 26300. The card's content is drawn between them, so it would sit lower in the widget than iOS puts it.
+    /// </summary>
+    private const double CardTop = 41, CardBottom = 5;
+
+    /// <summary>The room at the bottom that centres the card's content in the widget, as iOS centres it between equal margins.</summary>
+    private const double HeaderExcess = CardTop - CardBottom;
+
+    /// <summary>The height of a root picture that fills the widget between equal margins.</summary>
+    private double Centred => _area.Height - 2 * CardTop;
+
     /// <summary>The content width in points, for a picture that fills its column (a sparkline); every size is one column wide.</summary>
     private double Width => _area.Width;
 
@@ -36,6 +48,10 @@ internal sealed class AdaptiveCardRenderer(Func<string, byte[]?> _asset, Windows
                 stretched |= element["height"]?.GetValue<string>() == "stretch";
                 body.Add(element);
             }
+        // The board's header takes the top of the card, so its content starts lower than it ends; the same room at the
+        // bottom centres the content in the widget, as iOS centres it between equal margins.
+        if (body.Count > 0)
+            body.Add(Gap(HeaderExcess));
 
         var card = new JsonObject
         {
@@ -99,7 +115,7 @@ internal sealed class AdaptiveCardRenderer(Func<string, byte[]?> _asset, Windows
                 if (Str(node, "asset") is not { } id || _asset(id) is not { } bytes) return [];
                 var image = Image(node, DataUri(WidgetPictures.Shrink(bytes, 640)), null, null, hAlign ?? (root ? "center" : null));
                 if (Num(node, "height") is { } height) image["height"] = Px(height);
-                else if (root) image["height"] = "stretch";
+                else if (root) image["height"] = Px(Centred);
                 return [image];
             }
             case "ring":
@@ -237,7 +253,7 @@ internal sealed class AdaptiveCardRenderer(Func<string, byte[]?> _asset, Windows
         {
             container["backgroundImage"] = new JsonObject { ["url"] = DataUri(WidgetPictures.Shrink(bytes, 640)), ["fillMode"] = "cover" };
             if (Num(layers[0], "height") is { } height) container["minHeight"] = Px(height);
-            else if (root) container["height"] = "stretch";
+            else if (root) container["minHeight"] = Px(Centred);
             rest = layers[1..];
         }
         container["items"] = new JsonArray([.. rest.SelectMany(layer => Render(layer, hAlign ?? halign))]);
@@ -253,7 +269,6 @@ internal sealed class AdaptiveCardRenderer(Func<string, byte[]?> _asset, Windows
         if ((Thickness(node, "insets") ?? Thickness(node, "padding")) is { } padding && container["items"] is JsonArray content)
         {
             var (left, top, right, bottom) = padding;
-            JsonObject Gap(double height) => new() { ["type"] = "Container", ["minHeight"] = Px(height), ["spacing"] = "none", ["items"] = new JsonArray() };
             JsonObject Side(double width) => new() { ["type"] = "Column", ["width"] = Px(width), ["spacing"] = "none", ["items"] = new JsonArray() };
             var middle = new JsonObject { ["type"] = "Column", ["width"] = "stretch", ["spacing"] = "none", ["items"] = new JsonArray([.. content.Select(i => i!.DeepClone())]) };
             if (container["verticalContentAlignment"] is { } valign) middle["verticalContentAlignment"] = valign.DeepClone();
@@ -281,6 +296,15 @@ internal sealed class AdaptiveCardRenderer(Func<string, byte[]?> _asset, Windows
         if (Num(node, "cornerRadius") is > 0) container["roundedCorners"] = true;
         return container;
     }
+
+    /// <summary>
+    /// Empty vertical room. The board leaves out a container with no items whatever its <c>minHeight</c>, so the room is a
+    /// transparent picture of that height.
+    /// </summary>
+    private static JsonObject Gap(double height) =>
+        new() { ["type"] = "Image", ["url"] = Transparent, ["width"] = "1px", ["height"] = Px(height), ["spacing"] = "none" };
+
+    private static readonly string Transparent = DataUri(WidgetPictures.Clear());
 
     private static bool HasBox(JsonObject node) =>
         Str(node, "background") is not null || Num(node, "cornerRadius") is > 0 || (Thickness(node, "insets") ?? Thickness(node, "padding")) is not null;
