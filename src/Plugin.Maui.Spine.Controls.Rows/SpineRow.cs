@@ -950,7 +950,7 @@ public class SpineRow : ContentView
             // The glyph is narrow in its square: close to the value, its strokes at the row's padding.
             _menuGlyph.Margin = new Thickness(-6, 0, -12, 0);
             SvgImageSource.SetTintColor(_menuGlyph, style.ValueColor!);
-            SvgImageSource.SetLineWidthScale(_menuGlyph, style.GlyphLineWidthScale * 1.25);
+            SvgImageSource.SetLineWidthScale(_menuGlyph, style.MenuGlyphLineWidthScale ?? style.GlyphLineWidthScale * 1.25);
         }
     }
 

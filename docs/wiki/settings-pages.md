@@ -90,7 +90,26 @@ A long detail scrolls rather than truncating: set `DetailMarquee="True"` on ever
 
 ## Icons and their colours
 
-Every row of a settings page has an icon on a badge (`IconBackground`). The badge's colour says what kind of setting it is, the same on every row and in every app, so the colour is never decoration:
+Every row of a settings page has an icon. The recommended style draws it as a plain grey glyph, without a badge: the
+page reads calmer, and the app's accent is left to its switches and selections. One `DefaultSpineRowStyleOptions` in
+the app's resources sets it for every row of every page:
+
+```xml
+<!-- App.xaml: grey icons without badges, a size up and a little heavier, so they hold their own beside the
+     titles; the chevron a little heavier and the up-and-down chevron of a menu row a little lighter to match -->
+<SpineRowStyleOptions x:Key="DefaultSpineRowStyleOptions"
+                      ShowIconBadges="False" IconColor="#8E8E93" IconSize="32" IconLineWidthScale="1.5"
+                      GlyphLineWidthScale="2" MenuGlyphLineWidthScale="1.6" />
+```
+
+`#8E8E93` is the system grey, which reads on both the light and the dark grouped background. `IconSize` (28 points on
+iOS by default) and `IconLineWidthScale` (the glyph's own stroke by default) apply to an icon without a badge only.
+Hockeymatch was the first app with this style (2026-11-23).
+
+Each row still names its kind with `IconBackground`, as below: the colour is not drawn while `ShowIconBadges` is off,
+but it keeps the rows' kinds in the markup, and an app that wants the badges back turns them on in one place. With
+badges on, the badge's colour says what kind of setting it is, the same on every row and in every app, so the colour
+is never decoration:
 
 | Colour | | For |
 |---|---|---|
@@ -105,7 +124,8 @@ Every row of a settings page has an icon on a badge (`IconBackground`). The badg
 Green, orange and red are never a kind of setting:
 
 - **Green** and **orange** are the [`Status`](rows.md#status-menus-and-destructive-rows) marks: green works, orange needs the user. A row that needs the user keeps its own icon colour and gets the orange mark.
-- **Red** (`#FF3B30`) is the badge of a row with `IsDestructive`, and only of those.
+- **Red** (`#FF3B30`) is the badge of a row with `IsDestructive`, and only of those. Without badges the row's red
+  title says it.
 
 Glyphs come from `Plugin.Maui.Spine.Svg.Icons`: `Delete.svg` for deleting and removing (never `Trashcan.svg`), `SignOut.svg` for signing out, `ExternalLink.svg` for a web page, `Mail.svg` for feedback, `Info.svg` for About, `Tag.svg` for the version, `Theme.svg` for the theme, `Globe.svg` for the language, `Key.svg` for a key, `User.svg` for an account, `Reload.svg` for fetching now (`Refresh.svg` is a sync symbol).
 
