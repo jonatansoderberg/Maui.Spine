@@ -11,6 +11,7 @@ public static class PurchaseResolver
     {
         var products = owned.ToList();
         var states = new Dictionary<Enum, PurchaseState>();
+        var order = catalog.Products.Select((p, i) => (p.Value, i)).ToDictionary(x => x.Value, x => x.i);
 
         foreach (var purchase in catalog.Purchases)
         {
@@ -22,6 +23,8 @@ public static class PurchaseResolver
                 .ThenBy(x => x.Product.Kind == ProductKind.OneTime ? 0 : 1)
                 .ThenByDescending(x => x.Owned.WillRenew)
                 .ThenByDescending(x => x.Owned.ExpiresAt ?? DateTimeOffset.MaxValue)
+                // Equal otherwise (one-time tiers): the product declared first, so gold before silver before bronze.
+                .ThenBy(x => order[x.Product.Value])
                 .FirstOrDefault();
 
             states[purchase.Value] = best.Product is null

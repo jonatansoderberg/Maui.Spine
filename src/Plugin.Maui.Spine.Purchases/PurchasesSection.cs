@@ -70,7 +70,7 @@ public sealed class PurchasesSection : ContentView
         var anySubscription = false;
         _section.Rows.Clear();
 
-        foreach (var purchase in catalog.Purchases)
+        void AddPurchase(PurchaseDefinition purchase)
         {
             var state = purchases.State(purchase.Value);
             if (state.IsActive)
@@ -79,7 +79,7 @@ public sealed class PurchasesSection : ContentView
                 var grace = state.Phase == PurchasePhase.GracePeriod;
                 _section.Rows.Add(new SpineRow
                 {
-                    Icon = "purchases-star.svg",
+                    Icon = IconFor(purchases, purchase.Value),
                     IconBackground = Access,
                     Title = PurchasesStrings.PurchaseName(purchase.Value),
                     Detail = grace ? PurchasesStrings.Get("Spine.Purchases.Row.Grace", store) : Describe(catalog, purchase, state),
@@ -92,7 +92,7 @@ public sealed class PurchasesSection : ContentView
                 var value = purchase.Value;
                 _section.Rows.Add(new SpineRow
                 {
-                    Icon = "purchases-star.svg",
+                    Icon = IconFor(purchases, value),
                     IconBackground = Access,
                     Title = PurchasesStrings.Get("Spine.Purchases.Row.Get", PurchasesStrings.PurchaseName(value)),
                     Command = new Command(() => purchases.OpenPaywallAsync(new PaywallRequest(value), CancellationToken.None).SafeFireAndForget()),
@@ -101,21 +101,44 @@ public sealed class PurchasesSection : ContentView
             }
         }
 
-        // Each credit's balance: "3 left", or unlimited while a purchase makes it free.
+        // Purchases that make a credit unlimited first, then that credit, then everything else: a season card, the games
+        // left, then a thank-you.
+        var forCredits = catalog.Purchases.Where(p => catalog.Credits.Any(c => c.UnlimitedWith.Contains(p))).ToList();
+        foreach (var purchase in forCredits)
+            AddPurchase(purchase);
+
+        // Each credit: what is left, and a tap opens the paywall with the products that add it and the purchases that make
+        // it unlimited. While a purchase makes it unlimited the row stays, greyed, saying so and by which purchase.
         if (Credits is { } credits)
         {
             foreach (var credit in catalog.Credits)
             {
-                var unlimited = credits.IsUnlimited(credit);
-                _section.Rows.Add(new SpineRow
-                {
-                    Icon = "purchases-star.svg",
-                    IconBackground = Access,
-                    Title = PurchasesStrings.Capitalized(PurchasesStrings.CreditName(credit.Value)),
-                    Value = unlimited ? PurchasesStrings.Get("Spine.Purchases.Row.Unlimited") : PurchasesStrings.Get("Spine.Purchases.Row.Left", credits.Balance(credit)),
-                });
+                var value = credit.Value;
+                var unlimitedBy = credit.UnlimitedWith.FirstOrDefault(p => purchases.State(p.Value).IsActive);
+                _section.Rows.Add(unlimitedBy is not null
+                    ? new SpineRow
+                    {
+                        Icon = IconFor(purchases, value),
+                        IconBackground = Access,
+                        Title = PurchasesStrings.CreditRowName(value),
+                        Detail = PurchasesStrings.PurchaseName(unlimitedBy.Value),
+                        Value = PurchasesStrings.Get("Spine.Purchases.Row.Unlimited"),
+                        Opacity = 0.5,
+                    }
+                    : new SpineRow
+                    {
+                        Icon = IconFor(purchases, value),
+                        IconBackground = Access,
+                        Title = PurchasesStrings.CreditRowName(value),
+                        Value = PurchasesStrings.Get("Spine.Purchases.Row.Left", credits.Balance(credit)),
+                        Command = new Command(() => purchases.OpenPaywallAsync(new PaywallRequest(null) { Credit = value }, CancellationToken.None).SafeFireAndForget()),
+                        ShowChevron = true,
+                    });
             }
         }
+
+        foreach (var purchase in catalog.Purchases.Except(forCredits))
+            AddPurchase(purchase);
 
         foreach (var overlap in purchases.OverlappingSubscriptions)
         {
@@ -170,13 +193,20 @@ public sealed class PurchasesSection : ContentView
         };
     }
 
+    private static string IconFor(AppPurchases purchases, Enum item) =>
+        purchases.Settings.Icons.TryGetValue(item, out var svg) ? svg : "purchases-star.svg";
+
     private static string Describe(PurchaseCatalog catalog, PurchaseDefinition purchase, PurchaseState state)
     {
         if (state.Kind == ProductKind.OneTime)
         {
             // "Lifetime" where the same purchase is also sold as a subscription; otherwise it is simply bought.
             var alsoSubscribed = catalog.ProductsGranting(purchase).Any(p => p.Kind == ProductKind.Subscription);
-            return PurchasesStrings.Get(alsoSubscribed ? "Spine.Purchases.Row.Lifetime" : "Spine.Purchases.Row.Bought");
+            var bought = PurchasesStrings.Get(alsoSubscribed ? "Spine.Purchases.Row.Lifetime" : "Spine.Purchases.Row.Bought");
+            // Several one-time products give it (tiers): say which, "Guld · Köpt".
+            return catalog.ProductsGranting(purchase).Count(p => p.Kind == ProductKind.OneTime) > 1 && state.Product is { } tier
+                ? $"{PurchasesStrings.ProductName(tier)} · {bought}"
+                : bought;
         }
 
         var date = state.ExpiresAt is { } end ? PurchasesStrings.Date(end) : "";

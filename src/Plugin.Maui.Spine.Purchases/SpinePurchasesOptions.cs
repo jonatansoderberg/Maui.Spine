@@ -53,6 +53,23 @@ public sealed class SpinePurchasesOptions<TPurchase, TProduct>
         return this;
     }
 
+    /// <summary>
+    /// The icon of a purchase's or a credit's row in the settings section: an SVG file name, such as <c>Trophy.svg</c>.
+    /// Without it, a star.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// o.Icon(AppPurchase.Season2627, "Trophy.svg").Icon(AppCredit.LiveGame, "RadioTower.svg");
+    /// </code>
+    /// </example>
+    public SpinePurchasesOptions<TPurchase, TProduct> Icon(Enum purchaseOrCredit, string svg)
+    {
+        ArgumentNullException.ThrowIfNull(purchaseOrCredit);
+        ArgumentException.ThrowIfNullOrWhiteSpace(svg);
+        Settings.Icons[purchaseOrCredit] = svg;
+        return this;
+    }
+
     /// <summary>Lets a Release build run on the test store: for a sample or a TestFlight build that sells nothing.</summary>
     public bool AllowTestStoreInRelease { get => Settings.AllowTestStoreInRelease; set => Settings.AllowTestStoreInRelease = value; }
 
@@ -213,6 +230,17 @@ public sealed class PaywallTextOptions
         _text.Features.Add(new PaywallFeature(icon, title, detail));
         return this;
     }
+
+    /// <summary>
+    /// The product this paywall picks and marks, instead of the paywall's own <c>Highlight</c>, with its own mark: text,
+    /// or the key of a Spine string ("Populärast"). Without a mark, "Best value".
+    /// </summary>
+    public PaywallTextOptions Highlight(Enum product, string? badge = null)
+    {
+        _text.Highlight = product;
+        _text.HighlightBadge = badge;
+        return this;
+    }
 }
 
 /// <summary>What the paywall is opened for: one purchase, a credit, or everything offered.</summary>
@@ -243,6 +271,8 @@ internal sealed record PaywallFeature(string Icon, string Title, string? Detail)
 
 internal sealed class PaywallText
 {
+    public Enum? Highlight { get; set; }
+    public string? HighlightBadge { get; set; }
     public string? Headline { get; set; }
     public string? Subtitle { get; set; }
     public List<PaywallFeature> Features { get; } = [];
@@ -269,6 +299,7 @@ internal sealed class PurchasesSettings
     public TestStoreSettings? TestStore { get; set; }
     public bool AllowTestStoreInRelease { get; set; }
     public PaywallSettings Paywall { get; } = new();
+    public Dictionary<Enum, string> Icons { get; } = [];
     public CreditOptions Credits { get; } = new();
     public Type? PaywallPage { get; set; }
 }

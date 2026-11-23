@@ -42,6 +42,17 @@ internal static partial class PurchasesStrings
     /// <summary>The first letter in capitals, for a name that starts a row.</summary>
     public static string Capitalized(string text) => text.Length == 0 ? text : char.ToUpper(text[0], SpineStrings.Current.Culture) + text[1..];
 
+    /// <summary>
+    /// The credit's row in the settings section: <c>Purchases.Credits.&lt;Member&gt;.Row</c> in the app's strings ("Livematcher"),
+    /// or the credit's name with a capital.
+    /// </summary>
+    public static string CreditRowName(Enum credit)
+    {
+        EnsureRegistered();
+        var key = $"Purchases.Credits.{credit}.Row";
+        return SpineStrings.Current.Has(key) ? SpineStrings.Current[key] : Capitalized(CreditName(credit));
+    }
+
     /// <summary>"7 days", "1 month".</summary>
     public static string Period(StorePeriod period)
     {
