@@ -19,6 +19,8 @@ internal sealed class AppPurchases : IAppPurchases
     private readonly TimeProvider _time;
     private readonly Lock _gate = new();
     private readonly ConcurrentDictionary<(Enum, bool), PurchaseActiveSource> _sources = new();
+    private readonly string _ownedKey;
+    private readonly string _productsKey;
     private List<OwnedProduct> _owned;
     private List<StoreProductInfo> _products;
 
@@ -29,8 +31,11 @@ internal sealed class AppPurchases : IAppPurchases
         Catalog = catalog;
         Store = store;
         Settings = settings;
-        _owned = PurchasesStorage.LoadOwned(OwnedKey, catalog);
-        _products = PurchasesStorage.LoadProducts(ProductsKey, catalog);
+        // Kept per store, so a switch between the test store and a real one never carries purchases across.
+        _ownedKey = $"{OwnedKey}.{store.GetType().Name}";
+        _productsKey = $"{ProductsKey}.{store.GetType().Name}";
+        _owned = PurchasesStorage.LoadOwned(_ownedKey, catalog);
+        _products = PurchasesStorage.LoadProducts(_productsKey, catalog);
         store.OwnedChanged += (_, _) => RefreshAsync().SafeFireAndForget(e => Log("refresh after a store event", e));
     }
 
@@ -65,8 +70,18 @@ internal sealed class AppPurchases : IAppPurchases
         return PurchaseResolver.Resolve(Catalog, Owned, _time.GetUtcNow())[definition.Value];
     }
 
-    public async Task RefreshAsync(CancellationToken cancellationToken = default) =>
-        Apply(await Store.GetOwnedAsync(cancellationToken));
+    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            Apply(await Store.GetOwnedAsync(cancellationToken));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Offline or a store error: the last known state stays, and the next refresh tries again.
+            Log("refresh", e);
+        }
+    }
 
     public async Task<IReadOnlyList<StoreProductInfo>> GetProductsAsync(CancellationToken cancellationToken = default)
     {
@@ -77,7 +92,7 @@ internal sealed class AppPurchases : IAppPurchases
             lock (_gate)
             {
                 _products = [.. products];
-                PurchasesStorage.SaveProducts(ProductsKey, _products);
+                PurchasesStorage.SaveProducts(_productsKey, _products);
             }
             return products;
         }
@@ -221,7 +236,7 @@ internal sealed class AppPurchases : IAppPurchases
         {
             var before = PurchaseResolver.Resolve(Catalog, _owned, now);
             _owned = [.. owned];
-            PurchasesStorage.SaveOwned(OwnedKey, _owned);
+            PurchasesStorage.SaveOwned(_ownedKey, _owned);
             var after = PurchaseResolver.Resolve(Catalog, _owned, now);
             changed = [.. after.Where(kv => !Equals(before[kv.Key], kv.Value)).Select(kv => kv.Key)];
 

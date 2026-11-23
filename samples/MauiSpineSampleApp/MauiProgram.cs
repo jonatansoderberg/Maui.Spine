@@ -5,6 +5,7 @@ using Plugin.Maui.Spine.AI;
 using Plugin.Maui.Spine.Authentication;
 using Plugin.Maui.Spine.Biometrics;
 using Plugin.Maui.Spine.Purchases;
+using Plugin.Maui.Spine.Purchases.RevenueCat;
 using MauiSpineSampleApp.Pages.Purchases;
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
@@ -139,16 +140,28 @@ public static class MauiProgram
         builder.UseHighlights();
         builder.UseSpineBiometrics(o => o.AppLock(a => a.IsEnabled = () => Preferences.Get(MauiSpineSampleApp.Pages.Biometrics.BiometricsPageViewModel.AppLockKey, false)));
 
-        // The Purchases page, on the test store: prices, a yearly period with a trial, and the paywall's text and links.
-        builder.UseSpinePurchases<ShowcasePurchase, ShowcaseProduct>(o => o
-            .UseTestStore(t => t
-                .Price(ShowcaseProduct.ProMonthly, 29)
-                .Price(ShowcaseProduct.ProYearly, 249)
-                .Period(ShowcaseProduct.ProYearly, StorePeriod.Year)
-                .Trial(ShowcaseProduct.ProYearly, StorePeriod.Days(7))
-                .Price(ShowcaseProduct.ProLifetime, 599)
-                .Price(ShowcaseProduct.Supporter, 49))
-            .Paywall(p => p
+        // The Purchases page: on RevenueCat when the build has its keys (-p:SpineRevenueCatAppleKey=…), on the test store
+        // otherwise, with prices, a yearly period with a trial, and the paywall's text and links.
+        var revenueCatApple = BuildSetting("SpineRevenueCatAppleKey");
+        var revenueCatGoogle = BuildSetting("SpineRevenueCatGoogleKey");
+        builder.UseSpinePurchases<ShowcasePurchase, ShowcaseProduct>(o =>
+        {
+            if ((OperatingSystem.IsAndroid() ? revenueCatGoogle : revenueCatApple).Length > 0 && !OperatingSystem.IsWindows())
+                o.UseRevenueCat(r =>
+                {
+                    r.AppleApiKey = revenueCatApple;
+                    r.GoogleApiKey = revenueCatGoogle;
+                });
+            else
+                o.UseTestStore(t => t
+                    .Price(ShowcaseProduct.ProMonthly, 29)
+                    .Price(ShowcaseProduct.ProYearly, 249)
+                    .Period(ShowcaseProduct.ProYearly, StorePeriod.Year)
+                    .Trial(ShowcaseProduct.ProYearly, StorePeriod.Days(7))
+                    .Price(ShowcaseProduct.ProLifetime, 599)
+                    .Price(ShowcaseProduct.Supporter, 49));
+
+            o.Paywall(p => p
                 .Offer(ShowcaseProduct.ProYearly, ShowcaseProduct.ProMonthly, ShowcaseProduct.ProLifetime, ShowcaseProduct.Supporter)
                 .Highlight(ShowcaseProduct.ProYearly)
                 .Headline("Showcase Pro")
@@ -161,9 +174,11 @@ public static class MauiProgram
                     .Subtitle("A one-time thank-you. It unlocks nothing, it keeps the Showcase going.")
                     .Feature("heart.svg", "A thank-you banner", "Shown with {PurchaseActive}"))
                 .Terms(new Uri("https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/purchases.md#terms"))
-                .Privacy(new Uri("https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/purchases.md#privacy")))
+                .Privacy(new Uri("https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/purchases.md#privacy")));
+
             // The Showcase sells nothing, so its TestFlight build may run on the test store.
-            .AllowTestStoreInRelease = true);
+            o.AllowTestStoreInRelease = true;
+        });
 
         // The Sign-in page's calls to the sample server, with the access token.
         builder.Services.AddHttpClient("SampleApi", c => c.BaseAddress = SampleServer).AddSpineAuthentication();

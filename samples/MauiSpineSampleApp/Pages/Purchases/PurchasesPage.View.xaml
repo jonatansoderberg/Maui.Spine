@@ -90,7 +90,7 @@
             </Example.Code>
         </Example>
 
-        <Example Title="The test store"
+        <Example Title="The test store" IsVisible="{Binding HasTestStore}"
                  Summary="ITestStore sends what a real store sends, now: the end of a period, a renewal, a cancelled renewal, a failed payment, a refund, Ask to Buy. A Release build refuses the test store unless the app allows it, as the Showcase does.">
             <VerticalStackLayout Spacing="10">
                 <SpineSection Header="The Pro subscription">

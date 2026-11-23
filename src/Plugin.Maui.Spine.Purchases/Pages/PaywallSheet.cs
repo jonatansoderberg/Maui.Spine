@@ -1,3 +1,4 @@
+using AsyncAwaitBestPractices;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -47,6 +48,9 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
         var empty = new Label { Text = PurchasesStrings.Get("Spine.Purchases.Paywall.Unavailable"), HorizontalTextAlignment = TextAlignment.Center, Opacity = 0.7 };
         empty.SetBinding(IsVisibleProperty, static (PaywallSheetViewModel vm) => vm.IsEmpty);
 
+        var loading = new ActivityIndicator { IsRunning = true, HorizontalOptions = LayoutOptions.Center };
+        loading.SetBinding(IsVisibleProperty, static (PaywallSheetViewModel vm) => vm.IsLoadingFirst);
+
         var message = new Label { FontSize = 14, HorizontalTextAlignment = TextAlignment.Center };
         message.SetBinding(Label.TextProperty, static (PaywallSheetViewModel vm) => vm.Message);
         message.SetBinding(IsVisibleProperty, static (PaywallSheetViewModel vm) => vm.HasMessage);
@@ -67,6 +71,7 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
                     subtitle,
                     features,
                     products,
+                    loading,
                     empty,
                     message,
                     new HorizontalStackLayout { Spacing = 20, HorizontalOptions = LayoutOptions.Center, Children = { restore, terms, privacy } },
@@ -77,6 +82,7 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
         var primary = new Button { FontAttributes = FontAttributes.Bold, HeightRequest = 50, CornerRadius = 12 };
         primary.SetBinding(Button.TextProperty, static (PaywallSheetViewModel vm) => vm.PrimaryText);
         primary.SetBinding(Button.CommandProperty, nameof(PaywallSheetViewModel.BuyCommand));
+        primary.SetBinding(IsVisibleProperty, static (PaywallSheetViewModel vm) => vm.HasSelection);
 
         var smallPrint = new Label { FontSize = 12, Opacity = 0.6, HorizontalTextAlignment = TextAlignment.Center };
         smallPrint.SetBinding(Label.TextProperty, static (PaywallSheetViewModel vm) => vm.SmallPrint);
@@ -187,14 +193,24 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
     /// <summary>The products on offer.</summary>
     public ObservableCollection<PaywallProduct> Products { get; } = [];
 
-    /// <summary>True when the store sells nothing on offer here.</summary>
+    /// <summary>True when the store has answered and sells nothing on offer here.</summary>
+    public bool IsEmpty => Products.Count == 0 && !IsLoading;
+
+    /// <summary>True while the store is asked and nothing is known yet: the sheet shows a spinner instead of products.</summary>
+    public bool IsLoadingFirst => Products.Count == 0 && IsLoading;
+
+    /// <summary>True while the store is asked for the products.</summary>
     [ObservableProperty]
-    public partial bool IsEmpty { get; set; }
+    [NotifyPropertyChangedFor(nameof(IsEmpty), nameof(IsLoadingFirst))]
+    public partial bool IsLoading { get; set; }
 
     /// <summary>The picked product.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrimaryText), nameof(SmallPrint), nameof(HasSmallPrint))]
+    [NotifyPropertyChangedFor(nameof(PrimaryText), nameof(SmallPrint), nameof(HasSmallPrint), nameof(HasSelection))]
     public partial PaywallProduct? Selected { get; set; }
+
+    /// <summary>True when a product is picked, so the primary button has something to buy.</summary>
+    public bool HasSelection => Selected is not null;
 
     /// <summary>What the primary button does for the picked product.</summary>
     public string PrimaryText => Selected?.ActionText ?? PurchasesStrings.Get("Spine.Purchases.Ok");
@@ -224,10 +240,25 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
     }
 
     /// <inheritdoc/>
-    public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
+    public override Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        await _purchases.RefreshAsync();
-        Show(await _purchases.GetProductsAsync());
+        // Spine shows a sheet once this returns, so the store is asked after: the sheet opens at once with what is known.
+        LoadAsync().SafeFireAndForget(e => System.Diagnostics.Debug.WriteLine($"[Spine] Paywall: loading the products failed: {e}"));
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            await _purchases.RefreshAsync();
+            Show(await _purchases.GetProductsAsync());
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     [RelayCommand]
@@ -306,7 +337,8 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
         foreach (var info in offered)
             Products.Add(new PaywallProduct(this, info, IsCurrent(info), hasPlan, Equals(info.Product, _purchases.Settings.Paywall.Highlight), storeName));
 
-        IsEmpty = Products.Count == 0;
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(IsLoadingFirst));
         var choice = Products.FirstOrDefault(p => Equals(p.Info.Product, picked))
             ?? Products.FirstOrDefault(p => p.IsHighlighted && !p.IsCurrent)
             ?? Products.FirstOrDefault(p => !p.IsCurrent)

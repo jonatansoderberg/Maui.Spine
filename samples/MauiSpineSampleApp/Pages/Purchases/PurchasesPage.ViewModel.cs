@@ -6,16 +6,19 @@ namespace MauiSpineSampleApp.Pages.Purchases;
 public partial class PurchasesPageViewModel : SampleViewModel
 {
     private readonly IAppPurchases _purchases;
-    private readonly ITestStore _store;
+    private readonly ITestStore? _store;
     private readonly INavigationService _navigation;
 
-    public PurchasesPageViewModel(IAppPurchases purchases, ITestStore store, INavigationService navigation)
+    public PurchasesPageViewModel(IAppPurchases purchases, INavigationService navigation, ITestStore? store = null)
     {
         _purchases = purchases;
         _store = store;
         _navigation = navigation;
         Update();
     }
+
+    /// <summary>The test store's controls show only on the test store, not on RevenueCat.</summary>
+    public bool HasTestStore => _store is not null;
 
     [ObservableProperty]
     public partial string ProState { get; set; } = "";
@@ -28,20 +31,20 @@ public partial class PurchasesPageViewModel : SampleViewModel
 
     public bool NextPending
     {
-        get => _store.NextPurchasePending;
+        get => _store?.NextPurchasePending == true;
         set
         {
-            _store.NextPurchasePending = value;
+            if (_store is not null) _store.NextPurchasePending = value;
             OnPropertyChanged();
         }
     }
 
     public bool NextFails
     {
-        get => _store.NextPurchaseFails;
+        get => _store?.NextPurchaseFails == true;
         set
         {
-            _store.NextPurchaseFails = value;
+            if (_store is not null) _store.NextPurchaseFails = value;
             OnPropertyChanged();
         }
     }
@@ -109,26 +112,27 @@ public partial class PurchasesPageViewModel : SampleViewModel
     [RelayCommand]
     private void ExportAll() => Log = "Exported everything (Pro, from the menu)";
 
-    private Enum? Subscription => _store.Owned
+    private Enum? Subscription => _store?.Owned
         .Where(o => o.Product is ShowcaseProduct.ProMonthly or ShowcaseProduct.ProYearly)
         .Select(o => o.Product)
         .FirstOrDefault();
 
     [RelayCommand]
-    private void Expire() => OnSubscription(_store.Expire);
+    private void Expire() => OnSubscription(p => _store?.Expire(p));
 
     [RelayCommand]
-    private void Renew() => OnSubscription(_store.Renew);
+    private void Renew() => OnSubscription(p => _store?.Renew(p));
 
     [RelayCommand]
-    private void CancelRenewal() => OnSubscription(_store.Cancel);
+    private void CancelRenewal() => OnSubscription(p => _store?.Cancel(p));
 
     [RelayCommand]
-    private void GracePeriod() => OnSubscription(_store.StartGracePeriod);
+    private void GracePeriod() => OnSubscription(p => _store?.StartGracePeriod(p));
 
     [RelayCommand]
     private void RefundAll()
     {
+        if (_store is null) return;
         foreach (var owned in _store.Owned)
             _store.Refund(owned.Product);
         Log = "Refunded everything";
@@ -137,6 +141,7 @@ public partial class PurchasesPageViewModel : SampleViewModel
     [RelayCommand]
     private void ApprovePending()
     {
+        if (_store is null) return;
         Log = _store.PendingPurchases.Count == 0 ? "Nothing is pending" : $"Approved {string.Join(", ", _store.PendingPurchases)}";
         _store.ApprovePending();
     }
@@ -144,7 +149,7 @@ public partial class PurchasesPageViewModel : SampleViewModel
     [RelayCommand]
     private void ResetStore()
     {
-        _store.Reset();
+        _store?.Reset();
         Log = "The test store is empty";
         Update();
     }

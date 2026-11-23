@@ -15,6 +15,7 @@ Spine ships as thirty-seven NuGet packages built from this repository, one per p
 | Security | `Plugin.Maui.Spine.Authentication.Passkeys` | [Passkeys](authentication.md#passkeys) through the platform's sheet, iOS, Mac Catalyst and Windows | `.Authentication` |
 | Security | `Plugin.Maui.Spine.Biometrics` | `IBiometricAuth` (Face ID, Touch ID, fingerprint, Windows Hello), `IUnlock`, `[RequiresUnlock]`, `Unlock.Command`, the app lock and `[PrivacyShield]`. Brings `Xamarin.AndroidX.Biometric` on Android | `Plugin.Maui.Spine`, `.Common` |
 | Security | `Plugin.Maui.Spine.Purchases` | `IAppPurchases` with the app's own purchase and product enums, `[RequiresPurchase]`, `Purchase.Command`, `{PurchaseActive}`, the paywall sheet, `PurchasesSection` and the test store (`ITestStore`). The real store comes from an adapter | `Plugin.Maui.Spine`, `.Common`, `.Controls.Rows` |
+| Security | `Plugin.Maui.Spine.Purchases.RevenueCat` | The RevenueCat store for Purchases (`o.UseRevenueCat(…)`) on iOS, Mac Catalyst and Android. Brings `Plugin.RevenueCat` and needs MAUI 10.0.110 | `.Purchases`, `.Common` |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes on BGTaskScheduler (iOS) and JobScheduler (Android), a timer while the app runs elsewhere | `Plugin.Maui.Spine`, `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp | — |

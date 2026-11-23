@@ -918,6 +918,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Biometrics\Plugin.Maui.Spine.Biometrics.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Purchases\Plugin.Maui.Spine.Purchases.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Purchases.RevenueCat\Plugin.Maui.Spine.Purchases.RevenueCat.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI\Plugin.Maui.Spine.AI.csproj" />
 		<ProjectReference Include="..\MauiSpineSampleApp.Shared\MauiSpineSampleApp.Shared.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Voice\Plugin.Maui.Spine.Voice.csproj" />
@@ -984,6 +985,13 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<AssemblyMetadata Include="SpineSampleServer" Value="$(SpineSampleServer)" />
+	</ItemGroup>
+
+	<!-- The Purchases page runs on the test store unless the build gets a RevenueCat project's public SDK keys:
+	     -p:SpineRevenueCatAppleKey=appl_… and -p:SpineRevenueCatGoogleKey=goog_… (docs/wiki/purchases.md). -->
+	<ItemGroup>
+		<AssemblyMetadata Include="SpineRevenueCatAppleKey" Value="$(SpineRevenueCatAppleKey)" />
+		<AssemblyMetadata Include="SpineRevenueCatGoogleKey" Value="$(SpineRevenueCatGoogleKey)" />
 	</ItemGroup>
 
 	<!-- A browser sign-in (Google through the server's broker off Android, Apple on Android and Windows) returns to the
