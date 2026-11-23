@@ -54,6 +54,8 @@
   <s key="Spine.Purchases.Row.Overlap">Your subscription still renews on {0}. Cancel it in {1}.</s>
   <s key="Spine.Purchases.Row.Manage">Manage subscription</s>
   <s key="Spine.Purchases.Row.Restore">Restore purchases</s>
+  <s key="Spine.Purchases.Row.Left">{0} left</s>
+  <s key="Spine.Purchases.Row.Unlimited">Unlimited</s>
 
   <s key="Spine.Purchases.Cover.Message">{0} unlocks this.</s>
   <s key="Spine.Purchases.Cover.SeePlans">See plans</s>

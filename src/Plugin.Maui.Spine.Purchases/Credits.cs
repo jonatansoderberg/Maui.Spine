@@ -218,6 +218,10 @@ internal sealed class AppCredits : ICredits
 
     public bool IsUnlimited<TCredit>(TCredit credit) where TCredit : struct, Enum => Unlimited(_catalog.Credit(credit));
 
+    internal bool IsUnlimited(CreditDefinition credit) => Unlimited(credit);
+
+    internal int Balance(CreditDefinition credit) => _answer.Balances.GetValueOrDefault(credit.Id);
+
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         try

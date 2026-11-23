@@ -20,6 +20,10 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
     /// <summary>Builds the sheet.</summary>
     public PaywallSheet()
     {
+        var paywall = (BindingContext as PaywallSheetViewModel)?.Paywall;
+        var accent = paywall?.Accent ?? Color.FromArgb("#FF2D55");
+        var onAccent = paywall?.OnAccent ?? Colors.White;
+
         var headline = new Label { FontSize = 28, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         headline.SetBinding(Label.TextProperty, static (PaywallSheetViewModel vm) => vm.Headline);
 
@@ -31,7 +35,7 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
         var featureRows = new VerticalStackLayout();
         BindableLayout.SetItemTemplate(featureRows, new DataTemplate(() =>
         {
-            var row = new SpineRow { IconBackground = Color.FromArgb("#FF2D55") };
+            var row = new SpineRow { IconBackground = accent };
             row.SetBinding(SpineRow.IconProperty, static (PaywallFeatureItem f) => f.Icon);
             row.SetBinding(SpineRow.TitleProperty, static (PaywallFeatureItem f) => f.Title);
             row.SetBinding(SpineRow.DetailProperty, static (PaywallFeatureItem f) => f.Detail);
@@ -42,7 +46,7 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
         features.SetBinding(IsVisibleProperty, static (PaywallSheetViewModel vm) => vm.HasFeatures);
 
         var products = new VerticalStackLayout { Spacing = 10 };
-        BindableLayout.SetItemTemplate(products, new DataTemplate(ProductCard));
+        BindableLayout.SetItemTemplate(products, new DataTemplate(() => ProductCard(accent, onAccent)));
         products.SetBinding(BindableLayout.ItemsSourceProperty, static (PaywallSheetViewModel vm) => vm.Products);
 
         var empty = new Label { Text = PurchasesStrings.Get("Spine.Purchases.Paywall.Unavailable"), HorizontalTextAlignment = TextAlignment.Center, Opacity = 0.7 };
@@ -79,7 +83,16 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
             },
         };
 
-        var primary = new Button { FontAttributes = FontAttributes.Bold, HeightRequest = 50, CornerRadius = 12 };
+        // Its own colours, so an app's Button style (a link-like plain button) does not make it a line of text.
+        var primary = new Button
+        {
+            FontAttributes = FontAttributes.Bold,
+            HeightRequest = 50,
+            CornerRadius = 14,
+            BackgroundColor = accent,
+            TextColor = onAccent,
+            BorderWidth = 0,
+        };
         primary.SetBinding(Button.TextProperty, static (PaywallSheetViewModel vm) => vm.PrimaryText);
         primary.SetBinding(Button.CommandProperty, nameof(PaywallSheetViewModel.BuyCommand));
         primary.SetBinding(IsVisibleProperty, static (PaywallSheetViewModel vm) => vm.HasSelection);
@@ -96,7 +109,7 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
         };
     }
 
-    private static View ProductCard()
+    private static View ProductCard(Color accent, Color onAccent)
     {
         var title = new Label { FontSize = 17, FontAttributes = FontAttributes.Bold };
         title.SetBinding(Label.TextProperty, static (PaywallProduct p) => p.Name);
@@ -108,14 +121,14 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
         detail.SetBinding(Label.TextProperty, static (PaywallProduct p) => p.Detail);
         detail.SetBinding(IsVisibleProperty, static (PaywallProduct p) => p.HasDetail);
 
-        var badgeText = new Label { FontSize = 12, FontAttributes = FontAttributes.Bold, TextColor = Colors.White };
+        var badgeText = new Label { FontSize = 12, FontAttributes = FontAttributes.Bold, TextColor = onAccent };
         badgeText.SetBinding(Label.TextProperty, static (PaywallProduct p) => p.Badge);
         var badge = new Border
         {
             Content = badgeText,
             Padding = new Thickness(8, 2),
             StrokeThickness = 0,
-            BackgroundColor = Color.FromArgb("#FF2D55"),
+            BackgroundColor = accent,
             StrokeShape = new RoundRectangle { CornerRadius = 9 },
             HorizontalOptions = LayoutOptions.End,
             VerticalOptions = LayoutOptions.Start,
@@ -139,7 +152,8 @@ public sealed class PaywallSheet : SpinePage<PaywallSheetViewModel>, INavigableW
         card.SetBinding(Border.StrokeThicknessProperty, static (PaywallProduct p) => p.StrokeThickness);
         card.SetBinding(Border.StrokeProperty, static (PaywallProduct p) => p.Stroke);
         card.SetBinding(OpacityProperty, static (PaywallProduct p) => p.Opacity);
-        card.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#F2F2F7"), Color.FromArgb("#1C1C1E"));
+        // A step lighter than the sheet in dark mode (the sheet is #1C1C1E), a step darker in light.
+        card.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#F2F2F7"), Color.FromArgb("#2C2C2E"));
         Tap.SetCommand(card, new Command<PaywallProduct>(p => p.Select()));
         card.SetBinding(Tap.CommandParameterProperty, static (PaywallProduct p) => p);
         card.SetBinding(SemanticProperties.DescriptionProperty, static (PaywallProduct p) => p.Description);
@@ -169,6 +183,8 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
         _navigation = navigation;
         ShowText(_purchases.Settings.Paywall.Text);
     }
+
+    internal PaywallSettings Paywall => _purchases.Settings.Paywall;
 
     /// <summary>The headline.</summary>
     [ObservableProperty]
@@ -366,7 +382,6 @@ public sealed record PaywallFeatureItem(string Icon, string Title, string? Detai
 /// <summary>One product on the paywall.</summary>
 public sealed partial class PaywallProduct : ObservableObject
 {
-    private static readonly Color Accent = Color.FromArgb("#FF2D55");
     private readonly PaywallSheetViewModel _owner;
 
     internal PaywallProduct(PaywallSheetViewModel owner, StoreProductInfo info, bool isCurrent, bool hasPlan, bool isHighlighted, string storeName)
@@ -395,7 +410,8 @@ public sealed partial class PaywallProduct : ObservableObject
         }
         else if (info.Kind == ProductKind.Consumable)
         {
-            PriceText = info.Price;
+            // A consumable is a one-time purchase too: "9 kr once", what it adds under it.
+            PriceText = PurchasesStrings.Get("Spine.Purchases.Paywall.Once", info.Price);
             Detail = string.Join(", ", owner.Adds(info.Product));
             ActionText = PurchasesStrings.Get("Spine.Purchases.Paywall.Buy", info.Price);
             SmallPrint = "";
@@ -407,6 +423,9 @@ public sealed partial class PaywallProduct : ObservableObject
             ActionText = PurchasesStrings.Get("Spine.Purchases.Paywall.Buy", info.Price);
             SmallPrint = "";
         }
+
+        if (owner.Paywall.Descriptions.TryGetValue(info.Product, out var description))
+            Detail = PurchasesStrings.Text(description);
 
         Badge = isCurrent
             ? PurchasesStrings.Get(info.Kind == ProductKind.Subscription ? "Spine.Purchases.Paywall.Current" : "Spine.Purchases.Paywall.Owned")
@@ -425,7 +444,7 @@ public sealed partial class PaywallProduct : ObservableObject
     public string PriceText { get; }
 
     /// <summary>The trial, or the price per month of a longer period.</summary>
-    public string Detail { get; }
+    public string Detail { get; private set; }
 
     /// <summary>True when there is a detail line.</summary>
     public bool HasDetail => Detail.Length > 0;
@@ -457,7 +476,7 @@ public sealed partial class PaywallProduct : ObservableObject
     public partial bool IsSelected { get; set; }
 
     /// <summary>The card's frame: the accent when picked.</summary>
-    public Brush Stroke => IsSelected ? new SolidColorBrush(Accent) : new SolidColorBrush(Colors.Transparent);
+    public Brush Stroke => IsSelected ? new SolidColorBrush(_owner.Paywall.Accent) : new SolidColorBrush(Colors.Transparent);
 
     /// <summary>The frame's width, the same picked or not, so the card does not move.</summary>
     public double StrokeThickness => 2;
