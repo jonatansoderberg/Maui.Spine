@@ -8,7 +8,7 @@
 - a Purchases section for the settings page;
 - a test store.
 
-The store itself comes from an adapter package. Phase P1 of [the proposal](../proposals/spine-purchases.md) ships the test store and the RevenueCat adapter; the server check comes next.
+The store itself comes from an adapter package. It also has credits (a balance spent one reference at a time) and a server package that keeps them and takes RevenueCat's webhook ([the proposal](../proposals/spine-purchases.md), P1 and P2).
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Purchases
@@ -47,7 +47,7 @@ public enum AppProduct
 }
 ```
 
-- **Every product says its kind.** `ProductKind.Subscription` and `ProductKind.OneTime` are supported. `Pass` and `Consumable` throw "not supported yet" when bought.
+- **Every product says its kind.** `ProductKind.Subscription`, `ProductKind.OneTime` and `ProductKind.Consumable` (see [credits](#credits)) are supported. `Pass` throws "not supported yet" when bought.
 - **The enums live in a project the server can reference too**, so the server can check the same purchases later. The attributes are in `Plugin.Maui.Spine.Common`, which has no MAUI dependency.
 
 ## Setup
@@ -187,6 +187,92 @@ store.Reset();
 ```
 
 A trial is given once per product, as the stores do. `Reset()` forgets it.
+
+## Credits
+
+Credits are a balance a user spends on something one at a time: a live match, an export. The app declares a third enum
+for them, and its products add to it:
+
+```csharp
+public enum AppCredit
+{
+    [FreeCredits(1)]                    // every caller gets one, once
+    [UnlimitedWith(AppPurchase.Live)]   // spending is free while Live is active
+    LiveMatch,
+}
+
+[StoreProduct(ProductKind.Consumable, Apple = "se.example.app.match", Google = "match")]
+[Adds(AppCredit.LiveMatch, 1)]
+OneMatch,
+```
+
+```csharp
+builder.UseSpinePurchases<AppPurchase, AppProduct, AppCredit>(o => o
+    .UseRevenueCat(r => { … })
+    .Credits(c => c.Server = new Uri("https://api.example.se/purchases"))
+    .Paywall(p => p
+        .ForCredit(AppCredit.LiveMatch, s => s.Headline("Follow more matches live"))
+        .Terms(terms).Privacy(privacy)));
+```
+
+```csharp
+if (await credits.UnlockAsync(AppCredit.LiveMatch, $"match:{match.Id}"))
+    await FollowLiveAsync(match);
+
+credits.Balance(AppCredit.LiveMatch);              // from the last answer, at once
+credits.IsUnlocked(AppCredit.LiveMatch, "match:1");
+credits.IsUnlimited(AppCredit.LiveMatch);
+```
+
+**What `UnlockAsync` does:**
+
+1. When the reference is unlocked already, or the credit is unlimited, it answers true at once.
+2. Otherwise it spends one credit, once per reference: asking twice for `match:1` takes one credit.
+3. With none left, it opens the paywall for the credit. The paywall offers the products that add the credit and the purchases that make it unlimited. After a purchase it spends again.
+
+**Where the ledger lives:**
+
+- **On the app's server** (`c.Server`): every free grant, purchase and spend is a row written once by its id. A purchase reaches the ledger through RevenueCat's webhook. After a consumable purchase the app asks the server until the credits are there.
+- **On the device** with the test store and no server: the same ledger in `Preferences`. The Showcase's "Credits" example runs on it.
+
+**Who the caller is:** the signed-in Spine user (`user:{id}`), or otherwise the app installation (`installation:{id}`). The RevenueCat adapter uses the same key as RevenueCat's app user id, so a purchase lands in the right ledger.
+
+- **A free credit follows the caller.** An installation that later signs in is a new caller and gets another one. Tie the free credit to an account by requiring sign-in for the spend.
+- **On iOS**, Apple's DeviceCheck can keep a bit per device that survives a reinstall. Spine does not use it yet.
+- **Bought credits cannot be restored from the store**, as consumables never can. They are in the server's ledger and follow the account.
+
+## The server
+
+`Plugin.Maui.Spine.Server.Purchases` keeps the ledger, takes RevenueCat's webhook, and lets the app's own endpoints ask about a caller's purchases and credits:
+
+```csharp
+builder.Services.AddSpinePurchases<AppPurchase, AppProduct, AppCredit>(o =>
+{
+    o.UseAzureTableStore(builder.Configuration["Purchases:Storage"]!);   // or o.UseInMemoryStore()
+    o.RevenueCatWebhookAuthorization = builder.Configuration["RevenueCat:WebhookAuthorization"];
+});
+
+app.MapSpinePurchases();   // GET /purchases/credits, POST /purchases/credits/spend, POST /purchases/revenuecat
+```
+
+```csharp
+app.MapGet("/matches/{id}/live", async (string id, HttpRequest request, IPurchaseLedger ledger) =>
+    await ledger.CallerAsync(request) is { } caller && await ledger.IsUnlockedAsync(caller, AppCredit.LiveMatch, $"match:{id}")
+        ? Results.Ok(…)
+        : Results.StatusCode(402));
+
+await ledger.IsActiveAsync(caller, AppPurchase.Pro);           // from what RevenueCat has reported
+await ledger.GrantAsync(caller, AppCredit.LiveMatch, 5, "demo");   // once per id: a gift, a demo account
+```
+
+- **The enums** live in a project both the app and the server reference, so both read the same `[StoreProduct]`, `[Grants]`, `[Adds]`, `[FreeCredits]` and `[UnlimitedWith]`.
+- **In RevenueCat**, add a webhook to `https://…/purchases/revenuecat` with an Authorization value, and give the server the same value. The webhook writes:
+  - consumables as credits, once per transaction;
+  - subscriptions as owned products, through purchase, renewal, cancellation, expiration, billing issue and refund;
+  - one-time products as owned for good.
+- **Events it skips, with a log line:** an event for an anonymous RevenueCat user, or for a product no enum member names.
+- **The caller** is the JWT `sub` (Spine sign-in), or the `Spine-Installation` header. `o.Identify` replaces that.
+- **Spends:** two at the same time for one caller are serialised within one server instance. Two spends on different references at the same moment on two instances could both take the last credit.
 
 ## RevenueCat
 

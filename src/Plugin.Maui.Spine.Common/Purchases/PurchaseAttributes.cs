@@ -58,7 +58,7 @@ public enum ProductKind
     /// <summary>Bought once for a fixed time without renewing. Not supported yet.</summary>
     Pass,
 
-    /// <summary>Used up and bought again; adds to a balance and is never active. Not supported yet.</summary>
+    /// <summary>Used up and bought again: adds credits (<see cref="AddsAttribute"/>) to the caller's ledger and is never active.</summary>
     Consumable,
 }
 

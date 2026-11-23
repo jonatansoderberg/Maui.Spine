@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Plugin.Maui.Spine.Server.Purchases</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Server.Purchases</RootNamespace>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Purchases on the server for Spine apps: a ledger per caller with free credits, credits from bought consumables and spends that unlock a reference once, the subscriptions and one-time products RevenueCat reports through its webhook, and IPurchaseLedger for the app's own endpoints. For ASP.NET Core and Azure Functions.</Description>
+		<PackageTags>$(PackageTags);purchases;subscriptions;credits;revenuecat;webhook;aspnetcore;azure-functions</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Purchases.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+	<!-- The catalog, the ledger logic and the wire contracts live in .Common, shared with the app's Plugin.Maui.Spine.Purchases. -->
+	<ItemGroup>
+		<Using Include="Plugin.Maui.Spine.Purchases" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Data.Tables" />
+	</ItemGroup>
+
+</Project>

@@ -87,7 +87,7 @@ internal sealed class AppPurchases : IAppPurchases
     {
         try
         {
-            var sellable = Catalog.Products.Where(p => p.Kind is ProductKind.Subscription or ProductKind.OneTime).ToList();
+            var sellable = Catalog.Products.Where(p => p.Kind is ProductKind.Subscription or ProductKind.OneTime || p.Kind == ProductKind.Consumable && p.Adds.Count > 0).ToList();
             var products = await Store.GetProductsAsync(sellable, cancellationToken);
             lock (_gate)
             {
@@ -109,8 +109,11 @@ internal sealed class AppPurchases : IAppPurchases
     public async Task<PurchaseResult> Purchase(Enum product, CancellationToken cancellationToken = default)
     {
         var definition = Catalog.Product(product);
-        if (definition.Kind is ProductKind.Pass or ProductKind.Consumable)
-            throw new NotSupportedException($"Spine purchases: {Catalog.ProductType.Name}.{product} is a {definition.Kind}, which Spine does not sell yet. P1 sells Subscription and OneTime products.");
+        if (definition.Kind == ProductKind.Pass)
+            throw new NotSupportedException($"Spine purchases: {Catalog.ProductType.Name}.{product} is a Pass, which Spine does not sell yet.");
+        var credits = definition.Kind == ProductKind.Consumable
+            ? _services.GetService<AppCredits>() ?? throw new InvalidOperationException($"Spine purchases: {Catalog.ProductType.Name}.{product} adds credits; register the credit enum with UseSpinePurchases<TPurchase, TProduct, TCredit>.")
+            : null;
 
         var now = _time.GetUtcNow();
         var owned = Owned;
@@ -135,7 +138,12 @@ internal sealed class AppPurchases : IAppPurchases
         }
 
         if (result.Status == PurchaseStatus.Purchased)
-            await RefreshAsync(cancellationToken);
+        {
+            if (credits is not null)
+                await credits.PurchasedAsync(definition, cancellationToken);
+            else
+                await RefreshAsync(cancellationToken);
+        }
         return result;
     }
 
@@ -158,21 +166,20 @@ internal sealed class AppPurchases : IAppPurchases
 
     public Task ManageAsync(CancellationToken cancellationToken = default) => Store.ManageAsync(cancellationToken);
 
-    public Task<bool> ShowPaywallAsync(CancellationToken cancellationToken = default) => OpenPaywallAsync(null, cancellationToken);
+    public Task<bool> ShowPaywallAsync(CancellationToken cancellationToken = default) => OpenPaywallAsync(new PaywallRequest(null), cancellationToken);
 
     public Task<bool> ShowPaywallAsync<TPurchase>(TPurchase purchase, CancellationToken cancellationToken = default) where TPurchase : struct, Enum =>
-        OpenPaywallAsync(Catalog.Purchase(purchase).Value, cancellationToken);
+        OpenPaywallAsync(new PaywallRequest(Catalog.Purchase(purchase).Value), cancellationToken);
 
     public async Task<bool> RequireAsync<TPurchase>(TPurchase purchase, CancellationToken cancellationToken = default) where TPurchase : struct, Enum =>
         IsActive(purchase) || await ShowPaywallAsync(purchase, cancellationToken);
 
     public async Task<bool> RequireAsync(Enum purchase, CancellationToken cancellationToken = default) =>
-        State(purchase).IsActive || await OpenPaywallAsync(Catalog.Purchase(purchase).Value, cancellationToken);
+        State(purchase).IsActive || await OpenPaywallAsync(new PaywallRequest(Catalog.Purchase(purchase).Value), cancellationToken);
 
-    public async Task<bool> OpenPaywallAsync(Enum? purchase, CancellationToken cancellationToken)
+    public async Task<bool> OpenPaywallAsync(PaywallRequest request, CancellationToken cancellationToken)
     {
         var navigation = _services.GetRequiredService<INavigationService>();
-        var request = new PaywallRequest(purchase);
         bool bought;
 
         if (Settings.PaywallPage is { } page)
@@ -190,11 +197,11 @@ internal sealed class AppPurchases : IAppPurchases
             bought = outcome is { IsSuccess: true, Value: true };
         }
 
-        return purchase is null ? bought : State(purchase).IsActive;
+        return request.Purchase is { } purchase ? State(purchase).IsActive : bought;
     }
 
-    /// <summary>The products the paywall shows for <paramref name="purchase"/>, in the offered order, of those the store sells.</summary>
-    public IReadOnlyList<StoreProductInfo> PaywallProducts(Enum? purchase, IReadOnlyList<StoreProductInfo> sellable)
+    /// <summary>The products the paywall shows for <paramref name="request"/>, in the offered order, of those the store sells.</summary>
+    public IReadOnlyList<StoreProductInfo> PaywallProducts(PaywallRequest request, IReadOnlyList<StoreProductInfo> sellable)
     {
         var now = _time.GetUtcNow();
         var owned = Owned;
@@ -204,7 +211,8 @@ internal sealed class AppPurchases : IAppPurchases
             .ToHashSet();
 
         var order = Settings.Paywall.Offer ?? [.. Catalog.Products.Select(p => p.Value)];
-        var wanted = purchase is null ? null : Catalog.Purchase(purchase);
+        var wanted = request.Purchase is { } purchase ? Catalog.Purchase(purchase) : null;
+        var credit = request.Credit is { } c ? Catalog.Credit(c) : null;
 
         return [.. order
             .Select(value => sellable.FirstOrDefault(s => Equals(s.Product, value)))
@@ -213,6 +221,9 @@ internal sealed class AppPurchases : IAppPurchases
             {
                 var definition = Catalog.Product(s.Product);
                 if (wanted is not null && !definition.Grants.Contains(wanted))
+                    return false;
+                // For a credit: the products that add it, and the purchases that make it unlimited.
+                if (credit is not null && !definition.Adds.Any(a => a.Credit == credit) && !definition.Grants.Intersect(credit.UnlimitedWith).Any())
                     return false;
                 // A subscription to what a one-time purchase already gives would charge for nothing.
                 return definition.Kind != ProductKind.Subscription || !definition.Grants.All(lifetime.Contains);

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-	<!-- What the Showcase and the Showcase server share: the AI functions, written once for both sides. -->
+	<!-- What the Showcase and the Showcase server share: the AI functions and the purchase enums, written once for both sides. -->
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<RootNamespace>MauiSpineSampleApp.Shared</RootNamespace>
@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI.Functions\Plugin.Maui.Spine.AI.Functions.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
 	</ItemGroup>
 
 </Project>

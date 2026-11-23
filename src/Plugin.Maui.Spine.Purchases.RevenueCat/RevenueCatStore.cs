@@ -15,7 +15,7 @@ internal sealed class RevenueCatStore : IPurchaseStore
 {
     private readonly IRevenueCatManager _revenueCat;
     private readonly PurchaseCatalog _catalog;
-    private readonly Func<IServiceProvider, string?> _appUserId;
+    private readonly Func<IServiceProvider, ValueTask<string?>> _appUserId;
     private readonly IServiceProvider _services;
     private readonly ILogger _logger;
     private readonly StorePlatform _platform = OperatingSystem.IsAndroid() ? StorePlatform.Google : StorePlatform.Apple;
@@ -23,7 +23,7 @@ internal sealed class RevenueCatStore : IPurchaseStore
     private readonly ConcurrentDictionary<string, bool> _warned = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _user = new(1, 1);
 
-    public RevenueCatStore(IRevenueCatManager revenueCat, PurchaseCatalog catalog, Func<IServiceProvider, string?> appUserId, IServiceProvider services, ILogger logger)
+    public RevenueCatStore(IRevenueCatManager revenueCat, PurchaseCatalog catalog, Func<IServiceProvider, ValueTask<string?>> appUserId, IServiceProvider services, ILogger logger)
     {
         _revenueCat = revenueCat;
         _catalog = catalog;
@@ -160,7 +160,7 @@ internal sealed class RevenueCatStore : IPurchaseStore
         if (string.IsNullOrEmpty(_revenueCat.ApiKey))
             _revenueCat.Initialize();
 
-        var wanted = _appUserId(_services);
+        var wanted = await _appUserId(_services);
         if (wanted == _revenueCat.AppUserId || wanted is null && _revenueCat.IsAnonymous)
             return;
 
@@ -212,7 +212,8 @@ internal sealed class RevenueCatStore : IPurchaseStore
 
         foreach (var (key, purchases) in info.Subscriber?.NonSubscriptions ?? new Dictionary<string, List<NonSubscription>>())
         {
-            if (Product(key, null) is not { } product || purchases.Count == 0)
+            // A consumable is used up: its credits are in the server's ledger, not among the owned products.
+            if (Product(key, null) is not { } product || product.Kind == ProductKind.Consumable || purchases.Count == 0)
                 continue;
 
             var first = purchases.Min(p => p.PurchaseDate) ?? now;

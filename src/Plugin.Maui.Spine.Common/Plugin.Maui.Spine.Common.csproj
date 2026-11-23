@@ -32,6 +32,9 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI.Tests" />
 		<!-- Voice reads the same refusals as the AI client from the session endpoint. -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice" />
+		<!-- The installation id, the caller key the purchases server and RevenueCat share. -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Purchases" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Purchases.RevenueCat" />
 	</ItemGroup>
 
 	<!-- The layout files' source generator rides in this package: a tree described in *.layout.xml becomes W.* calls at build time. -->

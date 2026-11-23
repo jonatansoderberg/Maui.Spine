@@ -12,6 +12,8 @@ using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Server;
 using Plugin.Maui.Spine.Server.AI;
 using Plugin.Maui.Spine.Server.Authentication;
+using Plugin.Maui.Spine.Server.Purchases;
+using MauiSpineSampleApp.Pages.Purchases;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -131,6 +133,18 @@ builder.Services.AddSpineAuthentication(a =>
         a.UseInMemoryStore();
 });
 
+// The Purchases page's credits when the app runs on RevenueCat: a ledger per caller (the signed-in user, or the
+// installation), free credits, spends, and RevenueCat's webhook at /purchases/revenuecat with the Authorization value
+// set in the RevenueCat project. In memory unless Purchases:Storage names an Azure Storage account.
+builder.Services.AddSpinePurchases<ShowcasePurchase, ShowcaseProduct, ShowcaseCredit>(o =>
+{
+    if (builder.Configuration["Purchases:Storage"] is { Length: > 0 } storage)
+        o.UseAzureTableStore(storage);
+    else
+        o.UseInMemoryStore();
+    o.RevenueCatWebhookAuthorization = builder.Configuration["RevenueCat:WebhookAuthorization"];
+});
+
 // AI features: the providers are one line each, everything else (features, models, prices, budgets) is the "Ai"
 // section of appsettings.Development.json. Usage is kept in memory, so budgets reset with the server.
 builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
@@ -190,6 +204,9 @@ app.MapGet("/sample/me", (ClaimsPrincipal user) => new
     provider = user.FindFirstValue(SpineAuthDefaults.ProviderClaim),
     email = user.FindFirstValue("email"),
 }).RequireAuthorization();
+
+// GET /purchases/credits, POST /purchases/credits/spend and POST /purchases/revenuecat.
+app.MapSpinePurchases("/purchases");
 
 // POST /ai/features/{name} for exposed features (Assistant), POST /ai/functions/{feature}/{name} for the Voice feature's
 // server functions, and GET /ai/usage for the report.

@@ -1,7 +1,7 @@
 <SpinePage
     xmlns="http://schemas.microsoft.com/dotnet/maui/global"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:app="clr-namespace:MauiSpineSampleApp.Pages.Purchases"
+    xmlns:app="clr-namespace:MauiSpineSampleApp.Pages.Purchases;assembly=MauiSpineSampleApp.Shared"
     x:Class="MauiSpineSampleApp.Pages.Purchases.PurchasesPage"
     x:TypeArguments="PurchasesPageViewModel"
     x:DataType="PurchasesPageViewModel">
@@ -79,6 +79,31 @@
             <Example.Code>
                 &lt;Border IsVisible="{PurchaseActive {x:Static app:AppPurchase.Supporter}}"&gt;…
                 &lt;Button IsVisible="{PurchaseActive {x:Static app:AppPurchase.Supporter}, Invert=True}" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Credits: one match at a time"
+                 Summary="ICredits.UnlockAsync spends a credit on a reference once: the first match is free ([FreeCredits(1)]), the next opens the paywall with matches to buy and Pro, which makes every match free ([UnlimitedWith]). On the test store the ledger is on the device; with a server it is the server's.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding CreditState}" FontSize="15" />
+                <Button Text="Follow match 1 live" Command="{Binding FollowMatchCommand}" CommandParameter="1" />
+                <Button Text="Follow match 2 live" Command="{Binding FollowMatchCommand}" CommandParameter="2" />
+                <Button Text="Follow match 3 live" Command="{Binding FollowMatchCommand}" CommandParameter="3" />
+            </VerticalStackLayout>
+            <Example.Code>
+                public enum AppCredit
+                {
+                    [FreeCredits(1)]
+                    [UnlimitedWith(AppPurchase.Live)]
+                    LiveMatch,
+                }
+
+                [StoreProduct(ProductKind.Consumable, Apple = "…match")]
+                [Adds(AppCredit.LiveMatch, 1)]
+                OneMatch,
+
+                if (await credits.UnlockAsync(AppCredit.LiveMatch, $"match:{id}"))
+                    await FollowLiveAsync(id);
             </Example.Code>
         </Example>
 

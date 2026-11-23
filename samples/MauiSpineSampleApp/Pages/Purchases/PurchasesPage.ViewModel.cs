@@ -6,12 +6,14 @@ namespace MauiSpineSampleApp.Pages.Purchases;
 public partial class PurchasesPageViewModel : SampleViewModel
 {
     private readonly IAppPurchases _purchases;
+    private readonly ICredits _credits;
     private readonly ITestStore? _store;
     private readonly INavigationService _navigation;
 
-    public PurchasesPageViewModel(IAppPurchases purchases, INavigationService navigation, ITestStore? store = null)
+    public PurchasesPageViewModel(IAppPurchases purchases, ICredits credits, INavigationService navigation, ITestStore? store = null)
     {
         _purchases = purchases;
+        _credits = credits;
         _store = store;
         _navigation = navigation;
         Update();
@@ -28,6 +30,9 @@ public partial class PurchasesPageViewModel : SampleViewModel
 
     [ObservableProperty]
     public partial string Log { get; set; } = "Nothing yet";
+
+    [ObservableProperty]
+    public partial string CreditState { get; set; } = "";
 
     public bool NextPending
     {
@@ -55,13 +60,16 @@ public partial class PurchasesPageViewModel : SampleViewModel
     {
         _purchases.Changed -= OnChanged;
         _purchases.Changed += OnChanged;
+        _credits.Changed -= OnCreditsChanged;
+        _credits.Changed += OnCreditsChanged;
         Update();
-        return Task.CompletedTask;
+        return _credits.RefreshAsync();
     }
 
     public override Task OnDisappearingAsync(NavigationDirection navigationDirection)
     {
         _purchases.Changed -= OnChanged;
+        _credits.Changed -= OnCreditsChanged;
         return Task.CompletedTask;
     }
 
@@ -71,8 +79,14 @@ public partial class PurchasesPageViewModel : SampleViewModel
         Log = $"Changed: {string.Join(", ", e.Purchases)}{(e.OverlappingSubscription ? " (a subscription now overlaps a lifetime purchase)" : "")}";
     }
 
+    private void OnCreditsChanged(object? sender, EventArgs e) => Update();
+
     private void Update()
     {
+        var unlocked = Enumerable.Range(1, 3).Where(n => _credits.IsUnlocked(ShowcaseCredit.LiveMatch, $"match:{n}")).Select(n => $"match {n}").ToList();
+        CreditState = _credits.IsUnlimited(ShowcaseCredit.LiveMatch)
+            ? "Live matches: unlimited with Pro"
+            : $"Live matches left: {_credits.Balance(ShowcaseCredit.LiveMatch)}. Unlocked: {(unlocked.Count == 0 ? "none" : string.Join(", ", unlocked))}";
         ProState = Describe(_purchases.GetState(ShowcasePurchase.Pro));
         SupporterState = Describe(_purchases.GetState(ShowcasePurchase.Supporter));
         OnPropertyChanged(nameof(NextPending));
@@ -101,6 +115,12 @@ public partial class PurchasesPageViewModel : SampleViewModel
         var result = await _purchases.RestoreAsync();
         Log = $"Restore: {result.Status}";
     }
+
+    [RelayCommand]
+    private async Task FollowMatch(string match) =>
+        Log = await _credits.UnlockAsync(ShowcaseCredit.LiveMatch, $"match:{match}")
+            ? $"Following match {match} live"
+            : $"Match {match} is not unlocked";
 
     [RelayCommand]
     private Task OpenStatistics() => _navigation.NavigateToAsync<StatisticsPage>();
@@ -150,6 +170,7 @@ public partial class PurchasesPageViewModel : SampleViewModel
     private void ResetStore()
     {
         _store?.Reset();
+        _ = _credits.RefreshAsync();
         Log = "The test store is empty";
         Update();
     }

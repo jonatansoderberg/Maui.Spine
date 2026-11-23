@@ -1,6 +1,6 @@
 # Purchases and subscriptions
 
-**Status:** Proposal, 2026-11-18. P1 is built: the package, the paywall, the guard and the test store in #849, the RevenueCat adapter in #852; see `docs/wiki/purchases.md`. The server (P2) is next. Spine facts are read from the source at `4f4c76c4`. Package facts come from the NuGet pages and the dotnet/maui issue on 2026-11-18.
+**Status:** Proposal, 2026-11-18. P1 is built: the package, the paywall, the guard and the test store in #849, and the RevenueCat adapter in #852. P2 is built in #855: the server, with a credit ledger (consumables, free credits, spends) and RevenueCat's webhook. See `docs/wiki/purchases.md`. Spine facts are read from the source at `4f4c76c4`. Package facts come from the NuGet pages and the dotnet/maui issue on 2026-11-18.
 **Question:** A free app wants to sell some features as a subscription or a one-time purchase. What exists for .NET MAUI today, what should Spine build, and in which packages?
 **Answer:** Spine does not build its own store layer. It builds a thin package, `Plugin.Maui.Spine.Purchases`, on top of an existing store package. The package covers what Spine is good at:
 

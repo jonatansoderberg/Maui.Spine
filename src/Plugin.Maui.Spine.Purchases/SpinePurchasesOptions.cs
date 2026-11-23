@@ -17,6 +17,21 @@ public sealed class SpinePurchasesOptions<TPurchase, TProduct>
     public MauiAppBuilder Builder { get; }
 
     /// <summary>
+    /// Where the credits of <c>UseSpinePurchases&lt;TPurchase, TProduct, TCredit&gt;</c> are kept: the app's server, which maps
+    /// <c>MapSpinePurchases()</c>. On the test store without a server they are kept on the device.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// o.Credits(c => c.Server = new Uri("https://api.example.se/purchases"));
+    /// </code>
+    /// </example>
+    public SpinePurchasesOptions<TPurchase, TProduct> Credits(Action<CreditOptions> configure)
+    {
+        configure(Settings.Credits);
+        return this;
+    }
+
+    /// <summary>
     /// Uses the test store: purchases kept on the device, the paywall with the prices given here, and <see cref="ITestStore"/>
     /// to expire, renew or refund them. A Release build refuses it unless <see cref="AllowTestStoreInRelease"/> is set.
     /// </summary>
@@ -123,6 +138,19 @@ public sealed class PaywallOptions<TPurchase, TProduct>
         return this;
     }
 
+    /// <summary>
+    /// Its own headline, line and features when the paywall opens for a credit with nothing left: from
+    /// <c>ICredits.UnlockAsync</c>. It offers the products that add the credit and the purchases that make it unlimited.
+    /// </summary>
+    public PaywallOptions<TPurchase, TProduct> ForCredit(Enum credit, Action<PaywallTextOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(credit);
+        var text = new PaywallText();
+        configure(new PaywallTextOptions(text));
+        _settings.PerPurchase[credit] = text;
+        return this;
+    }
+
     /// <summary>The terms of use. Required: App Review rejects a subscription paywall without it (guideline 3.1.2).</summary>
     public PaywallOptions<TPurchase, TProduct> Terms(Uri terms)
     {
@@ -167,9 +195,29 @@ public sealed class PaywallTextOptions
     }
 }
 
-/// <summary>What the paywall is opened for: one purchase, or everything offered.</summary>
+/// <summary>What the paywall is opened for: one purchase, a credit, or everything offered.</summary>
 /// <param name="Purchase">The purchase the user needs, or null for every offered product.</param>
-public sealed record PaywallRequest(Enum? Purchase);
+public sealed record PaywallRequest(Enum? Purchase)
+{
+    /// <summary>The credit the user needs: the paywall offers the products that add it and the purchases that make it unlimited.</summary>
+    public Enum? Credit { get; init; }
+}
+
+/// <summary>Where the app's credits are kept.</summary>
+public sealed class CreditOptions
+{
+    /// <summary>The root of the server's purchases endpoints, <c>MapSpinePurchases()</c>: <c>https://api.example.se/purchases</c>.</summary>
+    public Uri? Server { get; set; }
+
+    /// <summary>
+    /// The Authorization header for the server, read before every call. Without it, the signed-in Spine user's when
+    /// Plugin.Maui.Spine.Authentication is used; the installation header is always sent.
+    /// </summary>
+    public Func<CancellationToken, Task<string?>>? AuthorizationHeader { get; set; }
+
+    /// <summary>For tests: the handler the server's HttpClient uses.</summary>
+    public HttpMessageHandler? HttpHandler { get; set; }
+}
 
 internal sealed record PaywallFeature(string Icon, string Title, string? Detail);
 
@@ -196,5 +244,6 @@ internal sealed class PurchasesSettings
     public TestStoreSettings? TestStore { get; set; }
     public bool AllowTestStoreInRelease { get; set; }
     public PaywallSettings Paywall { get; } = new();
+    public CreditOptions Credits { get; } = new();
     public Type? PaywallPage { get; set; }
 }

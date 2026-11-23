@@ -47,11 +47,27 @@ public static class SpinePurchasesRevenueCatExtensions
         return options.UseStore((services, catalog) => new RevenueCatStore(
             services.GetRequiredService<IRevenueCatManager>(),
             catalog,
-            settings.AppUserId ?? (static sp => sp.GetService<ISpineSignedInUser>()?.User?.Id),
+            settings.AppUserId is { } own ? sp => ValueTask.FromResult(own(sp)) : CallerKeyAsync,
             services,
             services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Purchases.RevenueCat") ?? NullLogger.Instance));
 #endif
     }
+
+#if !WINDOWS
+    // The key the Spine purchases server keeps the caller's ledger under, so RevenueCat's webhook lands in it.
+    private static async ValueTask<string?> CallerKeyAsync(IServiceProvider services)
+    {
+        if (services.GetService<ISpineSignedInUser>()?.User?.Id is { Length: > 0 } user)
+            return CallerKeys.User(user);
+
+        if (await SecureStorage.Default.GetAsync(Common.SpineInstallation.IdKey) is not { Length: > 0 } installation)
+        {
+            installation = Guid.NewGuid().ToString("N");
+            await SecureStorage.Default.SetAsync(Common.SpineInstallation.IdKey, installation);
+        }
+        return CallerKeys.Installation(installation);
+    }
+#endif
 }
 
 /// <summary>The RevenueCat project's keys and who the purchases belong to.</summary>
@@ -68,8 +84,9 @@ public sealed class SpineRevenueCatOptions
 
     /// <summary>
     /// The RevenueCat app user id, asked before every look at the user's purchases: the purchases follow it to the user's
-    /// other devices and to the server. Without it, the signed-in Spine user's id when Plugin.Maui.Spine.Authentication is
-    /// used, and RevenueCat's anonymous id otherwise. Null means anonymous.
+    /// other devices and to the server. Without it, the caller key the Spine purchases server uses (<see cref="CallerKeys"/>):
+    /// <c>user:{id}</c> for the signed-in Spine user, <c>installation:{id}</c> otherwise. Null means RevenueCat's anonymous id,
+    /// whose purchases the server cannot place.
     /// </summary>
     public Func<IServiceProvider, string?>? AppUserId { get; set; }
 }
