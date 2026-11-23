@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.AI;
 using Plugin.Maui.Spine.Authentication;
 using Plugin.Maui.Spine.Biometrics;
+using Plugin.Maui.Spine.Purchases;
+using MauiSpineSampleApp.Pages.Purchases;
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.PushNotifications;
@@ -136,6 +138,32 @@ public static class MauiProgram
         // The Biometrics page's app lock, behind the page's own switch.
         builder.UseHighlights();
         builder.UseSpineBiometrics(o => o.AppLock(a => a.IsEnabled = () => Preferences.Get(MauiSpineSampleApp.Pages.Biometrics.BiometricsPageViewModel.AppLockKey, false)));
+
+        // The Purchases page, on the test store: prices, a yearly period with a trial, and the paywall's text and links.
+        builder.UseSpinePurchases<ShowcasePurchase, ShowcaseProduct>(o => o
+            .UseTestStore(t => t
+                .Price(ShowcaseProduct.ProMonthly, 29)
+                .Price(ShowcaseProduct.ProYearly, 249)
+                .Period(ShowcaseProduct.ProYearly, StorePeriod.Year)
+                .Trial(ShowcaseProduct.ProYearly, StorePeriod.Days(7))
+                .Price(ShowcaseProduct.ProLifetime, 599)
+                .Price(ShowcaseProduct.Supporter, 49))
+            .Paywall(p => p
+                .Offer(ShowcaseProduct.ProYearly, ShowcaseProduct.ProMonthly, ShowcaseProduct.ProLifetime, ShowcaseProduct.Supporter)
+                .Highlight(ShowcaseProduct.ProYearly)
+                .Headline("Showcase Pro")
+                .Subtitle("Everything the Showcase can do, and a thank-you to the developer.")
+                .Feature("graph.svg", "Statistics", "A page behind [RequiresPurchase]")
+                .Feature("share.svg", "Export", "A command behind a purchase")
+                .Feature("energy.svg", "No limits")
+                .For(ShowcasePurchase.Supporter, s => s
+                    .Headline("Support the developer")
+                    .Subtitle("A one-time thank-you. It unlocks nothing, it keeps the Showcase going.")
+                    .Feature("heart.svg", "A thank-you banner", "Shown with {PurchaseActive}"))
+                .Terms(new Uri("https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/purchases.md#terms"))
+                .Privacy(new Uri("https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/purchases.md#privacy")))
+            // The Showcase sells nothing, so its TestFlight build may run on the test store.
+            .AllowTestStoreInRelease = true);
 
         // The Sign-in page's calls to the sample server, with the access token.
         builder.Services.AddHttpClient("SampleApi", c => c.BaseAddress = SampleServer).AddSpineAuthentication();

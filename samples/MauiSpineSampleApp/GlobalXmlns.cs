@@ -335,3 +335,11 @@
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "Plugin.Maui.Spine.Authentication", AssemblyName = "Plugin.Maui.Spine.Authentication")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
+    "Plugin.Maui.Spine.Purchases", AssemblyName = "Plugin.Maui.Spine.Purchases")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.Purchases")]

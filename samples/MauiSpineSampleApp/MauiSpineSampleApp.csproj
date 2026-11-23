@@ -529,6 +529,15 @@
       <DependentUpon>MembersPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Purchases\PurchasesPage.View.xaml">
+      <DependentUpon>PurchasesPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Purchases\PurchasesPage.ViewModel.cs">
+      <DependentUpon>PurchasesPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Biometrics\BiometricsPage.View.xaml">
       <DependentUpon>BiometricsPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -908,6 +917,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Layouts.Generator\Plugin.Maui.Spine.Layouts.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Biometrics\Plugin.Maui.Spine.Biometrics.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Purchases\Plugin.Maui.Spine.Purchases.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI\Plugin.Maui.Spine.AI.csproj" />
 		<ProjectReference Include="..\MauiSpineSampleApp.Shared\MauiSpineSampleApp.Shared.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Voice\Plugin.Maui.Spine.Voice.csproj" />

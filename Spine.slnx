@@ -29,6 +29,7 @@
   <Project Path="src/Plugin.Maui.Spine.Widgets/Plugin.Maui.Spine.Widgets.csproj" />
   <Project Path="src/Plugin.Maui.Spine.BackgroundTasks/Plugin.Maui.Spine.BackgroundTasks.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Biometrics/Plugin.Maui.Spine.Biometrics.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Purchases/Plugin.Maui.Spine.Purchases.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server/Plugin.Maui.Spine.Server.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server.AI/Plugin.Maui.Spine.Server.AI.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server.AI.Assets/Plugin.Maui.Spine.Server.AI.Assets.csproj" />
@@ -72,4 +73,5 @@
   <Project Path="tests/Plugin.Maui.Spine.Images.Tests/Plugin.Maui.Spine.Images.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.BackgroundTasks.Tests/Plugin.Maui.Spine.BackgroundTasks.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Biometrics.Tests/Plugin.Maui.Spine.Biometrics.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Purchases.Tests/Plugin.Maui.Spine.Purchases.Tests.csproj" />
 </Solution>

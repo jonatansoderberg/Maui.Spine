@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Purchases.Ok">OK</s>
+  <s key="Spine.Purchases.Cancel">Avbryt</s>
+
+  <s key="Spine.Purchases.Period.Day.one">{0} dag</s>
+  <s key="Spine.Purchases.Period.Day.other">{0} dagar</s>
+  <s key="Spine.Purchases.Period.Week.one">{0} vecka</s>
+  <s key="Spine.Purchases.Period.Week.other">{0} veckor</s>
+  <s key="Spine.Purchases.Period.Month.one">{0} månad</s>
+  <s key="Spine.Purchases.Period.Month.other">{0} månader</s>
+  <s key="Spine.Purchases.Period.Year.one">{0} år</s>
+  <s key="Spine.Purchases.Period.Year.other">{0} år</s>
+  <s key="Spine.Purchases.Per.Day">{0}/dag</s>
+  <s key="Spine.Purchases.Per.Week">{0}/vecka</s>
+  <s key="Spine.Purchases.Per.Month">{0}/mån</s>
+  <s key="Spine.Purchases.Per.Year">{0}/år</s>
+  <s key="Spine.Purchases.Every">{0} var {1}</s>
+
+  <s key="Spine.Purchases.Paywall.Title">Uppgradera</s>
+  <s key="Spine.Purchases.Paywall.Once">{0} en gång</s>
+  <s key="Spine.Purchases.Paywall.PerMonth">{0}/mån</s>
+  <s key="Spine.Purchases.Paywall.FreeTrial">{0} gratis</s>
+  <s key="Spine.Purchases.Paywall.Best">Bäst värde</s>
+  <s key="Spine.Purchases.Paywall.Owned">Köpt</s>
+  <s key="Spine.Purchases.Paywall.Current">Din plan</s>
+  <s key="Spine.Purchases.Paywall.StartTrial">Prova {0} gratis</s>
+  <s key="Spine.Purchases.Paywall.Subscribe">Prenumerera för {0}</s>
+  <s key="Spine.Purchases.Paywall.Switch">Byt för {0}</s>
+  <s key="Spine.Purchases.Paywall.Buy">Köp för {0}</s>
+  <s key="Spine.Purchases.Paywall.TrialTerms">Sedan {0}. Avsluta när du vill i {1}.</s>
+  <s key="Spine.Purchases.Paywall.RenewTerms">Förnyas automatiskt. Avsluta när du vill i {0}.</s>
+  <s key="Spine.Purchases.Paywall.Restore">Återställ köp</s>
+  <s key="Spine.Purchases.Paywall.Terms">Användarvillkor</s>
+  <s key="Spine.Purchases.Paywall.Privacy">Integritetspolicy</s>
+  <s key="Spine.Purchases.Paywall.Pending">Väntar på godkännande. Det låses upp så fort köpet går igenom.</s>
+  <s key="Spine.Purchases.Paywall.Failed">Köpet gick inte igenom: {0}</s>
+  <s key="Spine.Purchases.Paywall.Unavailable">Inget finns till salu här just nu.</s>
+
+  <s key="Spine.Purchases.Restore.Done">Dina köp är återställda.</s>
+  <s key="Spine.Purchases.Restore.Nothing">Hittade inga köp att återställa.</s>
+  <s key="Spine.Purchases.Restore.Failed">Kunde inte återställa: {0}</s>
+
+  <s key="Spine.Purchases.Section.Header">Köp</s>
+  <s key="Spine.Purchases.Row.Get">Skaffa {0}</s>
+  <s key="Spine.Purchases.Row.Renews">Förnyas {0}</s>
+  <s key="Spine.Purchases.Row.Ends">Upphör {0}</s>
+  <s key="Spine.Purchases.Row.Trial">Gratis provperiod, förnyas {0}</s>
+  <s key="Spine.Purchases.Row.TrialEnds">Gratis provperiod, upphör {0}</s>
+  <s key="Spine.Purchases.Row.Lifetime">För alltid</s>
+  <s key="Spine.Purchases.Row.Bought">Köpt</s>
+  <s key="Spine.Purchases.Row.Grace">Betalningsproblem: uppdatera i {0}</s>
+  <s key="Spine.Purchases.Row.Overlap">Din prenumeration förnyas fortfarande {0}. Avsluta den i {1}.</s>
+  <s key="Spine.Purchases.Row.Manage">Hantera prenumeration</s>
+  <s key="Spine.Purchases.Row.Restore">Återställ köp</s>
+
+  <s key="Spine.Purchases.Cover.Message">{0} låser upp det här.</s>
+  <s key="Spine.Purchases.Cover.SeePlans">Visa erbjudanden</s>
+
+  <s key="Spine.Purchases.Store.Apple">App Store</s>
+  <s key="Spine.Purchases.Store.Google">Google Play</s>
+  <s key="Spine.Purchases.Store.Microsoft">Microsoft Store</s>
+  <s key="Spine.Purchases.Store.Test">Testbutik</s>
+
+  <s key="Spine.Purchases.TestStore.Confirm">Köpa {0} för {1}? Inget debiteras.</s>
+  <s key="Spine.Purchases.TestStore.Buy">Köp</s>
+  <s key="Spine.Purchases.TestStore.Failed">Testbutiken lät köpet misslyckas med flit.</s>
+  <s key="Spine.Purchases.TestStore.Manage">Här öppnas butikens hantering av prenumerationer. I testbutiken avslutar och förnyar du med appens testkontroller.</s>
+</strings>
