@@ -37,10 +37,34 @@ public static class SpinePurchasesExtensions
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TProduct>(
         this MauiAppBuilder builder, Action<SpinePurchasesOptions<TPurchase, TProduct>> configure)
         where TPurchase : struct, Enum
+        where TProduct : struct, Enum =>
+        builder.Use(configure, PurchaseCatalog.Create<TPurchase, TProduct>, Assembly.GetCallingAssembly());
+
+    /// <summary>
+    /// As <see cref="UseSpinePurchases{TPurchase, TProduct}"/>, for an app that also sells credits: <see cref="ICredits"/>
+    /// for <typeparamref name="TCredit"/>, consumables that <see cref="AddsAttribute"/> to it, and the credits on the app's
+    /// server (<c>o.Credits(c => c.Server = …)</c>) or, on the test store, on the device.
+    /// </summary>
+    /// <typeparam name="TPurchase">The app's purchase enum.</typeparam>
+    /// <typeparam name="TProduct">The app's product enum.</typeparam>
+    /// <typeparam name="TCredit">The app's credit enum, with <see cref="FreeCreditsAttribute"/> and <see cref="UnlimitedWithAttribute"/>.</typeparam>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static MauiAppBuilder UseSpinePurchases<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TPurchase,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TProduct,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TCredit>(
+        this MauiAppBuilder builder, Action<SpinePurchasesOptions<TPurchase, TProduct>> configure)
+        where TPurchase : struct, Enum
+        where TProduct : struct, Enum
+        where TCredit : struct, Enum =>
+        builder.Use(configure, PurchaseCatalog.Create<TPurchase, TProduct, TCredit>, Assembly.GetCallingAssembly());
+
+    private static MauiAppBuilder Use<TPurchase, TProduct>(this MauiAppBuilder builder, Action<SpinePurchasesOptions<TPurchase, TProduct>> configure,
+        Func<PurchaseCatalog> read, Assembly app)
+        where TPurchase : struct, Enum
         where TProduct : struct, Enum
     {
         ArgumentNullException.ThrowIfNull(configure);
-        var app = Assembly.GetCallingAssembly();
         var services = builder.Services;
 
         if (services.Any(static d => d.ServiceType == typeof(PurchaseCatalog)))
@@ -52,7 +76,7 @@ public static class SpinePurchasesExtensions
         var options = new SpinePurchasesOptions<TPurchase, TProduct>(builder);
         configure(options);
         var settings = options.Settings;
-        var catalog = PurchaseCatalog.Create<TPurchase, TProduct>();
+        var catalog = read();
         Validate(settings, catalog, app);
 
         PurchasesStrings.EnsureRegistered();
@@ -64,6 +88,16 @@ public static class SpinePurchasesExtensions
         services.AddSingleton<IAppPurchases>(static sp => sp.GetRequiredService<AppPurchases>());
         if (settings.TestStore is not null)
             services.AddSingleton(static sp => (ITestStore)sp.GetRequiredService<IPurchaseStore>());
+
+        if (catalog.CreditType is not null)
+        {
+            ICreditsBackend Backend(IServiceProvider sp) => settings.Credits.Server is { } server
+                ? new ServerCredits(server, settings.Credits, sp)
+                : new LocalCredits(catalog, sp.GetRequiredService<AppPurchases>(), sp.GetRequiredService<TimeProvider>());
+            services.AddSingleton(sp => new AppCredits(catalog, Backend(sp), sp.GetRequiredService<AppPurchases>()));
+            services.AddSingleton<ICredits>(static sp => sp.GetRequiredService<AppCredits>());
+        }
+
         services.AddSpineGuard<RequiresPurchaseAttribute, PurchaseGuard>();
         services.AddSingleton<IMauiInitializeService, StartupRefresh>();
 
@@ -84,6 +118,9 @@ public static class SpinePurchasesExtensions
         if (settings.PaywallPage is null && (settings.Paywall.Terms is null || settings.Paywall.Privacy is null))
             throw new InvalidOperationException("Spine purchases: the paywall needs .Terms(…) and .Privacy(…). App Review rejects a subscription paywall without links to both (guideline 3.1.2).");
 
+        if (catalog.CreditType is not null && settings.Credits.Server is null && settings.TestStore is null)
+            throw new InvalidOperationException($"Spine purchases: the credits in {catalog.CreditType.Name} need the app's server, which keeps them: o.Credits(c => c.Server = new Uri(\"https://…/purchases\")). Only the test store keeps them on the device.");
+
         if (settings.TestStore is not null && !settings.AllowTestStoreInRelease && !IsDebugBuild(app))
             throw new InvalidOperationException($"Spine purchases: {app.GetName().Name} is a Release build on the test store, which gives every purchase away. Use a real store adapter, or set o.AllowTestStoreInRelease for a build that sells nothing.");
 
@@ -95,7 +132,10 @@ public static class SpinePurchasesExtensions
 
     private sealed class StartupRefresh(AppPurchases purchases) : IMauiInitializeService
     {
-        public void Initialize(IServiceProvider services) =>
+        public void Initialize(IServiceProvider services)
+        {
             purchases.RefreshAsync().SafeFireAndForget(e => System.Diagnostics.Debug.WriteLine($"[Spine] Purchases: the first refresh failed: {e}"));
+            services.GetService<AppCredits>()?.RefreshAsync().SafeFireAndForget(e => System.Diagnostics.Debug.WriteLine($"[Spine] Credits: the first refresh failed: {e}"));
+        }
     }
 }

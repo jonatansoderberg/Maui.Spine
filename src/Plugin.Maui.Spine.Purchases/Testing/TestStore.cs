@@ -37,7 +37,7 @@ internal sealed partial class TestStore(PurchaseCatalog catalog, TestStoreSettin
     public Task<IReadOnlyList<StoreProductInfo>> GetProductsAsync(IReadOnlyList<ProductDefinition> products, CancellationToken cancellationToken)
     {
         IReadOnlyList<StoreProductInfo> list = [.. products
-            .Where(p => p.Kind is ProductKind.Subscription or ProductKind.OneTime)
+            .Where(p => p.Kind is ProductKind.Subscription or ProductKind.OneTime or ProductKind.Consumable)
             .Select(p =>
             {
                 var test = settings.For(p.Value);
@@ -74,6 +74,10 @@ internal sealed partial class TestStore(PurchaseCatalog catalog, TestStoreSettin
             }
             return PurchaseResult.Pending;
         }
+
+        // A consumable is used up, not owned: its credits go to the ledger (AppCredits).
+        if (product.Kind == ProductKind.Consumable)
+            return PurchaseResult.Purchased;
 
         Update(owned =>
         {
@@ -135,6 +139,7 @@ internal sealed partial class TestStore(PurchaseCatalog catalog, TestStoreSettin
 
     public void Reset()
     {
+        Preferences.Remove("Spine.Purchases.TestStore.Ledger");
         lock (_gate)
         {
             _pending.Clear();

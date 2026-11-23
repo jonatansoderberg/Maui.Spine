@@ -28,6 +28,7 @@
   <s key="Spine.Purchases.Paywall.Subscribe">Prenumerera för {0}</s>
   <s key="Spine.Purchases.Paywall.Switch">Byt för {0}</s>
   <s key="Spine.Purchases.Paywall.Buy">Köp för {0}</s>
+  <s key="Spine.Purchases.Paywall.Adds">+{0} {1}</s>
   <s key="Spine.Purchases.Paywall.TrialTerms">Sedan {0}. Avsluta när du vill i {1}.</s>
   <s key="Spine.Purchases.Paywall.RenewTerms">Förnyas automatiskt. Avsluta när du vill i {0}.</s>
   <s key="Spine.Purchases.Paywall.Restore">Återställ köp</s>

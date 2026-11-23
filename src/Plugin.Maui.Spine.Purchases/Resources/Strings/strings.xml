@@ -28,6 +28,7 @@
   <s key="Spine.Purchases.Paywall.Subscribe">Subscribe for {0}</s>
   <s key="Spine.Purchases.Paywall.Switch">Switch for {0}</s>
   <s key="Spine.Purchases.Paywall.Buy">Buy for {0}</s>
+  <s key="Spine.Purchases.Paywall.Adds">+{0} {1}</s>
   <s key="Spine.Purchases.Paywall.TrialTerms">Then {0}. Cancel at any time in {1}.</s>
   <s key="Spine.Purchases.Paywall.RenewTerms">Renews automatically. Cancel at any time in {0}.</s>
   <s key="Spine.Purchases.Paywall.Restore">Restore purchases</s>

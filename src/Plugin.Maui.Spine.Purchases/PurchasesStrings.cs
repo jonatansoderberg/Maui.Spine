@@ -36,6 +36,9 @@ internal static partial class PurchasesStrings
     /// <summary>The app's name for a product: <c>Purchases.Products.&lt;Member&gt;</c> in its strings, or the member's name.</summary>
     public static string ProductName(Enum product) => Named("Purchases.Products." + product, product);
 
+    /// <summary>The app's name for a credit: <c>Purchases.Credits.&lt;Member&gt;</c> in its strings, or the member's name.</summary>
+    public static string CreditName(Enum credit) => Named("Purchases.Credits." + credit, credit);
+
     /// <summary>"7 days", "1 month".</summary>
     public static string Period(StorePeriod period)
     {

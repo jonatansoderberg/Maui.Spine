@@ -233,7 +233,7 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
     public Task OnNavigationParameterAsync(PaywallRequest param)
     {
         _request = param;
-        if (param.Purchase is { } purchase && _purchases.Settings.Paywall.PerPurchase.TryGetValue(purchase, out var text))
+        if ((param.Purchase ?? param.Credit) is { } subject && _purchases.Settings.Paywall.PerPurchase.TryGetValue(subject, out var text))
             ShowText(text);
         Show(_purchases.CachedProducts);
         return Task.CompletedTask;
@@ -323,7 +323,7 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
     private void Show(IReadOnlyList<StoreProductInfo> sellable)
     {
         var picked = Selected?.Info.Product;
-        var offered = _purchases.PaywallProducts(_request.Purchase, sellable);
+        var offered = _purchases.PaywallProducts(_request, sellable);
         var owned = _purchases.Owned;
         var now = DateTimeOffset.UtcNow;
         var storeName = _purchases.Store.Name;
@@ -345,6 +345,9 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
             ?? Products.FirstOrDefault();
         Pick(choice);
     }
+
+    internal IEnumerable<string> Adds(Enum product) =>
+        _purchases.Catalog.Product(product).Adds.Select(a => PurchasesStrings.Get("Spine.Purchases.Paywall.Adds", a.Amount, PurchasesStrings.CreditName(a.Credit.Value)));
 
     internal void Pick(PaywallProduct? product)
     {
@@ -389,6 +392,13 @@ public sealed partial class PaywallProduct : ObservableObject
             SmallPrint = info.FreeTrial is not null
                 ? PurchasesStrings.Get("Spine.Purchases.Paywall.TrialTerms", perPeriod, storeName)
                 : PurchasesStrings.Get("Spine.Purchases.Paywall.RenewTerms", storeName);
+        }
+        else if (info.Kind == ProductKind.Consumable)
+        {
+            PriceText = info.Price;
+            Detail = string.Join(", ", owner.Adds(info.Product));
+            ActionText = PurchasesStrings.Get("Spine.Purchases.Paywall.Buy", info.Price);
+            SmallPrint = "";
         }
         else
         {

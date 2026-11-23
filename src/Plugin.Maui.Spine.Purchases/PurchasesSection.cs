@@ -86,7 +86,7 @@ public sealed class PurchasesSection : ContentView
                     Icon = "purchases-star.svg",
                     IconBackground = Access,
                     Title = PurchasesStrings.Get("Spine.Purchases.Row.Get", PurchasesStrings.PurchaseName(value)),
-                    Command = new Command(() => purchases.OpenPaywallAsync(value, CancellationToken.None).SafeFireAndForget()),
+                    Command = new Command(() => purchases.OpenPaywallAsync(new PaywallRequest(value), CancellationToken.None).SafeFireAndForget()),
                     ShowChevron = true,
                 });
             }

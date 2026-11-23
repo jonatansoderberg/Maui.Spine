@@ -144,14 +144,18 @@ public static class MauiProgram
         // otherwise, with prices, a yearly period with a trial, and the paywall's text and links.
         var revenueCatApple = BuildSetting("SpineRevenueCatAppleKey");
         var revenueCatGoogle = BuildSetting("SpineRevenueCatGoogleKey");
-        builder.UseSpinePurchases<ShowcasePurchase, ShowcaseProduct>(o =>
+        builder.UseSpinePurchases<ShowcasePurchase, ShowcaseProduct, ShowcaseCredit>(o =>
         {
             if ((OperatingSystem.IsAndroid() ? revenueCatGoogle : revenueCatApple).Length > 0 && !OperatingSystem.IsWindows())
+            {
                 o.UseRevenueCat(r =>
                 {
                     r.AppleApiKey = revenueCatApple;
                     r.GoogleApiKey = revenueCatGoogle;
                 });
+                // Credits bought through RevenueCat land in the Showcase server's ledger through its webhook.
+                o.Credits(c => c.Server = new Uri(SampleServer, "purchases"));
+            }
             else
                 o.UseTestStore(t => t
                     .Price(ShowcaseProduct.ProMonthly, 29)
@@ -159,10 +163,13 @@ public static class MauiProgram
                     .Period(ShowcaseProduct.ProYearly, StorePeriod.Year)
                     .Trial(ShowcaseProduct.ProYearly, StorePeriod.Days(7))
                     .Price(ShowcaseProduct.ProLifetime, 599)
-                    .Price(ShowcaseProduct.Supporter, 49));
+                    .Price(ShowcaseProduct.Supporter, 49)
+                    .Price(ShowcaseProduct.OneMatch, 12)
+                    .Price(ShowcaseProduct.ThreeMatches, 29));
 
             o.Paywall(p => p
-                .Offer(ShowcaseProduct.ProYearly, ShowcaseProduct.ProMonthly, ShowcaseProduct.ProLifetime, ShowcaseProduct.Supporter)
+                .Offer(ShowcaseProduct.ProYearly, ShowcaseProduct.ProMonthly, ShowcaseProduct.ProLifetime, ShowcaseProduct.Supporter,
+                    ShowcaseProduct.OneMatch, ShowcaseProduct.ThreeMatches)
                 .Highlight(ShowcaseProduct.ProYearly)
                 .Headline("Showcase Pro")
                 .Subtitle("Everything the Showcase can do, and a thank-you to the developer.")
@@ -173,6 +180,10 @@ public static class MauiProgram
                     .Headline("Support the developer")
                     .Subtitle("A one-time thank-you. It unlocks nothing, it keeps the Showcase going.")
                     .Feature("heart.svg", "A thank-you banner", "Shown with {PurchaseActive}"))
+                .ForCredit(ShowcaseCredit.LiveMatch, s => s
+                    .Headline("Follow more matches live")
+                    .Subtitle("Your free match is used. Buy matches one at a time, or get Pro and follow every match.")
+                    .Feature("bell.svg", "Goals and periods as they happen"))
                 .Terms(new Uri("https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/purchases.md#terms"))
                 .Privacy(new Uri("https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/purchases.md#privacy")));
 
