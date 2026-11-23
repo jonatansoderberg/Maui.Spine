@@ -168,6 +168,8 @@ public static class SpineIcons
     public const string Heat = "Heat.svg";
     /// <summary>The <c>Help.svg</c> icon.</summary>
     public const string Help = "Help.svg";
+    /// <summary>The <c>HockeyStick.svg</c> icon.</summary>
+    public const string HockeyStick = "HockeyStick.svg";
     /// <summary>The <c>Horizontal.svg</c> icon.</summary>
     public const string Horizontal = "Horizontal.svg";
     /// <summary>The <c>Hourglass.svg</c> icon.</summary>
@@ -591,6 +593,7 @@ public static class SpineIcons
         Heart,
         Heat,
         Help,
+        HockeyStick,
         Horizontal,
         Hourglass,
         House,
