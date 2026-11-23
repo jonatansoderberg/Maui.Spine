@@ -164,6 +164,29 @@ public class SpinePushNotificationsEndpointsTests
     }
 
     [Fact]
+    public async Task The_waiting_tag_policy_runs_on_what_the_first_one_kept()
+    {
+        IReadOnlyList<string>? seen = null;
+        var options = Options(o =>
+        {
+            o.AllowTags = (_, tags) => tags.Where(t => t != "spam");
+            o.AllowTagsAsync = async (installation, tags, _) =>
+            {
+                await Task.Yield();
+                seen = tags;
+                return installation.Id == "a" ? tags.Where(t => t != "paid") : tags;
+            };
+        });
+
+        var (context, store) = Request("PUT", "/push/installations/a", Body("a", "kind:pm", "spam", "paid"), options);
+
+        await SpinePushNotificationsEndpoints.HandleAsync(context.Request);
+
+        Assert.Equal(["kind:pm", "paid"], seen);
+        Assert.Equal(["kind:pm"], (await store.GetAsync("a"))!.Tags);
+    }
+
+    [Fact]
     public async Task The_user_comes_from_the_request_not_the_body()
     {
         var options = Options(o => o.UserId = _ => ValueTask.FromResult<string?>("anna"));

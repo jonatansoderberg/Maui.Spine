@@ -81,7 +81,7 @@ public static class SpinePushNotificationsEndpoints
         // since that is what Prune goes by.
         var installation = body with
         {
-            Tags = options.FilterTags(body, body.Tags),
+            Tags = await options.FilterTagsAsync(body, body.Tags, cancellationToken),
             UpdatedAt = DateTimeOffset.UtcNow,
         };
 

@@ -65,7 +65,7 @@ push.IsRegistered;                                                // the backend
 push.IsSupported;                                                 // false on Windows without RemoteId, self-contained or elevated; hide settings then
 ```
 
-Tags are opaque strings the server matches with expressions (`kind:news && !muted`). Put the user in a tag (`user:123`) and let the server's `AllowTags` keep clients from claiming others.
+Tags are opaque strings the server matches with expressions (`kind:news && !muted`). Put the user in a tag (`user:123`) and let the server's `AllowTags` keep clients from claiming others. A tag that costs money goes through `AllowTagsAsync`, which can ask the purchase ledger whether the installation paid.
 
 ### Local notifications
 

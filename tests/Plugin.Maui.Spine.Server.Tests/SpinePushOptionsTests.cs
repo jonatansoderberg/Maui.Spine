@@ -88,16 +88,16 @@ public class SpinePushNotificationsOptionsTests
     }
 
     [Fact]
-    public void Without_a_policy_the_clients_tags_are_kept_as_they_are()
+    public async Task Without_a_policy_the_clients_tags_are_kept_as_they_are()
     {
         var options = new SpinePushNotificationsOptions();
         var installation = new PushInstallation { Id = "a", Platform = PushPlatform.Apple, Handle = "h" };
 
-        Assert.Equal(["a", "b"], options.FilterTags(installation, ["a", "b"]));
+        Assert.Equal(["a", "b"], await options.FilterTagsAsync(installation, ["a", "b"], CancellationToken.None));
     }
 
     [Fact]
-    public void Allow_tags_narrows_what_a_client_may_register()
+    public async Task Allow_tags_narrows_what_a_client_may_register()
     {
         var options = new SpinePushNotificationsOptions
         {
@@ -110,7 +110,7 @@ public class SpinePushNotificationsOptionsTests
             Id = "a", Platform = PushPlatform.Apple, Handle = "h", UserId = "121330",
         };
 
-        var kept = options.FilterTags(installation, ["kind:pm", "user:121330", "user:999"]);
+        var kept = await options.FilterTagsAsync(installation, ["kind:pm", "user:121330", "user:999"], CancellationToken.None);
 
         Assert.Equal(["kind:pm", "user:121330"], kept);
     }

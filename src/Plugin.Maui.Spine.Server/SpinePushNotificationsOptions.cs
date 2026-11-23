@@ -118,6 +118,20 @@ public sealed class SpinePushNotificationsOptions
     public Func<PushInstallation, IEnumerable<string>, IEnumerable<string>>? AllowTags { get; set; }
 
     /// <summary>
+    /// Narrows the tags further with a check that has to wait, such as a purchase ledger: a tag that costs money is kept
+    /// only for an installation that paid for it. Runs after <see cref="AllowTags"/>, on what that kept.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// o.AllowTagsAsync = async (installation, tags, ct) =>
+    ///     await ledger.IsActiveAsync(CallerKeys.Installation(installation.Id), AppPurchase.Pro, ct)
+    ///         ? tags
+    ///         : tags.Where(t => t != "pro");
+    /// </code>
+    /// </example>
+    public Func<PushInstallation, IReadOnlyList<string>, CancellationToken, ValueTask<IEnumerable<string>>>? AllowTagsAsync { get; set; }
+
+    /// <summary>
     /// Decides whether a registration request is allowed. Authentication is the backend's business;
     /// the client sends whatever <c>AuthorizationHeader</c> it was given. Unset means every request
     /// is accepted, which is only reasonable behind another gate.
@@ -214,9 +228,10 @@ public sealed class SpinePushNotificationsOptions
             throw new InvalidOperationException("AddSpinePushNotifications: pick a register with UseInMemoryStore() or UseStore(...).");
     }
 
-    /// <summary>The tags <paramref name="requested"/> reduced to what <see cref="AllowTags"/> permits.</summary>
-    internal IReadOnlyList<string> FilterTags(PushInstallation installation, IEnumerable<string> requested) =>
-        AllowTags is null
-            ? requested.ToList()
-            : AllowTags(installation, requested).ToList();
+    /// <summary>The tags <paramref name="requested"/> reduced to what <see cref="AllowTags"/> and <see cref="AllowTagsAsync"/> permit.</summary>
+    internal async ValueTask<IReadOnlyList<string>> FilterTagsAsync(PushInstallation installation, IEnumerable<string> requested, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<string> tags = AllowTags is null ? requested.ToList() : AllowTags(installation, requested).ToList();
+        return AllowTagsAsync is null ? tags : (await AllowTagsAsync(installation, tags, cancellationToken)).ToList();
+    }
 }
