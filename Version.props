@@ -100,6 +100,22 @@
 		</ItemGroup>
 	</Target>
 
+	<!-- Windows MSIX: a package version is four parts of at most 65535 and cannot take 0.261031.412, nor the build id
+	     MAUI puts after it. A packaged app's manifest gets FileVersion instead, major.yy.MMdd.revision (0.26.1031.412);
+	     -p:SpineMsixVersion=… pins it (the Store wants the fourth part 0). -->
+	<Target Name="_SpineVersionMsix"
+	        AfterTargets="MauiGeneratePackageAppxManifest"
+	        DependsOnTargets="SpineVersionFromGit"
+	        Condition="'$(WindowsPackageType)' != 'None' And '$(_MauiIntermediateManifest)' != '' And Exists('$(_MauiIntermediateManifest)Package.appxmanifest')">
+		<PropertyGroup>
+			<SpineMsixVersion Condition="'$(SpineMsixVersion)' == ''">$(FileVersion)</SpineMsixVersion>
+		</PropertyGroup>
+		<XmlPoke XmlInputPath="$(_MauiIntermediateManifest)Package.appxmanifest"
+		         Namespaces="&lt;Namespace Prefix='ns' Uri='http://schemas.microsoft.com/appx/manifest/foundation/windows10'/&gt;"
+		         Query="/ns:Package/ns:Identity/@Version"
+		         Value="$(SpineMsixVersion)" />
+	</Target>
+
 	<Target Name="_SpineVersionHandOver" BeforeTargets="_RunRidSpecificBuild">
 		<WriteLinesToFile File="$(_SpineVersionHandOver)" Lines="$(VersionDate) $(BuildId)" Overwrite="true" WriteOnlyWhenDifferent="true" />
 	</Target>

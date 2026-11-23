@@ -451,7 +451,11 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             };
         }
 
-        if (windowsOptions.StartInBackground && windowsOptions.ShowTrayIcon)
+        // COM starts the app with this argument to serve a class it declares (the widget board's provider): the user
+        // did not open it, so the window stays hidden until they do, which shows it through the single instance.
+        if (Environment.GetCommandLineArgs().Contains("-RegisterProcessAsComServer", StringComparer.OrdinalIgnoreCase))
+            StartHiddenForCom(winuiWindow, hWnd);
+        else if (windowsOptions.StartInBackground && windowsOptions.ShowTrayIcon)
             StartHidden(winuiWindow, hWnd);
 
         // --- Tray icon ---
@@ -573,6 +577,27 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         window.Activated += OnActivated;
     }
 
+    /// <summary>
+    /// As <see cref="StartHidden"/>, without the activation: the app that asked COM for the class has the foreground,
+    /// and the widget board closes the moment it loses it. The window cannot be activated until MAUI's own activation
+    /// has passed, then is hidden and becomes an ordinary window again.
+    /// </summary>
+    private void StartHiddenForCom(WinUIWindow window, IntPtr hWnd)
+    {
+        SetCloak(hWnd, true);
+        var style = NativeMethods.GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+        SetWindowLongPtr(hWnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE);
+        window.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            _appWindow?.Hide();
+            SetWindowLongPtr(hWnd, GWL_EXSTYLE, style);
+            SetCloak(hWnd, false);
+        });
+    }
+
+    private const int GWL_EXSTYLE = -20;
+    private const nint WS_EX_NOACTIVATE = 0x08000000;
+
     private static void SetCloak(IntPtr hWnd, bool cloak)
     {
         var value = cloak ? 1 : 0;
@@ -626,6 +651,8 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         if (_appWindow?.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized })
             WinUIEx.WindowExtensions.Restore(_winuiWindow);
+        // A window hidden by StartInBackground or a start from COM stays hidden through Activate alone.
+        if (_appWindow is { IsVisible: false }) _appWindow.Show(true);
         _winuiWindow.Activate();
         WinUIEx.WindowExtensions.SetForegroundWindow(_winuiWindow);
     }
@@ -946,6 +973,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
 
     [DllImport("user32.dll")]
     internal static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);

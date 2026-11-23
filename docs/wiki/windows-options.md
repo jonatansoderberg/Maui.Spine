@@ -101,6 +101,10 @@ options.Windows.StartInBackground = Environment.GetCommandLineArgs().Contains("-
 The window is created as usual, cloaked until its first activation, then hidden as `CloseToBackground` hides it, so it
 never flashes. A click on the tray icon, or starting the app again (single instance), shows it.
 
+An app that COM starts (`-RegisterProcessAsComServer`, the widget board's provider in [widgets](widgets.md#windows)) starts
+hidden the same way, with or without a tray icon, and without taking focus from the app that asked for it. Starting the app
+again shows its window.
+
 ### Tray icon setup
 
 Enable the tray icon and pair it with `CloseToBackground` to allow the user to restore the app from the tray.

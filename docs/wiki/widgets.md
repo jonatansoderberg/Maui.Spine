@@ -23,7 +23,7 @@ The reasoning behind the design — why C# cannot run inside a WidgetKit extensi
 | iOS 17+ | ✅ WidgetKit extension built at compile time | ✅ Lock Screen and Dynamic Island (all regions) |
 | Mac Catalyst 14+ (iOS 17 API) | ✅ The same WidgetKit extension, built for the Mac: widgets on the desktop and in Notification Center. Needs a Team ID App Group and a signed build, see [Mac Catalyst](#mac-catalyst) | ❌ ActivityKit does not exist on the Mac: `AreActivitiesEnabled` is `false`, `StartAsync` returns `null`. macOS 26 mirrors an iPhone activity by itself |
 | Android 5+ | ✅ `AppWidgetProvider` receivers drawn from the tree with `RemoteViews`; size- and theme-adaptive from Android 12 | ✅ Android 16+ as a **Live Update**: the promoted template, or the Lock Screen tree drawn as on iOS (see [Live Updates](#live-updates)); `StartAsync` returns `null` below |
-| Windows | ❌ Planned, MSIX-packaged apps only | — |
+| Windows 11 | ✅ The widget board (Win+W), for an app packaged as MSIX: Adaptive Cards drawn from the tree by a provider in the app's own process, see [Windows](#windows) | — |
 
 On every platform without an implementation the services are still injectable and every call is a no-op; `IWidgetService.IsSupported` says which you are on.
 
@@ -31,7 +31,7 @@ On every platform without an implementation the services are still injectable an
 
 | Surface | Where it shows | Built from |
 |---|---|---|
-| **Home-screen widget** | iOS home screen and Today view; Android launcher | A [timeline](#the-timeline) of trees, one per family or one [adaptive](#adaptive-trees) tree |
+| **Home-screen widget** | iOS home screen and Today view; Android launcher; the Windows 11 widget board | A [timeline](#the-timeline) of trees, one per family or one [adaptive](#adaptive-trees) tree |
 | **Lock-screen accessory** | iOS Lock Screen: a circle, a rectangle, or the line above the clock | The same provider, with trees for the `Accessory…` families; see [Lock-screen widgets](#lock-screen-widgets) |
 | **Live Activity** | iOS Lock Screen banner and the Dynamic Island (compact, expanded, minimal); Android 16 status-bar chip and promoted notification | A [`LiveActivityLayout`](#live-activities), updated by the app or by push |
 | **Control** | iOS 18 Control Center, Lock Screen and Action button; Android Quick Settings tile | A [`ControlState`](#controls) — a toggle or a button — from an `IControlProvider` |
@@ -42,15 +42,15 @@ What every one of them can show is the [tree vocabulary](#the-tree): stacks, tex
 
 `Families` on the `<SpineWidget>` item is what the widget offers in the gallery; `WidgetFamily` in C# is how a tree is picked for it.
 
-| Family | iOS | Android |
-|---|---|---|
-| `Small` | Home screen, a square | 2×2 cells |
-| `Medium` | Home screen, two squares wide | 4×2 cells |
-| `Large` | Home screen, four squares | 4×4 cells |
-| `ExtraLarge` | iPad only | 5×4 cells |
-| `AccessoryCircular` | Lock Screen, a small circle | Ignored |
-| `AccessoryRectangular` | Lock Screen, a two- or three-line rectangle | Ignored |
-| `AccessoryInline` | Lock Screen, one line of text beside the date above the clock | Ignored |
+| Family | iOS | Android | Windows widget board |
+|---|---|---|---|
+| `Small` | Home screen, a square | 2×2 cells | Small, a strip about 300 × 144 points |
+| `Medium` | Home screen, two squares wide | 4×2 cells | Medium, about 300 × 304 |
+| `Large` | Home screen, four squares | 4×4 cells | Large, about 300 × 458 |
+| `ExtraLarge` | iPad only | 5×4 cells | Large |
+| `AccessoryCircular` | Lock Screen, a small circle | Ignored | Ignored |
+| `AccessoryRectangular` | Lock Screen, a two- or three-line rectangle | Ignored | Ignored |
+| `AccessoryInline` | Lock Screen, one line of text beside the date above the clock | Ignored | Ignored |
 
 On Android the smallest declared family is the widget's minimum size and the largest its maximum; from Android 12 the launcher picks the tree for the size the user resized to. A kind that declares **only** accessory families still appears in the Android picker, as a 2×2 widget drawing its first tree — so declare a lock-screen-only kind knowing that, or give it a home-screen tree too.
 
@@ -363,7 +363,7 @@ W.Label(note).On(WidgetPlatform.iOS, WidgetPlace.LockScreen, n => n.Italic())
 W.Label(text).On(null, null, null, minVersion: 18, n => n.Bold())   // iOS 18 / Android 18 and later
 ```
 
-- **Where:** `WidgetPlatform` (`iOS`, `Android`), `WidgetPlace` (`HomeScreen`, `LockScreen`, `Island`, `Notification`, `StatusChip`, `CarPlay`, `Watch`, combined with `|`), a `WidgetFamily`, a lowest OS version. Every condition given must hold. A Live Activity's Lock Screen tree is drawn on `LockScreen` on iOS and on `Notification` on Android; its island regions on `Island`; `Small` on `CarPlay` and `Watch`. A widget's lock-screen sizes are on `LockScreen`, the rest on `HomeScreen`.
+- **Where:** `WidgetPlatform` (`iOS`, `Android`, `Windows`), `WidgetPlace` (`HomeScreen`, `LockScreen`, `Island`, `Notification`, `StatusChip`, `CarPlay`, `Watch`, combined with `|`), a `WidgetFamily`, a lowest OS version. Every condition given must hold. A Live Activity's Lock Screen tree is drawn on `LockScreen` on iOS and on `Notification` on Android; its island regions on `Island`; `Small` on `CarPlay` and `Watch`. A widget's lock-screen sizes are on `LockScreen`, the rest on `HomeScreen`.
 - **Order:** several `.On` apply in the order they were added, and the last one wins. An override changes the node's own properties, never its children; a place that needs other children gets a tree of its own.
 - **`.Hidden()`** leaves a node out. `.Hidden(false)` keeps one that Spine would leave out: Android's drawn notification leaves out the age or timer its header already counts, unless that node says `.On(WidgetPlace.Notification, n => n.Hidden(false))`, and drops the root's padding unless an override for the notification sets padding.
 - **On the wire** an override is `"on":[{"when":{"platform":"android"},"set":{"size":36}}]`, only on the nodes that have one. An app built with an older Spine ignores the key and draws the tree as written.
@@ -1261,6 +1261,84 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 
 ---
 
+## Windows
+
+The same providers, timelines and layout files put the widgets on the Windows 11 widget board (Win+W). Nothing in the app's C# changes; the app has to be packaged.
+
+<p align="center">
+  <img src="images/widget-windows-board.png" width="300" alt="The sample widget on the Windows 11 widget board, medium size">
+</p>
+<p align="center"><sub>The Showcase's sample widget on the widget board: the same tree as on iOS and Android, drawn as an Adaptive Card</sub></p>
+
+### Setup
+
+The board shows widgets of **MSIX-packaged** apps only: it finds a provider in the package manifest and starts it through COM. An app built with `WindowsPackageType` `None` (unpackaged) gets no widgets and `IsSupported` is `false`.
+
+```xml
+<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+  <WindowsPackageType>MSIX</WindowsPackageType>
+  <PackageCertificateThumbprint>…</PackageCertificateThumbprint>
+  <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
+</PropertyGroup>
+```
+
+The `<SpineWidget>` items need nothing more. A packaged build adds to the manifest MAUI generates, leaving `Platforms/Windows/Package.appxmanifest` as it is:
+
+- **A COM server class:** the app's own exe, started with `-RegisterProcessAsComServer`. The class id is derived from `ApplicationId`, so it stays the same from build to build; `SpineWidgetsWindowsClassId` sets another.
+- **The `com.microsoft.windows.widgets` app extension**, with one definition per item: its kind as the id, `DisplayName`, `Description`, and the sizes of `Families`.
+- **The board's icon and screenshot** for the widget: the app's logo, or `PreviewImage` when the item has one, the same picture Android's picker shows.
+
+**Signing.** Windows installs an MSIX only when it trusts the certificate it is signed with. For the Store, Partner Center signs. For sideloading on your own machine, make a test certificate whose subject is the manifest's `Publisher`, and trust it once from an elevated PowerShell:
+
+```powershell
+$cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Spine Showcase Test" -KeyUsage DigitalSignature `
+  -FriendlyName "Spine Showcase widget test" -CertStoreLocation Cert:\CurrentUser\My `
+  -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+Export-Certificate -Cert $cert -FilePath SpineShowcaseTest.cer
+Import-Certificate -FilePath SpineShowcaseTest.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople   # elevated
+```
+
+Set `PackageCertificateThumbprint` to `$cert.Thumbprint`, preferably in `<project>.csproj.user`. Then install the package from `AppPackages\`:
+
+```powershell
+Add-AppxPackage .\AppPackages\<App>_<version>_x64_Debug_Test\<App>_<version>_x64_Debug.msix
+```
+
+**The version.** An MSIX version is four parts of at most 65535, so a packaged app's manifest gets `FileVersion` (`0.26.1123.1595`) from `Version.props` instead of the app's `0.261123.1595`; see [versioning](versioning.md). Windows refuses to install a different build under the same version. A rebuild of the same commit needs `-p:SpineMsixVersion=0.26.1123.1596`.
+
+### How it maps
+
+| Spine | Windows |
+|---|---|
+| `<SpineWidget>` item | A `Definition` in the manifest's widget extension, its sizes from `Families` (see [Families](#families)) |
+| `WidgetFamily` | The board's sizes, one column wide: small a strip, medium near square, large tall. Each draws the family of its name; a timeline without it draws the nearest one, and one shared tree draws `W.Adaptive`'s entry for that family |
+| The provider | `IWidgetProvider` from the Windows App SDK, served by the app's own process. If the app is not running, COM starts it with its window hidden: the window cannot take focus, which would close the board, and it shows once the user opens the app. A process the board started ends a minute after the board stops showing its widgets |
+| The tree | An Adaptive Card 1.5, sent with `WidgetManager.UpdateWidget`. A `VStack` is a container, an `HStack` a column set (a `Spacer` a stretching column), text a text block |
+| `WidgetTimeline` entries | The entry that applies now. While the process runs, a timer sends the next entry at its date; the board asks for the current one each time it shows the widget, so an entry that turned while the app was closed is drawn then |
+| `W.Icon`, `W.Ring`, `W.Progress`, `W.Sparkline` | Pictures drawn with Skia and carried in the card as data URIs, one per theme when the colour differs between light and dark |
+| `W.Image`, `BackgroundImage`, `WidgetSurface` | The stored picture as a data URI, at most 640 pixels on its long side; the surface's colour, gradient and picture are one picture behind the card |
+| `WidgetColor` on text | The card's named colours: `Secondary` subtle, `Accent` and `Blue` accent, `Green` good, `Red` attention, `Orange` and `Yellow` warning. A colour of the app's own becomes light or dark text, whichever it is nearer, chosen per theme for a pair |
+| `.Padding` / `.Background` / `.CornerRadius` | Columns and rows of the padding's size around the content; the colour as a picture behind the stack; `roundedCorners` |
+| `W.Timer`, `W.Relative` | Minutes (`42 min`), or hours and minutes (`1:05`), redrawn every minute while the board shows the widget |
+| `W.Button` | `Action.Execute`; the board calls the provider, which runs `IWidgetActionHandler` and rebuilds the widget, with the app's window still hidden |
+| `OpenUrl` | A tap on the widget: the provider brings the app's window forward and passes the link to `IWidgetLinkHandler`, or opens `OpenWith`'s page. No URL scheme is involved, since Windows asks *Did you mean to switch apps?* when the board opens one |
+| `RemoteSource` | Fetched by the app at each rebuild and at the refresh time while it runs, and cached as on Android |
+| `.On(WidgetPlatform.Windows, …)` | Overrides for the board, at the place `HomeScreen` and the family drawn |
+
+The app's process is also where every rebuild happens. Windows has no background refresh for a closed app, so a widget is rebuilt at launch, when the window is hidden, after a button, and on `RefreshAsync`. A timeline that covers the days ahead, as an almanac's does, keeps the widget right without any of them.
+
+### Known gaps
+
+- **Colours of text are names.** A card cannot draw text in an exact colour; draw a picture where the exact colour matters.
+- **No layers.** A `ZStack` whose bottom layer is a stored picture becomes a container with that picture behind the rest; any other `ZStack` draws its layers top to bottom.
+- **No margins.** `.Margin` is not drawn; padding is.
+- **Clocks count in minutes.** The board does not tick, so a timer shows minutes and is redrawn every minute while it is on screen.
+- **Sparklines are straight.** The line joins the points with straight segments, not the monotone curve of the other platforms.
+- **No Live Activities and no controls.** Windows has neither; the services say so (`AreActivitiesEnabled`, `IControlService.IsSupported`).
+- **The sizes were measured** on Windows 11 build 26300 at 150 %, where the board draws the card at the widget's full height. A board that draws them otherwise leaves a margin under the surface or crops it.
+
+---
+
 ## Example: a tear-off calendar
 
 An almanac app built on Spine shows today's page of a tear-off calendar — weekday, date, month, week number, name days, holidays — on the home screen and the Lock Screen, and turns the page at midnight with the app closed. It puts most of this page together:
@@ -1337,11 +1415,13 @@ What Spine widgets cannot do, and what to do instead.
 | Start a Live Activity from the background on iOS | ActivityKit starts one only in the foreground | Push-to-start from a server |
 | Keep a Live Activity longer than eight hours on iOS | The system ends it | Start a new one; see [Keeping one on screen around the clock](#keeping-one-on-screen-around-the-clock) |
 | Color a Live Update on Android | Android does not promote a colorized notification | `LiveUpdatePresentation.Layout`, which colors the tree's own text and graph (not a background) and gives up the chip |
-| Widgets on Windows | Not implemented | The services are no-ops there; check `IsSupported` |
+| Widgets on an unpackaged Windows app | The widget board knows only packaged apps (MSIX) | Package the app; see [Windows](#windows). The services are no-ops otherwise; check `IsSupported` |
 | A Live Activity on the Mac | ActivityKit does not exist on macOS | A widget, or a notification |
 | A control drawn from the tree vocabulary | A control is a fixed template, and iOS draws only symbols in one | `Title`, `Status`, `Icon` (an SVG, made a custom symbol), `Tint` |
 | A control with a parameter (the user picks which light) | Spine's controls are static; there is no configuration intent | One kind per choice |
 | Controls on the Mac or on Windows | Mac Catalyst apps have no Control Center controls; Windows has no equivalent | — |
+| A ticking clock on Windows | A card is a snapshot; nothing on the board counts | `W.Timer` and `W.Relative` are drawn in minutes and redrawn every minute while the board shows them |
+| Text in a colour of the app's own on Windows | A card names its colours (`accent`, `good`, `light`, `dark`…) | A fixed colour becomes the light or dark text it is nearest; a picture for an exact colour |
 
 ---
 
@@ -1357,6 +1437,7 @@ What Spine widgets cannot do, and what to do instead.
 - **Controls (iOS simulator).** Swipe down from the top-right corner for Control Center, tap **+** → *Add a Control* and search for the app; drag a control's corner to show its title and status. Taps in Control Center reach the app like on a device; `[SpineWidgets] control toggle … handled by the app in … ms` in the log says the intent ran in the app's process.
 - **Tiles (Android).** `adb shell cmd statusbar add-tile <package>/plugin.maui.spine.widgets.SpineControlTile0` adds the first control's tile, `click-tile` taps it and `remove-tile` removes it. A force-stopped app's tile does nothing until the app is launched again; that is Android's stopped state, not Spine.
 - **Android.** Place the widget from the launcher's widget picker; logcat's `SpineWidgets` tag has the receiver's messages. An emulator reaches a server on your machine through `adb reverse`.
+- **Windows.** Install the MSIX, open the board (Win+W), **+**, pick the app and the widget. The board starts the app by itself when it shows a widget and the app is not running; the process has no window, and ends a minute after the board stops showing its widgets. A tap on a button or on the widget reaches that process at once.
 - **Pictures.** Render the painter from a unit test or a console app and look at the PNG before building for a device.
 
 ---
@@ -1378,6 +1459,10 @@ What Spine widgets cannot do, and what to do instead.
 | A control's icon is a question mark (iOS) | Its `Icon` is an app SVG with no custom symbol: run `spine-symbols` on it and set `SpineWidgetsAssetCatalog`. |
 | A tile shows the item's name and a dot (Android) | The app has not stored a state yet, or the icon's SVG was not found (logcat `SpineWidgets`). |
 | `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
+| The app is not in the widget board's picker (Windows) | The app is unpackaged (`WindowsPackageType` `None`), or was never installed as MSIX. The board lists only packaged apps whose manifest declares the provider; the build adds it to a packaged build only. |
+| A Windows widget shows only "—" | The app has not built that kind yet. The board started the app for it and asked the provider; open the board again a moment later. |
+| `Add-AppxPackage`: *0x800B0109* | The signing certificate is not trusted on this machine; see [Windows](#windows). |
+| `Add-AppxPackage`: *0x80073CFB*, the package is already installed | A rebuild of the same commit has the same MSIX version; pass a higher `-p:SpineMsixVersion=…`. |
 | Build error about the App Group | The app's `CodesignEntitlements` does not list the group; see [setup](#3-give-the-app-the-app-group-entitlement). |
 | `SIGKILL (Code Signature Invalid)` at launch | A stale app bundle. Delete `bin/…/<App>.app` and `obj/…/<rid>/codesign` and build again. |
 | Build error naming the extension's App ID and App Group | No installed profile matches `$(ApplicationId).$(SpineWidgetsExtensionName)`; see [setup](#4-register-the-extension-in-the-developer-portal-for-device-builds). The build stops here rather than producing an app that cannot install. |

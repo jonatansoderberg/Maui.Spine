@@ -514,6 +514,195 @@ Resources = resources.ToArray();
 	</Target>
 
 	<!--
+		Windows: the same <SpineWidget> items become widget-board definitions in the package manifest of an app packaged
+		as MSIX: a COM server class (the app's own exe, started with -RegisterProcessAsComServer, which Spine serves
+		from the app's process) and the com.microsoft.windows.widgets app extension, one Definition per item, its
+		sizes from Families (Small, Medium, Large; ExtraLarge is Large; the accessory families are not on Windows).
+		Added to the manifest MAUI generates, after it has filled in its placeholders, so the app's own
+		Package.appxmanifest stays as it is. The class id is derived from ApplicationId, so it stays the same
+		from build to build; SpineWidgetsWindowsClassId replaces it. PreviewImage, when set, is the board's
+		screenshot of the widget; otherwise the app's logo is.
+	-->
+	<UsingTask TaskName="SpineWidgetsWindowsManifest" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<Widgets ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+			<Manifest ParameterType="System.String" Required="true" />
+			<OutputDirectory ParameterType="System.String" Required="true" />
+			<ApplicationId ParameterType="System.String" Required="true" />
+			<Executable ParameterType="System.String" Required="true" />
+			<DisplayName ParameterType="System.String" />
+			<ClassId ParameterType="System.String" />
+			<ProjectDirectory ParameterType="System.String" Required="true" />
+			<OutputManifest ParameterType="System.String" Output="true" />
+			<Content ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+		</ParameterGroup>
+		<Task>
+			<Using Namespace="System.IO" />
+			<Using Namespace="System.Linq" />
+			<Using Namespace="System.Text" />
+			<Using Namespace="System.Xml.Linq" />
+			<Using Namespace="System.Collections.Generic" />
+			<Using Namespace="System.Security.Cryptography" />
+			<Code Type="Fragment" Language="cs"><![CDATA[
+XNamespace f = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+XNamespace uap = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
+XNamespace uap3 = "http://schemas.microsoft.com/appx/manifest/uap/windows10/3";
+XNamespace com = "http://schemas.microsoft.com/appx/manifest/com/windows10";
+const string Extension = "com.microsoft.windows.widgets";
+
+Guid classId;
+if (!string.IsNullOrEmpty(ClassId))
+{
+    if (!Guid.TryParse(ClassId, out classId))
+    {
+        Log.LogError("Spine widgets: SpineWidgetsWindowsClassId \"{0}\" is not a GUID.", ClassId);
+        return false;
+    }
+}
+else
+{
+    // A name-based GUID (RFC 4122 version 5) of the application id: the same class from build to build.
+    using (var sha = SHA1.Create())
+    {
+        var hash = sha.ComputeHash(Encoding.UTF8.GetBytes("Plugin.Maui.Spine.Widgets/" + ApplicationId));
+        var bytes = new byte[16];
+        Array.Copy(hash, bytes, 16);
+        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x50);
+        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
+        classId = new Guid(string.Concat(bytes.Select(b => b.ToString("x2"))));
+    }
+}
+
+var document = XDocument.Load(Manifest, LoadOptions.PreserveWhitespace);
+var package = document.Root;
+var application = package.Element(f + "Applications")?.Element(f + "Application");
+if (application == null)
+{
+    Log.LogError("Spine widgets: {0} has no Application element to declare the widget provider in.", Manifest);
+    return false;
+}
+if (package.Attribute(XNamespace.Xmlns + "uap3") == null) package.Add(new XAttribute(XNamespace.Xmlns + "uap3", uap3.NamespaceName));
+if (package.Attribute(XNamespace.Xmlns + "com") == null) package.Add(new XAttribute(XNamespace.Xmlns + "com", com.NamespaceName));
+
+var visual = application.Element(uap + "VisualElements");
+var logo = (string)visual?.Attribute("Square44x44Logo") ?? (string)package.Element(f + "Properties")?.Element(f + "Logo") ?? "";
+var name = string.IsNullOrEmpty(DisplayName) ? ApplicationId : DisplayName;
+
+var extensions = application.Element(f + "Extensions");
+if (extensions == null)
+{
+    extensions = new XElement(f + "Extensions");
+    application.Add(extensions);
+}
+// A manifest of the app's own may already declare a provider; Spine's replaces it rather than adding a second.
+extensions.Elements(uap3 + "Extension").Where(e => e.Element(uap3 + "AppExtension")?.Attribute("Name")?.Value == Extension).Remove();
+
+extensions.Add(new XElement(com + "Extension", new XAttribute("Category", "windows.comServer"),
+    new XElement(com + "ComServer",
+        new XElement(com + "ExeServer",
+            new XAttribute("Executable", Executable),
+            new XAttribute("Arguments", "-RegisterProcessAsComServer"),
+            new XAttribute("DisplayName", name),
+            new XElement(com + "Class", new XAttribute("Id", classId.ToString("D").ToUpperInvariant()), new XAttribute("DisplayName", name + " widgets"))))));
+
+var content = new List<ITaskItem>();
+var definitions = new XElement(f + "Definitions");
+var ids = new HashSet<string>(StringComparer.Ordinal);
+foreach (var widget in Widgets)
+{
+    var kind = widget.ItemSpec;
+    if (!ids.Add(kind))
+    {
+        Log.LogError("Spine widgets: <SpineWidget Include=\"{0}\"> is declared twice.", kind);
+        return false;
+    }
+    var families = (widget.GetMetadata("Families") ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLowerInvariant()).ToList();
+    var sizes = new List<string>();
+    foreach (var family in families)
+    {
+        var size = family == "small" ? "small" : family == "medium" ? "medium" : family == "large" || family == "extralarge" ? "large" : null;
+        if (size != null && !sizes.Contains(size)) sizes.Add(size);
+    }
+    // A kind for the Lock Screen only still appears on the board, as Android shows it in its picker.
+    if (sizes.Count == 0) sizes.Add("small");
+    sizes = new[] { "small", "medium", "large" }.Where(sizes.Contains).ToList();
+
+    var screenshot = logo;
+    var preview = widget.GetMetadata("PreviewImage");
+    if (!string.IsNullOrEmpty(preview))
+    {
+        var source = Path.IsPathRooted(preview) ? preview : Path.Combine(ProjectDirectory, preview);
+        if (!File.Exists(source))
+        {
+            Log.LogError("Spine widgets: PreviewImage \"{0}\" of <SpineWidget Include=\"{1}\"> does not exist.", preview, kind);
+            return false;
+        }
+        screenshot = "SpineWidgets\\" + kind + Path.GetExtension(source);
+        var item = new Microsoft.Build.Utilities.TaskItem(source);
+        item.SetMetadata("Link", screenshot);
+        item.SetMetadata("CopyToOutputDirectory", "PreserveNewest");
+        content.Add(item);
+    }
+
+    var display = string.IsNullOrEmpty(widget.GetMetadata("DisplayName")) ? kind : widget.GetMetadata("DisplayName");
+    var description = string.IsNullOrEmpty(widget.GetMetadata("Description")) ? display : widget.GetMetadata("Description");
+    definitions.Add(new XElement(f + "Definition",
+        new XAttribute("Id", kind),
+        new XAttribute("DisplayName", display),
+        new XAttribute("Description", description),
+        new XAttribute("AllowMultiple", "true"),
+        new XElement(f + "Capabilities", sizes.Select(s => new XElement(f + "Capability", new XElement(f + "Size", new XAttribute("Name", s))))),
+        new XElement(f + "ThemeResources",
+            new XElement(f + "Icons", new XElement(f + "Icon", new XAttribute("Path", logo))),
+            new XElement(f + "Screenshots", new XElement(f + "Screenshot", new XAttribute("Path", screenshot), new XAttribute("DisplayAltText", display))))));
+}
+
+extensions.Add(new XElement(uap3 + "Extension", new XAttribute("Category", "windows.appExtension"),
+    new XElement(uap3 + "AppExtension",
+        new XAttribute("Name", Extension),
+        new XAttribute("DisplayName", name),
+        new XAttribute("Id", "SpineWidgets"),
+        new XAttribute("PublicFolder", "Public"),
+        new XElement(uap3 + "Properties",
+            new XElement(f + "WidgetProvider",
+                new XElement(f + "ProviderIcons", new XElement(f + "Icon", new XAttribute("Path", logo))),
+                new XElement(f + "Activation", new XElement(f + "CreateInstance", new XAttribute("ClassId", classId.ToString("D").ToUpperInvariant()))),
+                definitions)))));
+
+Directory.CreateDirectory(OutputDirectory);
+OutputManifest = Path.Combine(OutputDirectory, "Package.appxmanifest");
+var text = document.ToString();
+if (!File.Exists(OutputManifest) || File.ReadAllText(OutputManifest) != text)
+    File.WriteAllText(OutputManifest, text, new UTF8Encoding(false));
+Content = content.ToArray();
+]]></Code>
+		</Task>
+	</UsingTask>
+
+	<Target Name="_SpineWidgetsWindows"
+			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' And '$(WindowsPackageType)' != 'None' And '@(SpineWidget)' != '' And '@(AppxManifest)' != '' And '$(DesignTimeBuild)' != 'true'"
+			AfterTargets="MauiGeneratePackageAppxManifest">
+		<SpineWidgetsWindowsManifest
+			Widgets="@(SpineWidget)"
+			Manifest="%(AppxManifest.FullPath)"
+			OutputDirectory="$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'spinewidgets', 'windows'))"
+			ApplicationId="$(ApplicationId)"
+			Executable="$(TargetName).exe"
+			DisplayName="$(ApplicationTitle)"
+			ClassId="$(SpineWidgetsWindowsClassId)"
+			ProjectDirectory="$(MSBuildProjectDirectory)">
+			<Output TaskParameter="OutputManifest" PropertyName="_SpineWidgetsWindowsManifest" />
+			<Output TaskParameter="Content" ItemName="_SpineWidgetsWindowsContent" />
+		</SpineWidgetsWindowsManifest>
+
+		<ItemGroup>
+			<AppxManifest Remove="@(AppxManifest)" />
+			<AppxManifest Include="$(_SpineWidgetsWindowsManifest)" />
+			<Content Include="@(_SpineWidgetsWindowsContent)" />
+		</ItemGroup>
+	</Target>
+
+	<!--
 		The extension's and the bridge's debug symbols go beside the app's: into the output directory after the
 		build, and into the archive's dSYMs folder when one is made. The SDK does neither for an extension from
 		AdditionalAppExtensions nor for this native reference (seen with the 26.2 SDK), and without them a crash
