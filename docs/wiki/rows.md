@@ -49,7 +49,7 @@ XAML namespaces: `Tap` and `Semantic` are in `Plugin.Maui.Spine.Extensions` (ass
 | Property | |
 |---|---|
 | `Icon` | Short name of an embedded SVG, tinted with the accent (`SpineTheme.GetAccent`) |
-| `IconBackground` | A fill behind the icon, which turns white: a 30-point rounded square on iOS and the Mac, a 40 dp circle on Android. Windows draws no badge (`ShowIconBadges`): a 20-point glyph in the text colour, as its Settings |
+| `IconBackground` | A fill behind the icon, which turns white: a 30-point rounded square on iOS and the Mac, a 40 dp circle on Android. Windows draws no badge (`ShowIconBadges`): a 20-point glyph in the text colour, as its Settings. A settings page's recommended style turns the badges off everywhere and draws grey icons ([Settings pages](settings-pages.md#icons-and-their-colours)) |
 | `Title`, `Detail` | Two lines; the detail is smaller and secondary |
 | `DetailMarquee` | Draws the detail with `AnimatedLabel`: text that does not fit scrolls instead of truncating |
 | `Value` | Secondary text: the current choice, or the value of a key/value row |
