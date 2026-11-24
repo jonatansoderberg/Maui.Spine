@@ -1,3 +1,5 @@
+using Plugin.Maui.Spine.Controls;
+
 namespace MauiSpineSampleApp.Pages.Marquee;
 
 public partial class MarqueePageViewModel : SampleViewModel
@@ -31,6 +33,21 @@ public partial class MarqueePageViewModel : SampleViewModel
 
     [ObservableProperty]
     public partial TextAlignment RollAlignment { get; set; } = TextAlignment.Start;
+
+    [ObservableProperty]
+    public partial AnimatedLabelSheen Sheen { get; set; } = AnimatedLabelSheen.Metal;
+
+    [ObservableProperty]
+    public partial int SheenInterval { get; set; } = 8000;
+
+    [ObservableProperty]
+    public partial int SheenDuration { get; set; } = 900;
+
+    [ObservableProperty]
+    public partial string? SheenIcon { get; set; } = "Crown.svg";
+
+    [ObservableProperty]
+    public partial double SheenSpacing { get; set; } = 1;
 
     private CancellationTokenSource? _countdown;
 
@@ -101,5 +118,24 @@ public partial class MarqueePageViewModel : SampleViewModel
         return ShowOptionsAsync("Rolling",
             alignment,
             new SliderOption("Duration, ms", 100, 1500, () => RollDuration, v => RollDuration = (int)v, "0"));
+    }
+
+    [RelayCommand]
+    private Task ShowSheenOptions()
+    {
+        var kind = new ChoiceGroup("Sheen",
+        [
+            new("Metal", "The colour as polished metal, lighter on top, and the glint.", () => Sheen = AnimatedLabelSheen.Metal),
+            new("Glint", "The colour as it is, with the glint.", () => Sheen = AnimatedLabelSheen.Glint),
+            new("None", "Flat colour, nothing moves.", () => Sheen = AnimatedLabelSheen.None),
+        ]);
+        kind.Select(Sheen switch { AnimatedLabelSheen.Metal => 0, AnimatedLabelSheen.Glint => 1, _ => 2 });
+
+        return ShowOptionsAsync("Sheen",
+            kind,
+            new SliderOption("Every, seconds", 2, 20, () => SheenInterval / 1000d, v => SheenInterval = (int)(v * 1000), "0"),
+            new SliderOption("Sweep, ms", 300, 2500, () => SheenDuration, v => SheenDuration = (int)v, "0"),
+            new SliderOption("Letter spacing, points", 0, 4, () => SheenSpacing, v => SheenSpacing = v, "0.0"),
+            new ToggleOption("Crown", "An icon before the text takes the metal and the glint with it.", () => SheenIcon is not null, v => SheenIcon = v ? "Crown.svg" : null));
     }
 }

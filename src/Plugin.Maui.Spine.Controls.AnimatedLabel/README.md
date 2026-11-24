@@ -1,6 +1,6 @@
 # Plugin.Maui.Spine.Controls.AnimatedLabel
 
-`AnimatedLabel` is a SkiaSharp label for .NET MAUI that scrolls (marquee) or fades text that does not fit its width, or rolls the digits of a number that changes.
+`AnimatedLabel` is a SkiaSharp label for .NET MAUI that scrolls (marquee) or fades text that does not fit its width, rolls the digits of a number that changes, or shines like metal, with an icon before the text, catching the light now and then.
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Controls.AnimatedLabel

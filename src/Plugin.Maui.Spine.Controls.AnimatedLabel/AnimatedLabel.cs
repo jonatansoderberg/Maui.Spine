@@ -1,3 +1,4 @@
+using Plugin.Maui.Spine.Svg;
 using SkiaSharp;
 using SkiaSharp.Views.Maui;
 using SkiaSharp.Views.Maui.Controls;
@@ -136,6 +137,61 @@ public sealed class AnimatedLabel : SKCanvasView
         typeof(AnimatedLabel),
         350);
 
+    public static readonly BindableProperty CharacterSpacingProperty = BindableProperty.Create(
+        nameof(CharacterSpacing),
+        typeof(double),
+        typeof(AnimatedLabel),
+        0d,
+        propertyChanged: static (b, _, _) => ((AnimatedLabel)b).OnStyleChanged());
+
+    public static readonly BindableProperty IconProperty = BindableProperty.Create(
+        nameof(Icon),
+        typeof(string),
+        typeof(AnimatedLabel),
+        default(string),
+        propertyChanged: static (b, _, _) => ((AnimatedLabel)b).OnFontChanged());
+
+    public static readonly BindableProperty IconSizeProperty = BindableProperty.Create(
+        nameof(IconSize),
+        typeof(double),
+        typeof(AnimatedLabel),
+        0d,
+        propertyChanged: static (b, _, _) => ((AnimatedLabel)b).OnFontChanged());
+
+    public static readonly BindableProperty IconSpacingProperty = BindableProperty.Create(
+        nameof(IconSpacing),
+        typeof(double),
+        typeof(AnimatedLabel),
+        6d,
+        propertyChanged: static (b, _, _) => ((AnimatedLabel)b).OnStyleChanged());
+
+    public static readonly BindableProperty IconLineWidthScaleProperty = BindableProperty.Create(
+        nameof(IconLineWidthScale),
+        typeof(double),
+        typeof(AnimatedLabel),
+        1d,
+        propertyChanged: static (b, _, _) => ((AnimatedLabel)b).OnStyleChanged());
+
+    public static readonly BindableProperty SheenProperty = BindableProperty.Create(
+        nameof(Sheen),
+        typeof(AnimatedLabelSheen),
+        typeof(AnimatedLabel),
+        AnimatedLabelSheen.None,
+        propertyChanged: static (b, _, _) => ((AnimatedLabel)b).OnSheenChanged());
+
+    public static readonly BindableProperty SheenIntervalMsProperty = BindableProperty.Create(
+        nameof(SheenIntervalMs),
+        typeof(int),
+        typeof(AnimatedLabel),
+        8000,
+        propertyChanged: static (b, _, _) => ((AnimatedLabel)b).RestartSheen());
+
+    public static readonly BindableProperty SheenDurationMsProperty = BindableProperty.Create(
+        nameof(SheenDurationMs),
+        typeof(int),
+        typeof(AnimatedLabel),
+        900);
+
     // -------------------------------------------------------------------------
     // Public API
     // -------------------------------------------------------------------------
@@ -263,6 +319,80 @@ public sealed class AnimatedLabel : SKCanvasView
         set => SetValue(RollDurationMsProperty, value);
     }
 
+    /// <summary>Extra room between the characters, in points, as <see cref="Label.CharacterSpacing"/>. Not in <see cref="AnimatedLabelMode.RollingNumber"/>.</summary>
+    public double CharacterSpacing
+    {
+        get => (double)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// An embedded SVG drawn before the text, <c>"Crown.svg"</c>, in the text's colour: it takes the
+    /// <see cref="Sheen"/> with the text, so one sweep crosses both. Not in <see cref="AnimatedLabelMode.RollingNumber"/>.
+    /// </summary>
+    public string? Icon
+    {
+        get => (string?)GetValue(IconProperty);
+        set => SetValue(IconProperty, value);
+    }
+
+    /// <summary>The icon's width and height in points; 0, the default, is 1.2 × <see cref="FontSize"/>.</summary>
+    public double IconSize
+    {
+        get => (double)GetValue(IconSizeProperty);
+        set => SetValue(IconSizeProperty, value);
+    }
+
+    /// <summary>The room between the icon and the text, in points. 6 by default.</summary>
+    public double IconSpacing
+    {
+        get => (double)GetValue(IconSpacingProperty);
+        set => SetValue(IconSpacingProperty, value);
+    }
+
+    /// <summary>Multiplies the icon's stroke widths, as <c>SvgImageSource.LineWidthScale</c>. 1 by default.</summary>
+    public double IconLineWidthScale
+    {
+        get => (double)GetValue(IconLineWidthScaleProperty);
+        set => SetValue(IconLineWidthScaleProperty, value);
+    }
+
+    /// <summary>
+    /// <see cref="AnimatedLabelSheen.Metal"/> draws the text (and the icon) as polished metal in its colour, and
+    /// <see cref="AnimatedLabelSheen.Glint"/> and Metal sweep a bright band over the glyphs every
+    /// <see cref="SheenIntervalMs"/>, the first time shortly after the label appears. Nothing runs between sweeps,
+    /// and with Reduce Motion there is no sweep. Not in <see cref="AnimatedLabelMode.RollingNumber"/> while a number rolls.
+    /// </summary>
+    public AnimatedLabelSheen Sheen
+    {
+        get => (AnimatedLabelSheen)GetValue(SheenProperty);
+        set => SetValue(SheenProperty, value);
+    }
+
+    /// <summary>The time from one sweep to the next. 8000 by default.</summary>
+    public int SheenIntervalMs
+    {
+        get => (int)GetValue(SheenIntervalMsProperty);
+        set => SetValue(SheenIntervalMsProperty, value);
+    }
+
+    /// <summary>How long one sweep takes to cross the label. 900 by default.</summary>
+    public int SheenDurationMs
+    {
+        get => (int)GetValue(SheenDurationMsProperty);
+        set => SetValue(SheenDurationMsProperty, value);
+    }
+
+    /// <summary>Sweeps the glint over the label once now, as when a purchase has gone through. Nothing without a <see cref="Sheen"/>.</summary>
+    public void Glint()
+    {
+        if (!CanSheen())
+            return;
+
+        _sheenGeneration++;
+        StartSheenSweep();
+    }
+
     // -------------------------------------------------------------------------
     // Rendering / animation state
     // -------------------------------------------------------------------------
@@ -305,6 +435,12 @@ public sealed class AnimatedLabel : SKCanvasView
     private RollingNumber? _roll;
     private double _rollElapsedMs;
 
+    private const int FirstSheenDelayMs = 600;
+    private bool _sheenActive;
+    private double _sheenElapsedMs;
+    private int _sheenGeneration;
+    private readonly SKPaint _glintPaint = new() { IsAntialias = true, BlendMode = SKBlendMode.SrcATop };
+
     // Reused paint object: no per-frame allocation.
     private readonly SKPaint _imagePaint = new()
     {
@@ -331,8 +467,21 @@ public sealed class AnimatedLabel : SKCanvasView
     {
         base.OnPropertyChanged(propertyName);
 
+        if (propertyName == nameof(Window) && Window is null)
+            StopSheen();
+
+        if (propertyName == nameof(IsVisible))
+        {
+            if (IsVisible)
+                RestartSheen();
+            else
+                StopSheen();
+        }
+
         if (propertyName == nameof(Window) && Window is not null && Handler is not null)
         {
+            RestartSheen();
+
             // If a text-change fade-out was in progress while the view was detached, apply it immediately.
             if (_needsFadeOut && _pendingText is not null)
             {
@@ -376,8 +525,11 @@ public sealed class AnimatedLabel : SKCanvasView
             return;
         }
 
+        // The app's fonts are found through the handler's services, so a typeface looked up before it is looked up again.
+        _cachedFontAttributes = (FontAttributes)(-1);
         RebuildAndRecalculate();
         UpdateAnimationRegistration();
+        RestartSheen();
     }
 
     protected override void OnSizeAllocated(double width, double height)
@@ -463,7 +615,18 @@ public sealed class AnimatedLabel : SKCanvasView
         canvas.Save();
         canvas.ClipRect(SKRect.Create(0, 0, info.Width, info.Height));
         canvas.Translate(RollingNumber.Left(info.Width, _textWidthPx, AlignmentFactor) - scrollPx, yPx);
-        canvas.DrawImage(_textImage, 0, 0, Sampling, _imagePaint);
+        if (_sheenActive)
+        {
+            // The band lights only the glyphs: drawn SrcATop over the text in a layer of its own.
+            canvas.SaveLayer(SKRect.Create(0, 0, _textImageWidthPx, _textImageHeightPx), null);
+            canvas.DrawImage(_textImage, 0, 0, Sampling, _imagePaint);
+            DrawGlint(canvas);
+            canvas.Restore();
+        }
+        else
+        {
+            canvas.DrawImage(_textImage, 0, 0, Sampling, _imagePaint);
+        }
         canvas.Restore();
 
         if (applyEdgeFade && fadeEdgePx > 0.5f)
@@ -604,34 +767,151 @@ public sealed class AnimatedLabel : SKCanvasView
         font.GetFontMetrics(out var metrics);
 
         bool rolling = Mode == AnimatedLabelMode.RollingNumber;
-        float rawTextWidthPx = rolling ? RollingNumber.Measure(_bufferedText, font) : font.MeasureText(_bufferedText);
+        float spacingPx = rolling ? 0f : (float)(CharacterSpacing * _scale);
+        float rawTextWidthPx = rolling ? RollingNumber.Measure(_bufferedText, font) : MeasureSpaced(_bufferedText, font, spacingPx);
         float endPaddingPx = Math.Max(0f, (float)(EndPaddingDp * _scale));
 
-        int widthPx = Math.Max(1, (int)Math.Ceiling(rawTextWidthPx + endPaddingPx + 2));
-        int heightPx = Math.Max(1, (int)Math.Ceiling(metrics.Descent - metrics.Ascent));
+        float iconPx = rolling || string.IsNullOrWhiteSpace(Icon) ? 0f : (float)(IconSizeDp * _scale);
+        float iconGapPx = iconPx > 0f ? Math.Max(0f, (float)(IconSpacing * _scale)) : 0f;
+        float contentWidthPx = iconPx + iconGapPx + rawTextWidthPx;
+
+        float textHeightPx = metrics.Descent - metrics.Ascent;
+        int widthPx = Math.Max(1, (int)Math.Ceiling(contentWidthPx + endPaddingPx + 2));
+        int heightPx = Math.Max(1, (int)Math.Ceiling(Math.Max(textHeightPx, iconPx)));
 
         using var bitmap = new SKBitmap(widthPx, heightPx, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(SKColors.Transparent);
 
+        var color = ResolveEffectiveTextColor();
         using var textPaint = new SKPaint
         {
-            Color = ResolveEffectiveTextColor().ToSKColor(),
+            Color = color.ToSKColor(),
             IsAntialias = true
         };
 
-        float baselineY = -metrics.Ascent;
+        float baselineY = (heightPx - textHeightPx) * 0.5f - metrics.Ascent;
         if (rolling)
+        {
             RollingNumber.DrawLine(canvas, _bufferedText, baselineY, font, textPaint);
+        }
         else
-            canvas.DrawText(_bufferedText, 0, baselineY, font, textPaint);
+        {
+            if (iconPx > 0f)
+                DrawIcon(canvas, font, iconPx, baselineY, heightPx, color.ToSKColor());
+
+            DrawSpaced(canvas, _bufferedText, iconPx + iconGapPx, baselineY, font, textPaint, spacingPx);
+        }
+
+        if (Sheen == AnimatedLabelSheen.Metal)
+            PaintMetal(canvas, widthPx, heightPx, color);
 
         _textImage = SKImage.FromBitmap(bitmap);
         _textImageWidthPx = widthPx;
         _textImageHeightPx = heightPx;
-        _textWidthPx = rawTextWidthPx;
+        _textWidthPx = contentWidthPx;
 
         InvalidateSurface();
+    }
+
+    /// <summary>
+    /// Draws the icon with the middle of what it draws (not of its box: an SVG has room around its shape) on the
+    /// middle of the capitals, where the eye puts the middle of a line.
+    /// </summary>
+    private void DrawIcon(SKCanvas canvas, SKFont font, float iconPx, float baselineY, int heightPx, SKColor color)
+    {
+        int size = Math.Max(1, (int)Math.Ceiling(iconPx));
+        using var icon = new SKBitmap(size, size, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using (var iconCanvas = new SKCanvas(icon))
+        {
+            iconCanvas.Clear(SKColors.Transparent);
+            if (!SvgDrawing.Draw(iconCanvas, Icon!, SKRect.Create(0, 0, iconPx, iconPx), color, (float)IconLineWidthScale))
+                return;
+        }
+
+        var (inkTop, inkBottom) = InkRows(icon);
+        if (inkBottom < inkTop)
+            return;
+
+        font.MeasureText("H", out var capBounds);
+        float capMiddle = baselineY + capBounds.MidY;
+        float top = capMiddle - (inkTop + inkBottom + 1) * 0.5f;
+        canvas.DrawBitmap(icon, 0, Math.Clamp(top, -inkTop, heightPx - inkBottom - 1));
+    }
+
+    /// <summary>The first and last rows of <paramref name="bitmap"/> with anything drawn in them.</summary>
+    private static (int Top, int Bottom) InkRows(SKBitmap bitmap)
+    {
+        var pixels = bitmap.Pixels;
+        int width = bitmap.Width, top = -1, bottom = -2;
+        for (int y = 0; y < bitmap.Height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (pixels[y * width + x].Alpha <= 8)
+                    continue;
+                if (top < 0)
+                    top = y;
+                bottom = y;
+                break;
+            }
+        }
+        return (top, bottom);
+    }
+
+    /// <summary>The icon's size in points: <see cref="IconSize"/>, or 1.2 × the font size.</summary>
+    private double IconSizeDp => IconSize > 0 ? IconSize : FontSize * 1.2;
+
+    private static float MeasureSpaced(string text, SKFont font, float spacingPx)
+    {
+        if (spacingPx == 0f)
+            return font.MeasureText(text);
+
+        var glyphs = font.GetGlyphs(text);
+        return font.GetGlyphWidths(glyphs).Sum() + spacingPx * Math.Max(0, glyphs.Length - 1);
+    }
+
+    private static void DrawSpaced(SKCanvas canvas, string text, float x, float baselineY, SKFont font, SKPaint paint, float spacingPx)
+    {
+        if (spacingPx == 0f)
+        {
+            canvas.DrawText(text, x, baselineY, font, paint);
+            return;
+        }
+
+        var glyphs = font.GetGlyphs(text);
+        var widths = font.GetGlyphWidths(glyphs);
+        var positions = new SKPoint[glyphs.Length];
+        float cursor = x;
+        for (int i = 0; i < glyphs.Length; i++)
+        {
+            positions[i] = new SKPoint(cursor, baselineY);
+            cursor += widths[i] + spacingPx;
+        }
+
+        using var blob = SKTextBlob.CreatePositioned(text, font, positions);
+        if (blob is not null)
+            canvas.DrawText(blob, 0, 0, paint);
+    }
+
+    /// <summary>
+    /// Turns what is drawn into polished metal of <paramref name="color"/>: lighter on top, darkest just below the
+    /// middle, lifting again at the bottom edge, as a bevelled surface reflecting a light above.
+    /// </summary>
+    private static void PaintMetal(SKCanvas canvas, int widthPx, int heightPx, Color color)
+    {
+        var colors = new[]
+        {
+            color.AddLuminosity(0.24f).ToSKColor(),
+            color.ToSKColor(),
+            color.AddLuminosity(-0.16f).ToSKColor(),
+            color.AddLuminosity(0.04f).ToSKColor(),
+        };
+
+        using var shader = SKShader.CreateLinearGradient(new SKPoint(0, 0), new SKPoint(0, heightPx), colors,
+            [0f, 0.46f, 0.66f, 1f], SKShaderTileMode.Clamp);
+        using var paint = new SKPaint { Shader = shader, BlendMode = SKBlendMode.SrcIn, IsAntialias = true };
+        canvas.DrawRect(0, 0, widthPx, heightPx, paint);
     }
 
     private void RebuildAndRecalculate()
@@ -696,11 +976,43 @@ public sealed class AnimatedLabel : SKCanvasView
 
         _cachedTypeface = string.IsNullOrWhiteSpace(FontFamily)
             ? SKTypeface.FromFamilyName(null, style)
-            : SKTypeface.FromFamilyName(FontFamily, style);
+            : AppFont(FontFamily, style) ?? SKTypeface.FromFamilyName(FontFamily, style);
 
         _cachedTypeface ??= SKTypeface.Default;
 
         return _cachedTypeface;
+    }
+
+    /// <summary>
+    /// A font the app registered with <c>ConfigureFonts</c> under an alias (<c>AddFont("Brand.otf", "Brand")</c>),
+    /// which SkiaSharp cannot find by that name: MAUI's registrar gives a file on Android and Windows and a
+    /// registered font name on iOS and Mac Catalyst, whose file CoreText knows.
+    /// </summary>
+    private SKTypeface? AppFont(string alias, SKFontStyle style)
+    {
+        string? registered;
+        try
+        {
+            registered = Handler?.MauiContext?.Services.GetService<IFontRegistrar>()?.GetFont(alias);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(registered))
+            return null;
+
+        if (File.Exists(registered))
+            return SKTypeface.FromFile(registered);
+
+#if IOS || MACCATALYST
+        using var font = new CoreText.CTFont(registered, 12);
+        if (font.GetFontDescriptor().GetAttribute(CoreText.CTFontDescriptorAttributeKey.Url) is Foundation.NSUrl { Path: { } path } && File.Exists(path))
+            return SKTypeface.FromFile(path);
+#endif
+
+        return SKFontManager.Default.MatchFamily(registered, style);
     }
 
     // -------------------------------------------------------------------------
@@ -851,11 +1163,104 @@ public sealed class AnimatedLabel : SKCanvasView
             needsRedraw = true;
         }
 
+        if (_sheenActive)
+        {
+            _sheenElapsedMs += deltaMs;
+            needsRedraw = true;
+
+            if (_sheenElapsedMs >= Math.Max(1, SheenDurationMs))
+            {
+                _sheenActive = false;
+                ScheduleSheen(SheenIntervalMs);
+            }
+        }
+
         if (needsRedraw)
             InvalidateSurface();
 
         if (!IsAnimationActive())
             UnregisterFromTicker();
+    }
+
+    // -------------------------------------------------------------------------
+    // Sheen
+    // -------------------------------------------------------------------------
+
+    private void OnSheenChanged()
+    {
+        RebuildBufferAndRestart();
+        RestartSheen();
+    }
+
+    private bool CanSheen() =>
+        Sheen != AnimatedLabelSheen.None &&
+        Handler is not null &&
+        Window is not null &&
+        IsVisible &&
+        _roll is null &&
+        !string.IsNullOrEmpty(_bufferedText) &&
+        !ReduceMotion.IsEnabled;
+
+    /// <summary>Drops a sweep in progress or waiting, and sweeps shortly, as when the label appears.</summary>
+    private void RestartSheen()
+    {
+        StopSheen();
+        ScheduleSheen(FirstSheenDelayMs);
+    }
+
+    private void StopSheen()
+    {
+        _sheenGeneration++;
+
+        if (_sheenActive)
+        {
+            _sheenActive = false;
+            InvalidateSurface();
+        }
+    }
+
+    // One delayed call per sweep, not a ticking timer: between sweeps the label costs nothing.
+    private void ScheduleSheen(int delayMs)
+    {
+        if (!CanSheen() || Dispatcher is null)
+            return;
+
+        var generation = ++_sheenGeneration;
+        Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(Math.Max(0, delayMs)), () =>
+        {
+            if (generation == _sheenGeneration && CanSheen())
+                StartSheenSweep();
+        });
+    }
+
+    private void StartSheenSweep()
+    {
+        _sheenActive = true;
+        _sheenElapsedMs = 0d;
+        RegisterWithTicker();
+    }
+
+    /// <summary>A slanted band of light, eased across the text image, over what is drawn in the current layer.</summary>
+    private void DrawGlint(SKCanvas canvas)
+    {
+        float progress = (float)Math.Clamp(_sheenElapsedMs / Math.Max(1, SheenDurationMs), 0d, 1d);
+        float eased = 0.5f - 0.5f * MathF.Cos(MathF.PI * progress);
+
+        float h = _textImageHeightPx;
+        float band = Math.Max(h * 1.3f, 16f * _scale);
+        float centre = -band + (_textImageWidthPx + band * 2f) * eased;
+
+        // Along (1, 0.45): the band leans like a reflection on a slanted surface.
+        var start = new SKPoint(centre - band * 0.5f, 0);
+        var end = new SKPoint(centre + band * 0.5f, band * 0.45f);
+        var white = SKColors.White;
+        using var shader = SKShader.CreateLinearGradient(start, end,
+            [white.WithAlpha(0), white.WithAlpha(150), white.WithAlpha(235), white.WithAlpha(150), white.WithAlpha(0)],
+            [0f, 0.32f, 0.5f, 0.68f, 1f], SKShaderTileMode.Clamp);
+
+        _glintPaint.Shader = shader;
+        canvas.DrawRect(0, 0, _textImageWidthPx, h, _glintPaint);
+        _glintPaint.Shader = null;
     }
 
     private void CompleteFadeOut()
@@ -879,7 +1284,7 @@ public sealed class AnimatedLabel : SKCanvasView
 
     private bool IsAnimationActive()
     {
-        return _roll is not null || _needsFadeOut || _needsFadeIn || ShouldScroll();
+        return _roll is not null || _needsFadeOut || _needsFadeIn || _sheenActive || ShouldScroll();
     }
 
     private bool ShouldScroll()
@@ -1160,7 +1565,8 @@ public sealed class AnimatedLabel : SKCanvasView
 
     private void UpdateHeightRequest()
     {
-        HeightRequest = Math.Ceiling(FontSize * 1.45 + 4);
+        var icon = string.IsNullOrWhiteSpace(Icon) ? 0 : IconSizeDp + 4;
+        HeightRequest = Math.Ceiling(Math.Max(FontSize * 1.45 + 4, icon));
     }
 
     // -------------------------------------------------------------------------
@@ -1224,6 +1630,7 @@ public sealed class AnimatedLabel : SKCanvasView
 
     private void DisposeSkiaResources()
     {
+        StopSheen();
         EndRoll();
         DisposeTextImage();
         DisposeFadePaints();
