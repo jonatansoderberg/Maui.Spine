@@ -525,6 +525,8 @@ public sealed class AnimatedLabel : SKCanvasView
             return;
         }
 
+        // The app's fonts are found through the handler's services, so a typeface looked up before it is looked up again.
+        _cachedFontAttributes = (FontAttributes)(-1);
         RebuildAndRecalculate();
         UpdateAnimationRegistration();
         RestartSheen();
@@ -974,11 +976,43 @@ public sealed class AnimatedLabel : SKCanvasView
 
         _cachedTypeface = string.IsNullOrWhiteSpace(FontFamily)
             ? SKTypeface.FromFamilyName(null, style)
-            : SKTypeface.FromFamilyName(FontFamily, style);
+            : AppFont(FontFamily, style) ?? SKTypeface.FromFamilyName(FontFamily, style);
 
         _cachedTypeface ??= SKTypeface.Default;
 
         return _cachedTypeface;
+    }
+
+    /// <summary>
+    /// A font the app registered with <c>ConfigureFonts</c> under an alias (<c>AddFont("Brand.otf", "Brand")</c>),
+    /// which SkiaSharp cannot find by that name: MAUI's registrar gives a file on Android and Windows and a
+    /// registered font name on iOS and Mac Catalyst, whose file CoreText knows.
+    /// </summary>
+    private SKTypeface? AppFont(string alias, SKFontStyle style)
+    {
+        string? registered;
+        try
+        {
+            registered = Handler?.MauiContext?.Services.GetService<IFontRegistrar>()?.GetFont(alias);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(registered))
+            return null;
+
+        if (File.Exists(registered))
+            return SKTypeface.FromFile(registered);
+
+#if IOS || MACCATALYST
+        using var font = new CoreText.CTFont(registered, 12);
+        if (font.GetFontDescriptor().GetAttribute(CoreText.CTFontDescriptorAttributeKey.Url) is Foundation.NSUrl { Path: { } path } && File.Exists(path))
+            return SKTypeface.FromFile(path);
+#endif
+
+        return SKFontManager.Default.MatchFamily(registered, style);
     }
 
     // -------------------------------------------------------------------------

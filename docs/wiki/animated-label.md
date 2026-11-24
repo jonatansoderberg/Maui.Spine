@@ -117,7 +117,7 @@ The Showcase's AnimatedLabel page has gold, silver and bronze rows with every op
 | `Text` | `string` | `null` | The text to display |
 | `TextColor` | `Color` | `null` | Text colour |
 | `FontSize` | `double` | `14` | Font size in scaled pixels |
-| `FontFamily` | `string` | `null` | Font family name |
+| `FontFamily` | `string` | `null` | Font family name, or the alias of a font the app registered with `ConfigureFonts` |
 | `FontAttributes` | `FontAttributes` | `None` | Bold, italic, or both |
 | `ScrollSpeedDpPerSecond` | `double` | `38` | Horizontal scroll speed (dp/s) |
 | `PauseAtEndsMs` | `int` | `2000` | Pause duration at each end of the scroll (ms) |
