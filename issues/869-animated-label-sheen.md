@@ -24,4 +24,5 @@ The Showcase shows gold, silver and bronze with options before an app uses it.
 - The sweep is a band, not a continuous shimmer: a constant wave reads as "loading" (skeletons).
 - The band lights only the glyphs (SrcATop in a layer the size of the text image), so it works on any background.
 - Reduce Motion keeps the metal and drops the sweep; hidden or detached labels do not sweep.
+- The icon is aligned by its ink, measured from a render, on the middle of an "H": its SVG box has room around the shape, so centring the box left the crown about a point low.
 - Icon, metal and spacing apply in Marquee mode; a rolling number keeps its own drawing.

@@ -796,12 +796,7 @@ public sealed class AnimatedLabel : SKCanvasView
         else
         {
             if (iconPx > 0f)
-            {
-                // Centred on the capitals, which is where the eye puts the middle of a line.
-                float capHeight = metrics.CapHeight > 0 ? metrics.CapHeight : -metrics.Ascent * 0.7f;
-                float iconTop = Math.Clamp(baselineY - capHeight * 0.5f - iconPx * 0.5f, 0f, heightPx - iconPx);
-                SvgDrawing.Draw(canvas, Icon!, SKRect.Create(0, iconTop, iconPx, iconPx), color.ToSKColor(), (float)IconLineWidthScale);
-            }
+                DrawIcon(canvas, font, iconPx, baselineY, heightPx, color.ToSKColor());
 
             DrawSpaced(canvas, _bufferedText, iconPx + iconGapPx, baselineY, font, textPaint, spacingPx);
         }
@@ -815,6 +810,51 @@ public sealed class AnimatedLabel : SKCanvasView
         _textWidthPx = contentWidthPx;
 
         InvalidateSurface();
+    }
+
+    /// <summary>
+    /// Draws the icon with the middle of what it draws (not of its box: an SVG has room around its shape) on the
+    /// middle of the capitals, where the eye puts the middle of a line.
+    /// </summary>
+    private void DrawIcon(SKCanvas canvas, SKFont font, float iconPx, float baselineY, int heightPx, SKColor color)
+    {
+        int size = Math.Max(1, (int)Math.Ceiling(iconPx));
+        using var icon = new SKBitmap(size, size, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using (var iconCanvas = new SKCanvas(icon))
+        {
+            iconCanvas.Clear(SKColors.Transparent);
+            if (!SvgDrawing.Draw(iconCanvas, Icon!, SKRect.Create(0, 0, iconPx, iconPx), color, (float)IconLineWidthScale))
+                return;
+        }
+
+        var (inkTop, inkBottom) = InkRows(icon);
+        if (inkBottom < inkTop)
+            return;
+
+        font.MeasureText("H", out var capBounds);
+        float capMiddle = baselineY + capBounds.MidY;
+        float top = capMiddle - (inkTop + inkBottom + 1) * 0.5f;
+        canvas.DrawBitmap(icon, 0, Math.Clamp(top, -inkTop, heightPx - inkBottom - 1));
+    }
+
+    /// <summary>The first and last rows of <paramref name="bitmap"/> with anything drawn in them.</summary>
+    private static (int Top, int Bottom) InkRows(SKBitmap bitmap)
+    {
+        var pixels = bitmap.Pixels;
+        int width = bitmap.Width, top = -1, bottom = -2;
+        for (int y = 0; y < bitmap.Height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (pixels[y * width + x].Alpha <= 8)
+                    continue;
+                if (top < 0)
+                    top = y;
+                bottom = y;
+                break;
+            }
+        }
+        return (top, bottom);
     }
 
     /// <summary>The icon's size in points: <see cref="IconSize"/>, or 1.2 × the font size.</summary>
