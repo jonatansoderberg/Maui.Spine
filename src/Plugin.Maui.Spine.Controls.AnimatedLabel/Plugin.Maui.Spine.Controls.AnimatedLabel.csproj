@@ -20,7 +20,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>AnimatedLabel for .NET MAUI: a SkiaSharp label that scrolls (marquee) or fades text that does not fit, or rolls the digits of a changing number.</Description>
+		<Description>AnimatedLabel for .NET MAUI: a SkiaSharp label that scrolls (marquee) or fades text that does not fit, rolls the digits of a changing number, and can shine like metal with an icon before the text.</Description>
 		<SpineIcon>animated-label.png</SpineIcon>
 		<PackageTags>$(PackageTags);label;marquee;skiasharp;controls</PackageTags>
 	</PropertyGroup>
@@ -28,6 +28,11 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" />
 		<PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+	</ItemGroup>
+
+	<!-- The leading icon is an embedded SVG, drawn with Spine.Svg. -->
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 	</ItemGroup>
 
 	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->

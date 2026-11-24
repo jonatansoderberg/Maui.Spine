@@ -84,6 +84,32 @@ A change that comes while a roll is still running starts a new roll from the lat
 
 ---
 
+## Metal and a glint
+
+`Sheen` makes the text look like metal in its colour and catch the light now and then, for a badge or a tier someone earned. `Icon` puts an embedded SVG before the text, in the same colour, so the metal and the glint cross both.
+
+```xml
+<AnimatedLabel Text="GULD · APPSUPPORTER"
+               TextColor="#D9B662"
+               FontSize="13"
+               CharacterSpacing="1"
+               Icon="Crown.svg"
+               IconLineWidthScale="1.6"
+               Sheen="Metal" />
+```
+
+- **`Metal`** draws the text and the icon as polished metal: lighter on top, darkest just below the middle, lifting again at the bottom edge. It is baked into the text image, so it costs nothing while the label stands still.
+- **The glint.** With `Glint` or `Metal`, a slanted band of light sweeps across the glyphs every `SheenIntervalMs` (8 s), taking `SheenDurationMs` (0.9 s), and the first time shortly after the label appears. The band lights only the glyphs, not the background. Between sweeps nothing runs: one delayed call per sweep, no timer.
+- **`Glint()`** sweeps once now, for a moment worth marking, such as a purchase that has just gone through.
+- **When it stops.** A label that is hidden or off the window does not sweep, and neither does one whose number is rolling. With Reduce Motion the metal stays and the sweep goes.
+- **The icon** is drawn with Spine.Svg, so any SVG an image could use works here: the app's own or Spine.Svg.Icons'. It is `IconSize` points square (1.2 × `FontSize` by default), `IconSpacing` before the text, centred on the capitals, and the label grows its height for a tall icon. `IconLineWidthScale` thickens thin strokes at small sizes, as `SvgImageSource.LineWidthScale`.
+- **`CharacterSpacing`**, in points, spaces capitals out as a `Label`'s does. Uppercase the text yourself; there is no `TextTransform`.
+- Icon, metal and spacing are for `Marquee` mode. A rolling number draws its digits as before.
+
+The Showcase's AnimatedLabel page has gold, silver and bronze rows with every option.
+
+---
+
 ## Property reference
 
 | Property | Type | Default | Description |
@@ -105,6 +131,14 @@ A change that comes while a roll is still running starts a new roll from the lat
 | `Mode` | `AnimatedLabelMode` | `Marquee` | `Marquee` scrolls and fades; `RollingNumber` rolls the characters that change |
 | `HorizontalTextAlignment` | `TextAlignment` | `Start` | Where a text that fits is placed: `Start`, `Center` or `End`. A text that is too wide starts at the start |
 | `RollDurationMs` | `int` | `350` | How long a change takes to roll in `RollingNumber` mode (ms) |
+| `CharacterSpacing` | `double` | `0` | Extra room between characters, in points (`Marquee` mode) |
+| `Icon` | `string` | `null` | An embedded SVG drawn before the text in its colour, `"Crown.svg"` (`Marquee` mode) |
+| `IconSize` | `double` | `0` | The icon's size in points; 0 is 1.2 × `FontSize` |
+| `IconSpacing` | `double` | `6` | Room between the icon and the text, in points |
+| `IconLineWidthScale` | `double` | `1` | Multiplies the icon's stroke widths |
+| `Sheen` | `AnimatedLabelSheen` | `None` | `Glint` sweeps a band of light over the glyphs now and then; `Metal` also draws them as polished metal |
+| `SheenIntervalMs` | `int` | `8000` | Time from one sweep to the next (ms) |
+| `SheenDurationMs` | `int` | `900` | How long one sweep takes (ms) |
 
 ---
 
@@ -112,4 +146,4 @@ A change that comes while a roll is still running starts a new roll from the lat
 
 - Set `EnableScrolling="False"` if you only want the fade-on-change effect without marquee scrolling.
 - Use `ScrollSpeedDpPerSecond` and `PauseAtEndsMs` together to control the feel — a lower speed with a longer pause gives a gentler effect.
-- The control renders via SkiaSharp (`SKCanvasView`), so it does not participate in the standard MAUI label layout. It sets its own `HeightRequest` from `FontSize` (`FontSize × 1.45 + 4`), again whenever the font changes, so a `HeightRequest` of your own does not last. It fills the width it is given.
+- The control renders via SkiaSharp (`SKCanvasView`), so it does not participate in the standard MAUI label layout. It sets its own `HeightRequest` from `FontSize` (`FontSize × 1.45 + 4`, or the icon's size + 4 when that is taller), again whenever the font or the icon changes, so a `HeightRequest` of your own does not last. It fills the width it is given.

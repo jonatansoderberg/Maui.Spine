@@ -85,6 +85,52 @@
             </Example.Code>
         </Example>
 
+        <Example Title="Metal that catches the light"
+                 Summary="Text and an icon as polished metal in their colour, with a glint that sweeps over them now and then, for a badge or a tier someone earned. Nothing runs between sweeps, and Reduce Motion keeps the metal still."
+                 OptionsCommand="{Binding ShowSheenOptionsCommand}">
+            <VerticalStackLayout Spacing="10">
+                <Border Padding="14,12" BackgroundColor="#0B0E12" StrokeShape="RoundRectangle 12" StrokeThickness="0">
+                    <VerticalStackLayout Spacing="10">
+                        <AnimatedLabel x:Name="Gold" Text="GULD · APPSUPPORTER" TextColor="#D9B662" FontSize="13" FontAttributes="Bold"
+                                       CharacterSpacing="{Binding SheenSpacing}" Icon="{Binding SheenIcon}" IconLineWidthScale="1.6"
+                                       Sheen="{Binding Sheen}" SheenIntervalMs="{Binding SheenInterval}" SheenDurationMs="{Binding SheenDuration}" />
+                        <AnimatedLabel x:Name="Silver" Text="SILVER · APPSUPPORTER" TextColor="#C3CAD2" FontSize="13" FontAttributes="Bold"
+                                       CharacterSpacing="{Binding SheenSpacing}" Icon="{Binding SheenIcon}" IconLineWidthScale="1.6"
+                                       Sheen="{Binding Sheen}" SheenIntervalMs="{Binding SheenInterval}" SheenDurationMs="{Binding SheenDuration}" />
+                        <AnimatedLabel x:Name="Bronze" Text="BRONS · APPSUPPORTER" TextColor="#B88965" FontSize="13" FontAttributes="Bold"
+                                       CharacterSpacing="{Binding SheenSpacing}" Icon="{Binding SheenIcon}" IconLineWidthScale="1.6"
+                                       Sheen="{Binding Sheen}" SheenIntervalMs="{Binding SheenInterval}" SheenDurationMs="{Binding SheenDuration}" />
+                        <AnimatedLabel x:Name="Big" Text="Guldmedalj" TextColor="#D9B662" FontSize="30" FontAttributes="Bold"
+                                       Icon="{Binding SheenIcon}" IconLineWidthScale="1.2"
+                                       Sheen="{Binding Sheen}" SheenIntervalMs="{Binding SheenInterval}" SheenDurationMs="{Binding SheenDuration}" />
+                    </VerticalStackLayout>
+                </Border>
+                <Border Padding="14,12" BackgroundColor="#F4F1EA" StrokeShape="RoundRectangle 12" StrokeThickness="0">
+                    <AnimatedLabel x:Name="Light" Text="GULD · APPSUPPORTER" TextColor="#A8822E" FontSize="13" FontAttributes="Bold"
+                                   CharacterSpacing="{Binding SheenSpacing}" Icon="{Binding SheenIcon}" IconLineWidthScale="1.6"
+                                   Sheen="{Binding Sheen}" SheenIntervalMs="{Binding SheenInterval}" SheenDurationMs="{Binding SheenDuration}" />
+                </Border>
+                <Button Text="Glint now" Clicked="OnGlintNow" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;AnimatedLabel Text="GULD · APPSUPPORTER"
+                               TextColor="#D9B662"
+                               Icon="Crown.svg"
+                               CharacterSpacing="1"
+                               Sheen="Metal" /&gt;
+
+                // Optional, shown with their defaults
+                SheenIntervalMs="8000"
+                SheenDurationMs="900"
+                IconSize="0"          // 1.2 × FontSize
+                IconSpacing="6"
+                IconLineWidthScale="1"
+
+                // A sweep now, as when a purchase goes through
+                label.Glint();
+            </Example.Code>
+        </Example>
+
     </SampleLayout>
 
 </SpinePage>

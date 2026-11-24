@@ -19,7 +19,7 @@ Spine ships as thirty-seven NuGet packages built from this repository, one per p
 | Server | `Plugin.Maui.Spine.Server.Purchases` | The purchases ledger per caller: free credits, consumables from RevenueCat's webhook, spends once per reference, the subscriptions RevenueCat reports, and `IPurchaseLedger` for the app's endpoints. In memory or Azure Tables | `.Common`, `Azure.Data.Tables` |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes on BGTaskScheduler (iOS) and JobScheduler (Android), a timer while the app runs elsewhere | `Plugin.Maui.Spine`, `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
-| Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp | — |
+| Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp; rolling numbers; metal with a glint and a leading icon | `Plugin.Maui.Spine.Svg` |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Charts` | [`RingChart`, `BarChart` and `ColumnChart`](charts.md) for dashboards | `Plugin.Maui.Spine` |
@@ -59,7 +59,7 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   │           │  └── Authentication (and Common) ◄── Authentication.Google (and AndroidX Credentials), Authentication.Microsoft (and MSAL), Authentication.Passkeys
   │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Highlight, Markdown, Scanner ──► Barcodes
   │   Chat ──► Markdown, Shimmer
-PushNotifications                                    AnimatedLabel
+PushNotifications                                    AnimatedLabel ──► Svg
   Images ──► Common
   Voice ──► Common, Speech, AI.Functions
   Controls.Avatar ──► Controls.Avatar.Core, Speech, Voice, Spine (and SkiaSharp)
