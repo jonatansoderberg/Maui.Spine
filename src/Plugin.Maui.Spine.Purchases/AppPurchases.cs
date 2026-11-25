@@ -58,6 +58,8 @@ internal sealed class AppPurchases : IAppPurchases
 
     public event EventHandler<PurchasesChangedEventArgs>? Changed;
 
+    public event EventHandler<PaywallPurchasedEventArgs>? Purchased;
+
     public IReadOnlyList<OwnedProduct> OverlappingSubscriptions => PurchaseResolver.OverlappingSubscriptions(Catalog, Owned, _time.GetUtcNow());
 
     public bool IsActive<TPurchase>(TPurchase purchase) where TPurchase : struct, Enum => State(purchase).IsActive;
@@ -195,6 +197,16 @@ internal sealed class AppPurchases : IAppPurchases
         {
             var outcome = await navigation.NavigateToWithResultAsync<PaywallSheet, PaywallRequest, bool>(request);
             bought = outcome is { IsSuccess: true, Value: true };
+        }
+
+        if (bought)
+        {
+            var active = PurchaseResolver.Resolve(Catalog, Owned, _time.GetUtcNow()).Where(s => s.Value.IsActive).Select(s => s.Key).ToList();
+            var args = new PaywallPurchasedEventArgs(request.Purchase, active);
+            if (MainThread.IsMainThread)
+                Purchased?.Invoke(this, args);
+            else
+                MainThread.BeginInvokeOnMainThread(() => Purchased?.Invoke(this, args));
         }
 
         return request.Purchase is { } purchase ? State(purchase).IsActive : bought;

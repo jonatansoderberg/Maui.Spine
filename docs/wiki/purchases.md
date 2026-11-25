@@ -165,6 +165,18 @@ The cards are a step lighter than the sheet in the dark theme. The primary butto
 
 An app with its own paywall registers it with `.Paywall<MyPaywallPage>()`: a `[NavigableSheet]` that takes a `PaywallRequest` and returns `bool`.
 
+**After a purchase:** `Purchased` is raised on the main thread once a paywall has closed with a purchase or a restore, whichever paywall it was: the default one, the app's own, or one the settings section opened. The sheet is gone by then, so the app can open its own, such as a welcome:
+
+```csharp
+purchases.Purchased += async (_, e) =>
+{
+    if (e.Active.Contains(AppPurchase.Plus))
+        await navigation.NavigateToAsync<PlusWelcomePage>();
+};
+```
+
+`e.Purchase` is the purchase the paywall was opened for, or null for one that offered everything. A purchase made with `PurchaseAsync` directly raises only `Changed`.
+
 ## The settings section
 
 ```xml
