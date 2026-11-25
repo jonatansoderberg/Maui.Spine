@@ -273,6 +273,8 @@ The icons use the access colour, pink `#FF2D55`. The convention table gets the P
 
 Both adapters wrap the store package behind Spine's interface. An app never calls `Plugin.RevenueCat` or `Plugin.InAppBilling` directly, so changing adapter is a change in `MauiProgram`. Their versions are pinned in `Directory.Packages.props`, as for every dependency, and a new store package version goes through the Showcase on a device before a Spine release.
 
+No `Plugin.RevenueCat` below 0.4.47: on Android, 0.4.44 read every whole number in RevenueCat's answers back as a double, so each Play purchase failed with `DeserializeUnableToConvertValue … System.Nullable`1[System.Int64] Path: $.customer_info.request_date_ms` after Play had charged. Spine has been on 0.4.52 since then, the version a Play license tester bought with in Hockeymatch.
+
 ## 6. The server: `Plugin.Maui.Spine.Server.Purchases`
 
 The guard and the marks are UI only. Anything that costs money on the server must check the purchase there: AI calls, sync, storage, exports.

@@ -106,7 +106,7 @@
 		through the Showcase on a device before a Spine release (docs/proposals/spine-purchases.md, section 5).
 	-->
 	<ItemGroup>
-		<PackageVersion Include="Plugin.RevenueCat" Version="0.4.44" />
+		<PackageVersion Include="Plugin.RevenueCat" Version="0.4.52" />
 	</ItemGroup>
 
 	<!--
