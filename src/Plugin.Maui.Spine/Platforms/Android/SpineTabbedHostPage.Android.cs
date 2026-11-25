@@ -53,14 +53,20 @@ public partial class SpineTabbedHostPage
             bar.Animate()?.Cancel();
             bar.Visibility = ViewStates.Gone;
 
-            // With the bar gone, the content keeps the system navigation bar's inset at its foot,
-            // which the bar used to take on itself; the lightbox reaches under it, as over the bar.
+            // With the bar gone the content reaches the foot of the window, under the system
+            // navigation the bar used to take on itself: the lightbox reaches under it, as over the
+            // bar, and a page that hides the bar keeps the window's bottom inset, or its last rows
+            // end under the gesture bar, the three buttons or a tablet's taskbar.
             if (content?.LayoutParameters is ViewGroup.MarginLayoutParams margins)
             {
                 _contentBottomMargin = margins.BottomMargin;
                 margins.BottomMargin = 0;
                 content.LayoutParameters = margins;
             }
+
+            _tabBarHidden = true;
+            foreach (var slot in _slots)
+                slot.Insets.SetBottomOverride(null);
 
             return;
         }
@@ -72,12 +78,17 @@ public partial class SpineTabbedHostPage
             _contentBottomMargin = null;
         }
 
+        // Measured once the bar and the content have been laid out again.
+        _tabBarHidden = false;
+        bar.Post(ApplyTabBarInset);
+
         bar.Alpha = 0;
         bar.Visibility = ViewStates.Visible;
         bar.Animate()?.Alpha(1).SetDuration(200).Start();
     }
 
     private int? _contentBottomMargin;
+    private bool _tabBarHidden;
 
     /// <summary>The container the tabs' pages are shown in, beside the bar.</summary>
     private static Android.Views.View? TabContent(Android.Views.View bar)
@@ -112,7 +123,7 @@ public partial class SpineTabbedHostPage
     /// </remarks>
     private void ApplyTabBarInset()
     {
-        if (_bottomNav is not { IsAttachedToWindow: true } bottomNav)
+        if (_tabBarHidden || _bottomNav is not { IsAttachedToWindow: true } bottomNav)
             return;
 
         var density = bottomNav.Context?.Resources?.DisplayMetrics?.Density ?? 1f;
