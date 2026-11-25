@@ -6,8 +6,12 @@ using Microsoft.Maui.Platform;
 using Plugin.Maui.Spine.Core;
 using AColor = Android.Graphics.Color;
 using APaint = Android.Graphics.Paint;
-using ARect = Android.Graphics.Rect;
 using AView = Android.Views.View;
+using SurfaceView = Android.Views.SurfaceView;
+using TextureView = Android.Views.TextureView;
+using ViewGroup = Android.Views.ViewGroup;
+using ViewStates = Android.Views.ViewStates;
+using ViewTreeObserver = Android.Views.ViewTreeObserver;
 
 namespace Plugin.Maui.Spine.Extensions;
 
@@ -75,20 +79,36 @@ public static partial class SpineExtensions
 /// the blur cannot feed on its own output. The GPU blurs that node with a <see cref="RenderEffect"/>,
 /// and the view's own display list draws it; only the node is recorded again as content moves, not
 /// the view.
+/// <para>
+/// This runs on the main thread before every frame, for every material on screen, so it does little:
+/// what is behind is gathered once after each layout pass, and the node is recorded again only when the
+/// view or something behind it has moved, shown, hidden or drawn itself anew. A view group's children
+/// and a texture view's frames reach the node through their own display lists and layers, so a page
+/// animating behind the material, or a leaf turning on the GPU, costs a few position checks a frame.
+/// </para>
 /// </remarks>
-internal sealed class MaterialDrawable : Drawable
+internal sealed class MaterialDrawable : Drawable, ViewTreeObserver.IOnPreDrawListener, ViewTreeObserver.IOnGlobalLayoutListener
 {
     private readonly WeakReference<AView> _host;
     private readonly float _density;
     private readonly APaint _paint = new(PaintFlags.AntiAlias);
     private readonly APaint _edgePaint = new();
     private readonly APaint _maskPaint = new() { AntiAlias = true };
+    private readonly List<Behind> _items = [];
+    private readonly int[] _at = new int[2];
     private AColor _fill;
     private AColor? _edge;
     private float _fade;
     private IShape? _shape;
     private float _blurRadius;
+    private float _effectRadius;
     private RenderNode? _behind;
+    private bool _collected;
+    private bool _recorded;
+    private int _x, _y, _width, _height;
+    private long _recordedAt;
+    private Android.Graphics.Path? _clip;
+    private (int Width, int Height) _clipSize;
     private bool _listening;
     private float _presence = 1;
     private (float Radius, Microsoft.Maui.Graphics.Color Fill) _full;
@@ -109,6 +129,9 @@ internal sealed class MaterialDrawable : Drawable
 
     /// <summary>How much of the surface lies over the thinnest blur, as over the system's ultra-thin material.</summary>
     private const float ThinnestMilk = 0.1f;
+
+    /// <summary>How long what is behind may go without being recorded again while frames are drawn.</summary>
+    private const long RefreshMs = 500;
 
     public void Update(VisualElement owner)
     {
@@ -133,6 +156,10 @@ internal sealed class MaterialDrawable : Drawable
         _edge = Material.GetEdgeLine(owner)?.ToPlatform();
         _fade = (float)(Material.GetFade(owner) * _density);
         _shape = (owner as IBorderStroke)?.Shape;
+
+        // A new theme may have changed the backgrounds behind the view, and the shape its corners.
+        _collected = false;
+        _clip = null;
         InvalidateSelf();
     }
 
@@ -168,80 +195,176 @@ internal sealed class MaterialDrawable : Drawable
             return;
 
         _listening = on;
+        _collected = false;
         if (on)
-            observer.PreDraw += OnPreDraw;
+        {
+            observer.AddOnPreDrawListener(this);
+            observer.AddOnGlobalLayoutListener(this);
+        }
         else
-            observer.PreDraw -= OnPreDraw;
+        {
+            observer.RemoveOnPreDrawListener(this);
+            observer.RemoveOnGlobalLayoutListener(this);
+            _items.Clear();
+        }
     }
 
-    private void OnPreDraw(object? sender, Android.Views.ViewTreeObserver.PreDrawEventArgs e)
-    {
-        e.Handled = true;
+    // Views come and go, and grow or shrink, in a layout pass: what is behind is gathered again after one.
+    void ViewTreeObserver.IOnGlobalLayoutListener.OnGlobalLayout() => _collected = false;
 
+    // A hidden window gives up its texture views' layers, which the recording refers to.
+    public override bool SetVisible(bool visible, bool restart)
+    {
+        if (visible)
+            _collected = false;
+
+        return base.SetVisible(visible, restart);
+    }
+
+    bool ViewTreeObserver.IOnPreDrawListener.OnPreDraw()
+    {
         if (_blurRadius > 0 && OperatingSystem.IsAndroidVersionAtLeast(31)
-            && _host.TryGetTarget(out var host) && host.IsShown && host.Width > 0 && host.Height > 0)
+            && _host.TryGetTarget(out var host) && host.IsShown)
             RecordBehind(host);
+
+        return true;
     }
 
     [System.Runtime.Versioning.SupportedOSPlatform("android31.0")]
     private void RecordBehind(AView host)
     {
+        var width = host.Width;
+        var height = host.Height;
+        if (width <= 0 || height <= 0)
+            return;
+
+        if (!_collected)
+            Collect(host);
+
+        host.GetLocationInWindow(_at);
+        var (x, y) = (_at[0], _at[1]);
+
         _behind ??= new RenderNode("SpineMaterial");
-        _behind.SetPosition(0, 0, host.Width, host.Height);
-        _behind.SetRenderEffect(RenderEffect.CreateBlurEffect(_blurRadius, _blurRadius, Shader.TileMode.Clamp!));
+        if (_blurRadius != _effectRadius)
+        {
+            // A property of the node: a new radius needs no new recording.
+            _effectRadius = _blurRadius;
+            _behind.SetRenderEffect(RenderEffect.CreateBlurEffect(_blurRadius, _blurRadius, Shader.TileMode.Clamp!));
+        }
+
+        // What the checks below cannot see (a view group drawing something new of its own, an ancestor's
+        // background changing in place) shows within a moment.
+        var now = Environment.TickCount64;
+        var record = !_recorded || now - _recordedAt >= RefreshMs || x != _x || y != _y || width != _width || height != _height;
+        if (width != _width || height != _height)
+            _behind.SetPosition(0, 0, width, height);
+        (_x, _y, _width, _height) = (x, y, width, height);
+
+        foreach (var item in _items)
+        {
+            var shows = true;
+            if (item.Background is null)
+            {
+                var view = item.View;
+                shows = view.Visibility == ViewStates.Visible && view.Alpha > 0;
+                if (shows)
+                {
+                    view.GetLocationInWindow(_at);
+                    shows = _at[0] < x + width && x < _at[0] + item.Width && _at[1] < y + height && y < _at[1] + item.Height;
+                }
+
+                // A view whose own drawing is copied into the node, not referred to through its display list.
+                record |= shows && item.DrawsItself && view.IsDirty;
+            }
+            else
+            {
+                item.View.GetLocationInWindow(_at);
+            }
+
+            record |= shows != item.Shows || (shows && (_at[0] != item.X || _at[1] != item.Y));
+            (item.Shows, item.X, item.Y) = (shows, _at[0], _at[1]);
+        }
+
+        if (!record)
+            return;
 
         var canvas = _behind.BeginRecording();
         try
         {
-            var origin = new int[2];
-            host.GetLocationInWindow(origin);
-
-            // From the window down: each ancestor's background, then the children it draws before the
-            // branch that leads to the view.
-            var chain = new List<(Android.Views.ViewGroup Parent, AView Child)>();
-            for (var child = host; child.Parent is Android.Views.ViewGroup parent; child = parent)
-                chain.Add((parent, child));
-
-            var bounds = new ARect(origin[0], origin[1], origin[0] + host.Width, origin[1] + host.Height);
-            for (var level = chain.Count - 1; level >= 0; level--)
+            foreach (var item in _items)
             {
-                var (parent, child) = chain[level];
-                DrawAt(canvas, parent, origin, parent.Background);
+                if (!item.Shows)
+                    continue;
 
-                for (var i = 0; i < parent.ChildCount && parent.GetChildAt(i) is { } sibling && sibling != child; i++)
-                {
-                    if (sibling.Visibility != Android.Views.ViewStates.Visible || sibling.Alpha <= 0)
-                        continue;
-
-                    var at = new int[2];
-                    sibling.GetLocationInWindow(at);
-                    if (!ARect.Intersects(bounds, new ARect(at[0], at[1], at[0] + sibling.Width, at[1] + sibling.Height)))
-                        continue;
-
-                    canvas.Save();
-                    canvas.Translate(at[0] - origin[0], at[1] - origin[1]);
-                    sibling.Draw(canvas);
-                    canvas.Restore();
-                }
+                canvas.Save();
+                canvas.Translate(item.X - x, item.Y - y);
+                if (item.Background is { } background)
+                    background.Draw(canvas);
+                else
+                    item.View.Draw(canvas);
+                canvas.Restore();
             }
         }
         finally
         {
             _behind.EndRecording();
         }
+
+        _recorded = true;
+        _recordedAt = now;
     }
 
-    private static void DrawAt(Canvas canvas, AView view, int[] origin, Drawable? drawable)
+    /// <summary>
+    /// From the window down: each ancestor's background, then the children it draws before the branch that
+    /// leads to the view.
+    /// </summary>
+    private void Collect(AView host)
     {
-        if (drawable is null)
-            return;
+        _items.Clear();
+        var chain = new List<(ViewGroup Parent, AView Child)>();
+        for (var child = host; child.Parent is ViewGroup parent; child = parent)
+            chain.Add((parent, child));
 
-        var at = new int[2];
-        view.GetLocationInWindow(at);
-        canvas.Save();
-        canvas.Translate(at[0] - origin[0], at[1] - origin[1]);
-        drawable.Draw(canvas);
-        canvas.Restore();
+        for (var level = chain.Count - 1; level >= 0; level--)
+        {
+            var (parent, child) = chain[level];
+            if (parent.Background is { } background)
+                _items.Add(new Behind(parent, background));
+
+            for (var i = 0; i < parent.ChildCount && parent.GetChildAt(i) is { } sibling && sibling != child; i++)
+            {
+                if (sibling.Width > 0 && sibling.Height > 0)
+                    _items.Add(new Behind(sibling, null) { Width = sibling.Width, Height = sibling.Height });
+            }
+        }
+
+        _collected = true;
+        _recorded = false;
+    }
+
+    /// <summary>Something drawn behind the view: an ancestor's background, or a sibling drawn before the view's branch.</summary>
+    private sealed class Behind(AView view, Drawable? background)
+    {
+        public AView View { get; } = view;
+
+        public Drawable? Background { get; } = background;
+
+        /// <summary>
+        /// Whether the view's own drawing goes into the node rather than being referred to: a view group's
+        /// children are drawn through their display lists, and a texture view through its layer, so the node
+        /// shows what they draw next without being recorded again.
+        /// </summary>
+        public bool DrawsItself { get; } = background is null && view is not ViewGroup and not TextureView and not SurfaceView;
+
+        public int Width { get; init; }
+
+        public int Height { get; init; }
+
+        public int X { get; set; }
+
+        public int Y { get; set; }
+
+        public bool Shows { get; set; }
     }
 
     public override void Draw(Canvas canvas)
@@ -252,11 +375,11 @@ internal sealed class MaterialDrawable : Drawable
 
         canvas.Save();
 
-        if (_shape is not null)
+        if (Clip(bounds.Width(), bounds.Height()) is { } clip)
         {
-            using var path = _shape.PathForBounds(new Microsoft.Maui.Graphics.Rect(0, 0, bounds.Width() / _density, bounds.Height() / _density)).AsAndroidPath(scaleX: _density, scaleY: _density);
-            path.Offset(bounds.Left, bounds.Top);
-            canvas.ClipPath(path);
+            canvas.Translate(bounds.Left, bounds.Top);
+            canvas.ClipPath(clip);
+            canvas.Translate(-bounds.Left, -bounds.Top);
         }
 
         var height = bounds.Height();
@@ -309,6 +432,37 @@ internal sealed class MaterialDrawable : Drawable
         }
 
         canvas.Restore();
+    }
+
+    /// <summary>
+    /// The view's shape at this size. A rounded rectangle goes in as one, which the GPU clips to exactly;
+    /// any other path is drawn into a mask on the CPU and uploaded as a texture each time what it clips changes.
+    /// </summary>
+    private Android.Graphics.Path? Clip(int width, int height)
+    {
+        if (_shape is null)
+            return null;
+
+        if (_clip is not null && _clipSize == (width, height))
+            return _clip;
+
+        var bounds = new Microsoft.Maui.Graphics.Rect(0, 0, width / _density, height / _density);
+        if (_shape is Microsoft.Maui.Controls.Shapes.RoundRectangle round)
+        {
+            var max = (float)Math.Min(bounds.Width, bounds.Height) / 2;
+            var radius = round.CornerRadius;
+            float Corner(double r) => Math.Clamp((float)r, 0, max) * _density;
+            var (topLeft, topRight, bottomRight, bottomLeft) = (Corner(radius.TopLeft), Corner(radius.TopRight), Corner(radius.BottomRight), Corner(radius.BottomLeft));
+            _clip = new Android.Graphics.Path();
+            _clip.AddRoundRect(0, 0, width, height, [topLeft, topLeft, topRight, topRight, bottomRight, bottomRight, bottomLeft, bottomLeft], Android.Graphics.Path.Direction.Cw!);
+        }
+        else
+        {
+            _clip = _shape.PathForBounds(bounds).AsAndroidPath(scaleX: _density, scaleY: _density);
+        }
+
+        _clipSize = (width, height);
+        return _clip;
     }
 
     public override void SetAlpha(int alpha) => _paint.Alpha = alpha;
