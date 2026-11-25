@@ -35,6 +35,12 @@ internal sealed class FrameTimer
 
     public bool IsRunning { get; private set; }
 
+    /// <summary>
+    /// When the frame of the latest <see cref="Tick"/> is drawn, in seconds on the display's clock: vsync-aligned, so the
+    /// difference between two ticks is the time between their frames, steadier than a clock read in the handler.
+    /// </summary>
+    public double FrameSeconds { get; private set; }
+
     public event EventHandler? Tick;
 
     public void Start()
@@ -83,6 +89,7 @@ internal sealed class FrameTimer
         if (seconds < _due - Tolerance)
             return;
         _due += interval;
+        FrameSeconds = seconds;
         Tick?.Invoke(this, EventArgs.Empty);
     }
 
