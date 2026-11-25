@@ -9,23 +9,37 @@ namespace Plugin.Maui.Spine.Extensions;
 
 internal sealed partial class MotionState
 {
-    // One listener and one frame callback for every view: running while a view with a depth is
-    // attached to a window, the app is in front and animations are not removed. The sensor only moves
-    // the tracker's target; the views move on the display's frames, as UIInterpolatingMotionEffect
-    // does on iOS, so a 90 or 120 Hz display gets a step every frame instead of every sample.
+    // One listener and one frame callback for every view: the listener runs while a view with a depth
+    // is attached to a window, the app is in front and animations are not removed. The sensor only
+    // moves the tracker's target; the views move on the display's frames, as UIInterpolatingMotionEffect
+    // does on iOS, so a 90 or 120 Hz display gets a step every frame instead of every sample. The frame
+    // callback stops when the views reach the target, so a device at rest draws nothing for the tilt,
+    // and starts again when a sample moves the target further than RestPixels.
     static readonly List<MotionState> OnScreen = [];
     static readonly TiltTracker Tracker = new();
     static readonly float[] Rotation = new float[9];
     // Every frame: no interval is shorter than the display's.
-    static readonly FrameTimer Frames = new() { Interval = TimeSpan.Zero };
+    static readonly FrameTimer Frames = CreateFrames();
     static TiltListener? _listener;
     static double _lastFrame;
+    static double _rest = TiltTracker.DefaultRest;
     static bool _stopped;
 
     // Faster than any display, so the target is never more than a few milliseconds old: 200 Hz. The
     // binding passes a number above SensorDelay's named rates on as a sampling period in microseconds,
     // and Android caps it at the sensor's own fastest rate.
     const int SamplingMicroseconds = 5_000;
+
+    // How close to the target, at the deepest view, counts as there; below it sensor noise on a still
+    // device does not wake the frame callback.
+    const double RestPixels = 0.25;
+
+    static FrameTimer CreateFrames()
+    {
+        var frames = new FrameTimer { Interval = TimeSpan.Zero };
+        frames.Tick += OnFrame;
+        return frames;
+    }
 
     AView? _host;
     AttachListener? _attach;
@@ -69,13 +83,18 @@ internal sealed partial class MotionState
         _host = null;
     }
 
-    partial void UpdatePlatform() => Apply(Tracker.X, Tracker.Y);
+    partial void UpdatePlatform()
+    {
+        UpdateRest();
+        Apply(Tracker.X, Tracker.Y);
+    }
 
     void Join()
     {
         if (!OnScreen.Contains(this))
             OnScreen.Add(this);
 
+        UpdateRest();
         Evaluate();
         Apply(Tracker.X, Tracker.Y);
     }
@@ -83,6 +102,7 @@ internal sealed partial class MotionState
     void Leave()
     {
         OnScreen.Remove(this);
+        UpdateRest();
         Evaluate();
     }
 
@@ -134,10 +154,6 @@ internal sealed partial class MotionState
         Tracker.Reset();
         _listener = new TiltListener(manager);
         manager.RegisterListener(_listener, sensor, (SensorDelay)SamplingMicroseconds);
-
-        _lastFrame = 0;
-        Frames.Tick += OnFrame;
-        Frames.Start();
     }
 
     /// <summary>The sensor the tilt is read from, or <see langword="null"/> when the device has neither.</summary>
@@ -162,7 +178,6 @@ internal sealed partial class MotionState
         listener.Manager.UnregisterListener(listener);
         listener.Dispose();
         Frames.Stop();
-        Frames.Tick -= OnFrame;
         Tracker.Reset();
 
         foreach (var state in OnScreen.ToArray())
@@ -178,23 +193,46 @@ internal sealed partial class MotionState
 
         var quarterTurns = (int)(OnScreen[0]._host?.Display?.Rotation ?? Android.Views.SurfaceOrientation.Rotation0);
         Tracker.Update(Rotation, timestamp, quarterTurns);
+
+        if (!Frames.IsRunning && Tracker.IsAway(_rest))
+        {
+            _lastFrame = 0;
+            Frames.Start();
+        }
     }
 
     static void OnFrame(object? sender, EventArgs e)
     {
         var now = Frames.FrameSeconds;
-        // The first frame only sets the clock: the tracker starts at the centre anyway.
-        var seconds = _lastFrame == 0 ? 0 : now - _lastFrame;
+        // The first frame after a start moves by one frame: the target has already moved.
+        var seconds = _lastFrame == 0 ? FramePeriod() : now - _lastFrame;
         _lastFrame = now;
 
-        // Nothing to set once the layers have reached the target: the views keep their translation
-        // and nothing is redrawn for the tilt.
-        if (!Tracker.Advance(seconds))
-            return;
+        if (Tracker.Advance(seconds, _rest))
+        {
+            foreach (var state in OnScreen)
+                state.Apply(Tracker.X, Tracker.Y);
+        }
 
-        foreach (var state in OnScreen)
-            state.Apply(Tracker.X, Tracker.Y);
+        if (Tracker.IsAtRest)
+            Frames.Stop();
     }
+
+    // RestPixels in the tracker's units (-1 to 1 at full depth), at the deepest view on screen.
+    static void UpdateRest()
+    {
+        var pixels = 0.0;
+        foreach (var state in OnScreen)
+        {
+            var density = state._host?.Resources?.DisplayMetrics?.Density ?? 1;
+            pixels = Math.Max(pixels, Math.Abs(state.Depth) * density);
+        }
+
+        _rest = pixels > 0 ? RestPixels / pixels : TiltTracker.DefaultRest;
+    }
+
+    static double FramePeriod() =>
+        OnScreen.Count > 0 && OnScreen[0]._host?.Display?.RefreshRate is > 1 and var rate ? 1 / rate : 1.0 / 60;
 
     static readonly float[][] Vectors = [new float[3], new float[4], new float[5]];
 

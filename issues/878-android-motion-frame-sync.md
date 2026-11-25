@@ -25,12 +25,17 @@
 - `TiltTrackerTests`: helpers drive `Update` + `Advance`; new tests for the target/frame split, the same
   distance at 60/90/120/144 Hz frames and 50/60/200 Hz samples, two half frames equal one full frame, the
   stall cap, coming to rest, and `Reset`.
-
 - Checked in the Showcase's Motion page on the Pixel 10 Pro emulator (60 Hz, host under load) with a temporary
   log: the sensor delivered ~100 samples/s (the emulator's cap), the views moved once per delivered frame, and
   tilting through `adb emu sensor set acceleration` moved the layers (X ±0.2, visible in screenshots). The
   listener and frame callback stopped on Home and on leaving the page, started again on return, and did not
   start with animations removed (`animator_duration_scale 0`). Not checked on a 90/120 Hz device.
+
+- Rest (after the Galaxy Tab S10 FE test, where the depth felt smooth but an idle Almanacka still drew ~86 of
+  90 fps): the frame callback stops once the views reach the target within 0.25 px at the deepest view
+  (`TiltTracker.Advance(seconds, rest)`, `IsAtRest`, `IsAway(rest)`), and a sensor sample that moves the target
+  further than that starts it again. The first frame after a start moves by one display period, so the start
+  of a tilt is not a frame late.
 
 ## Decisions
 - **200 Hz, not `SENSOR_DELAY_GAME`.** `SENSOR_DELAY_GAME` is 20 ms (50 Hz), slower than the old 60 Hz. With
@@ -44,3 +49,8 @@
   seen.
 - **Nothing is set when the tracker is at rest**, so a still device does not invalidate the views every frame.
   The Choreographer callback keeps running while the listener runs, as the sensor keeps sampling then anyway.
+- **0.25 px rest, not rounding the translation to whole pixels.** Whole-pixel steps would show as judder on a
+  slow tilt; a quarter pixel is below what can be seen, and above the noise of a device lying on a table
+  (about a hundredth of a degree, against about 0.1° for 0.25 px at a 16 pt depth). The threshold is per
+  deepest view and screen density, kept in `_rest` and recomputed when views come and go or a depth changes,
+  not on each of the 200 samples a second.

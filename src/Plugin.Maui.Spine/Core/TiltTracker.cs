@@ -52,14 +52,22 @@ internal sealed class TiltTracker
         TargetY = 0;
     }
 
+    /// <summary>Whether the layers are on the target: nothing for <see cref="Advance"/> to do.</summary>
+    public bool IsAtRest => X == TargetX && Y == TargetY;
+
     /// <summary>
     /// Moves <see cref="X"/> and <see cref="Y"/> toward the target by <paramref name="seconds"/>, the
     /// time since the last frame. Called once per display frame.
     /// </summary>
+    /// <param name="seconds">The time since the last frame.</param>
+    /// <param name="rest">
+    /// How close to the target, along each axis, counts as on it: the layers then jump onto it and
+    /// <see cref="IsAtRest"/> is <see langword="true"/>. A fraction of a pixel at the deepest layer.
+    /// </param>
     /// <returns>Whether <see cref="X"/> or <see cref="Y"/> changed.</returns>
-    public bool Advance(double seconds)
+    public bool Advance(double seconds, double rest = DefaultRest)
     {
-        if (!(seconds > 0) || (X == TargetX && Y == TargetY))
+        if (!(seconds > 0) || IsAtRest)
             return false;
 
         // A frame after a stall (the app in the background, a long layout) moves at most this far.
@@ -67,12 +75,17 @@ internal sealed class TiltTracker
         X += (TargetX - X) * smooth;
         Y += (TargetY - Y) * smooth;
 
-        // Close enough to stop: far below a pixel at any depth.
-        if (Math.Abs(TargetX - X) < 1e-4 && Math.Abs(TargetY - Y) < 1e-4)
+        if (!IsAway(rest))
             (X, Y) = (TargetX, TargetY);
 
         return true;
     }
+
+    /// <summary>Whether the target is further than <paramref name="rest"/> from the layers along either axis.</summary>
+    public bool IsAway(double rest) => Math.Abs(TargetX - X) >= rest || Math.Abs(TargetY - Y) >= rest;
+
+    /// <summary>The <c>rest</c> of <see cref="Advance"/> when none is given: far below a pixel at any depth.</summary>
+    public const double DefaultRest = 1e-4;
 
     /// <summary>The longest time one <see cref="Update"/> or <see cref="Advance"/> accounts for.</summary>
     public const double MaxStepSeconds = 0.25;

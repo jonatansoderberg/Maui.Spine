@@ -209,7 +209,51 @@ public class TiltTrackerTests
         }
 
         Assert.Equal(tracker.TargetX, tracker.X);
+        Assert.True(tracker.IsAtRest);
         Assert.False(tracker.Advance(1.0 / 120));
+    }
+
+    static int FramesToRest(double rest)
+    {
+        var tracker = new TiltTracker();
+        tracker.Update(Flat, 0, 0);
+        tracker.Update(Rotation(10, 0), Frame, 0);
+
+        var frames = 0;
+        while (!tracker.IsAtRest && frames < 1000)
+        {
+            tracker.Advance(1.0 / 90, rest);
+            frames++;
+        }
+
+        return frames;
+    }
+
+    [Fact]
+    public void A_coarser_rest_stops_sooner()
+    {
+        // 0.25 px at a 16 pt depth on a 2× screen, against the default.
+        var coarse = FramesToRest(0.25 / 32);
+        var fine = FramesToRest(TiltTracker.DefaultRest);
+
+        Assert.InRange(coarse, 1, fine - 10);
+    }
+
+    [Fact]
+    public void Noise_within_the_rest_does_not_wake_it_and_a_tilt_does()
+    {
+        const double rest = 0.25 / 32;
+        var tracker = Settled(Rotation(0, 0), 60);
+        Assert.True(tracker.IsAtRest);
+
+        // A hundredth of a degree: the noise of a device lying on a table.
+        tracker.Update(Rotation(0.01, 0.01), 61 * Frame, 0);
+        Assert.False(tracker.IsAway(rest));
+
+        tracker.Update(Rotation(1, 0), 62 * Frame, 0);
+        Assert.True(tracker.IsAway(rest));
+        Assert.True(tracker.Advance(1.0 / 90, rest));
+        Assert.False(tracker.IsAtRest);
     }
 
     [Fact]
