@@ -324,6 +324,10 @@ public static class SpineIcons
     public const string SmokeDetector = "SmokeDetector.svg";
     /// <summary>The <c>Sort.svg</c> icon.</summary>
     public const string Sort = "Sort.svg";
+    /// <summary>The <c>Sparkle.svg</c> icon: a four-pointed sparkle in outline.</summary>
+    public const string Sparkle = "Sparkle.svg";
+    /// <summary>The <c>SparkleFilled.svg</c> icon: the four-pointed sparkle filled, for a mark at a small size, such as after a title.</summary>
+    public const string SparkleFilled = "SparkleFilled.svg";
     /// <summary>The <c>Speaker.svg</c> icon.</summary>
     public const string Speaker = "Speaker.svg";
     /// <summary>The <c>SpineLogo.svg</c> icon.</summary>
@@ -679,6 +683,8 @@ public static class SpineIcons
         SmartClock,
         SmokeDetector,
         Sort,
+        Sparkle,
+        SparkleFilled,
         Speaker,
         SpineLogo,
         Spot,

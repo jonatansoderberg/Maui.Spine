@@ -2,6 +2,7 @@ using System.Globalization;
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
 using Microsoft.Maui.Layouts;
+using Plugin.Maui.Spine.Svg;
 
 namespace Plugin.Maui.Spine.Presentation;
 
@@ -25,6 +26,7 @@ internal sealed partial class PagePresenter : Grid
         PageActionView.UseGlassHeaderActions || OperatingSystem.IsWindows() ? HeaderBarConstants.PageMargin : TitleEdgePadding;
 
     private Label? _titleLabel;
+    private readonly Image _titleIcon;
     private readonly TitleSlotLayout _titleBar;
 
     /// <summary>The row the page's title sits in, part of the page; a lightbox fades it with its other chrome.</summary>
@@ -100,8 +102,13 @@ internal sealed partial class PagePresenter : Grid
             IsVisible = false
         };
 
+        // The page's TitleIcon, laid out after the title's text by the title row.
+        _titleIcon = new Image { IsVisible = false, InputTransparent = true };
+        AutomationProperties.SetIsInAccessibleTree(_titleIcon, false);
+
         _titleBar = new TitleSlotLayout();
         _titleBar.Add(_titleLabel);
+        _titleBar.Add(_titleIcon);
 
         _barBackground = new ContentView { InputTransparent = true, IsVisible = false, Opacity = 0 };
 
@@ -127,7 +134,14 @@ internal sealed partial class PagePresenter : Grid
         _titleLabel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IsVisible))
+            {
                 ApplyTitleRowHeight();
+                ApplyTitleIcon();
+            }
+            else if (e.PropertyName == nameof(Opacity))
+                _titleIcon.Opacity = _titleLabel.Opacity;
+            else if (e.PropertyName is nameof(Label.FontSize) or nameof(Label.TextColor))
+                ApplyTitleIcon();
         };
 
         _titleLabel.HandlerChanged += (_, _) => ApplyResources();
@@ -300,6 +314,8 @@ internal sealed partial class PagePresenter : Grid
             UpdateSystemScrollEdge();
         else if (e.PropertyName is nameof(ViewModelBase.FormattedTitle))
             ApplyTitleText();
+        else if (e.PropertyName is nameof(ViewModelBase.TitleIcon) or nameof(ViewModelBase.TitleIconColor) or nameof(ViewModelBase.TitleIconLineWidthScale))
+            ApplyTitleIcon();
         else if (e.PropertyName is nameof(ViewModelBase.SearchProgress))
         {
             ApplySearchRowFrame();
@@ -314,8 +330,33 @@ internal sealed partial class PagePresenter : Grid
     // The page's title: its formatted title when it has one, otherwise the plain one, which follows the view model.
     // A label shows one or the other, and setting its text would take a formatted title away again, so the binding
     // goes while a formatted title is shown.
+    // The page's TitleIcon after the title, in the page's colour or the title's, shown while the title is. Spine's
+    // icons keep room around their glyph (a plus fills about 40 % of its box), so the box is half again the title's
+    // font size: the glyph then stands about as tall as the title's capitals.
+    private void ApplyTitleIcon()
+    {
+        if (_titleLabel is null)
+            return;
+
+        var svg = _page?.TitleIcon;
+        _titleIcon.IsVisible = _titleLabel.IsVisible && !string.IsNullOrWhiteSpace(svg);
+        if (!_titleIcon.IsVisible)
+            return;
+
+        var size = Math.Round(1.5 * (_titleLabel.FontSize > 0 ? _titleLabel.FontSize : 17));
+        _titleIcon.WidthRequest = _titleIcon.HeightRequest = size;
+        var colour = _page?.TitleIconColor ?? _titleLabel.TextColor ?? Colors.Black;
+        SvgImageSource.SetLightTintColor(_titleIcon, colour);
+        SvgImageSource.SetDarkTintColor(_titleIcon, colour);
+        SvgImageSource.SetLineWidthScale(_titleIcon, _page?.TitleIconLineWidthScale ?? 1);
+        if (SvgImageSource.GetSvg(_titleIcon) != svg)
+            SvgImageSource.SetSvg(_titleIcon, svg);
+        _titleIcon.Opacity = _titleLabel.Opacity;
+    }
+
     private void ApplyTitleText()
     {
+        ApplyTitleIcon();
         if (_titleLabel is null)
             return;
 
@@ -809,9 +850,15 @@ internal sealed class TitleSlotLayout : Layout, ILayoutManager
 
     protected override ILayoutManager CreateLayoutManager() => this;
 
+    /// <summary>The room between the title's text and its icon's box; the room around the icon's glyph adds to it.</summary>
+    internal const double IconSpacing = 0;
+
+    private Size _icon;
+
     Size ILayoutManager.Measure(double widthConstraint, double heightConstraint)
     {
         _natural = Size.Zero;
+        _icon = Size.Zero;
 
         if (Count == 0 || this[0] is not IView child || child.Visibility != Visibility.Visible)
             return Size.Zero;
@@ -819,13 +866,20 @@ internal sealed class TitleSlotLayout : Layout, ILayoutManager
         // Unconstrained on purpose: the label truncates, so measuring it against the width it is
         // about to get back would only ever confirm that it fits.
         _natural = child.Measure(double.PositiveInfinity, heightConstraint);
+        if (Icon is { } icon)
+            _icon = icon.Measure(double.PositiveInfinity, double.PositiveInfinity);
 
         var width = double.IsInfinity(widthConstraint)
-            ? _natural.Width + Slots.HorizontalThickness
+            ? _natural.Width + IconRoom + Slots.HorizontalThickness
             : widthConstraint;
 
         return new Size(width, _natural.Height);
     }
+
+    // The page's title icon, when it has one to show (PagePresenter's second child).
+    private IView? Icon => Count > 1 && this[1] is IView { Visibility: Visibility.Visible } icon ? icon : null;
+
+    private double IconRoom => Icon is null ? 0 : IconSpacing + _icon.Width;
 
     Size ILayoutManager.ArrangeChildren(Rect bounds)
     {
@@ -835,20 +889,35 @@ internal sealed class TitleSlotLayout : Layout, ILayoutManager
         var mirrored = Math.Max(Slots.Left, Slots.Right);
         var centredRoom = bounds.Width - (2 * mirrored);
         var isCentred = this[0] is Label { HorizontalTextAlignment: TextAlignment.Center };
+        var iconRoom = IconRoom;
 
         // A centred title stays put, as a navigation bar's does: it keeps its own width in the
         // middle of the bar, so an action that grows or shrinks beside it (even inside an
         // animation) does not change its frame, and it is truncated rather than pushed aside
-        // when it no longer fits.
+        // when it no longer fits. With an icon, the title and the icon are centred together,
+        // and the title gives way first.
         // Before the title is measured its natural width is 0: a frame of that width would be a
         // point that the title then grows out of.
         var (left, width) = isCentred
             ? _natural.Width > 0
-                ? CentredFrame(bounds.Width, Math.Min(_natural.Width, centredRoom))
+                ? CentredFrame(bounds.Width, Math.Min(_natural.Width + iconRoom, centredRoom))
                 : (mirrored, centredRoom)
             : (Slots.Left, bounds.Width - Slots.HorizontalThickness);
+        var textWidth = iconRoom > 0 && _natural.Width > 0 ? Math.Min(_natural.Width, width - iconRoom) : width - iconRoom;
 
-        child.Arrange(new Rect(bounds.X + left, bounds.Y, Math.Max(0, width), bounds.Height));
+        child.Arrange(new Rect(bounds.X + left, bounds.Y, Math.Max(0, textWidth), bounds.Height));
+
+        // Centred on the title's text: the label's own row, above the padding and margin that keep it as tall as the bar.
+        if (Icon is { } icon && this[0] is Label label)
+        {
+            var textTop = label.Margin.Top + label.Padding.Top;
+            var textHeight = bounds.Height - label.Margin.VerticalThickness - label.Padding.VerticalThickness;
+            icon.Arrange(new Rect(
+                bounds.X + left + Math.Max(0, textWidth) + IconSpacing,
+                bounds.Y + textTop + ((textHeight - _icon.Height) / 2),
+                _icon.Width,
+                _icon.Height));
+        }
 
         return bounds.Size;
     }

@@ -43,6 +43,22 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     public partial FormattedString? FormattedTitle { get; set; }
 
+    /// <summary>
+    /// An embedded SVG drawn right after the title in the header bar, <c>"Plus.svg"</c>: a mark that belongs to the
+    /// title, such as a plan the user has. Its glyph stands about as tall as the title's capitals, centred with them, and fades and hides
+    /// with it; a title too long for the bar truncates before the icon goes. Null, the default, draws none.
+    /// </summary>
+    [ObservableProperty]
+    public partial string? TitleIcon { get; set; }
+
+    /// <summary>The colour of <see cref="TitleIcon"/>; null, the default, is the title's own.</summary>
+    [ObservableProperty]
+    public partial Color? TitleIconColor { get; set; }
+
+    /// <summary>Multiplies <see cref="TitleIcon"/>'s stroke widths, as <c>SvgImageSource.LineWidthScale</c>, to match the title's weight. 1 by default.</summary>
+    [ObservableProperty]
+    public partial double TitleIconLineWidthScale { get; set; } = 1;
+
     /// <summary>Controls whether the native window title bar is shown (desktop only).</summary>
     [ObservableProperty]
     public partial bool IsTitleBarVisible { get; set; }
