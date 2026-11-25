@@ -22,6 +22,13 @@ public interface IAppPurchases
     /// <summary>Raised on the main thread when the active purchases change: a purchase, a restore, a renewal, an expiry or a refund.</summary>
     event EventHandler<PurchasesChangedEventArgs>? Changed;
 
+    /// <summary>
+    /// Raised on the main thread after a paywall has closed with a purchase or a restore: the default paywall, the app's own
+    /// paywall page, or one opened from <see cref="PurchasesSection"/>. The sheet is gone by then, so the app can open its own,
+    /// such as a welcome or a thank-you. Not raised for <see cref="PurchaseAsync"/> called directly.
+    /// </summary>
+    event EventHandler<PaywallPurchasedEventArgs>? Purchased;
+
     /// <summary>Asks the store again for what the user owns.</summary>
     Task RefreshAsync(CancellationToken cancellationToken = default);
 
@@ -86,6 +93,18 @@ public sealed record PurchaseResult(PurchaseStatus Status, string? ErrorCode = n
 
     /// <summary>A failure with the store's code and message.</summary>
     public static PurchaseResult Failed(string? code, string? message) => new(PurchaseStatus.Failed, code, message);
+}
+
+/// <summary>What a paywall ended with in <see cref="IAppPurchases.Purchased"/>.</summary>
+/// <param name="purchase">The purchase the paywall was opened for, or null for one that offered every product.</param>
+/// <param name="active">The purchases active once the paywall closed.</param>
+public sealed class PaywallPurchasedEventArgs(Enum? purchase, IReadOnlyList<Enum> active) : EventArgs
+{
+    /// <summary>The purchase the paywall was opened for, or null for one that offered every product.</summary>
+    public Enum? Purchase { get; } = purchase;
+
+    /// <summary>The purchases active once the paywall closed.</summary>
+    public IReadOnlyList<Enum> Active { get; } = active;
 }
 
 /// <summary>What changed in <see cref="IAppPurchases.Changed"/>.</summary>
