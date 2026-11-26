@@ -191,7 +191,26 @@ public sealed class PaywallOptions<TPurchase, TProduct>
     /// <summary>The terms of use. Required: App Review rejects a subscription paywall without it (guideline 3.1.2).</summary>
     public PaywallOptions<TPurchase, TProduct> Terms(Uri terms)
     {
-        _settings.Terms = terms;
+        _settings.Terms.Everywhere = terms;
+        return this;
+    }
+
+    /// <summary>
+    /// The terms of use per store, for an app whose terms differ by store: the link for the store the build sells
+    /// through is shown (iOS and Mac Catalyst: <paramref name="apple"/>; Android: <paramref name="google"/>; Windows:
+    /// <paramref name="microsoft"/>), or the one <see cref="Terms(Uri)"/> gave. Start-up stops when the running
+    /// platform has none.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// .Terms(apple: PaywallTerms.AppleStandardEula, google: new Uri("https://example.se/terms"))
+    /// </code>
+    /// </example>
+    public PaywallOptions<TPurchase, TProduct> Terms(Uri? apple, Uri? google, Uri? microsoft = null)
+    {
+        _settings.Terms.Apple = apple;
+        _settings.Terms.Google = google;
+        _settings.Terms.Microsoft = microsoft;
         return this;
     }
 
@@ -289,7 +308,7 @@ internal sealed class PaywallSettings
     public PaywallText Text { get; } = new();
     public Dictionary<Enum, string> Descriptions { get; } = [];
     public Dictionary<Enum, PaywallText> PerPurchase { get; } = [];
-    public Uri? Terms { get; set; }
+    public StoreLinks Terms { get; } = new();
     public Uri? Privacy { get; set; }
 }
 

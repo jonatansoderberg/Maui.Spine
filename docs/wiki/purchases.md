@@ -74,11 +74,19 @@ builder.UseSpinePurchases<AppPurchase, AppProduct>(o => o
 The start-up stops with a message in these cases:
 
 - there is no store;
-- `Terms` or `Privacy` is missing. App Review rejects a subscription paywall without both links (guideline 3.1.2);
+- `Terms` or `Privacy` is missing, or the per-store `Terms` has no link for the store the build sells through. App Review rejects a subscription paywall without both links (guideline 3.1.2);
 - a product has no `[StoreProduct]`;
 - a `[Grants]` names something that is not a purchase;
 - `UseSpinePurchases` is called twice, or before `UseSpine()`;
 - a Release build is on the test store. Set `o.AllowTestStoreInRelease = true` for a build that sells nothing, as the Showcase does.
+
+**Terms per store.** An app without terms of its own uses Apple's standard licence on the App Store, which does not fit a Google Play build. Give each store its own link; `.Terms(uri)` stays the one for every store, and a store's own link comes first:
+
+```csharp
+.Terms(apple: PaywallTerms.AppleStandardEula, google: new Uri("https://example.se/terms"))
+```
+
+The paywall shows the link for the store the build sells through: iOS and Mac Catalyst `apple`, Android `google`, Windows `microsoft`.
 
 ## Checking a purchase
 

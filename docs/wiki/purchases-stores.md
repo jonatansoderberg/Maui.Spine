@@ -69,14 +69,10 @@ One RevenueCat **project per app**, with an **App Store app** and a **Play Store
 ## The app
 
 - **The keys** in the build: `r.AppleApiKey` / `r.GoogleApiKey`. Hockeymatch reads them from `appsettings.json`, Glukos from MSBuild properties. Without them an app can fall back to the test store, which charges nothing; only `AllowTestStoreInRelease` lets that through in a Release build.
-- **Terms and privacy must be public pages.** A link into a private repository is a rejection. Apple's standard licence (`https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`) is the terms on iOS when the app has no terms of its own; App Store Connect's *License Agreement* then stays Apple's standard one. Spine requires `Terms` on every platform, and Apple's licence does not fit a Play build, so Hockeymatch links Google Play's terms of service there:
+- **Terms and privacy must be public pages.** A link into a private repository is a rejection. Apple's standard licence (`https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`) is the terms on iOS when the app has no terms of its own; App Store Connect's *License Agreement* then stays Apple's standard one. Apple's licence does not fit a Play build, so give each store its own link; Hockeymatch links Google Play's terms of service on Android:
 
   ```csharp
-  #if ANDROID
-      .Terms(new Uri("https://play.google.com/about/play-terms/"))
-  #else
-      .Terms(new Uri("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"))
-  #endif
+  .Terms(apple: PaywallTerms.AppleStandardEula, google: new Uri("https://play.google.com/about/play-terms/"))
   ```
 - **The RevenueCat app user id** is the Spine user or installation (`user:{id}` / `installation:{id}`), the same key the server's ledger uses, so a webhook event lands with the right caller. An event for RevenueCat's anonymous id is skipped.
 
