@@ -639,7 +639,16 @@ internal sealed class PageActionView : ContentView
         {
             _imageButton.RemoveBinding(VisualElement.WidthRequestProperty);
             _imageButton.WidthRequest = _owner._glass ? _owner.HeightRequest : Filled || Circles ? FilledSide : _owner.IconWidth;
+            if (!Filled && !Circles)
+                _imageButton.CornerRadius = SubtleCornerRadius;
         }
+
+        // WinUI's buttons are rounded rectangles with ControlCornerRadius, filled (AccentButtonStyle) or subtle; Fluent
+        // has no round button. A slot wider than it is tall is a caption-row button, square like minimise and close.
+        static readonly bool Fluent = DeviceInfo.Platform == DevicePlatform.WinUI;
+        const int FluentCornerRadius = 4;
+
+        int SubtleCornerRadius => Fluent && _owner.IconWidth <= _owner.HeightRequest ? FluentCornerRadius : 0;
 
         const double FilledSize = 40;
 
@@ -737,9 +746,10 @@ internal sealed class PageActionView : ContentView
             if (!Circles && filled)
             {
                 // The circle's outer edge goes where a bare glyph's would be, on whichever side the slot is,
-                // so a circle and an icon line up with each other and with the page's content
+                // so a circle and an icon line up with each other and with the page's content. Fluent's filled
+                // button fills the slot instead, the same square a subtle button's hover fills.
                 var leading = _owner.HorizontalOptions.Alignment == LayoutAlignment.Start;
-                var outer = (leading ? _owner.ButtonPadding.Left : _owner.ButtonPadding.Right) + GlyphInset;
+                var outer = (leading ? _owner.ButtonPadding.Left : _owner.ButtonPadding.Right) + (Fluent ? 0 : GlyphInset);
                 _imageButton.HorizontalOptions = leading ? LayoutOptions.Start : LayoutOptions.End;
                 _imageButton.RemoveBinding(VisualElement.HeightRequestProperty);
                 _imageButton.RemoveBinding(ImageButton.PaddingProperty);
@@ -754,8 +764,10 @@ internal sealed class PageActionView : ContentView
                 _imageButton.SetBinding(VisualElement.HeightRequestProperty, new Binding(nameof(HeightRequest), source: _owner));
                 _imageButton.SetBinding(ImageButton.PaddingProperty, new Binding(nameof(ButtonPadding), source: _owner));
             }
-            _imageButton.CornerRadius = filled || Circles ? (int)(side / 2) : 0;
-            _textButton.CornerRadius = filled ? (int)Math.Round(_owner.HeightRequest / 2) : -1;
+            _imageButton.CornerRadius = Circles ? (int)(side / 2)
+                : filled ? Fluent ? FluentCornerRadius : (int)(side / 2)
+                : SubtleCornerRadius;
+            _textButton.CornerRadius = !filled ? -1 : Fluent ? FluentCornerRadius : (int)Math.Round(_owner.HeightRequest / 2);
             if (!filled)
             {
                 _imageButton.ApplyCommonVisualStates(_owner.HideDisabled);
