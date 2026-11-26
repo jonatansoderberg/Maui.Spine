@@ -248,10 +248,17 @@ public class SpineEntryRow : ContentView
             box.BorderThickness = new Microsoft.UI.Xaml.Thickness(0);
             box.Padding = new Microsoft.UI.Xaml.Thickness(0);
             box.Background = clear;
-            // The focused and pointer-over states draw their own box and underline from these resources.
+            // The focused and pointer-over states draw their own box and underline from these resources. MAUI 11's
+            // entry handler has put some of them there already, and WinUI 3.2 throws 0x800F0902 rather than replace
+            // a key, so each one goes out before it goes in.
+            void Set(string key, object value)
+            {
+                box.Resources.Remove(key);
+                box.Resources[key] = value;
+            }
             foreach (var key in new[] { "TextControlBackgroundPointerOver", "TextControlBackgroundFocused", "TextControlBorderBrush", "TextControlBorderBrushPointerOver", "TextControlBorderBrushFocused" })
-                box.Resources[key] = clear;
-            box.Resources["TextControlBorderThemeThicknessFocused"] = new Microsoft.UI.Xaml.Thickness(0);
+                Set(key, clear);
+            Set("TextControlBorderThemeThicknessFocused", new Microsoft.UI.Xaml.Thickness(0));
         }
 #endif
     }

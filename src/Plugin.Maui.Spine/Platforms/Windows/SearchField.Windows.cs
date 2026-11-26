@@ -23,7 +23,10 @@ internal sealed partial class SearchField
         // it sits in the bar with room above and below, as the search box in a Windows app's title bar does.
         if (_box is not null && CompactHeight > 0)
         {
+            // This runs again for a new handler; WinUI 3.2 throws 0x800F0902 rather than replace a key.
+            _box.Resources.Remove("TextControlThemeMinHeight");
             _box.Resources["TextControlThemeMinHeight"] = CompactHeight;
+            _box.Resources.Remove("TextControlThemePadding");
             _box.Resources["TextControlThemePadding"] = new Microsoft.UI.Xaml.Thickness(10, 3, 6, 3);
             _bar.HeightRequest = CompactHeight;
             _bar.MinimumHeightRequest = 0;
