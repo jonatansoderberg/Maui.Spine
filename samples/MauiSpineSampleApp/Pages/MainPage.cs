@@ -68,10 +68,22 @@ public partial class MainPage
         var buttonLine = FilterGlass.Y + FilterGlass.Height / 2;
         var toTitle = TitleLabel.Height > 0 && FilterGlass.Height > 0 ? titleLine - buttonLine : 0;
 
-        FilterGlass.TranslationY = drop + toTitle * open;
+        var riding = drop + toTitle * open;
+        var viewModel = (MainPageViewModel)BindingContext;
+
+        // On Windows a slide would cross the caption buttons: the button rides below settings and, as it
+        // reaches the caption row, takes its place there in one step.
+        if (DeviceInfo.Platform == DevicePlatform.WinUI)
+        {
+            var arrived = riding < FilterGlass.Height;
+            FilterGlass.TranslationY = arrived ? 0 : riding;
+            FilterGlass.TranslationX = arrived ? 0 : viewModel.FilterSlide;
+            return;
+        }
+
+        FilterGlass.TranslationY = riding;
 
         // Straight up below settings until it is about to merge, then into its place beside it.
-        var viewModel = (MainPageViewModel)BindingContext;
         var t = Math.Min(open / MergeAt, 1);
         FilterGlass.TranslationX = viewModel.FilterSlide * t * t * (3 - 2 * t);
 

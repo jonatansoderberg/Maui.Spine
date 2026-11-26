@@ -78,7 +78,8 @@ public partial class MainPageViewModel : SampleViewModel
 
     public MaterialPreset ButtonGroupMaterial => GroupsButtons ? MaterialPreset.GlassClear : MaterialPreset.None;
 
-    private double ButtonSpacing => GroupsButtons ? 0 : HeaderBarConstants.TitleActionGap;
+    // Side by side on one glass, and in Windows' caption row, as minimise and close are.
+    private double ButtonSpacing => GroupsButtons || DeviceInfo.Platform == DevicePlatform.WinUI ? 0 : HeaderBarConstants.TitleActionGap;
 
     // On Windows the buttons are in the caption row: rectangles like minimise and close, hover and press alike.
     public RoundRectangle ButtonGroupShape => new() { CornerRadius = DeviceInfo.Platform == DevicePlatform.WinUI ? 0 : ButtonSize / 2 };
