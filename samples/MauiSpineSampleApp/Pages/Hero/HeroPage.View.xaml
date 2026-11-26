@@ -56,12 +56,15 @@
                     </HeroRowTemplateSelector.Intro>
                     <HeroRowTemplateSelector.Row>
                         <DataTemplate x:DataType="Swatch">
-                            <Border Margin="0,6" Padding="16,14" StrokeThickness="0" StrokeShape="RoundRectangle 14" BackgroundColor="{Binding Colour}">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="{Binding Name}" TextColor="White" FontAttributes="Bold" FontSize="17" />
-                                    <Label Text="{Binding Text}" TextColor="White" FontSize="14" />
-                                </VerticalStackLayout>
-                            </Border>
+                            <!-- Padding round the card, not a margin on it: MAUI 11's CollectionView on Windows ignores a margin on the template's root. -->
+                            <ContentView Padding="0,6">
+                                <Border Padding="16,14" StrokeThickness="0" StrokeShape="RoundRectangle 14" BackgroundColor="{Binding Colour}">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="{Binding Name}" TextColor="White" FontAttributes="Bold" FontSize="17" />
+                                        <Label Text="{Binding Text}" TextColor="White" FontSize="14" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </ContentView>
                         </DataTemplate>
                     </HeroRowTemplateSelector.Row>
                 </HeroRowTemplateSelector>

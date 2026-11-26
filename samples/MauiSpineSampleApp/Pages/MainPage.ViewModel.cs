@@ -80,7 +80,8 @@ public partial class MainPageViewModel : SampleViewModel
 
     private double ButtonSpacing => GroupsButtons ? 0 : HeaderBarConstants.TitleActionGap;
 
-    public RoundRectangle ButtonGroupShape => new() { CornerRadius = ButtonSize / 2 };
+    // On Windows the buttons are in the caption row: rectangles like minimise and close, hover and press alike.
+    public RoundRectangle ButtonGroupShape => new() { CornerRadius = DeviceInfo.Platform == DevicePlatform.WinUI ? 0 : ButtonSize / 2 };
 
     public Thickness GearMargin => DeviceInfo.Platform == DevicePlatform.WinUI
         ? new Thickness(0, 0, 144, 0)

@@ -85,7 +85,8 @@
             <HeroCollectionView.HeaderBottomContent>
                 <AbsoluteLayout InputTransparent="True" CascadeInputTransparent="False">
 
-                    <!-- Lifted so its capitals centre on the gear's line once the header has collapsed. -->
+                    <!-- Lifted so its capitals centre on the gear's line once the header has collapsed. WinUI already
+                         sets the capitals higher in the line box, so it needs less of a lift. -->
                     <Label
                         x:Name="TitleLabel"
                         InputTransparent="True"
@@ -95,7 +96,7 @@
                         TextTransform="Uppercase"
                         TextColor="White"
                         Margin="{Binding TitleMargin}"
-                        TranslationY="-3.5"
+                        TranslationY="{OnPlatform Default=-3.5, WinUI=-0.8}"
                         AbsoluteLayout.LayoutBounds="0, 1, AutoSize, AutoSize"
                         AbsoluteLayout.LayoutFlags="PositionProportional">
                         <Label.Shadow>

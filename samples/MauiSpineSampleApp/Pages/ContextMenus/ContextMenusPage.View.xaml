@@ -54,15 +54,18 @@
                 <CollectionView ItemsSource="{Binding Races}" HeightRequest="330">
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="Race">
-                            <Border Margin="0,3" Padding="16,10" StrokeThickness="0" StrokeShape="RoundRectangle 12"
-                                    BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
-                                    ContextMenu.Items="{PageBinding RowMenu}"
-                                    ContextMenu.CommandParameter="{Binding .}">
-                                <VerticalStackLayout Spacing="2">
-                                    <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" />
-                                    <Label Text="{Binding Details}" FontSize="14" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
-                                </VerticalStackLayout>
-                            </Border>
+                            <!-- Padding round the card, not a margin on it: MAUI 11's CollectionView on Windows ignores a margin on the template's root. -->
+                            <ContentView Padding="0,3">
+                                <Border Padding="16,10" StrokeThickness="0" StrokeShape="RoundRectangle 12"
+                                        BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
+                                        ContextMenu.Items="{PageBinding RowMenu}"
+                                        ContextMenu.CommandParameter="{Binding .}">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" />
+                                        <Label Text="{Binding Details}" FontSize="14" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </ContentView>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
