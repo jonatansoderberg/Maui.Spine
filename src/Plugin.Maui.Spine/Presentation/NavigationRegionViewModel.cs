@@ -71,6 +71,27 @@ internal partial class NavigationRegionViewModel : ObservableObject
     [ObservableProperty]
     public partial PagePresenter BackView { get; set; } = new();
 
+    /// <summary>
+    /// Set by the <see cref="NavigationRegion"/>: trades its two layers around the swap of
+    /// <see cref="FrontView"/> and <see cref="BackView"/> it is given, so the pages stay where they are.
+    /// </summary>
+    internal Action<Action>? SwapLayers { get; set; }
+
+    /// <summary>
+    /// The back presenter becomes the front one and the front the back one. A page never moves from one
+    /// to the other: taken out of the window and put back, it has to be drawn again, and a GL view
+    /// (SkiaSharp's on Android) shows a frame without it.
+    /// </summary>
+    private void SwapFrontAndBack()
+    {
+        void Swap() => (FrontView, BackView) = (BackView, FrontView);
+
+        if (SwapLayers is { } swap)
+            swap(Swap);
+        else
+            Swap();
+    }
+
     /// <summary>Whether this region hosts region pages or sheet pages.</summary>
     [ObservableProperty]
     public partial NavigationPresentation Presentation { get; set; } = NavigationPresentation.RegionPresentation;
@@ -253,8 +274,10 @@ internal partial class NavigationRegionViewModel : ObservableObject
 
         next.IsVisible = true;
 
-        FrontView.Content = next;
-        BackView.Content = current;
+        // The page comes in by the back layer, which then comes to the front; the current page stays
+        // in its layer, which goes back.
+        RevealBackView(next);
+        SwapFrontAndBack();
 
         // Pre-notify so NavigationRegion applies safe-area padding & header-bar bindings
         // for the incoming page before the transition animation starts.
@@ -369,7 +392,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         {
             var animate = !_completingInteractiveBack;
 
-            BackView.Content = prev;
+            RevealBackView(prev);
 
             // Pre-notify so NavigationRegion applies safe-area padding to the back host
             // before the back-transition animation reveals the previous page.
@@ -377,10 +400,11 @@ internal partial class NavigationRegionViewModel : ObservableObject
 
             ShowHeaderOf(prev.BindingContext as ViewModelBase);
 
+            // The previous page came in by the back layer, which comes to the front where it is.
             void Commit()
             {
+                SwapFrontAndBack();
                 BackView.Content = null;
-                FrontView.Content = prev;
                 FrontView.IsVisible = true;
                 RestBackView();
             }
@@ -464,14 +488,14 @@ internal partial class NavigationRegionViewModel : ObservableObject
             }
         }
 
-        BackView.Content = target;
+        RevealBackView(target);
         OnPropertyChanged(nameof(BackView));
         ShowHeaderOf(target.BindingContext as ViewModelBase);
 
         await PlayTransitionAsync(NavigationDirection.Back, () =>
         {
+            SwapFrontAndBack();
             BackView.Content = null;
-            FrontView.Content = target;
             FrontView.IsVisible = true;
             RestBackView();
         });
@@ -518,8 +542,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         if (prev is null)
             return;
 
-        BackView.Content = prev;
-        BackView.IsVisible = true;
+        RevealBackView(prev);
         FrontView.Content = current;
 
         // Pre-notify so NavigationRegion applies safe-area padding to the back host
@@ -534,12 +557,27 @@ internal partial class NavigationRegionViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Empties the back layer once the pages are at rest, except under a lightbox: the page under
-    /// it stays there, behind its black, so that a drag down shows it at once. Put back in the
-    /// layer only as the drag began, it was sometimes not drawn on the phone until the drag ended.
+    /// Empties the back layer once the pages are at rest, except for the page under the front one when
+    /// it is to stay loaded (<see cref="NavigableRegionAttribute.KeepLoaded"/>), hidden, or is under a
+    /// lightbox: the page under a lightbox stays there, shown behind its black, so that a drag down shows
+    /// it at once. Put back in the layer only as the drag began, it was sometimes not drawn on the phone
+    /// until the drag ended.
     /// </summary>
-    private void RestBackView() =>
-        BackView.Content = CurrentRegionViewModel?.Lightbox is not null ? _stack.Skip(1).FirstOrDefault() : null;
+    private void RestBackView()
+    {
+        var under = _stack.Skip(1).FirstOrDefault();
+        var lightbox = CurrentRegionViewModel?.Lightbox is not null;
+        var kept = (under?.BindingContext as ViewModelBase)?.KeepLoaded == true;
+        BackView.Content = lightbox || kept ? under : null;
+        BackView.IsVisible = lightbox || !kept;
+    }
+
+    /// <summary>The back layer shown again, with <paramref name="page"/> in it, for a page to come back from it.</summary>
+    private void RevealBackView(View page)
+    {
+        BackView.Content = page;
+        BackView.IsVisible = true;
+    }
 
     // Set while a completed back-swipe or drag pops the page it has already moved away.
     private bool _completingInteractiveBack;

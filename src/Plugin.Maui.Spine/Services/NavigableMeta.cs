@@ -48,6 +48,7 @@ internal static class NavigableMeta
             vm.SafeAreaEdges = regionMeta.SafeAreaEdges;
             vm.ScrollInset = regionMeta.ScrollInset;
             vm.HidesTabBar = regionMeta.HidesTabBar;
+            vm.KeepLoaded = regionMeta.KeepLoaded;
         }
         else if (meta is NavigableSheetAttribute sheetMeta)
         {

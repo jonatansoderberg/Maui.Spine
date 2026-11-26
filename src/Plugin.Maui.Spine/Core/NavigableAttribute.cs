@@ -213,6 +213,7 @@ public sealed class NavigableRegionAttribute : NavigableAttribute
         SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
         ScrollInset = source.ScrollInsetSet ? source.ScrollInset : defaults.ScrollInset;
         HidesTabBar = source.HidesTabBarSet ? source.HidesTabBar : defaults.HidesTabBar;
+        KeepLoaded = source.KeepLoaded;
         ScrollsUnderBottomBar = LeavesBottomToSpine(source.SafeAreaEdgesSet, source.ScrollInsetSet, defaults,
             defaults.SafeAreaEdges, defaults.ScrollInset);
     }
@@ -237,6 +238,15 @@ public sealed class NavigableRegionAttribute : NavigableAttribute
     /// </summary>
     public bool HidesTabBar { get => field; set { field = value; _hidesTabBarSet = true; } }
     internal bool HidesTabBarSet => _hidesTabBarSet;
+
+    /// <summary>
+    /// Whether the page stays in the window, hidden, while the next page is shown over it, so that it
+    /// is there at once when that page goes back. For a page whose views take a moment to draw again
+    /// after leaving the window, as a GL view does (SkiaSharp's <c>SKGLView</c> on Android comes back
+    /// blank for a few frames). Only the page right under the front one is kept. Its
+    /// <see cref="VisualElement.Unloaded"/> is not raised meanwhile, so what it stops there keeps going.
+    /// </summary>
+    public bool KeepLoaded { get; set; }
 
     private bool _safeAreaEdgesSet;
     /// <summary>

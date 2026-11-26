@@ -24,6 +24,7 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
     private readonly float[] _path;
     private readonly float[] _pathBefore;
     private readonly SKPath?[] _paths;
+    private readonly float[]?[] _built;
     private readonly SKMatrix[] _world;
     private readonly float[] _alpha;
     private readonly bool[] _all;
@@ -59,6 +60,7 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
         _path = new float[model.BasePathPoints.Length];
         _pathBefore = new float[model.BasePathPoints.Length];
         _paths = new SKPath?[n];
+        _built = new float[]?[n];
         for (var i = 0; i < n; i++)
             _paths[i] = model.Kinds[i] == NodeKind.Path ? new SKPath() : null;
         _world = new SKMatrix[n];
@@ -544,9 +546,19 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
         return dark ? _model.SlotDark[slot] : _model.SlotLight[slot];
     }
 
+    /// <remarks>
+    /// Built again only when its points moved: since SkiaSharp 4 an <see cref="SKPath"/> changes through a builder that
+    /// drawing the path detaches, so every rebuild costs a managed object, and an avatar at rest should cost none.
+    /// </remarks>
     private SKPath BuildPath(int node)
     {
         var path = _paths[node]!;
+        var points = _path.AsSpan(_model.PathOffsets[node], PathLength(_model, node));
+        if (_built[node] is { } built && points.SequenceEqual(built))
+            return path;
+        if (_built[node] is null || _built[node]!.Length != points.Length)
+            _built[node] = new float[points.Length];
+        points.CopyTo(_built[node]);
         path.Rewind();
         var p = _model.PathOffsets[node];
         foreach (var command in _model.PathCommands[node]!)
