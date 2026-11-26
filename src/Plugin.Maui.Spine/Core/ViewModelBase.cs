@@ -116,6 +116,9 @@ public abstract partial class ViewModelBase : ObservableObject
     /// <summary>Whether the tab bar goes away while this page is pushed in a tab's stack. Set from <see cref="NavigableRegionAttribute.HidesTabBar"/>.</summary>
     public bool HidesTabBar { get; internal set; }
 
+    /// <summary>Whether the page stays in the window while a page is shown over it. Set from <see cref="NavigableRegionAttribute.KeepLoaded"/>.</summary>
+    internal bool KeepLoaded { get; set; }
+
     /// <summary>Controls whether Spine's in-page header bar is shown for this page.</summary>
     [ObservableProperty]
     public partial bool IsHeaderBarVisible { get; set; }

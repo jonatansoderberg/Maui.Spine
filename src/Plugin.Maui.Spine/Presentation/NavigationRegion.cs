@@ -17,9 +17,11 @@ public sealed partial class NavigationRegion : ContentView
 {
     private readonly HeaderBarView _frameActionView;
     private readonly LightboxToolbar _lightboxToolbar;
-    private readonly ContentView _contentHostFront;
-    private readonly ContentView _contentHostBack;
-    private readonly ContentView _backLayer;
+    // The two layers trade places as the pages come and go (SwapLayers), so a page stays in the layer it came in by.
+    private ContentView _contentHostFront;
+    private ContentView _contentHostBack;
+    private ContentView _backLayer;
+    private ContentView _frontLayer;
     private readonly BoxView _backDragDimOverlay;
     private readonly ISpineTransitions _transitions;
     private readonly ISystemInsetsProvider _insetsProvider;
@@ -91,10 +93,10 @@ public sealed partial class NavigationRegion : ContentView
         _insetsProvider.InsetsChanged += OnSystemInsetsChanged;
         SoftKeyboard.Changed += () => OnKeyboardChanged(animate: true);
 
-        _contentHostBack = new ContentView();
+        _contentHostBack = new BackSwipeHost();
 
-        // The back host moves with its page; the layer around it stays put, so a cut at the front
-        // page's edge depends on the front page alone.
+        // A host moves with its page; the layer around it stays put, so a cut at the front page's
+        // edge depends on the front page alone. Both are alike: they trade places in SwapLayers.
         _backLayer = new ContentView { Content = _contentHostBack };
         _container.Children.Add(_backLayer);
 
@@ -108,16 +110,21 @@ public sealed partial class NavigationRegion : ContentView
         _container.Children.Add(_backDragDimOverlay);
 
         _contentHostFront = new BackSwipeHost();
-        _container.Children.Add(_contentHostFront);
+        _frontLayer = new ContentView { Content = _contentHostFront };
+        _container.Children.Add(_frontLayer);
 
         // The region can move or resize under a keyboard that stays put, as in a rotation.
-        _contentHostFront.SizeChanged += (_, _) =>
-        {
-            ApplyCompactWidth(ViewModel.CurrentRegionViewModel);
+        foreach (var host in (View[])[_contentHostFront, _contentHostBack])
+            host.SizeChanged += (sender, _) =>
+            {
+                if (!ReferenceEquals(sender, _contentHostFront))
+                    return;
 
-            if (SoftKeyboard.Top is not null || _keyboardOverlap > 0)
-                OnKeyboardChanged(animate: false);
-        };
+                ApplyCompactWidth(ViewModel.CurrentRegionViewModel);
+
+                if (SoftKeyboard.Top is not null || _keyboardOverlap > 0)
+                    OnKeyboardChanged(animate: false);
+            };
 
         _contentHostBack.SetBinding(ContentView.ContentProperty, nameof(NavigationRegionViewModel.BackView));
         _contentHostFront.SetBinding(ContentView.ContentProperty, nameof(NavigationRegionViewModel.FrontView));
@@ -157,40 +164,53 @@ public sealed partial class NavigationRegion : ContentView
         _lightboxToolbar = new LightboxToolbar();
         _container.Children.Add(_lightboxToolbar);
 
-        _contentHostFront.PropertyChanged += (_, e) =>
+        // Both layers listen; only the one in front at the time acts.
+        foreach (var layer in (BackSwipeHost[])[(BackSwipeHost)_contentHostFront, (BackSwipeHost)_contentHostBack])
         {
-            if (_cutsBack && e.PropertyName == nameof(TranslationX))
-                CutBackAt(_contentHostFront.TranslationX);
-        };
+            var host = layer;
+            host.PropertyChanged += (_, e) =>
+            {
+                if (_cutsBack && e.PropertyName == nameof(TranslationX) && ReferenceEquals(host, _contentHostFront))
+                    CutBackAt(_contentHostFront.TranslationX);
+            };
 
 #if ANDROID
-        // The page's own scroll view takes every touch first on Android, so the layer watches them on
-        // their way down instead (BackSwipeHost) and a pan recognizer here would never begin.
-        var host = (BackSwipeHost)_contentHostFront;
-        host.Accepts = x =>
-        {
-            var width = GetEffectiveWidth();
-            return width > 0 && x < width * DragEdgeThreshold && ViewModel.BackEnabled() && !FrontIsLightbox;
-        };
-        host.Swiped = (status, x, y) =>
-        {
-            _dragAccepted = true;
-            OnBackSwipe(status, x, y);
-        };
+            // The page's own scroll view takes every touch first on Android, so the layer watches them on
+            // their way down instead (BackSwipeHost) and a pan recognizer here would never begin.
+            host.Accepts = x =>
+            {
+                var width = GetEffectiveWidth();
+                return ReferenceEquals(host, _contentHostFront) && width > 0 && x < width * DragEdgeThreshold && ViewModel.BackEnabled() && !FrontIsLightbox;
+            };
+            host.Swiped = (status, x, y) =>
+            {
+                _dragAccepted = true;
+                OnBackSwipe(status, x, y);
+            };
 #else
-        var panGesture = new PanGestureRecognizer();
-        panGesture.PanUpdated += OnPanUpdated;
-        _contentHostFront.GestureRecognizers.Add(panGesture);
+            var panGesture = new PanGestureRecognizer();
+            panGesture.PanUpdated += (sender, e) =>
+            {
+                if (ReferenceEquals(host, _contentHostFront))
+                    OnPanUpdated(sender, e);
+            };
+            host.GestureRecognizers.Add(panGesture);
 
-        var pointerGesture = new PointerGestureRecognizer();
-        pointerGesture.PointerPressed += OnPointerPressed;
-        pointerGesture.PointerReleased += OnPointerReleased;
-        _contentHostFront.GestureRecognizers.Add(pointerGesture);
+            var pointerGesture = new PointerGestureRecognizer();
+            pointerGesture.PointerPressed += (sender, e) =>
+            {
+                if (ReferenceEquals(host, _contentHostFront))
+                    OnPointerPressed(sender, e);
+            };
+            pointerGesture.PointerReleased += OnPointerReleased;
+            host.GestureRecognizers.Add(pointerGesture);
 #endif
+        }
 
         RestrictBackSwipeOnPlatform();
 
         viewModel.PlayTransition = PlayTransitionAsync;
+        viewModel.SwapLayers = SwapLayers;
 
         UpdateContainerMargin();
 
@@ -793,7 +813,7 @@ public sealed partial class NavigationRegion : ContentView
 
     private void CutBackAt(double? frontX)
     {
-#if IOS || MACCATALYST
+#if IOS || MACCATALYST || ANDROID
         CutBackOnPlatform(frontX);
 #else
         var width = _container.Width;
@@ -834,6 +854,37 @@ public sealed partial class NavigationRegion : ContentView
 
         RoundFront(lift);
     }
+
+    /// <summary>
+    /// Makes the back layer the front one and the front layer the back one, around
+    /// <paramref name="swapPresenters"/>, which swaps the view model's presenters to match. No page
+    /// leaves its layer: a page taken out of the window and put back has to be drawn again, and a GL
+    /// view (SkiaSharp's on Android) shows a frame without it. The hosts let go of their bindings
+    /// while the presenters swap, so neither is handed the other's page, and then bind again to
+    /// the presenter they already hold. Only the drawing order changes (OrderLayersOnPlatform).
+    /// </summary>
+    private void SwapLayers(Action swapPresenters)
+    {
+        _contentHostFront.RemoveBinding(ContentView.ContentProperty);
+        _contentHostBack.RemoveBinding(ContentView.ContentProperty);
+
+        (_contentHostFront, _contentHostBack) = (_contentHostBack, _contentHostFront);
+        (_frontLayer, _backLayer) = (_backLayer, _frontLayer);
+
+        swapPresenters();
+
+        _contentHostBack.SetBinding(ContentView.ContentProperty, nameof(NavigationRegionViewModel.BackView));
+        _contentHostFront.SetBinding(ContentView.ContentProperty, nameof(NavigationRegionViewModel.FrontView));
+
+        OrderLayersOnPlatform([_backLayer, _backDragDimOverlay, _frontLayer, _frameActionView, _lightboxToolbar]);
+        ApplyCompactWidth(ViewModel.CurrentRegionViewModel);
+    }
+
+    /// <summary>
+    /// Draws <paramref name="layers"/>, children of the container, in this order, without taking
+    /// any of them out of the window: the container's own children stay in the order they were added.
+    /// </summary>
+    partial void OrderLayersOnPlatform(View[] layers);
 
     /// <summary>
     /// Plays a push or a pop on the layers, then lets <paramref name="commit"/> swap the pages
@@ -891,6 +942,8 @@ public sealed partial class NavigationRegion : ContentView
         }
         finally
         {
+            // The front layer lets go of its lift before the layers may trade places in the commit.
+            LiftFront(false);
             commit();
             UpdateLightboxToolbar();
             CoverTabBar(FrontCoversTabBar);
@@ -908,7 +961,6 @@ public sealed partial class NavigationRegion : ContentView
             }
 
             _backDragDimOverlay.Opacity = RestingDim;
-            LiftFront(false);
 
             // The views land where their pictures are, now that the layers are back at rest.
             flight?.Dispose();
@@ -1334,10 +1386,12 @@ public sealed partial class NavigationRegion : ContentView
                         vm.CompleteInteractiveBackAnimationAsync(_contentHostFront, _contentHostBack, currentX),
                         _backDragDimOverlay.SpineFadeToAsync(0, duration, easing));
 
-                    // The host is about to show the previous page in place, which stays square.
+                    // The previous page's layer comes to the front where it is; the swiped page's layer
+                    // goes back, empty, and returns to rest in ResetInteractiveState. A back the page
+                    // refused leaves the swiped page in front, and it slides back in place.
                     LiftFront(false);
-                    _contentHostFront.TranslationX = 0;
                     await vm.CompleteInteractiveBackAsync();
+                    _contentHostFront.TranslationX = 0;
                     CoverTabBar(FrontCoversTabBar);
                 }
                 else

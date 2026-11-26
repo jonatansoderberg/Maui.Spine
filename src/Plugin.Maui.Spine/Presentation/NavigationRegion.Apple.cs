@@ -8,8 +8,24 @@ public sealed partial class NavigationRegion
 {
     partial void RestrictBackSwipeOnPlatform()
     {
-        _contentHostFront.HandlerChanged += (_, _) => RestrictBackSwipe();
-        _contentHostFront.Loaded += (_, _) => RestrictBackSwipe();
+        foreach (var host in (View[])[_contentHostFront, _contentHostBack])
+        {
+            host.HandlerChanged += (_, _) => RestrictBackSwipe(host);
+            host.Loaded += (_, _) => RestrictBackSwipe(host);
+        }
+    }
+
+    // bringSubviewToFront reorders the subviews without taking any out of the window.
+    partial void OrderLayersOnPlatform(View[] layers)
+    {
+        if (_container.Handler?.PlatformView is not UIView container)
+            return;
+
+        foreach (var layer in layers)
+        {
+            if (layer.Handler is IPlatformViewHandler { ContainerView: var outer, PlatformView: var inner } && (outer ?? inner) is UIView view && view.Superview == container)
+                container.BringSubviewToFront(view);
+        }
     }
 
 #if IOS
@@ -179,9 +195,9 @@ public sealed partial class NavigationRegion
     /// rightward drag from the leading edge while there is something to go back to; for anything
     /// else the recognizer is told not to begin, and the content keeps its touches.
     /// </summary>
-    private void RestrictBackSwipe()
+    private void RestrictBackSwipe(View host)
     {
-        if (_contentHostFront.Handler?.PlatformView is not UIView view)
+        if (host.Handler?.PlatformView is not UIView view)
             return;
 
         foreach (var recognizer in view.GestureRecognizers ?? [])
@@ -191,7 +207,7 @@ public sealed partial class NavigationRegion
 
             pan.ShouldBegin = _ =>
             {
-                if (!_dragAccepted || BindingContext is not NavigationRegionViewModel vm || !vm.BackEnabled())
+                if (!ReferenceEquals(host, _contentHostFront) || !_dragAccepted || BindingContext is not NavigationRegionViewModel vm || !vm.BackEnabled())
                     return false;
 
                 var translation = pan.TranslationInView(view);

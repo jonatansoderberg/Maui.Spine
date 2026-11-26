@@ -84,14 +84,15 @@ public static partial class SpineScreen
         var inSheet = !ReferenceEquals(active, root);
         var pages = new List<ShownPage>(3);
 
-        if (root.BackView.Content is { } behind)
+        // A page kept loaded under the front one is hidden (NavigableRegionAttribute.KeepLoaded): not shown.
+        if (root.BackView is { IsVisible: true, Content: { } behind })
             pages.Add(new(behind, false, false));
         if (root.FrontView.Content is { } page)
             pages.Add(new(page, false, !inSheet && root.BackEnabled()));
 
         if (inSheet)
         {
-            if (active.BackView.Content is { } sheetBehind)
+            if (active.BackView is { IsVisible: true, Content: { } sheetBehind })
                 pages.Add(new(sheetBehind, true, false));
             if (active.FrontView.Content is { } sheetPage)
                 pages.Add(new(sheetPage, true, true));

@@ -42,6 +42,7 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `StatusBarStyle` | `StatusBarStyle` | `Auto` | `Auto` follows the theme; `LightContent` or `DarkContent` fix the status bar's clock and icons while the page is shown |
 | `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
 | `KeyboardAvoidance` | `bool` | `true` | The content and footer end above the on-screen keyboard while it is up. Turn it off for a page that handles the keyboard itself. See [The on-screen keyboard](#the-on-screen-keyboard) |
+| `KeepLoaded` | `bool` | `false` | The page stays in the window, hidden, while the next page is shown over it, so it is drawn at once when that page goes back. For a page with GL views. See [Keeping a page loaded](#keeping-a-page-loaded) |
 
 Platform defaults:
 
@@ -117,6 +118,21 @@ Use `Lifetime = ServiceLifetime.Singleton` to retain state when the user navigat
 [NavigableRegion(Title = "Settings", Lifetime = ServiceLifetime.Singleton)]
 public partial class SettingsPage { public SettingsPage() => InitializeComponent(); }
 ```
+
+---
+
+## Keeping a page loaded
+
+A page leaves the window while another is shown over it, and comes back when that page goes back. Most views draw again at once. A GL view does not: SkiaSharp's `SKGLView` on Android gets a new GL context and surface, and the first frames after the page is back are blank, so the page blinks as it slides in. `KeepLoaded` keeps the page in the window, hidden, while the next page is over it:
+
+```csharp
+[NavigableRegion(Title = "Almanacka", KeepLoaded = true)]
+public partial class AlmanacPage { public AlmanacPage() => InitializeComponent(); }
+```
+
+- Only the page right under the front one is kept; one further down leaves the window as before.
+- Its `Unloaded` is not raised meanwhile, so what the page stops on `Unloaded` keeps going. `OnDisappearingAsync` and `WhileVisible` still stop as usual.
+- Going back, the page is not moved: Spine swaps which of its two layers is in front, on Android with `BringChildToFront`, on iOS and Mac Catalyst with `BringSubviewToFront`, on Windows with a z-index, so no page leaves the window to change places.
 
 ---
 

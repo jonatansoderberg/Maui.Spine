@@ -25,4 +25,41 @@ public sealed partial class NavigationRegion
         measured.GetLocationOnScreen(location);
         return (location[1] + measured.Height) / density;
     }
+
+    // bringChildToFront moves a child to the end of its parent's list without detaching it, so the
+    // layers' pages stay in the window (a page taken out has to be drawn again: a GL view blinks).
+    partial void OrderLayersOnPlatform(View[] layers)
+    {
+        if (_container.Handler?.PlatformView is not Android.Views.ViewGroup group)
+            return;
+
+        foreach (var layer in layers)
+        {
+            if (Outer(layer) is { } view && ReferenceEquals(view.Parent, group))
+                group.BringChildToFront(view);
+        }
+
+        group.Invalidate();
+    }
+
+    // The cut as the view's own clip bounds: a MAUI Clip wraps the layer in a WrapperView, which
+    // takes the page in it out of the window and puts it back, as removing the clip does again.
+    partial void CutBackOnPlatform(double? frontX)
+    {
+        if (_backLayer.Handler?.PlatformView is not Android.Views.View view)
+            return;
+
+        if (frontX is not { } x)
+        {
+            view.ClipBounds = null;
+            return;
+        }
+
+        var density = view.Resources?.DisplayMetrics?.Density ?? 1f;
+        var far = Math.Max(view.Width, view.Height) * 3;
+        view.ClipBounds = new Android.Graphics.Rect(-far, -far, (int)Math.Round(Math.Max(0, x) * density), far);
+    }
+
+    private static Android.Views.View? Outer(View view) =>
+        view.Handler is IPlatformViewHandler handler ? handler.ContainerView ?? handler.PlatformView : null;
 }
