@@ -135,7 +135,7 @@ public class LightGridReaderTests
         using (var c = new SKCanvas(face))
         {
             c.Clear(new SKColor(10, 10, 12));
-            using var font = new SKFont(SKTypeface.FromFamilyName(null, SKFontStyle.Bold), cell * 0.5f);
+            using var font = new SKFont(SKFontManager.Default.MatchFamily(SKTypeface.Default.FamilyName, SKFontStyle.Bold) ?? SKTypeface.Default, cell * 0.5f);
             using var dim = new SKPaint { Color = new SKColor(unlit, unlit, unlit), IsAntialias = true };
             using var glow = new SKPaint { Color = new SKColor(255, 250, 230, 200), IsAntialias = true, MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 5) };
             using var bright = new SKPaint { Color = SKColors.White, IsAntialias = true };
@@ -177,4 +177,5 @@ public class LightGridReaderTests
         }
         return frame;
     }
+
 }

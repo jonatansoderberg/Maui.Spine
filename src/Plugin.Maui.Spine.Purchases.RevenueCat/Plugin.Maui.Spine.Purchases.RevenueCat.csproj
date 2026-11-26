@@ -16,9 +16,6 @@
 
 	<ItemGroup>
 		<PackageReference Include="AsyncAwaitBestPractices" />
-		<!-- Plugin.RevenueCat 0.4.52 is built against MAUI 10.0.110, above the 10.0.50 the other Spine packages need, so an app
-		     with this adapter needs MAUI 10.0.110 or later. -->
-		<PackageReference Include="Microsoft.Maui.Controls" VersionOverride="10.0.110" />
 	</ItemGroup>
 
 	<!-- Plugin.RevenueCat has no Windows build; there the adapter throws at start-up with the reason. -->

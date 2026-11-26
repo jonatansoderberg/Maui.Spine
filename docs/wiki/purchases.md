@@ -325,7 +325,7 @@ The app registers again after a purchase or a spend, so the tag is there once th
 
 ## RevenueCat
 
-`Plugin.Maui.Spine.Purchases.RevenueCat` sells through App Store and Google Play with RevenueCat, on [Plugin.RevenueCat](https://github.com/redth/Plugin.RevenueCat). It runs on iOS, Mac Catalyst and Android; Plugin.RevenueCat has no Windows build. It needs MAUI 10.0.110 or later.
+`Plugin.Maui.Spine.Purchases.RevenueCat` sells through App Store and Google Play with RevenueCat, on [Plugin.RevenueCat](https://github.com/redth/Plugin.RevenueCat). It runs on iOS, Mac Catalyst and Android; Plugin.RevenueCat has no Windows build.
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Purchases.RevenueCat
