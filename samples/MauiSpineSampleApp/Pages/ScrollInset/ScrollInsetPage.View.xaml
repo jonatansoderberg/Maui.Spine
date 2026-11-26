@@ -8,9 +8,9 @@
     <!-- The list is the demo: it draws behind the home indicator / gesture bar, and its own
          SafeArea.ScrollInset (bound, so the options can turn it off) wins over the app default. -->
     <Grid>
-        <CollectionView ItemsSource="{Binding Rows}" SafeArea.ScrollInset="{Binding Edges}">
+        <CollectionView ItemsSource="{Binding Rows}" SafeArea.ScrollInset="{Binding Edges}" SafeArea.PageMargin="True">
             <CollectionView.Header>
-                <VerticalStackLayout Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,8,0,20" Spacing="12">
+                <VerticalStackLayout Padding="0,8,0,20" Spacing="12">
                     <ExampleCodeSwitch />
                     <PackageChips Packages="Plugin.Maui.Spine" />
 
@@ -42,7 +42,7 @@
             </CollectionView.Header>
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="x:String">
-                    <Grid Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,14" ColumnDefinitions="*,Auto">
+                    <Grid Padding="0,14" ColumnDefinitions="*,Auto">
                         <Label Text="{Binding .}" VerticalOptions="Center" />
                         <Label Grid.Column="1" Text="›" TextColor="Gray" VerticalOptions="Center" />
                     </Grid>
