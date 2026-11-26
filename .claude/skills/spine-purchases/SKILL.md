@@ -65,7 +65,7 @@ builder.UseSpinePurchases<AppPurchase, AppProduct, AppCredit>(o => o     // afte
         .ForCredit(AppCredit.LiveMatch, s => s.Headline("Follow the match live"))
         .For(AppPurchase.Supporter, s => s.Headline("Support the app"))
         .Highlight(AppProduct.ProYearly)
-        .Terms(terms)                         // public pages, on every platform; start-up stops without them
+        .Terms(terms)                         // public pages; .Terms(apple: PaywallTerms.AppleStandardEula, google: …) per store
         .Privacy(privacy)));
 ```
 
@@ -102,7 +102,7 @@ Each of these cost a round trip in a real app:
 - **RevenueCat Play Store app:** a service account with the Play permissions (allow an hour to propagate), and Google developer notifications (Pub/Sub) connected and pointed at from Play Console.
 - **Entitlements** = the purchase enum's `[PurchaseId]`s, products attached by `[Grants]`. No offerings: Spine asks by id.
 - **The webhook** to `/purchases/revenuecat` with the Authorization value; one webhook covers both stores. Check a test event answers 200.
-- **Terms:** a public page. On iOS Apple's standard EULA works; it does not fit a Play build: link Google Play's terms of service there (`#if ANDROID`).
+- **Terms:** a public page. On iOS Apple's standard EULA works; it does not fit a Play build: `.Terms(apple: PaywallTerms.AppleStandardEula, google: …)`, a link per store.
 
 ## Trying it
 

@@ -115,7 +115,11 @@ public static class SpinePurchasesExtensions
         if (settings.Store is null)
             throw new InvalidOperationException("Spine purchases: no store. Pick one in UseSpinePurchases: o.UseTestStore(), or an adapter such as o.UseRevenueCat(…).");
 
-        if (settings.PaywallPage is null && (settings.Paywall.Terms is null || settings.Paywall.Privacy is null))
+        var terms = settings.Paywall.Terms;
+        if (settings.PaywallPage is null && terms.For(StoreLinks.Current) is null && (terms.Apple ?? terms.Google ?? terms.Microsoft) is not null)
+            throw new InvalidOperationException($"Spine purchases: the paywall's .Terms(…) has no link for {StoreLinks.Current}, the store this build sells through. Give it one, or .Terms(uri) for every store.");
+
+        if (settings.PaywallPage is null && (terms.For(StoreLinks.Current) is null || settings.Paywall.Privacy is null))
             throw new InvalidOperationException("Spine purchases: the paywall needs .Terms(…) and .Privacy(…). App Review rejects a subscription paywall without links to both (guideline 3.1.2).");
 
         if (catalog.CreditType is not null && settings.Credits.Server is null && settings.TestStore is null)

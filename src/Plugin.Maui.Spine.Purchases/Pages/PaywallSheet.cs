@@ -320,7 +320,7 @@ public sealed partial class PaywallSheetViewModel : ViewModelBase, IReceivesNavi
     }
 
     [RelayCommand]
-    private Task OpenTerms() => Open(_purchases.Settings.Paywall.Terms);
+    private Task OpenTerms() => Open(_purchases.Settings.Paywall.Terms.For(StoreLinks.Current));
 
     [RelayCommand]
     private Task OpenPrivacy() => Open(_purchases.Settings.Paywall.Privacy);
