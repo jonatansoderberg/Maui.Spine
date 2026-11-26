@@ -20,7 +20,10 @@
         </CollectionView.Header>
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="x:String">
-                <Label Text="{Binding .}" FontSize="15" Padding="{x:Static HeaderBarConstants.PagePadding}" Margin="0,6" />
+                <!-- Padding round the row, not a margin on it: MAUI 11's CollectionView on Windows ignores a margin on the template's root. -->
+                <ContentView Padding="0,6">
+                    <Label Text="{Binding .}" FontSize="15" Padding="{x:Static HeaderBarConstants.PagePadding}" />
+                </ContentView>
             </DataTemplate>
         </CollectionView.ItemTemplate>
     </CollectionView>

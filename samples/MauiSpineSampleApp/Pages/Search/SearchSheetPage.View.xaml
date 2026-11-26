@@ -14,10 +14,13 @@
         </CollectionView.Header>
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="Town">
-                <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Margin="0,8" Spacing="2">
-                    <Label Text="{Binding Name}" FontSize="17" />
-                    <Label Text="{Binding County}" FontSize="13" Opacity="0.6" />
-                </VerticalStackLayout>
+                <!-- Padding round the row, not a margin on it: MAUI 11's CollectionView on Windows ignores a margin on the template's root. -->
+                <ContentView Padding="0,8">
+                    <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="2">
+                        <Label Text="{Binding Name}" FontSize="17" />
+                        <Label Text="{Binding County}" FontSize="13" Opacity="0.6" />
+                    </VerticalStackLayout>
+                </ContentView>
             </DataTemplate>
         </CollectionView.ItemTemplate>
     </CollectionView>

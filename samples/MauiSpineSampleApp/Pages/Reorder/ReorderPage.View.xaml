@@ -76,19 +76,22 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="ReorderCard">
-                    <Border Margin="0,5" Padding="14,12,6,12" StrokeThickness="0" StrokeShape="RoundRectangle 14"
-                            BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}">
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Semantic.Merge="True">
-                            <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="26" HeightRequest="26" VerticalOptions="Center" />
-                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                                <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" />
-                                <Label Text="{Binding Text}" FontSize="14" Opacity="0.7" />
-                            </VerticalStackLayout>
-                            <Image Grid.Column="2" SvgImageSource.Svg="griphorizontal.svg"
-                                   WidthRequest="44" HeightRequest="44" Opacity="0.5" VerticalOptions="Center"
-                                   Reorder.IsHandle="True" />
-                        </Grid>
-                    </Border>
+                    <!-- Padding round the card, not a margin on it: MAUI 11's CollectionView on Windows ignores a margin on the template's root. -->
+                    <ContentView Padding="0,5">
+                        <Border Padding="14,12,6,12" StrokeThickness="0" StrokeShape="RoundRectangle 14"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Semantic.Merge="True">
+                                <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="26" HeightRequest="26" VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                    <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" />
+                                    <Label Text="{Binding Text}" FontSize="14" Opacity="0.7" />
+                                </VerticalStackLayout>
+                                <Image Grid.Column="2" SvgImageSource.Svg="griphorizontal.svg"
+                                       WidthRequest="44" HeightRequest="44" Opacity="0.5" VerticalOptions="Center"
+                                       Reorder.IsHandle="True" />
+                            </Grid>
+                        </Border>
+                    </ContentView>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
 
