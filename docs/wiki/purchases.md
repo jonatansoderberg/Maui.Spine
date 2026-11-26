@@ -8,7 +8,7 @@
 - a Purchases section for the settings page;
 - a test store.
 
-The store itself comes from an adapter package. It also has credits (a balance spent one reference at a time) and a server package that keeps them and takes RevenueCat's webhook ([the proposal](../proposals/spine-purchases.md), P1 and P2).
+The store itself comes from an adapter package. Getting the products, RevenueCat and App Review in place is on [Selling through the stores](purchases-stores.md). It also has credits (a balance spent one reference at a time) and a server package that keeps them and takes RevenueCat's webhook ([the proposal](../proposals/spine-purchases.md), P1 and P2).
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Purchases
@@ -333,11 +333,7 @@ builder.UseSpinePurchases<AppPurchase, AppProduct>(o => o
     .Paywall(p => p.Terms(terms).Privacy(privacy)));
 ```
 
-**Setting up a project:**
-
-1. Create the products in App Store Connect and in Play Console with the ids on `[StoreProduct]`. A Play subscription is `subscription:base-plan`, for example `pro:month`. In App Store Connect the Paid Applications Agreement, bank and tax forms must be done first.
-2. In RevenueCat, add the App Store app and the Play Store app and import the products. Make one entitlement per member of the purchase enum, with the member's `[PurchaseId]` as its identifier (`pro`), and attach the products that give it.
-3. Put the two public SDK keys in the app's build, as the Showcase does with `-p:SpineRevenueCatAppleKey=appl_…`.
+**Setting up a project:** the products in App Store Connect and Play Console with the ids on `[StoreProduct]`, a RevenueCat project with an App Store app and a Play Store app, one entitlement per member of the purchase enum (its `[PurchaseId]`), and the two public SDK keys in the app's build, as the Showcase does with `-p:SpineRevenueCatAppleKey=appl_…`. Every step, with what each store needs first, is on [Selling through the stores](purchases-stores.md).
 
 **What the adapter does:**
 
@@ -356,8 +352,10 @@ builder.UseSpinePurchases<AppPurchase, AppProduct>(o => o
 
 **Trying it:**
 
-- **Apple:** a sandbox account on a device, or a StoreKit configuration file. Whether a MAUI simulator run can use a StoreKit configuration file is still open (proposal §9).
-- **Google:** a license tester on a device or an emulator with Play.
+- **Apple:** a sandbox account on a device (Settings → Developer → Sandbox Apple Account on iOS 26), or a StoreKit configuration file. On the simulator RevenueCat shows the sandbox products and prices of the US storefront without a configuration file; whether a MAUI simulator run can use one is still open (proposal §9).
+- **Google:** a license tester on a device or an emulator with Play, with a build installed from a test track.
+
+[Selling through the stores](purchases-stores.md#trying-it) has when a purchase counts as through: in RevenueCat *and* in the server's ledger.
 
 ## Writing a store adapter
 
@@ -373,6 +371,7 @@ An adapter implements `IPurchaseStore` and calls `o.UseStore((services, catalog)
 
 ## See also
 
+- [Selling through the stores](purchases-stores.md): App Store Connect, Play Console, RevenueCat and App Review
 - [The proposal: purchases and subscriptions](../proposals/spine-purchases.md)
 - [Guards](guards.md)
 - [Settings pages](settings-pages.md)

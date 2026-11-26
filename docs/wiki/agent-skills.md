@@ -8,6 +8,7 @@ The repository ships a set of **skills** for AI coding agents (Claude Code and c
 | `spine-page` | Creating or changing a page: the three-file pattern, regions, sheets, tabs, typed parameters and results, page actions, lifecycle hooks, loading states |
 | `spine-widgets` | Building a widget or a Live Activity: the provider, the `W` tree, timelines, pictures and Lock Screen widgets, buttons, activity layouts |
 | `spine-notifications` | Push and local notifications on the client and the `Plugin.Maui.Spine.Server` backend |
+| `spine-purchases` | Selling subscriptions, one-time purchases and credits: the enums, the paywall, the RevenueCat adapter, the server ledger and webhook, and the store side (App Store Connect, Play Console, RevenueCat, App Review) |
 | `spine-controls` | `HeroCollectionView`, `AnimatedLabel`, `Calendar`, `Shimmer` and `Skeleton.IsActive`, `MeshBackground`, `SpineRow` / `Tap` / `Semantic.Merge`, SVG icons, Liquid Glass buttons |
 
 They live in [`.claude/skills/`](https://github.com/jonatansoderberg/Maui.Spine/tree/master/.claude/skills) and are picked up automatically by agents working inside this repository.
@@ -20,7 +21,8 @@ Copy the folders into your app's repository; Claude Code loads skills from `.cla
 curl -L https://github.com/jonatansoderberg/Maui.Spine/archive/refs/heads/master.tar.gz \
   | tar -xz --strip-components=3 -C .claude/skills Maui.Spine-master/.claude/skills/spine-setup \
       Maui.Spine-master/.claude/skills/spine-page Maui.Spine-master/.claude/skills/spine-widgets \
-      Maui.Spine-master/.claude/skills/spine-notifications Maui.Spine-master/.claude/skills/spine-controls
+      Maui.Spine-master/.claude/skills/spine-notifications Maui.Spine-master/.claude/skills/spine-purchases \
+      Maui.Spine-master/.claude/skills/spine-controls
 ```
 
 or clone the repository and copy `.claude/skills/spine-*` by hand. The skills are self-contained: they reference the wiki by URL, not by relative path, so they work from any repository.
@@ -32,6 +34,7 @@ A typical first session in a new app:
 /spine-page         create the first pages
 /spine-widgets      add a widget, if the app has one
 /spine-notifications
+/spine-purchases     when the app sells something
 ```
 
 The skills track the current package version's API. When you upgrade Spine, copy the skills again so the two stay in step.
