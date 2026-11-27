@@ -68,6 +68,7 @@ public sealed class PurchasesSection : ContentView
         var store = purchases.Store.Name;
         var catalog = purchases.Catalog;
         var anySubscription = false;
+        var given = Given(purchases);
         _section.Rows.Clear();
 
         void AddPurchase(PurchaseDefinition purchase)
@@ -87,7 +88,18 @@ public sealed class PurchasesSection : ContentView
                     Command = grace || state.Kind == ProductKind.Subscription ? new Command(() => purchases.ManageAsync().SafeFireAndForget()) : null,
                 });
             }
-            else if (catalog.ProductsGranting(purchase).Any(p => p.Kind is ProductKind.Subscription or ProductKind.OneTime) && !Covered(purchases, purchase))
+            else if (given.Purchases.Contains(purchase))
+            {
+                _section.Rows.Add(new SpineRow
+                {
+                    Icon = IconFor(purchases, purchase.Value),
+                    IconBackground = Access,
+                    Title = PurchasesStrings.PurchaseName(purchase.Value),
+                    Detail = PurchasesStrings.Get("Spine.Purchases.Row.Given"),
+                    Status = SpineRowStatus.Ok,
+                });
+            }
+            else if (catalog.ProductsGranting(purchase).Any(p => p.Kind is ProductKind.Subscription or ProductKind.OneTime) && !Covered(purchases, purchase, given))
             {
                 var value = purchase.Value;
                 _section.Rows.Add(new SpineRow
@@ -114,14 +126,14 @@ public sealed class PurchasesSection : ContentView
             foreach (var credit in catalog.Credits)
             {
                 var value = credit.Value;
-                var unlimitedBy = credit.UnlimitedWith.FirstOrDefault(p => purchases.State(p.Value).IsActive);
-                _section.Rows.Add(unlimitedBy is not null
+                var unlimitedBy = credit.UnlimitedWith.FirstOrDefault(p => purchases.State(p.Value).IsActive || given.Purchases.Contains(p));
+                _section.Rows.Add(unlimitedBy is not null || given.Credits.Contains(credit)
                     ? new SpineRow
                     {
                         Icon = IconFor(purchases, value),
                         IconBackground = Access,
                         Title = PurchasesStrings.CreditRowName(value),
-                        Detail = PurchasesStrings.PurchaseName(unlimitedBy.Value),
+                        Detail = unlimitedBy is null ? null : PurchasesStrings.PurchaseName(unlimitedBy.Value),
                         Value = PurchasesStrings.Get("Spine.Purchases.Row.Unlimited"),
                         Opacity = 0.5,
                     }
@@ -177,9 +189,26 @@ public sealed class PurchasesSection : ContentView
     /// True when another active purchase already gives what this one would: both make the same credit unlimited (a
     /// season card and a subscription). Offering it would sell nothing new.
     /// </summary>
-    private static bool Covered(AppPurchases purchases, PurchaseDefinition purchase) =>
+    private static bool Covered(AppPurchases purchases, PurchaseDefinition purchase, GivenByServer given) =>
         purchases.Catalog.Credits.Any(c => c.UnlimitedWith.Contains(purchase)
-            && c.UnlimitedWith.Any(other => other != purchase && purchases.State(other.Value).IsActive));
+            && (given.Credits.Contains(c) || c.UnlimitedWith.Any(other => other != purchase && purchases.State(other.Value).IsActive)));
+
+    /// <summary>
+    /// The credits the server makes unlimited while no store purchase does: the server owns a purchase for the caller that
+    /// the store never sold (a season card given with a gift code). Where only one purchase makes such a credit unlimited,
+    /// that purchase is the one given, and shows as owned.
+    /// </summary>
+    private sealed record GivenByServer(IReadOnlySet<CreditDefinition> Credits, IReadOnlySet<PurchaseDefinition> Purchases);
+
+    private static GivenByServer Given(AppPurchases purchases)
+    {
+        var credits = Credits is { } appCredits
+            ? purchases.Catalog.Credits
+                .Where(c => c.UnlimitedWith.Count > 0 && appCredits.IsUnlimitedByServer(c) && !c.UnlimitedWith.Any(p => purchases.State(p.Value).IsActive))
+                .ToHashSet()
+            : [];
+        return new(credits, credits.Where(c => c.UnlimitedWith.Count == 1).Select(c => c.UnlimitedWith[0]).ToHashSet());
+    }
 
     private async Task RestoreAsync(AppPurchases purchases)
     {

@@ -243,6 +243,9 @@ internal sealed class AppCredits : ICredits
 
     internal bool IsUnlimited(CreditDefinition credit) => Unlimited(credit);
 
+    /// <summary>The server's answer makes the credit unlimited, whatever the store says: a purchase the server owns for the caller.</summary>
+    internal bool IsUnlimitedByServer(CreditDefinition credit) => _answer.Unlimited.Contains(credit.Id);
+
     internal int Balance(CreditDefinition credit) => _answer.Balances.GetValueOrDefault(credit.Id);
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
