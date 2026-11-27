@@ -204,6 +204,8 @@ Put it between Account and what the app works with ([settings pages](settings-pa
 
 A purchase is not offered there while another active purchase already makes the same credit unlimited.
 
+**A purchase the server gave.** A server can own a purchase for the caller that no store sold, for example a season card given with a gift code: an owned row in its ledger, which makes the credit unlimited in the server's credits answer. When the answer says a credit is unlimited and no store purchase explains it, the section counts the server's word. The credit's row is greyed with "Unlimited", none of the purchases that make it unlimited is offered, and where only one purchase does, that purchase shows as owned with the detail "Given" ("Gåva").
+
 ## The test store
 
 `UseTestStore()` keeps purchases on the device and asks "Buy … for …? Nothing is charged." before each purchase, as the store's own sheet would. `ITestStore` sends the events a real store sends, now:

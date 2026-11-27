@@ -50,6 +50,7 @@
   <s key="Spine.Purchases.Row.TrialEnds">Gratis provperiod, upphör {0}</s>
   <s key="Spine.Purchases.Row.Lifetime">För alltid</s>
   <s key="Spine.Purchases.Row.Bought">Köpt</s>
+  <s key="Spine.Purchases.Row.Given">Gåva</s>
   <s key="Spine.Purchases.Row.Grace">Betalningsproblem: uppdatera i {0}</s>
   <s key="Spine.Purchases.Row.Overlap">Din prenumeration förnyas fortfarande {0}. Avsluta den i {1}.</s>
   <s key="Spine.Purchases.Row.Manage">Hantera prenumeration</s>
