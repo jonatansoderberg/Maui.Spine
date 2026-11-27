@@ -42,6 +42,13 @@ public interface ICredits
     /// paywall offers more credits and the purchases that make the credit unlimited.
     /// </summary>
     Task<bool> UnlockAsync<TCredit>(TCredit credit, string reference, CancellationToken cancellationToken = default) where TCredit : struct, Enum;
+
+    /// <summary>
+    /// Forgets everything this device bought, spent and was given, for testing: on the test store the device's ledger; on
+    /// a server, the caller's ledger there, where the server allows it (<c>SpinePurchasesServerOptions.AllowForget</c>).
+    /// What the store itself holds (a non-consumable, a subscription) stays. False when the server would not.
+    /// </summary>
+    Task<bool> ForgetAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>Where the credits live: the app's server, or the device on the test store.</summary>
@@ -52,6 +59,9 @@ internal interface ICreditsBackend
 
     /// <summary>A consumable was bought; true when its credits are in the answer of <see cref="GetAsync"/>.</summary>
     Task<bool> PurchasedAsync(ProductDefinition product, CancellationToken cancellationToken);
+
+    /// <summary>Forgets the device's ledger; false when the backend would not.</summary>
+    Task<bool> ForgetAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>Credits on the app's server: <c>GET credits</c>, <c>POST credits/spend</c>; purchases arrive through RevenueCat's webhook.</summary>
@@ -90,6 +100,13 @@ internal sealed class ServerCredits(Uri server, CreditOptions options, IServiceP
                 return true;
         }
         return false;
+    }
+
+    public async Task<bool> ForgetAsync(CancellationToken cancellationToken)
+    {
+        using var request = await RequestAsync(HttpMethod.Post, "credits/forget", null, cancellationToken);
+        using var response = await _http.SendAsync(request, cancellationToken);
+        return response.IsSuccessStatusCode;
     }
 
     private async Task<HttpRequestMessage> RequestAsync(HttpMethod method, string path, HttpContent? content, CancellationToken cancellationToken)
@@ -151,6 +168,12 @@ internal sealed class LocalCredits(PurchaseCatalog catalog, AppPurchases purchas
     {
         lock (_gate)
             Save([]);
+    }
+
+    public Task<bool> ForgetAsync(CancellationToken cancellationToken)
+    {
+        Reset();
+        return Task.FromResult(true);
     }
 
     private List<LedgerEntry> WithGrants()
@@ -236,6 +259,14 @@ internal sealed class AppCredits : ICredits
 
     public Task<SpendStatus> SpendAsync<TCredit>(TCredit credit, string reference, int amount = 1, CancellationToken cancellationToken = default) where TCredit : struct, Enum =>
         Spend(_catalog.Credit(credit), reference, amount, cancellationToken);
+
+    public async Task<bool> ForgetAsync(CancellationToken cancellationToken = default)
+    {
+        if (!await _backend.ForgetAsync(cancellationToken))
+            return false;
+        await RefreshAsync(cancellationToken);
+        return true;
+    }
 
     public Task<bool> UnlockAsync<TCredit>(TCredit credit, string reference, CancellationToken cancellationToken = default) where TCredit : struct, Enum =>
         Unlock(_catalog.Credit(credit), reference, cancellationToken);

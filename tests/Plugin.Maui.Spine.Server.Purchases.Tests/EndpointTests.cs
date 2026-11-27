@@ -55,6 +55,7 @@ public sealed class EndpointTests : IAsyncLifetime
         {
             o.UseInMemoryStore();
             o.RevenueCatWebhookAuthorization = WebhookAuth;
+            o.AllowForget = (_, caller, _) => ValueTask.FromResult(caller != CallerKeys.Installation("phone-store"));
         });
         _app = builder.Build();
         _app.MapSpinePurchases();
@@ -194,6 +195,37 @@ public sealed class EndpointTests : IAsyncLifetime
         await WebhookAsync(Event("CANCELLATION", caller, "se.example.live.month", expires: Now.AddDays(30).ToUnixTimeMilliseconds(), cancelReason: "UNSUBSCRIBE"));
 
         Assert.True(await ledger.IsActiveAsync(caller, MatchPurchase.Live));
+    }
+
+    [Fact]
+    public async Task A_forgotten_ledger_starts_again_with_the_free_credit()
+    {
+        var caller = CallerKeys.Installation("phone-9");
+        var ledger = _app.Services.GetRequiredService<IPurchaseLedger>();
+        await WebhookAsync(Event("NON_RENEWING_PURCHASE", caller, "se.example.match5", transaction: "t9"));
+        Assert.Equal(SpendStatus.Spent, (await SpendAsync("phone-9", "match:300")).Status);
+
+        await ledger.ForgetAsync(caller);
+
+        var credits = await CreditsAsync("phone-9");
+        Assert.Equal(1, credits.Balances["LiveMatch"]);
+        Assert.False(await ledger.IsUnlockedAsync(caller, MatchCredit.LiveMatch, "match:300"));
+    }
+
+    [Fact]
+    public async Task The_forget_endpoint_starts_a_test_device_again_and_refuses_the_others()
+    {
+        await SpendAsync("phone-10", "match:400");
+        var forgot = await _http.SendAsync(As("phone-10", HttpMethod.Post, "/purchases/credits/forget"));
+        Assert.Equal(HttpStatusCode.NoContent, forgot.StatusCode);
+        Assert.Equal(1, (await CreditsAsync("phone-10")).Balances["LiveMatch"]);
+
+        await SpendAsync("phone-store", "match:401");
+        var refused = await _http.SendAsync(As("phone-store", HttpMethod.Post, "/purchases/credits/forget"));
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Equal(0, (await CreditsAsync("phone-store")).Balances["LiveMatch"]);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _http.PostAsync("/purchases/credits/forget", null)).StatusCode);
     }
 
     [Fact]

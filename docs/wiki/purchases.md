@@ -285,7 +285,7 @@ builder.Services.AddSpinePurchases<AppPurchase, AppProduct, AppCredit>(o =>
     o.RevenueCatWebhookAuthorization = builder.Configuration["RevenueCat:WebhookAuthorization"];
 });
 
-app.MapSpinePurchases();   // GET /purchases/credits, POST /purchases/credits/spend, POST /purchases/revenuecat
+app.MapSpinePurchases();   // GET /purchases/credits, POST /purchases/credits/spend, POST /purchases/credits/forget, POST /purchases/revenuecat
 ```
 
 ```csharp
@@ -306,6 +306,17 @@ await ledger.GrantAsync(caller, AppCredit.LiveMatch, 5, "demo");   // once per i
 - **Events it skips, with a log line:** an event for an anonymous RevenueCat user, or for a product no enum member names.
 - **The caller** is the JWT `sub` (Spine sign-in), or the `Spine-Installation` header. `o.Identify` replaces that.
 - **Spends:** two at the same time for one caller are serialised within one server instance. Two spends on different references at the same moment on two instances could both take the last credit.
+- **Starting a test device again:** `ledger.ForgetAsync(caller)` removes the caller's whole ledger, and the next read gives the free credits again. In the app, `ICredits.ForgetAsync()` calls `POST /purchases/credits/forget`, which answers 404 until the server sets `o.AllowForget`. The stores do not report a customer's purchases a second time, so let only test devices through, for example an installation whose pushes come from the APNs sandbox:
+
+  ```csharp
+  o.AllowForget = async (request, caller, ct) =>
+      request.Headers[SpinePurchasesServerOptions.InstallationHeader].ToString() is { Length: > 0 } id
+      && caller == CallerKeys.Installation(id)
+      && await request.HttpContext.RequestServices.GetRequiredService<IPushInstallationStore>().GetAsync(id, ct)
+          is { Environment: ApnsEnvironment.Sandbox };
+  ```
+
+  What Apple, Google and RevenueCat hold (a one-time product, a subscription) stays; clear it in the sandbox account and the RevenueCat customer.
 
 **Push tags that cost money.** When a paid feature is a push tag (`match:{id}`, `pro`), let the push server keep it only for an installation that paid. The push installation's id is the same id the purchases use:
 

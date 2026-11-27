@@ -38,6 +38,13 @@ public interface IPurchaseLedger
 
     /// <summary>Every entry of the caller's ledger, oldest first.</summary>
     Task<IReadOnlyList<LedgerEntry>> ReadAsync(string caller, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the caller's whole ledger: what they bought, spent and were given. The next read gives the free credits
+    /// again. For a developer's test device only: the stores do not report a customer's purchases a second time, so the
+    /// app's own endpoint must allow it only where it can tell a test device apart.
+    /// </summary>
+    Task ForgetAsync(string caller, CancellationToken cancellationToken = default);
 }
 
 internal sealed class PurchaseLedger(PurchaseCatalog catalog, IPurchaseLedgerStore store, SpinePurchasesServerOptions options, TimeProvider time) : IPurchaseLedger
@@ -101,6 +108,9 @@ internal sealed class PurchaseLedger(PurchaseCatalog catalog, IPurchaseLedgerSto
 
     public Task<IReadOnlyList<LedgerEntry>> ReadAsync(string caller, CancellationToken cancellationToken = default) =>
         store.ReadAsync(caller, cancellationToken);
+
+    public Task ForgetAsync(string caller, CancellationToken cancellationToken = default) =>
+        store.ForgetAsync(caller, cancellationToken);
 
     /// <summary>The caller's ledger, with the free credits written the first time it is read.</summary>
     private async Task<IReadOnlyList<LedgerEntry>> ReadWithGrantsAsync(string caller, CancellationToken cancellationToken)

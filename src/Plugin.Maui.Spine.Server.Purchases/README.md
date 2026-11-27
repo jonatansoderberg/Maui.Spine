@@ -20,7 +20,7 @@ builder.Services.AddSpinePurchases<AppPurchase, AppProduct, AppCredit>(o =>
     o.RevenueCatWebhookAuthorization = builder.Configuration["RevenueCat:WebhookAuthorization"];
 });
 
-app.MapSpinePurchases();   // /purchases/credits, /purchases/credits/spend, /purchases/revenuecat
+app.MapSpinePurchases();   // /purchases/credits, /purchases/credits/spend, /purchases/credits/forget, /purchases/revenuecat
 ```
 
 ## Documentation
