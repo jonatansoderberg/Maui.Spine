@@ -260,7 +260,7 @@ A guarded tab is covered by a "Sign in to see this." screen with a Sign in butto
 `SignInSheet` is a `[NavigableSheet]` at medium and full height:
 - one button per provider, in one shape (48 high, radius 8, the logo on the left, "Continue with …") with each brand's colours for the light and dark theme: Apple black or white, Google white or #131314 with its outline, Microsoft white or #2F2F2F;
 - "Continue with email", which opens the email and password fields (they show at once when there are no providers);
-- "Create account", "Forgot password?" and the step for the emailed code;
+- "Create account", "Forgot password?" and the step for the emailed code, typed into a [code field](code-field.md) (eight characters, four and four) and sent when its last cell is filled;
 - "Is this your first time here?" after a provider account the server does not know (`AskBeforeNewAccount`): "Create a new account", or "I've signed in before", which shows the other ways and adds the new provider to the account the user signs in to.
 
 The logos are SVGs in the package: Apple's drawn for Spine (Apple's downloadable artwork is licensed for mock-ups only), Google's G as Google ships it, Microsoft's four squares to its spec.

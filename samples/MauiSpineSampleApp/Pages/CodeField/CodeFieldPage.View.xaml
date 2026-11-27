@@ -1,0 +1,43 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Codes.CodeFieldPage"
+    x:TypeArguments="CodeFieldPageViewModel"
+    x:DataType="CodeFieldPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine">
+
+        <Example Title="A one-time code"
+                 Summary="Six digits: the numeric keyboard, and on iOS the code from Messages or Mail above it. Typing the last digit runs CompletedCommand.">
+            <VerticalStackLayout Spacing="12">
+                <CodeField Code="{Binding OneTimeCode}" CompletedCommand="{Binding OneTimeCompletedCommand}" />
+                <Label Text="{Binding OneTimeText}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;CodeField Code="{Binding Code}" CompletedCommand="{Binding VerifyCommand}" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="A printed code, checked by a server"
+                 Summary="Twelve characters in groups of four, letters and digits without the ones that are easy to misread, which are read as their twins. Tap a cell to put the caret there; a character typed there replaces the one under it. State pulses the cells while the code is checked, lights them when it is accepted and shakes them red when it is not.">
+            <VerticalStackLayout Spacing="12">
+                <CodeField Length="12" GroupSize="4" Alphabet="0123456789ABCDEFGHJKMNPQRSTVWXYZ" Substitutions="O0 I1 L1"
+                           Code="{Binding GiftCode}" State="{Binding GiftState}" IsActive="{Binding GiftTyping}"
+                           CompletedCommand="{Binding GiftCompletedCommand}" />
+                <Label Text="{Binding GiftText}" FontSize="15" />
+                <HorizontalStackLayout Spacing="12">
+                    <Button Text="Fill from a scan" Command="{Binding FillGiftCommand}" />
+                    <Button Text="Start over" Command="{Binding ClearGiftCommand}" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;CodeField Length="12" GroupSize="4"
+                           Alphabet="0123456789ABCDEFGHJKMNPQRSTVWXYZ" Substitutions="O0 I1 L1"
+                           Code="{Binding Code}" State="{Binding CodeState}" IsActive="{Binding IsTyping}"
+                           CompletedCommand="{Binding RedeemCommand}" /&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

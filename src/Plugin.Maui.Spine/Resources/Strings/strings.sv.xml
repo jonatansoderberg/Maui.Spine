@@ -21,4 +21,7 @@
   <s key="Spine.Reorder.MoveToTop">Flytta överst</s>
   <s key="Spine.Reorder.MoveToBottom">Flytta nederst</s>
   <s key="Spine.ContextMenu.Open">Visa åtgärder</s>
+  <s key="Spine.CodeField.Hint">Dubbeltryck för att skriva koden</s>
+  <s key="Spine.CodeField.Empty">Kod, {0} tecken</s>
+  <s key="Spine.CodeField.Value">Kod: {0}</s>
 </strings>
