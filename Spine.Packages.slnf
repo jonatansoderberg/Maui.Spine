@@ -17,6 +17,7 @@
       "src\\Plugin.Maui.Spine.Authentication.Passkeys\\Plugin.Maui.Spine.Authentication.Passkeys.csproj",
       "src\\Plugin.Maui.Spine.BackgroundTasks\\Plugin.Maui.Spine.BackgroundTasks.csproj",
       "src\\Plugin.Maui.Spine.Biometrics\\Plugin.Maui.Spine.Biometrics.csproj",
+      "src\\Plugin.Maui.Spine.Biometrics.Core\\Plugin.Maui.Spine.Biometrics.Core.csproj",
       "src\\Plugin.Maui.Spine.Purchases\\Plugin.Maui.Spine.Purchases.csproj",
       "src\\Plugin.Maui.Spine.Purchases.RevenueCat\\Plugin.Maui.Spine.Purchases.RevenueCat.csproj",
       "src\\Plugin.Maui.Spine.Server.Purchases\\Plugin.Maui.Spine.Server.Purchases.csproj",

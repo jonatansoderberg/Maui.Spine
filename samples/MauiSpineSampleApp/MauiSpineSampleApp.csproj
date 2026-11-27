@@ -968,7 +968,7 @@
 		<NoWarn>$(NoWarn);MAUIAI0001</NoWarn>
 	</PropertyGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
-	<Import Project="..\..\src\Plugin.Maui.Spine.Biometrics\build\Plugin.Maui.Spine.Biometrics.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Biometrics.Core\build\Plugin.Maui.Spine.Biometrics.Core.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Authentication\build\Plugin.Maui.Spine.Authentication.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Authentication.Microsoft\build\Plugin.Maui.Spine.Authentication.Microsoft.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Authentication.Passkeys\build\Plugin.Maui.Spine.Authentication.Passkeys.targets" />

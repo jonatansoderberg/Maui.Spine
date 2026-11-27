@@ -25,6 +25,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | Passkeys through the platform's sheet (iOS, Mac Catalyst, Windows): `a.AddPasskeys()`, `<SpinePasskeyDomain>` in the project (iOS and Mac), `Passkeys(p => p.RelyingPartyId = …)` and `MapSpinePasskeyAssociations()` on the server | `Plugin.Maui.Spine.Authentication.Passkeys` | `Plugin.Maui.Spine.Authentication` |
 | Sign in with Microsoft through MSAL and the broker: via the Spine server (`a.AddMicrosoft(m => m.ClientId = …)`) or straight to an Entra-protected API (`a.UseMicrosoft(m => { m.ClientId = …; m.Scopes.Add(…); })`) | `Plugin.Maui.Spine.Authentication.Microsoft` | `Plugin.Maui.Spine.Authentication` |
 | Face ID, Touch ID, fingerprint or Windows Hello before a page or a command (`[RequiresUnlock]`, `IUnlock`), an app lock, or a page kept out of screenshots (`[PrivacyShield]`) | `Plugin.Maui.Spine.Biometrics` | the core and `Plugin.Maui.Spine.Common` |
+| The biometric prompt alone (`IBiometricAuth`), for example to sign in again without the password, in an app with or without Spine's core (`UseSpineBiometricAuth()`) | `Plugin.Maui.Spine.Biometrics.Core` | `Plugin.Maui.Spine.Common` |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |
 | A spoken conversation with a realtime model on the app's server, or with any chat model as a pipeline (speech-to-text, chat, text-to-speech, each on the device or the server): barge-in, a transcript for `ChatView`, client tools, no key in the app (`UseSpineVoice`, `IVoiceSession`); under it the full-duplex engine with echo cancellation, levels and bands (`IVoiceAudio`, `VoiceFrame`; iOS and Mac Catalyst so far) | `Plugin.Maui.Spine.Voice` | `Plugin.Maui.Spine.Common`, Microsoft.Extensions.AI.Abstractions |
 | An AI feature in the app: one `IChatClient` per named feature, on the device first (Apple Intelligence) and then the app's server, no keys in the app (`UseSpineAI`, `[FromKeyedServices("Name")] IChatClient`, `IAIUsage`; generated images from the server with `IAIAssets` and `GeneratedImage.Feature`/`.Key` on any `Image`; the app's functions with `o.Functions.Add(...)`) | `Plugin.Maui.Spine.AI`, plus `Microsoft.Maui.Essentials.AI` for an on-device model | `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.AI.Functions` (not the core) |
@@ -55,6 +56,7 @@ dotnet add package Plugin.Maui.Spine.Widgets            # if widgets
 dotnet add package Plugin.Maui.Spine.PushNotifications  # if notifications
 dotnet add package Plugin.Maui.Spine.BackgroundTasks    # if background tasks
 dotnet add package Plugin.Maui.Spine.Biometrics         # if unlock with Face ID, fingerprint or Windows Hello
+# dotnet add package Plugin.Maui.Spine.Biometrics.Core  # the prompt alone (IBiometricAuth), in an app without Spine's core
 dotnet add package Plugin.Maui.Spine.AI                 # if AI features through the app's Spine.Server.AI backend
 ```
 
@@ -220,7 +222,7 @@ An iOS app needs `NSFaceIDUsageDescription` in `Platforms/iOS/Info.plist`; the b
 <string>Unlocks your private pages with Face ID.</string>
 ```
 
-Android needs nothing (the AndroidX Biometric library brings `USE_BIOMETRIC`); Windows uses Windows Hello. Register nothing: `UseSpine` registers the package; `builder.UseSpineBiometrics(o => o.UnlockValidFor = TimeSpan.FromMinutes(5))` only to change the options, and `o.AppLock(a => a.LockAfter = …)` to lock the whole app at launch and on return. See https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/biometrics.md.
+Android needs nothing (the AndroidX Biometric library brings `USE_BIOMETRIC`); Windows uses Windows Hello. Register nothing: `UseSpine` registers the package; `builder.UseSpineBiometrics(o => o.UnlockValidFor = TimeSpan.FromMinutes(5))` only to change the options, and `o.AppLock(a => a.LockAfter = …)` to lock the whole app at launch and on return. An app without Spine's core takes `Plugin.Maui.Spine.Biometrics.Core` and calls `builder.UseSpineBiometricAuth()`; the Face ID check comes with it. See https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/biometrics.md.
 
 ### Background tasks
 

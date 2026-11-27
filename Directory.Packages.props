@@ -93,7 +93,7 @@
 	</ItemGroup>
 
 	<!--
-		Plugin.Maui.Spine.Biometrics, Android only. 1.1.0.30 is the last build on the AndroidX releases MAUI
+		Plugin.Maui.Spine.Biometrics.Core, Android only. 1.1.0.30 is the last build on the AndroidX releases MAUI
 		10.0.50 ships (Activity 1.10.1, Fragment 1.8.8, Lifecycle 2.9.2); later builds lift them and the Ktx
 		facades MAUI pins fall out of range (NU1608).
 	-->

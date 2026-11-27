@@ -43,7 +43,7 @@ internal sealed class BiometricAuth : IBiometricAuth
             info.SetAllowedAuthenticators(Authenticators.BiometricWeak | Authenticators.DeviceCredential);
         else
             info.SetAllowedAuthenticators(Authenticators.BiometricWeak)
-                .SetNegativeButtonText(BiometricsStrings.Get("Spine.Biometrics.Cancel"));
+                .SetNegativeButtonText(BiometricAuthStrings.Cancel);
 
         var registration = cancellationToken.Register(prompt.CancelAuthentication);
         result.Task.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default);

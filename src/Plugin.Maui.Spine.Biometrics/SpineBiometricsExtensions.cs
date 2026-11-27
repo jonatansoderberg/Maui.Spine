@@ -20,7 +20,7 @@ public static class SpineBiometricsExtensions
     /// </example>
     public static MauiAppBuilder UseSpineBiometrics(this MauiAppBuilder builder, Action<SpineBiometricsOptions>? configure = null)
     {
-        var services = builder.Services;
+        var services = builder.UseSpineBiometricAuth().Services;
 
         if (services.FirstOrDefault(static d => d.ServiceType == typeof(SpineBiometricsOptions) && !d.IsKeyedService)?.ImplementationInstance
             is not SpineBiometricsOptions options)
@@ -30,7 +30,6 @@ public static class SpineBiometricsExtensions
 
             services.AddSingleton(options);
             services.TryAddSingleton(TimeProvider.System);
-            services.AddSingleton<IBiometricAuth, BiometricAuth>();
             services.AddSingleton(static sp => new UnlockService(
                 sp.GetRequiredService<IBiometricAuth>(),
                 sp.GetRequiredService<SpineBiometricsOptions>(),

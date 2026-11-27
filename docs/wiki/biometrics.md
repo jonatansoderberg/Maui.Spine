@@ -14,6 +14,8 @@ The package also has an [app lock](#the-app-lock) for the whole app and a [priva
 
 An unlock protects the user interface, not data at rest. Secrets bound to biometrics (Keychain access control, an Android Keystore `CryptoObject`) are not part of this package.
 
+The prompt itself, `IBiometricAuth`, is in `Plugin.Maui.Spine.Biometrics.Core`, which this package brings. An app without Spine's core can use it on its own: see [Without Spine's core](#without-spines-core).
+
 ```bash
 dotnet add package Plugin.Maui.Spine.Biometrics
 ```
@@ -157,6 +159,46 @@ While a `[PrivacyShield]` page is on screen, whether in the root region, in a sh
 | Mac Catalyst | Not blocked | No snapshot to hide |
 
 The shield only goes up while the page is on screen. Spine clears `FLAG_SECURE` and the capture exclusion only where it set them itself, so an app that sets them itself keeps its setting.
+
+## Without Spine's core
+
+`Plugin.Maui.Spine.Biometrics.Core` has `IBiometricAuth` and nothing else, and depends on `Plugin.Maui.Spine.Common` only. An app that does not run Spine verifies the user with it, for example to sign in again without typing the password; what the app then signs in with is the app's own to keep.
+
+```bash
+dotnet add package Plugin.Maui.Spine.Biometrics.Core
+```
+
+```csharp
+builder.UseMauiApp<App>().UseSpineBiometricAuth();
+```
+
+```csharp
+public class LoginViewModel(IBiometricAuth biometrics)
+{
+    async Task SignInAgainAsync()
+    {
+        if (!(await biometrics.GetAvailabilityAsync()).CanAuthenticate)
+            return;   // the password form
+
+        switch (await biometrics.AuthenticateAsync("Sign in to your account"))
+        {
+            case BiometricResult.Success:
+                // verified: sign in with what the app kept
+                break;
+            case BiometricResult.LockedOut:
+                // too many attempts: the device passcode first, or the password form
+                break;
+            default:
+                // cancelled, not recognised, nothing enrolled: the password form
+                break;
+        }
+    }
+}
+```
+
+`AuthenticateAsync` never throws for a refusal. `new BiometricOptions { AllowDeviceCredential = false }` asks for a face or a finger only, without the passcode to fall back on; `Title` sets the prompt's title on Android. In a Spine app `UseSpine()` registers the package; calling `UseSpineBiometricAuth()` as well does no harm.
+
+The platform needs below are the same: the Face ID usage text on iOS comes with this package.
 
 ## Platforms
 

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <strings culture="sv">
-  <s key="Spine.Biometrics.Cancel">Avbryt</s>
   <s key="Spine.Biometrics.Ok">OK</s>
   <s key="Spine.Biometrics.Unlock">Lås upp</s>
   <s key="Spine.Biometrics.Locked">Låst</s>

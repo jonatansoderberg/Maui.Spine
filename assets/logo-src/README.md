@@ -23,7 +23,7 @@ The full-size originals behind `assets/icons/` (256×256 package icons) and `ass
 | `scanner.png` | `Plugin.Maui.Spine.Scanner` (the Spine mark with a scan-frame glyph in a blue corner) |
 | `images.png` | `Plugin.Maui.Spine.Images` (the Scanner original with its corner turned magenta and a picture glyph instead of the scan frame) |
 | `background-tasks.png` | `Plugin.Maui.Spine.BackgroundTasks` (the Scanner icon's corner in teal, with a clock glyph) |
-| `biometrics.png` | `Plugin.Maui.Spine.Biometrics` (the BackgroundTasks original with its corner turned violet and a padlock glyph instead of the clock; generated with PIL, a faint trace of the clock's disc remains at full size) |
+| `biometrics.png` | `Plugin.Maui.Spine.Biometrics` and `.Biometrics.Core` (the BackgroundTasks original with its corner turned violet and a padlock glyph instead of the clock; generated with PIL, a faint trace of the clock's disc remains at full size) |
 | `highlight.png` | `Plugin.Maui.Spine.Controls.Highlight` (the Biometrics original with its corner in an indigo-to-violet gradient and two four-point sparkles instead of the padlock; generated with PIL) |
 | `server-ai.png` | `Plugin.Maui.Spine.Server.AI` (the Server original with two four-point sparkles above the server glyph in its teal corner; generated with PIL) |
 | `authentication.png` | `Plugin.Maui.Spine.Authentication` (the Biometrics original with the padlock painted out and a person glyph in its violet corner; generated with PIL) |
