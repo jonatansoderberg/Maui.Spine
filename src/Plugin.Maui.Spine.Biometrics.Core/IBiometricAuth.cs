@@ -6,8 +6,8 @@ namespace Plugin.Maui.Spine.Biometrics;
 /// <see cref="BiometricOptions.AllowDeviceCredential"/> is false.
 /// </summary>
 /// <remarks>
-/// Most pages need <see cref="IUnlock"/> or <see cref="RequiresUnlockAttribute"/> instead, which remember a
-/// recent unlock and show the messages. An unlock protects the user interface, not data at rest.
+/// In a Spine app most pages need <c>IUnlock</c> or <c>[RequiresUnlock]</c> from <c>Plugin.Maui.Spine.Biometrics</c>
+/// instead, which remember a recent unlock and show the messages. An unlock protects the user interface, not data at rest.
 /// </remarks>
 public interface IBiometricAuth
 {

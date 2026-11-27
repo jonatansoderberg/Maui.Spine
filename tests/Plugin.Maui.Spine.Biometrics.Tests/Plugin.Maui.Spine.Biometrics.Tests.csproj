@@ -11,7 +11,7 @@
 		The unlock's and the app lock's logic and their contracts have no MAUI types, so they are compiled in here directly.
 	-->
 	<ItemGroup>
-		<Compile Include="..\..\src\Plugin.Maui.Spine.Biometrics\IBiometricAuth.cs" Link="IBiometricAuth.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Biometrics.Core\IBiometricAuth.cs" Link="IBiometricAuth.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Biometrics\IUnlock.cs" Link="IUnlock.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Biometrics\SpineBiometricsOptions.cs" Link="SpineBiometricsOptions.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Biometrics\UnlockService.cs" Link="UnlockService.cs" />

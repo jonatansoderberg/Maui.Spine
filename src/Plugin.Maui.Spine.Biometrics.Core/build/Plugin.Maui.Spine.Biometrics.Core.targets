@@ -16,6 +16,6 @@
 		</PropertyGroup>
 
 		<Error Condition="'$(_SpineFaceIdDeclared)' != 'true'"
-			   Text="Spine: Plugin.Maui.Spine.Biometrics needs NSFaceIDUsageDescription in the app's Info.plist ($(AppBundleManifest)): iOS ends an app that asks for Face ID without it. Add &lt;key&gt;NSFaceIDUsageDescription&lt;/key&gt;&lt;string&gt;…why the app asks…&lt;/string&gt;, or set SpineBiometricsCheckFaceIdUsage to false." />
+			   Text="Spine: Plugin.Maui.Spine.Biometrics.Core needs NSFaceIDUsageDescription in the app's Info.plist ($(AppBundleManifest)): iOS ends an app that asks for Face ID without it. Add &lt;key&gt;NSFaceIDUsageDescription&lt;/key&gt;&lt;string&gt;…why the app asks…&lt;/string&gt;, or set SpineBiometricsCheckFaceIdUsage to false." />
 	</Target>
 </Project>

@@ -20,7 +20,7 @@ internal sealed class BiometricAuth : IBiometricAuth
     public async Task<BiometricResult> AuthenticateAsync(string reason, BiometricOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= new BiometricOptions();
-        using var context = new LAContext { LocalizedCancelTitle = BiometricsStrings.Get("Spine.Biometrics.Cancel") };
+        using var context = new LAContext { LocalizedCancelTitle = BiometricAuthStrings.Cancel };
         var policy = options.AllowDeviceCredential ? LAPolicy.DeviceOwnerAuthentication : LAPolicy.DeviceOwnerAuthenticationWithBiometrics;
 
         if (!context.CanEvaluatePolicy(policy, out var unavailable))

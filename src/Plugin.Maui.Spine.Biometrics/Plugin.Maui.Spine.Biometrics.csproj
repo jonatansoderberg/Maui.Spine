@@ -9,13 +9,13 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 
-	<!-- KeyguardManager.IsDeviceSecure, which tells whether a screen lock is set, is Android 6.0. -->
+	<!-- Plugin.Maui.Spine.Biometrics.Core's Android minimum (KeyguardManager.IsDeviceSecure, Android 6.0). -->
 	<PropertyGroup>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Face ID, Touch ID, Android biometrics and Windows Hello for .NET MAUI: IBiometricAuth, and [RequiresUnlock] on a Spine page or command, which asks before the page opens or the command runs.</Description>
+		<Description>Face ID, Touch ID, Android biometrics and Windows Hello for .NET MAUI apps on Spine: IBiometricAuth (from Plugin.Maui.Spine.Biometrics.Core), and [RequiresUnlock] on a Spine page or command, which asks before the page opens or the command runs.</Description>
 		<SpineIcon>biometrics.png</SpineIcon>
 		<PackageTags>$(PackageTags);biometrics;faceid;touchid;fingerprint;windowshello;unlock</PackageTags>
 	</PropertyGroup>
@@ -25,12 +25,9 @@
 		<PackageReference Include="Microsoft.Maui.Controls" />
 	</ItemGroup>
 
-	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
-		<PackageReference Include="Xamarin.AndroidX.Biometric" />
-	</ItemGroup>
-
 	<ItemGroup>
 		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Biometrics.Core\Plugin.Maui.Spine.Biometrics.Core.csproj" />
 		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
 	</ItemGroup>
 
@@ -38,8 +35,7 @@
 		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
 	</ItemGroup>
 
-	<!-- The module declaration and the Face ID usage check; a ProjectReference consumer imports
-	     build\Plugin.Maui.Spine.Biometrics.targets explicitly. -->
+	<!-- The module declaration. The Face ID usage check comes with Plugin.Maui.Spine.Biometrics.Core. -->
 	<ItemGroup>
 		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
 	</ItemGroup>

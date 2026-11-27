@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-11-11 (step 5.4c, passkeys on Windows, in review as #602: verified against the Azure server with Windows Hello and a phone through the QR code)
+**Last updated:** 2026-11-27 (#893: `IBiometricAuth` moved into `Plugin.Maui.Spine.Biometrics.Core`, usable without Spine's core)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -46,6 +46,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 |---|---|---|---|---|
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
+| `Plugin.Maui.Spine.Biometrics.Core` | New, split from Biometrics | #893 | — | In review |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 done (#551) |
 | `Plugin.Maui.Spine.Server.AI.Assets` | New, server | #511 | [ai §6](../proposals/spine-ai.md) | Done (#544) |
@@ -582,6 +583,8 @@ Newest last. Each entry is dated and says who decided.
   - **The origin is `https://<rp id>`, written by the app.** `webauthn.dll` takes `clientDataJSON` from its caller, so the app writes it with the origin the server already accepts from iOS and macOS. **Why:** Windows has no association file to tie an app to a domain; any desktop app may ask for any RP id, and Windows' dialog names the domain.
   - **API v1's structs only** (make-credential options v3, get-assertion options v4), the results read up to the fields their version has. **Why:** v1 already has resident key, user verification, the exclude list and the cancellation id; newer fields (PRF, large blobs, JSON extensions) are nothing the server asks for.
   - **The call runs off the UI thread and is cancelled by id.** It blocks until Windows' dialog closes; the token calls `WebAuthNCancelCurrentOperation`. `NTE_USER_CANCELLED` is `Canceled`, `NTE_EXISTS` (an excluded passkey on this device) an error that says so.
+- **2026-11-27, owner (#893):** The biometric prompt is wanted in an app that does not run Spine, to sign in again without the password. `IBiometricAuth` moves into `Plugin.Maui.Spine.Biometrics.Core`, which depends on `.Common` only; the package verifies the user and nothing more. Secrets bound to biometrics (Keychain access control, Keystore `CryptoObject`) stay out: the app keeps its own credentials.
+- **2026-11-27, Claude (#893):** Same namespace (`Plugin.Maui.Spine.Biometrics`), so apps on `.Biometrics` compile unchanged; the Face ID usage check and the `Cancel` string move with the prompt; `UseSpineBiometrics()` calls `UseSpineBiometricAuth()`, which registers once.
 
 ## Open questions
 
@@ -678,6 +681,8 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 ---
 
 ## Plan history
+
+- **2026-11-27:** #893 splits the prompt into `Plugin.Maui.Spine.Biometrics.Core`; verified with a scratch MAUI app without Spine in the iOS Simulator (Face ID match → `Success`, no `Plugin.Maui.Spine.dll` in the bundle).
 
 - **2026-11-11:** #602 (passkeys on Windows, step 5.4c) in review: `webauthn.dll` through Spine's own P/Invoke, verified by the owner in the Showcase on Windows against the Azure server (a new passkey in Windows Hello, sign-in with it, sign-in with a phone's passkey through the QR code, a closed dialog, and a second passkey on the same PC refused). Android (#601) is the last platform.
 

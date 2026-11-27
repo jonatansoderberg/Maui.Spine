@@ -79,6 +79,7 @@ One version, thirty-seven packages, all on [nuget.org](https://www.nuget.org/pac
 | Security | `Plugin.Maui.Spine.Authentication.Microsoft` | Sign in with Microsoft through MSAL and the broker (Authenticator, Company Portal, WAM), via the Spine server or straight to an Entra-protected API |
 | Security | `Plugin.Maui.Spine.Authentication.Passkeys` | Passkeys through the platform's own sheet: sign-in, sign-up, "Add a passkey" and AutoFill; iOS, Mac Catalyst and Windows |
 | Security | `Plugin.Maui.Spine.Biometrics` | Face ID, Touch ID, fingerprint and Windows Hello; `[RequiresUnlock]` on a page or a command, an app lock and `[PrivacyShield]` |
+| Security | `Plugin.Maui.Spine.Biometrics.Core` | The biometric prompt alone (`IBiometricAuth`), for an app without Spine's core |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source |
