@@ -21,4 +21,7 @@
   <s key="Spine.Reorder.MoveToTop">Move to top</s>
   <s key="Spine.Reorder.MoveToBottom">Move to bottom</s>
   <s key="Spine.ContextMenu.Open">Show actions</s>
+  <s key="Spine.CodeField.Hint">Double-tap to type the code</s>
+  <s key="Spine.CodeField.Empty">Code, {0} characters</s>
+  <s key="Spine.CodeField.Value">Code: {0}</s>
 </strings>

@@ -200,6 +200,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Searchable items** | The app's content in Spotlight (and as shortcuts on Android); a tapped result opens its page with a typed parameter, also from a cold start | [Searchable items](docs/wiki/searchable-items.md) |
 | **Menu buttons** | A button or header action that opens the platform's own menu: sections, pickers, submenus, toggles, destructive rows | [Menu buttons](docs/wiki/menus.md) |
 | **Context menus** | A long press or right click on any view opens the system's context menu, lifted with its shape on iOS; one shared menu for every row of a list | [Context menus](docs/wiki/menus.md#context-menus) |
+| **Code field** | A short code typed into one cell per character, in groups: the numeric keyboard and iOS's one-time code for digits, misread characters read right, a tap to fix one, and cells that pulse, light up or shake as the code is checked | [Code field](docs/wiki/code-field.md) |
 | **Segmented control and top tabs** | The platform's own segmented control with text or SVG icons, and `TopTabs` that build each tab's content when it is first picked and keep it | [Segmented control](docs/wiki/segmented-control.md) |
 | **Action sheets** | `ShowActionsAsync` from a view model: the platform's action sheet with icons and destructive rows, the picked row as the result, a popover at the button on iPad | [Action sheets](docs/wiki/menus.md#action-sheets) |
 | **Windows options** | Window chrome, tray, single-instance | [Windows Options](docs/wiki/windows-options.md) |
@@ -238,6 +239,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Shared Elements and Zoom](docs/wiki/transitions.md) | `Transition.Tag` on a view on each page for a shared element, on the page itself for a zoom; a focus view inside the zooming page; the back-swipe zoom |
 | [Lightbox](docs/wiki/lightbox.md) | A full-screen photo viewer page: opening from the thumbnail, paging, zoom, drag down to close, Share, Save and the page's own actions |
 | [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets, Dynamic Island, Control Center and Quick Settings, built from C# |
+| [Code field](docs/wiki/code-field.md) | `CodeField`: cells over one hidden `Entry`, an alphabet and substitutions, a caret by tap, `CompletedCommand`, and `State` for checking, accepted and turned down |
 | [Segmented control and top tabs](docs/wiki/segmented-control.md) | `SegmentedControl` on `UISegmentedControl`, Material segmented buttons and `SelectorBar`; `TopTabs` with lazy, kept tab content that the header bar follows |
 | [Background tasks](docs/wiki/background-tasks.md) | `[BackgroundTask]` on BGTaskScheduler and JobScheduler: what runs when on each platform, status, requests, `spine.task` from a push, and the widgets' refresh as a task |
 | [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |

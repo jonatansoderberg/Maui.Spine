@@ -77,9 +77,17 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
         var name = Field(AuthStrings.Get("Name"), nameof(SignInSheetViewModel.ShowName), out var nameEntry);
         nameEntry.SetBinding(Entry.TextProperty, static (SignInSheetViewModel vm) => vm.DisplayName, BindingMode.TwoWay);
 
-        var code = Field(AuthStrings.Get("Code"), nameof(SignInSheetViewModel.ShowCode), out var codeEntry);
-        codeEntry.Keyboard = Keyboard.Create(KeyboardFlags.CapitalizeCharacter);
-        codeEntry.SetBinding(Entry.TextProperty, static (SignInSheetViewModel vm) => vm.Code, BindingMode.TwoWay);
+        // The emailed code as it is written in the mail: eight characters, four and four.
+        var codeField = new CodeField { Length = 8, GroupSize = 4, Alphabet = SignInSheetViewModel.CodeAlphabet, HorizontalOptions = LayoutOptions.Start };
+        codeField.SetBinding(CodeField.CodeProperty, static (SignInSheetViewModel vm) => vm.Code, BindingMode.TwoWay);
+        codeField.SetBinding(CodeField.IsActiveProperty, static (SignInSheetViewModel vm) => vm.ShowCode);
+        codeField.SetBinding(CodeField.CompletedCommandProperty, nameof(SignInSheetViewModel.CodeCompletedCommand));
+        var code = new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children = { new Label { Text = AuthStrings.Get("Code"), FontAttributes = FontAttributes.Bold }, codeField },
+        };
+        code.SetBinding(IsVisibleProperty, nameof(SignInSheetViewModel.ShowCode));
 
         var password = Field(AuthStrings.Get("Password"), nameof(SignInSheetViewModel.ShowPassword), out var passwordEntry);
         passwordEntry.IsPassword = true;
@@ -206,6 +214,9 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
     /// <summary>The name for a new account.</summary>
     [ObservableProperty]
     public partial string DisplayName { get; set; } = "";
+
+    /// <summary>The characters of an emailed code (the server's <c>SpineAccounts</c>): no 0, 1, I, L, O or U to misread.</summary>
+    public const string CodeAlphabet = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
 
     /// <summary>The emailed code.</summary>
     [ObservableProperty]
@@ -450,6 +461,10 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
 
         await FinishAsync(result);
     }
+
+    /// <summary>The last cell of the emailed code is filled: a verification code is sent at once; a reset still needs the new password.</summary>
+    [RelayCommand]
+    private Task CodeCompleted() => Step == SignInStep.Code ? Continue() : Task.CompletedTask;
 
     [RelayCommand]
     private Task ShowEmailFields()
