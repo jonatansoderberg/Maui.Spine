@@ -50,6 +50,14 @@ public sealed class SpinePurchasesServerOptions
     /// </summary>
     public Func<HttpRequest, ValueTask<string?>>? Identify { get; set; }
 
+    /// <summary>
+    /// Whether the caller may forget their own ledger with <c>POST {prefix}/credits/forget</c>, which a development build's
+    /// "clear purchases" button calls (<c>ICredits.ForgetAsync</c>). The app decides what a test device is, for example an
+    /// installation whose pushes come from the APNs sandbox. Without it the endpoint answers 404: the stores do not report
+    /// a customer's purchases a second time, so a forgotten ledger is gone for good.
+    /// </summary>
+    public Func<HttpRequest, string, CancellationToken, ValueTask<bool>>? AllowForget { get; set; }
+
     internal async ValueTask<string?> IdentifyAsync(HttpRequest request)
     {
         if (Identify is not null)

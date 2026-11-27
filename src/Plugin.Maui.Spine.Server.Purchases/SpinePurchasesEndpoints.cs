@@ -50,6 +50,27 @@ public static class SpinePurchasesEndpoints
         return Results.Json(answer, PurchasesWireJson.Default.SpendAnswer);
     }
 
+    /// <summary>
+    /// <c>POST {prefix}/credits/forget</c>: forgets the caller's ledger, where <see cref="SpinePurchasesServerOptions.AllowForget"/>
+    /// lets them; 404 without it, 403 when it says no.
+    /// </summary>
+    public static async Task<IResult> ForgetAsync(HttpRequest request, CancellationToken cancellationToken)
+    {
+        var services = request.HttpContext.RequestServices;
+        var options = services.GetRequiredService<SpinePurchasesServerOptions>();
+        if (options.AllowForget is null)
+            return Results.NotFound();
+
+        var ledger = services.GetRequiredService<IPurchaseLedger>();
+        if (await ledger.CallerAsync(request) is not { } caller)
+            return Results.Unauthorized();
+        if (!await options.AllowForget(request, caller, cancellationToken))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+        await ledger.ForgetAsync(caller, cancellationToken);
+        return Results.NoContent();
+    }
+
     /// <summary><c>POST {prefix}/revenuecat</c>: RevenueCat's webhook, checked against its Authorization header.</summary>
     public static async Task<IResult> RevenueCatAsync(HttpRequest request, CancellationToken cancellationToken)
     {
@@ -132,7 +153,7 @@ public static class SpinePurchasesServerExtensions
     }
 
     /// <summary>
-    /// Maps <c>GET {prefix}/credits</c>, <c>POST {prefix}/credits/spend</c> and <c>POST {prefix}/revenuecat</c>. The credit
+    /// Maps <c>GET {prefix}/credits</c>, <c>POST {prefix}/credits/spend</c>, <c>POST {prefix}/credits/forget</c> and <c>POST {prefix}/revenuecat</c>. The credit
     /// endpoints know the caller from the signed-in user or the installation header; the webhook from its Authorization header.
     /// </summary>
     public static IEndpointRouteBuilder MapSpinePurchases(this IEndpointRouteBuilder endpoints, string prefix = "/purchases")
@@ -140,6 +161,7 @@ public static class SpinePurchasesServerExtensions
         var root = prefix.TrimEnd('/');
         endpoints.MapGet($"{root}/credits", (HttpRequest request, CancellationToken ct) => SpinePurchasesEndpoints.CreditsAsync(request, ct));
         endpoints.MapPost($"{root}/credits/spend", (HttpRequest request, CancellationToken ct) => SpinePurchasesEndpoints.SpendAsync(request, ct));
+        endpoints.MapPost($"{root}/credits/forget", (HttpRequest request, CancellationToken ct) => SpinePurchasesEndpoints.ForgetAsync(request, ct));
         endpoints.MapPost($"{root}/revenuecat", (HttpRequest request, CancellationToken ct) => SpinePurchasesEndpoints.RevenueCatAsync(request, ct));
         return endpoints;
     }

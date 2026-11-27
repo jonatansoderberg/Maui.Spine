@@ -16,6 +16,13 @@ public interface IPurchaseLedgerStore
 
     /// <summary>Writes <paramref name="entry"/> over the entry with its id: an owned product's latest state.</summary>
     Task UpsertAsync(string caller, LedgerEntry entry, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes <paramref name="caller"/>'s whole ledger, so the next read starts it again with the free credits: for a
+    /// developer's test device, never for a customer, whose purchases the stores would not report again.
+    /// </summary>
+    Task ForgetAsync(string caller, CancellationToken cancellationToken) =>
+        throw new NotSupportedException($"{GetType().Name} cannot forget a ledger.");
 }
 
 /// <summary>Ledgers in memory, for development and tests. Lost when the process ends.</summary>
@@ -35,6 +42,13 @@ public sealed class InMemoryPurchaseLedgerStore : IPurchaseLedgerStore
     public Task UpsertAsync(string caller, LedgerEntry entry, CancellationToken cancellationToken)
     {
         Ledger(caller)[entry.Id] = entry;
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task ForgetAsync(string caller, CancellationToken cancellationToken)
+    {
+        _ledgers.TryRemove(caller, out _);
         return Task.CompletedTask;
     }
 
@@ -84,6 +98,18 @@ public sealed class AzureTablePurchaseLedgerStore(string connectionString, strin
     {
         await EnsureAsync(cancellationToken);
         await _table.UpsertEntityAsync(ToRow(caller, entry), TableUpdateMode.Replace, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task ForgetAsync(string caller, CancellationToken cancellationToken)
+    {
+        await EnsureAsync(cancellationToken);
+        var rows = new List<TableTransactionAction>();
+        await foreach (var row in _table.QueryAsync<TableEntity>(e => e.PartitionKey == Key(caller), select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
+            rows.Add(new TableTransactionAction(TableTransactionActionType.Delete, row));
+        // A transaction takes at most a hundred actions, all in one partition, which a caller's ledger is.
+        foreach (var chunk in rows.Chunk(100))
+            await _table.SubmitTransactionAsync(chunk, cancellationToken);
     }
 
     private async Task EnsureAsync(CancellationToken cancellationToken)
